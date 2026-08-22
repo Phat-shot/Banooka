@@ -50,110 +50,177 @@ static func _rechts(kurve: Curve3D, strecke: float) -> Vector3:
 
 # ------------------------------------------------------------- Korridor
 
-## Baut den Boden des Korridors entlang der Kurve.
+## Baut den Weg entlang der Kurve als drei getrennte Flächen:
+##   Wegdecke  – begehbare Oberfläche (eigenes Material)
+##   Kante     – erhöhte Rasen-/Steinkante am Rand, macht den Weg lesbar
+##   Klippe    – senkrechte Wand nach unten, macht die Tiefe sichtbar
 ##
-## `abschnitte` ist eine Liste von Wörterbüchern:
-##   {"von": float, "bis": float, "breite": float, "breite_ende": float}
-## "breite_ende" ist optional (Standard = "breite") und erlaubt sich
-## verjüngende oder verbreiternde Passagen. Lücken zwischen den
-## Abschnitten bleiben offen – das sind die Sprungpassagen.
+## `abschnitte`: Liste von {"von", "bis", "breite", "breite_ende"}.
+## Lücken zwischen den Abschnitten sind die Sprungpassagen; ihre
+## Stirnseiten werden geschlossen und mit der Kante umrandet, damit
+## Löcher von weitem erkennbar sind.
+##
+## `optionen`: {"tiefe", "schritt", "kollision", "kante_hoehe",
+##              "kante_breite", "hoehe_versatz"}
 static func korridor(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
-		material: Material, tiefe: float = 6.0, schritt: float = 1.0,
-		mit_kollision: bool = true) -> MeshInstance3D:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		materialien: Dictionary, optionen: Dictionary = {}) -> Node3D:
+	var tiefe: float = optionen.get("tiefe", 8.0)
+	var schritt: float = optionen.get("schritt", 1.2)
+	var kollision: bool = optionen.get("kollision", true)
+	var kante_hoehe: float = optionen.get("kante_hoehe", 0.34)
+	var kante_breite: float = optionen.get("kante_breite", 0.7)
+	var versatz: float = optionen.get("hoehe_versatz", 0.0)
+
+	var oben := SurfaceTool.new()
+	var kante := SurfaceTool.new()
+	var klippe := SurfaceTool.new()
+	for st in [oben, kante, klippe]:
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	for eintrag in abschnitte:
 		var von: float = eintrag.get("von", 0.0)
 		var bis: float = eintrag.get("bis", 0.0)
 		if bis <= von:
 			continue
-		var breite_a: float = eintrag.get("breite", 8.0)
-		var breite_b: float = eintrag.get("breite_ende", breite_a)
-		_streifen(st, kurve, von, bis, breite_a, breite_b, tiefe, schritt)
+		_abschnitt(oben, kante, klippe, kurve, von, bis,
+				eintrag.get("breite", 8.0),
+				eintrag.get("breite_ende", eintrag.get("breite", 8.0)),
+				tiefe, schritt, kante_hoehe, kante_breite, versatz)
 
+	var wurzel := Node3D.new()
+	wurzel.name = "Korridor"
+	elternteil.add_child(wurzel)
+
+	var decke := _flaeche(wurzel, oben, materialien.get("oben"), "Wegdecke")
+	var rand := _flaeche(wurzel, kante, materialien.get("kante"), "Kante")
+	_flaeche(wurzel, klippe, materialien.get("klippe"), "Klippe")
+
+	if kollision:
+		if decke != null:
+			decke.create_trimesh_collision()
+		if rand != null:
+			rand.create_trimesh_collision()
+	return wurzel
+
+
+static func _flaeche(elternteil: Node3D, st: SurfaceTool, material: Variant,
+		bezeichnung: String) -> MeshInstance3D:
 	st.index()
 	var mesh := st.commit()
-
+	if mesh == null or mesh.get_surface_count() == 0:
+		return null
 	var mi := MeshInstance3D.new()
-	mi.name = "Korridorboden"
+	mi.name = bezeichnung
 	mi.mesh = mesh
-	# Sicherheitsnetz: beidseitig sichtbar, damit der Boden auf keinen Fall
-	# durch eine falsch herum gewickelte Fläche verschwindet.
-	var mat := material.duplicate() as BaseMaterial3D
-	if mat != null:
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mi.material_override = mat
-	else:
+	if material != null:
 		mi.material_override = material
 	elternteil.add_child(mi)
-	if mit_kollision:
-		mi.create_trimesh_collision()
 	return mi
 
 
-static func _streifen(st: SurfaceTool, kurve: Curve3D, von: float, bis: float,
-		breite_a: float, breite_b: float, tiefe: float, schritt: float) -> void:
+static func _abschnitt(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceTool,
+		kurve: Curve3D, von: float, bis: float, breite_a: float, breite_b: float,
+		tiefe: float, schritt: float, kh: float, kb: float, versatz: float) -> void:
 	var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
-	var links_alt := Vector3.ZERO
-	var rechts_alt := Vector3.ZERO
-	var hat_alt := false
+	var laenge := kurve.get_baked_length()
 
+	# Querschnitt an einer Stelle: außen links, innen links, innen rechts, außen rechts
+	var vorher := {}
 	for i in anzahl + 1:
 		var t := float(i) / float(anzahl)
 		var s := lerpf(von, bis, t)
 		var breite := lerpf(breite_a, breite_b, t)
-		var mitte := kurve.sample_baked(clampf(s, 0.0, kurve.get_baked_length()))
-		var rechts_vektor := _rechts(kurve, s)
-		var links := mitte - rechts_vektor * breite * 0.5
-		var rechts := mitte + rechts_vektor * breite * 0.5
+		var mitte := kurve.sample_baked(clampf(s, 0.0, laenge)) + Vector3.UP * versatz
+		var r := _rechts(kurve, s)
+		var halb := breite * 0.5
+		var innen := maxf(halb - kb, halb * 0.35)
 
-		if hat_alt:
-			# --- Oberseite (Blick von oben, im Uhrzeigersinn) ---
-			_dreieck(st, rechts_alt, links_alt, rechts, Vector3.UP, s)
-			_dreieck(st, links_alt, links, rechts, Vector3.UP, s)
+		var q := {
+			"al": mitte - r * halb, "il": mitte - r * innen,
+			"ir": mitte + r * innen, "ar": mitte + r * halb,
+			"r": r, "s": s,
+		}
+		if not vorher.is_empty():
+			_querstueck(oben, kante, klippe, vorher, q, kh, tiefe)
+		vorher = q
 
-			# --- Seitenwände nach unten (Klippen) ---
-			var runter := Vector3.DOWN * tiefe
-			var n_rechts := rechts_vektor
-			_dreieck(st, rechts_alt, rechts, rechts_alt + runter, n_rechts, s)
-			_dreieck(st, rechts_alt + runter, rechts, rechts + runter, n_rechts, s)
-
-			var n_links := -rechts_vektor
-			_dreieck(st, links_alt, links_alt + runter, links, n_links, s)
-			_dreieck(st, links_alt + runter, links + runter, links, n_links, s)
-
-		links_alt = links
-		rechts_alt = rechts
-		hat_alt = true
-
-	# --- Stirnseiten an den Abschnittsenden, damit keine Löcher entstehen ---
-	_stirnseite(st, kurve, von, breite_a, tiefe, true)
-	_stirnseite(st, kurve, bis, breite_b, tiefe, false)
+	_stirn(oben, kante, klippe, kurve, von, breite_a, kh, kb, tiefe, versatz, true)
+	_stirn(oben, kante, klippe, kurve, bis, breite_b, kh, kb, tiefe, versatz, false)
 
 
-static func _stirnseite(st: SurfaceTool, kurve: Curve3D, s: float, breite: float,
-		tiefe: float, am_anfang: bool) -> void:
-	var mitte := kurve.sample_baked(clampf(s, 0.0, kurve.get_baked_length()))
-	var rechts_vektor := _rechts(kurve, s)
-	var vorwaerts := richtung(kurve, s)
-	var links := mitte - rechts_vektor * breite * 0.5
-	var rechts := mitte + rechts_vektor * breite * 0.5
+static func _querstueck(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceTool,
+		a: Dictionary, b: Dictionary, kh: float, tiefe: float) -> void:
+	var hoch := Vector3.UP * kh
 	var runter := Vector3.DOWN * tiefe
-	var n := -vorwaerts if am_anfang else vorwaerts
-	if am_anfang:
-		_dreieck(st, links, rechts, links + runter, n, s)
-		_dreieck(st, links + runter, rechts, rechts + runter, n, s)
-	else:
-		_dreieck(st, rechts, links, rechts + runter, n, s)
-		_dreieck(st, rechts + runter, links, links + runter, n, s)
+
+	# --- begehbare Wegdecke ---
+	_quad(oben, a["il"], a["ir"], b["il"], b["ir"], Vector3.UP)
+
+	# --- linke Kante: Oberseite und Innenflanke ---
+	_quad(kante, a["al"] + hoch, a["il"] + hoch, b["al"] + hoch, b["il"] + hoch, Vector3.UP)
+	_quad(kante, a["il"], a["il"] + hoch, b["il"], b["il"] + hoch, a["r"])
+	# --- rechte Kante ---
+	_quad(kante, a["ir"] + hoch, a["ar"] + hoch, b["ir"] + hoch, b["ar"] + hoch, Vector3.UP)
+	_quad(kante, a["ir"], a["ir"] + hoch, b["ir"], b["ir"] + hoch, -a["r"])
+
+	# --- Klippen nach unten ---
+	_quad(klippe, a["al"] + hoch, a["al"] + runter, b["al"] + hoch, b["al"] + runter, -a["r"])
+	_quad(klippe, a["ar"] + hoch, a["ar"] + runter, b["ar"] + hoch, b["ar"] + runter, a["r"])
+
+
+## Stirnseite an einer Abbruchkante: verschließt das Loch und umrandet es.
+static func _stirn(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceTool,
+		kurve: Curve3D, s: float, breite: float, kh: float, kb: float,
+		tiefe: float, versatz: float, am_anfang: bool) -> void:
+	var laenge := kurve.get_baked_length()
+	var mitte := kurve.sample_baked(clampf(s, 0.0, laenge)) + Vector3.UP * versatz
+	var r := _rechts(kurve, s)
+	var v := richtung(kurve, s)
+	var halb := breite * 0.5
+	var innen := maxf(halb - kb, halb * 0.35)
+	var n := -v if am_anfang else v
+	var hoch := Vector3.UP * kh
+	var runter := Vector3.DOWN * tiefe
+
+	var al := mitte - r * halb
+	var ar := mitte + r * halb
+	# Kante quer über das Wegende: macht das Loch von weitem sichtbar
+	_quad(kante, al + hoch, ar + hoch, al + hoch + n * kb, ar + hoch + n * kb, Vector3.UP)
+	_quad(kante, al, al + hoch, ar, ar + hoch, n)
+	# Wand nach unten
+	_quad(klippe, al + hoch, al + runter, ar + hoch, ar + runter, n)
+	# innere Kanten-Ecken schließen
+	_quad(kante, mitte - r * innen, mitte - r * innen + hoch, al, al + hoch, -v if am_anfang else v)
+	_quad(kante, mitte + r * innen, mitte + r * innen + hoch, ar, ar + hoch, -v if am_anfang else v)
+
+
+# ------------------------------------------------------------- Mesh-Hilfen
+
+## Viereck aus zwei Dreiecken. a/b liegen auf der einen Kante, c/d auf der
+## gegenüberliegenden. Die Wicklung wird automatisch so gewählt, dass die
+## Fläche in Richtung `normale` sichtbar ist – Godot zeichnet die
+## Vorderseite bei Punkten im Uhrzeigersinn.
+static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
+		normale: Vector3) -> void:
+	_dreieck(st, a, b, c, normale)
+	_dreieck(st, b, d, c, normale)
 
 
 static func _dreieck(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
-		normale: Vector3, uv_versatz: float) -> void:
+		normale: Vector3) -> void:
+	var n := normale.normalized()
+	if (b - a).cross(c - a).dot(n) > 0.0:
+		var tausch := b
+		b = c
+		c = tausch
 	for p in [a, b, c]:
-		st.set_normal(normale)
-		st.set_uv(Vector2(p.x * 0.25, (p.z + uv_versatz) * 0.25))
+		st.set_normal(n)
+		# Dreiachsige Projektion in den Materialien macht echte UVs entbehrlich;
+		# für Materialien ohne Triplanar reicht diese Weltprojektion.
+		if absf(n.y) > 0.7:
+			st.set_uv(Vector2(p.x, p.z) * 0.25)
+		else:
+			st.set_uv(Vector2(p.x + p.z, -p.y) * 0.25)
 		st.add_vertex(p)
 
 

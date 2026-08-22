@@ -103,8 +103,16 @@ const ABSCHNITTE := [
 
 
 func _boden_bauen() -> void:
-	LevelWerkzeuge.korridor(geometrie, verlauf, ABSCHNITTE,
-			Materialbibliothek.waldboden(), 8.0, 1.2)
+	LevelWerkzeuge.korridor(geometrie, verlauf, ABSCHNITTE, {
+		"oben": Materialbibliothek.waldweg(),   # Erde: hebt sich vom Grün ab
+		"kante": Materialbibliothek.gras(),     # erhöhte Rasenkante als Begrenzung
+		"klippe": Materialbibliothek.fels(),    # Felswand macht die Tiefe sichtbar
+	}, {
+		"tiefe": 9.0,
+		"schritt": 1.0,
+		"kante_hoehe": 0.45,
+		"kante_breite": 0.8,
+	})
 
 
 ## Breite des Weges an dieser Stelle. 0.0 bedeutet: hier ist eine Lücke.
@@ -392,8 +400,19 @@ func _fruechte_reihe(von: float, bis: float, anzahl: int,
 ## Absturzzone. Darauf stehen die Bäume, deren Kronen bis auf Weghöhe reichen.
 func _waldboden_bauen() -> void:
 	LevelWerkzeuge.korridor(geometrie, verlauf, [
-		{"von": 0.0, "bis": M_ENDE, "breite": 62.0},
-	], Materialbibliothek.waldboden(), 14.0, 3.0, false)
+		{"von": 0.0, "bis": M_ENDE, "breite": 70.0},
+	], {
+		"oben": Materialbibliothek.waldboden(),
+		"kante": Materialbibliothek.waldboden(),
+		"klippe": Materialbibliothek.fels(),
+	}, {
+		"tiefe": 16.0,
+		"schritt": 4.0,
+		"kollision": false,
+		"kante_hoehe": 0.0,
+		"kante_breite": 0.0,
+		"hoehe_versatz": WALDBODEN_HOEHE,   # tief unter dem Weg
+	})
 
 
 ## Reihe unsichtbarer Bereiche unter dem Pfad, die den Sturz beenden.

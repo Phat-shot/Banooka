@@ -119,6 +119,20 @@ static func waldboden() -> StandardMaterial3D:
 		return m)
 
 
+## Waldweg: festgetretene Erde mit Kies – hebt sich deutlich vom Grün ab.
+static func waldweg() -> StandardMaterial3D:
+	return _hole("waldweg", func() -> StandardMaterial3D:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = rauschtextur(1111, 0.09, Farben.ERDE.darkened(0.15),
+				Farben.ERDE_HELL.lightened(0.1))
+		mat.normal_enabled = true
+		mat.normal_texture = normalmap(1111, 0.34, 2.2)
+		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3(0.5, 0.5, 0.5)
+		mat.roughness = 1.0
+		return mat)
+
+
 ## Grasnarbe für begehbare Plattformen.
 static func gras() -> StandardMaterial3D:
 	return _hole("gras", func() -> StandardMaterial3D:
