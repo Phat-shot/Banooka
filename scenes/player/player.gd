@@ -176,6 +176,16 @@ func angriffe() -> int:
 	return maske
 
 
+## Setzt die Blickrichtung, ohne den Spieler zu bewegen. Wird beim
+## Levelstart genutzt, damit die Figur in Richtung des Korridors schaut
+## und nicht stur nach Welt-Norden.
+func setze_blickrichtung(winkel: float) -> void:
+	_blick_y = winkel
+	if is_instance_valid(_modell):
+		_modell.setze_blick(winkel)
+		_modell.rotation.y = winkel
+
+
 ## Schleudert den Spieler nach oben (Federkiste, Sprung auf einen Gegner).
 func abprallen(hoehe: float = ABPRALL_V) -> void:
 	velocity.y = hoehe

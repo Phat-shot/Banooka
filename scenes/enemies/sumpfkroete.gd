@@ -42,61 +42,99 @@ func _ready() -> void:
 
 # ---------------------------------------------------------- Optik
 
+## Grundmaße des flachen Körpers – die Animation staucht sie nur noch.
+const KOERPER_Y := 0.34
+const KOERPER_SKALA := Vector3(1.42, 0.50, 1.12)
+const AUGE_Y := 0.58
+
+
+## Breit, flach und satt gezeichnet: Von der Spielkamera aus sieht man vor
+## allem den Rücken – deshalb sitzen dort die hellen Flecken und die
+## Glupschaugen, die die Kröte als "bespringbar" ausweisen.
 func _baue() -> void:
-	# Warzige, feuchte Sumpfhaut aus Rauschen
+	# Dunkle, warzige Sumpfhaut
 	var haut := StandardMaterial3D.new()
-	haut.albedo_texture = Materialbibliothek.rauschtextur(4711, 0.55,
-			Farben.LAUB.darkened(0.35), Farben.MOOS.lightened(0.12))
+	haut.albedo_texture = Materialbibliothek.rauschtextur(4711, 0.9,
+			Farben.LAUB_DUNKEL.darkened(0.35), Farben.MOOS)
 	haut.uv1_triplanar = true
-	haut.uv1_scale = Vector3(1.6, 1.6, 1.6)
-	haut.roughness = 0.65
+	haut.uv1_scale = Vector3(2.2, 2.2, 2.2)
+	haut.roughness = 0.5
 
-	var bauch_mat := Materialbibliothek.einfarbig(Farben.GRAS_HELL.lightened(0.3), 0.7)
-	var sack_mat := Materialbibliothek.einfarbig(Farben.LAUB_HELL.darkened(0.05), 0.55)
+	var bauch_mat := Materialbibliothek.einfarbig(Farben.KISTE_FEDER.lightened(0.18), 0.7)
+	var fleck_mat := Materialbibliothek.einfarbig(Farben.GRAS_HELL.lightened(0.32), 0.65)
+	var warze_mat := Materialbibliothek.einfarbig(Farben.LAUB_DUNKEL.darkened(0.55), 0.75)
+	var sack_mat := Materialbibliothek.einfarbig(Farben.LAUB_HELL.lightened(0.05), 0.5)
 	var dunkel := Materialbibliothek.einfarbig(Farben.NASE, 0.6)
-	var augapfel := Materialbibliothek.einfarbig(Farben.FELL_BAUCH, 0.3)
+	var augapfel := Materialbibliothek.einfarbig(Color(0.99, 0.97, 0.88), 0.25)
 
-	# Breiter, flacher Körper
-	_koerper = _teil(modell, _kugel(0.5, 14, 9), haut, Vector3(0.0, 0.44, 0.0),
-			Vector3.ZERO, Vector3(1.32, 0.62, 1.02), "Koerper")
+	# Sehr breiter, sehr flacher Körper
+	_koerper = _teil(modell, _kugel(0.5, 16, 10), haut, Vector3(0.0, KOERPER_Y, 0.0),
+			Vector3.ZERO, KOERPER_SKALA, "Koerper")
 
-	# Heller Bauch, etwas tiefer gesetzt
-	_teil(modell, _kugel(0.44, 12, 7), bauch_mat, Vector3(0.0, 0.26, 0.02),
-			Vector3.ZERO, Vector3(1.14, 0.38, 0.86), "Bauch")
+	# Kräftig heller Bauch – zeichnet die flache Silhouette nach
+	_teil(modell, _kugel(0.46, 14, 8), bauch_mat, Vector3(0.0, 0.19, 0.02),
+			Vector3.ZERO, Vector3(1.24, 0.34, 0.96), "Bauch")
 
-	# Breites Maul als dunkler Spalt
-	_teil(modell, _quader(Vector3(0.86, 0.09, 0.12)), dunkel,
-			Vector3(0.0, 0.33, -0.5), Vector3(6.0, 0.0, 0.0), Vector3.ONE, "Maul")
+	# Helle Rückenflecken: die Aufsprungfläche
+	var flecken: Array = [[0.0, 0.10, 0.15], [-0.34, 0.14, 0.115],
+			[0.34, 0.14, 0.115], [0.0, -0.24, 0.10]]
+	for i in flecken.size():
+		var f = flecken[i]
+		var y: float = KOERPER_Y + 0.245 - absf(f[0]) * 0.11 - absf(f[1]) * 0.10
+		var fleck := _teil(modell, _kugel(f[2], 10, 6), fleck_mat,
+				Vector3(f[0], y, f[1]), Vector3.ZERO,
+				Vector3(1.25, 0.30, 1.05), "Fleck%d" % i)
+		fleck.name = "Fleck%d" % i
+
+	# Dunkle Warzen dazwischen
+	var warzen: Array = [[-0.20, -0.10], [0.20, -0.10], [-0.46, -0.02], [0.46, -0.02]]
+	for i in warzen.size():
+		var w = warzen[i]
+		var y: float = KOERPER_Y + 0.235 - absf(w[0]) * 0.16
+		_teil(modell, _kugel(0.075, 8, 5), warze_mat, Vector3(w[0], y, w[1]),
+				Vector3.ZERO, Vector3(1.0, 0.7, 1.0), "Warze%d" % i)
+
+	# Breites Maul als dunkler Spalt, darunter eine helle Lippe
+	_teil(modell, _quader(Vector3(0.60, 0.09, 0.14)), dunkel,
+			Vector3(0.0, 0.28, -0.45), Vector3(8.0, 0.0, 0.0), Vector3.ONE, "Maul")
+	_teil(modell, _quader(Vector3(0.54, 0.07, 0.12)), bauch_mat,
+			Vector3(0.0, 0.205, -0.44), Vector3(8.0, 0.0, 0.0), Vector3.ONE, "Lippe")
 
 	# Kehlsack, der sich beim Quaken aufplustert
-	_kehlsack = _teil(modell, _kugel(0.28, 12, 7), sack_mat,
-			Vector3(0.0, 0.2, -0.4), Vector3.ZERO, Vector3(1.0, 0.85, 0.9), "Kehlsack")
+	_kehlsack = _teil(modell, _kugel(0.24, 12, 7), sack_mat,
+			Vector3(0.0, 0.14, -0.38), Vector3.ZERO, Vector3(1.15, 0.75, 0.85), "Kehlsack")
 
-	# Zwei Glupschaugen oben auf dem Kopf
+	# Zwei große Glupschaugen oben auf dem Kopf, mit dunklem Wulst darüber
 	for seite: float in [-1.0, 1.0]:
-		var auge := _teil(modell, _kugel(0.16, 10, 7), augapfel,
-				Vector3(0.27 * seite, 0.72, -0.2), Vector3.ZERO, Vector3.ONE, "Auge")
+		_teil(modell, _kugel(0.19, 10, 6), haut,
+				Vector3(0.29 * seite, AUGE_Y - 0.02, -0.08), Vector3.ZERO,
+				Vector3(1.05, 0.60, 1.05), "Augenwulst")
+		var auge := _teil(modell, _kugel(0.145, 12, 8), augapfel,
+				Vector3(0.30 * seite, AUGE_Y, -0.26), Vector3.ZERO, Vector3.ONE, "Auge")
 		_augen.append(auge)
-		_teil(auge, _kugel(0.09, 8, 6), dunkel, Vector3(0.0, 0.03, -0.1),
-				Vector3.ZERO, Vector3(1.0, 1.0, 0.7), "Pupille")
+		_teil(auge, _kugel(0.088, 8, 6), dunkel, Vector3(0.0, 0.01, -0.085),
+				Vector3.ZERO, Vector3(1.0, 1.0, 0.65), "Pupille")
+		# Grünes Oberlid: sonst wirkt der Augapfel von der Seite wie ein Ball
+		_teil(auge, _kugel(0.152, 10, 6), haut, Vector3(0.0, 0.055, 0.02),
+				Vector3.ZERO, Vector3(1.0, 0.62, 1.0), "Lid")
 
-	# Vier abgespreizte Beine
+	# Vier weit abgespreizte Beine mit hellen Schwimmfüßen
 	var bein_gitter := CapsuleMesh.new()
-	bein_gitter.radius = 0.1
-	bein_gitter.height = 0.52
+	bein_gitter.radius = 0.11
+	bein_gitter.height = 0.56
 	bein_gitter.radial_segments = 8
 	bein_gitter.rings = 2
 	for seite: float in [-1.0, 1.0]:
 		for vorn: float in [-1.0, 1.0]:
-			var ruhe := 62.0 * seite
+			var ruhe := 68.0 * seite
 			var bein := _teil(modell, bein_gitter, haut,
-					Vector3(0.46 * seite, 0.2, 0.3 * vorn),
+					Vector3(0.50 * seite, 0.20, 0.32 * vorn),
 					Vector3(0.0, 0.0, ruhe), Vector3.ONE, "Bein")
 			_beine.append(bein)
 			_bein_ruhe.append(ruhe)
 			# Schwimmhautfuß
-			_teil(bein, _quader(Vector3(0.2, 0.06, 0.26)), bauch_mat,
-					Vector3(0.0, -0.28, 0.0), Vector3(0.0, 0.0, -ruhe),
+			_teil(bein, _quader(Vector3(0.24, 0.07, 0.30)), bauch_mat,
+					Vector3(0.0, -0.30, 0.0), Vector3(0.0, 0.0, -ruhe),
 					Vector3.ONE, "Fuss")
 
 
@@ -140,7 +178,8 @@ func _animiere() -> void:
 	var s := _stauchung * 0.32 - streckung
 
 	if is_instance_valid(_koerper):
-		_koerper.scale = Vector3(1.32 * (1.0 + s), 0.62 * (1.0 - s), 1.02 * (1.0 + s))
+		_koerper.scale = Vector3(KOERPER_SKALA.x * (1.0 + s),
+				KOERPER_SKALA.y * (1.0 - s), KOERPER_SKALA.z * (1.0 + s))
 
 	if is_instance_valid(_kehlsack):
 		var pumpen := 1.0 + sin(_phase * 2.2) * 0.2 + _stauchung * 0.35
@@ -149,7 +188,7 @@ func _animiere() -> void:
 	# Augen ducken sich beim Stauchen mit
 	for auge in _augen:
 		if is_instance_valid(auge):
-			auge.position.y = 0.72 - _stauchung * 0.12
+			auge.position.y = AUGE_Y - _stauchung * 0.11
 
 	# In der Luft zieht die Kröte die Beine an
 	for i in _beine.size():
@@ -157,7 +196,7 @@ func _animiere() -> void:
 		if is_instance_valid(bein):
 			var faktor := 0.55 if _in_luft else 1.0
 			bein.rotation_degrees.z = _bein_ruhe[i] * faktor
-			bein.position.y = 0.2 + (0.1 if _in_luft else 0.0)
+			bein.position.y = 0.20 + (0.1 if _in_luft else 0.0)
 
 
 # ---------------------------------------------------------- Tod

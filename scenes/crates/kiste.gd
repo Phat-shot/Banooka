@@ -55,6 +55,9 @@ var _beschriftungen: Array[Label3D] = []
 var _korpus_material: StandardMaterial3D = null
 var _zeit := 0.0
 
+## Gemeinsame Metallkopien mit gedämpftem Metallanteil (siehe _mattes_metall).
+static var _metall_kopien: Dictionary = {}
+
 
 func _ready() -> void:
 	add_to_group("kisten")
@@ -73,23 +76,294 @@ func _ready() -> void:
 
 # ---------------------------------------------------------------- Optik
 
-## Baut Korpus, Kantenstreben und Symbole auf.
+## Aufbau der Kiste (halbe Kantenlänge 0.5):
+##   * Kern         – dunkler Innenkasten, sichtbar in den Fugen
+##   * Rahmen       – zwölf angefaste Kantenleisten
+##   * Bretter      – je Seite drei Bretter mit Fugen dazwischen
+##   * Beschläge    – Eckbleche mit Nieten aus Metall
+##   * Symbol       – plastisches Relief bzw. eingelassenes Feld
+##
+## Alles landet in EINEM Mesh mit vier Materialflächen: ein Knoten statt
+## vierzig, vier Zeichenaufrufe statt vierzig. Bei 43 Kisten im Level
+## macht das den Unterschied.
+
+const KERN := 0.41          ## halbe Kantenlänge des Innenkastens
+const BRETT_AUSSEN := 0.455 ## Vorderkante der Bretter
+const BRETT_TIEFE := 0.06   ## Dicke eines Brettes
+const BRETT_BREIT := 0.40   ## halbe Brettlänge
+const BRETT_HOCH := 0.125   ## halbe Bretthöhe
+const REIHE_Y := 0.275      ## Abstand der äußeren Brettreihen zur Mitte
+const LEISTE := 0.05        ## halbe Dicke der Kantenleisten
+const FASE := 0.016         ## Kantenfase
+const BLECH := 0.095        ## halbe Kantenlänge eines Eckblechs
+const BLECH_ECKE := 0.335   ## Sitz der Eckbleche auf der Fläche
+const FELD_BREIT := 0.245   ## halbe Breite des eingelassenen Feldes
+const FELD_TIEF := 0.395    ## Vorderkante des eingelassenen Feldes
+const UV_HOLZ := 2.5        ## Texturwiederholung auf dem Holz
+const UV_METALL := 7.0      ## Texturwiederholung auf Metall (feines Korn)
+
+## Die vier Seitenflächen als Paar (Außenrichtung, Rechts-Richtung).
+const SEITEN := [
+	[Vector3(0.0, 0.0, 1.0), Vector3(1.0, 0.0, 0.0)],
+	[Vector3(0.0, 0.0, -1.0), Vector3(-1.0, 0.0, 0.0)],
+	[Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0)],
+	[Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0)],
+]
+## Drehung der Beschriftung passend zu SEITEN.
+const SEITEN_DREHUNG := [0.0, 180.0, 90.0, -90.0]
+
+
+## Baut Korpus, Beschläge und Symbol als ein einziges Mesh auf.
 func _baue_optik() -> void:
 	_korpus_material = _material_fuer_art()
 
+	var holz := SurfaceTool.new()
+	var rahmen := SurfaceTool.new()
+	var metall := SurfaceTool.new()
+	var akzent := SurfaceTool.new()
+	for st: SurfaceTool in [holz, rahmen, metall, akzent]:
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	_baue_kern(rahmen)
+	_baue_leisten(rahmen)
+	_baue_bretter(holz, rahmen)
+	_baue_beschlaege(metall)
+	_baue_symbol(rahmen, metall, akzent)
+
+	var gitter := ArrayMesh.new()
+	var flaechen: Array = [
+		[holz, _korpus_material],
+		[rahmen, _rahmen_material()],
+		[metall, _metall_material()],
+	]
+	if art != Art.NORMAL:
+		flaechen.append([akzent, _akzent_material()])
+
 	var korpus := MeshInstance3D.new()
 	korpus.name = "Korpus"
-	var wuerfel := BoxMesh.new()
-	wuerfel.size = Vector3(0.96, 0.96, 0.96)
-	korpus.mesh = wuerfel
-	korpus.material_override = _korpus_material
+	var materialien: Array[Material] = []
+	for f in flaechen:
+		var st: SurfaceTool = f[0]
+		st.index()
+		var teil := st.commit()
+		if teil == null or teil.get_surface_count() == 0:
+			continue                      # leere Materialgruppe überspringen
+		gitter.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,
+				teil.surface_get_arrays(0))
+		materialien.append(f[1])
+	korpus.mesh = gitter
+	for i in materialien.size():
+		korpus.set_surface_override_material(i, materialien[i])
 	_modell.add_child(korpus)
 
-	_baue_streben()
-	_baue_symbole()
+	_baue_beschriftung()
 
 
-## Farbe und Material je nach Art.
+## Dunkler Innenkasten – man sieht ihn durch die Fugen zwischen den Brettern.
+func _baue_kern(st: SurfaceTool) -> void:
+	Kistengeometrie.quader(st, Vector3.ZERO, Vector3.ONE * KERN, 0.0, UV_HOLZ)
+
+
+## Zwölf angefaste Kantenleisten: vier senkrechte Pfosten, acht Querriegel.
+func _baue_leisten(st: SurfaceTool) -> void:
+	for achse in 3:
+		var u := (achse + 1) % 3
+		var w := (achse + 2) % 3
+		var halb := Vector3(LEISTE, LEISTE, LEISTE)
+		# Die senkrechten Pfosten laufen durch, die Querriegel stoßen daran an.
+		halb[achse] = 0.5 if achse == 1 else 0.46
+		for su: float in [-1.0, 1.0]:
+			for sw: float in [-1.0, 1.0]:
+				var mitte := Vector3.ZERO
+				mitte[u] = su * (0.5 - LEISTE)
+				mitte[w] = sw * (0.5 - LEISTE)
+				Kistengeometrie.quader(st, mitte, halb, FASE, UV_HOLZ)
+
+
+## Je Seite drei Bretter mit Fugen; bei Kisten mit Feld ist die mittlere
+## Reihe geteilt und gibt den Blick auf die eingelassene Fläche frei.
+func _baue_bretter(holz: SurfaceTool, rahmen: SurfaceTool) -> void:
+	for seite in SEITEN:
+		_brettreihe(holz, rahmen, seite[0], seite[1], Vector3.UP, _hat_feld())
+	_brettreihe(holz, rahmen, Vector3.UP, Vector3.RIGHT, Vector3.BACK, false)
+	_brettreihe(holz, rahmen, Vector3.DOWN, Vector3.RIGHT, Vector3.FORWARD, false)
+
+
+func _brettreihe(holz: SurfaceTool, rahmen: SurfaceTool, aus: Vector3,
+		rechts: Vector3, hoch: Vector3, mit_feld: bool) -> void:
+	var tf := Transform3D(Basis(rechts, hoch, aus), aus * (BRETT_AUSSEN - BRETT_TIEFE * 0.5))
+	# Leichter Tiefenversatz je Reihe – so wirft jede Fuge einen Schatten.
+	var versatz: Array[float] = [0.0, 0.006, -0.004]
+	for i in 3:
+		var y := (float(i) - 1.0) * REIHE_Y
+		var halb := Vector3(BRETT_BREIT, BRETT_HOCH, BRETT_TIEFE * 0.5)
+		if i == 1 and mit_feld:
+			var rest := (BRETT_BREIT - FELD_BREIT) * 0.5
+			for vz: float in [-1.0, 1.0]:
+				Kistengeometrie.quader(holz,
+						Vector3(vz * (FELD_BREIT + rest), y, versatz[i]),
+						Vector3(rest, BRETT_HOCH, BRETT_TIEFE * 0.5), FASE, UV_HOLZ, tf)
+			continue
+		Kistengeometrie.quader(holz, Vector3(0.0, y, versatz[i]), halb, FASE, UV_HOLZ, tf)
+
+	if mit_feld:
+		# Eingelassene Fläche hinter der Lücke
+		var tief := Transform3D(Basis(rechts, hoch, aus), aus * FELD_TIEF)
+		Kistengeometrie.quader(rahmen, Vector3.ZERO,
+				Vector3(FELD_BREIT + 0.015, BRETT_HOCH + 0.015, 0.04), 0.008, UV_HOLZ, tief)
+
+
+## Eckbleche mit Niete auf den vier Seiten und oben.
+func _baue_beschlaege(st: SurfaceTool) -> void:
+	var flaechen: Array = []
+	for seite in SEITEN:
+		flaechen.append([seite[0], seite[1], Vector3.UP])
+	flaechen.append([Vector3.UP, Vector3.RIGHT, Vector3.BACK])
+	for f in flaechen:
+		var tf := Transform3D(Basis(f[1], f[2], f[0]), f[0] * BRETT_AUSSEN)
+		for sx: float in [-1.0, 1.0]:
+			for sy: float in [-1.0, 1.0]:
+				var mitte := Vector3(sx * BLECH_ECKE, sy * BLECH_ECKE, 0.012)
+				Kistengeometrie.quader(st, mitte, Vector3(BLECH, BLECH, 0.012),
+						0.006, UV_METALL, tf)
+				Kistengeometrie.kuppel(st, Vector3.ZERO, 0.029, 0.024, 8, 2, UV_METALL,
+						tf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5),
+						mitte + Vector3(0.0, 0.0, 0.012)))
+
+
+# ---------------------------------------------------------------- Symbole
+
+## Symbol je Art – plastisch, damit es nicht wie ein aufgeklebter Zettel wirkt.
+func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool) -> void:
+	match art:
+		Art.FRUCHT_MEHRFACH:
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_fruechte(akzent, tf))
+		Art.LEBEN:
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_leben(akzent, tf))
+		Art.FEDER:
+			_sym_feder(akzent)
+		Art.SPRUNG:
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_sprung(akzent, tf))
+			_sym_sprungteller(metall, akzent)
+		Art.TNT:
+			_sym_zuendschnur(akzent, rahmen)
+		Art.NITRO:
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_nitro(akzent, tf))
+			_sym_ventil(akzent, metall)
+		Art.EISEN:
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_eisen(akzent, tf))
+		Art.CHECKPOINT:
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_checkpoint(akzent, rahmen, tf))
+			_sym_fahne(akzent, rahmen)
+		_:
+			pass
+
+
+## Ruft `bau` mit dem Transform jeder der vier Seitenflächen auf.
+## Ursprung liegt auf der Brettfläche, +X rechts, +Y oben, +Z nach außen.
+func _auf_seiten(bau: Callable) -> void:
+	for seite in SEITEN:
+		bau.call(Transform3D(Basis(seite[1], Vector3.UP, seite[0]),
+				seite[0] * BRETT_AUSSEN))
+
+
+## Drei Früchte als Relief im eingelassenen Feld.
+func _sym_fruechte(st: SurfaceTool, tf: Transform3D) -> void:
+	var stellen: Array = [[-0.150, 0.095, 0.055], [0.0, 0.115, 0.075],
+			[0.150, 0.095, 0.055]]
+	for s in stellen:
+		Kistengeometrie.kuppel(st, Vector3.ZERO, s[1], s[2], 10, 3, UV_METALL,
+				tf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5),
+				Vector3(s[0], 0.0, -0.022)))
+
+
+## Erhabenes Kreuz für die Lebenskiste.
+func _sym_leben(st: SurfaceTool, tf: Transform3D) -> void:
+	Kistengeometrie.quader(st, Vector3(0.0, 0.0, 0.018),
+			Vector3(0.055, 0.185, 0.022), 0.01, UV_METALL, tf)
+	Kistengeometrie.quader(st, Vector3(0.0, 0.0, 0.018),
+			Vector3(0.185, 0.055, 0.022), 0.01, UV_METALL, tf)
+
+
+## Sprungfeder oben auf der Federkiste (die Zahl steht im Feld darunter).
+func _sym_feder(st: SurfaceTool) -> void:
+	var radien: Array[float] = [0.24, 0.205, 0.17, 0.135]
+	for i in radien.size():
+		var y := 0.50 + 0.045 * float(i)
+		Kistengeometrie.zylinder(st, Vector3(0.0, y, 0.0), radien[i],
+				radien[i] * 0.92, 0.028, 12, UV_METALL)
+	Kistengeometrie.zylinder(st, Vector3(0.0, 0.70, 0.0), 0.15, 0.15, 0.035, 12, UV_METALL)
+
+
+## Doppelter Aufwärtspfeil für die Sprungfeder.
+func _sym_sprung(st: SurfaceTool, tf: Transform3D) -> void:
+	for y: float in [-0.20, 0.06]:
+		for vz: float in [-1.0, 1.0]:
+			Kistengeometrie.schraeg_quader(st,
+					Vector3(vz * 0.10, y, 0.02), Vector3(0.155, 0.036, 0.024),
+					-vz * 0.66, 0.012, UV_METALL, tf)
+
+
+## Metallteller obenauf – zeigt, dass man hier abspringt.
+func _sym_sprungteller(metall: SurfaceTool, akzent: SurfaceTool) -> void:
+	Kistengeometrie.zylinder(metall, Vector3(0.0, 0.525, 0.0), 0.31, 0.31, 0.05, 16, UV_METALL)
+	Kistengeometrie.zylinder(akzent, Vector3(0.0, 0.565, 0.0), 0.16, 0.13, 0.04, 12, UV_METALL)
+
+
+## Zündschnur auf der TNT-Kiste.
+func _sym_zuendschnur(akzent: SurfaceTool, rahmen: SurfaceTool) -> void:
+	Kistengeometrie.zylinder(rahmen, Vector3(0.0, 0.52, 0.0), 0.10, 0.09, 0.05, 10, UV_METALL)
+	var dreh := Transform3D(Basis(Vector3.FORWARD, 0.35), Vector3(0.0, 0.60, 0.0))
+	Kistengeometrie.zylinder(akzent, Vector3(0.0, 0.06, 0.0), 0.026, 0.02, 0.16, 8,
+			UV_METALL, dreh)
+	Kistengeometrie.kuppel(akzent, Vector3(0.0, 0.14, 0.0), 0.05, 0.05, 10, 3, UV_METALL, dreh)
+
+
+## Warnkreuz im eingelassenen Feld der Nitrokiste.
+func _sym_nitro(st: SurfaceTool, tf: Transform3D) -> void:
+	for vz: float in [-1.0, 1.0]:
+		Kistengeometrie.schraeg_quader(st, Vector3(0.0, 0.0, -0.012),
+				Vector3(0.165, 0.034, 0.026), vz * PI * 0.25, 0.01, UV_METALL, tf)
+
+
+## Ventilstutzen oben auf der Nitrokiste.
+func _sym_ventil(akzent: SurfaceTool, metall: SurfaceTool) -> void:
+	Kistengeometrie.zylinder(metall, Vector3(0.0, 0.53, 0.0), 0.11, 0.09, 0.06, 10, UV_METALL)
+	Kistengeometrie.zylinder(akzent, Vector3(0.0, 0.575, 0.0), 0.05, 0.05, 0.05, 8, UV_METALL)
+
+
+## Diagonale Verstrebung – macht die Eisenkiste sofort erkennbar.
+func _sym_eisen(st: SurfaceTool, tf: Transform3D) -> void:
+	for vz: float in [-1.0, 1.0]:
+		Kistengeometrie.schraeg_quader(st, Vector3(0.0, 0.0, 0.016),
+				Vector3(0.34, 0.038, 0.02), vz * PI * 0.25, 0.01, UV_METALL, tf)
+	Kistengeometrie.kuppel(st, Vector3.ZERO, 0.075, 0.045, 10, 3, UV_METALL,
+			tf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.0, 0.0, 0.02)))
+
+
+## Zielflaggen-Karo auf der Checkpointkiste.
+func _sym_checkpoint(akzent: SurfaceTool, rahmen: SurfaceTool, tf: Transform3D) -> void:
+	for sx: float in [-1.0, 1.0]:
+		for sy: float in [-1.0, 1.0]:
+			var st := akzent if sx * sy > 0.0 else rahmen
+			Kistengeometrie.quader(st, Vector3(sx * 0.075, sy * 0.075, 0.016),
+					Vector3(0.072, 0.072, 0.02), 0.008, UV_METALL, tf)
+
+
+## Kleine Zielflagge oben auf der Checkpointkiste.
+func _sym_fahne(akzent: SurfaceTool, rahmen: SurfaceTool) -> void:
+	Kistengeometrie.zylinder(rahmen, Vector3(-0.22, 0.68, 0.22), 0.024, 0.02, 0.38, 8, UV_METALL)
+	for i in 2:
+		for j in 2:
+			var st := akzent if (i + j) % 2 == 0 else rahmen
+			Kistengeometrie.quader(st, Vector3(-0.14 + float(i) * 0.09,
+					0.80 - float(j) * 0.09, 0.22), Vector3(0.045, 0.045, 0.009),
+					0.006, UV_METALL)
+
+
+# ---------------------------------------------------------------- Materialien
+
+## Farbe und Material des Bretterkorpus.
 func _material_fuer_art() -> StandardMaterial3D:
 	match art:
 		Art.LEBEN:
@@ -101,101 +375,122 @@ func _material_fuer_art() -> StandardMaterial3D:
 		Art.TNT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_TNT)
 		Art.NITRO:
-			# eigene Kopie, damit das Pulsieren keine anderen Kisten stört
-			return Materialbibliothek.leuchtend(Farben.KISTE_NITRO, 0.6).duplicate() as StandardMaterial3D
+			# Eigene Kopie mit Eigenleuchten, damit das Pulsieren keine
+			# anderen Kisten stört – die Maserung bleibt dabei erhalten.
+			var m := Materialbibliothek.kistenholz(
+					Farben.KISTE_NITRO).duplicate() as StandardMaterial3D
+			m.emission_enabled = true
+			m.emission = Farben.KISTE_NITRO
+			m.emission_energy_multiplier = 0.2
+			return m
 		Art.SPRUNG:
-			return Materialbibliothek.metall(Farben.KISTE_SPRUNG)
+			return _mattes_metall(Farben.KISTE_SPRUNG)
 		Art.EISEN:
-			return Materialbibliothek.metall(Farben.KISTE_EISEN)
+			return _mattes_metall(Farben.KISTE_EISEN)
 		_:
 			return Materialbibliothek.kistenholz(Farben.HOLZ)
 
 
-## Farbe der Kantenstreben und Beschläge.
-func _strebenfarbe() -> Color:
+## Material der Kantenleisten, des Kerns und der eingelassenen Felder.
+func _rahmen_material() -> StandardMaterial3D:
 	match art:
 		Art.EISEN, Art.SPRUNG:
-			return Farben.FELS_HELL
+			return _mattes_metall(Farben.KISTE_EISEN.darkened(0.35))
+		Art.LEBEN:
+			return Materialbibliothek.kistenholz(Farben.KISTE_LEBEN.darkened(0.48))
+		Art.CHECKPOINT:
+			return Materialbibliothek.kistenholz(Farben.KISTE_CHECKPOINT.darkened(0.5))
+		Art.TNT:
+			return Materialbibliothek.kistenholz(Farben.KISTE_TNT.darkened(0.52))
 		Art.NITRO:
-			return Farben.KISTE_NITRO.darkened(0.5)
+			return Materialbibliothek.kistenholz(Farben.KISTE_NITRO.darkened(0.55))
+		Art.FEDER:
+			return Materialbibliothek.kistenholz(Farben.KISTE_FEDER.darkened(0.5))
 		_:
-			return Farben.HOLZ_DUNKEL
+			return Materialbibliothek.kistenholz(Farben.HOLZ_DUNKEL)
 
 
-## Zwölf dünne Boxen entlang der Würfelkanten.
-func _baue_streben() -> void:
-	var mat: StandardMaterial3D
+## Material der Eckbleche und Nieten.
+func _metall_material() -> StandardMaterial3D:
 	if art == Art.EISEN or art == Art.SPRUNG:
-		mat = Materialbibliothek.metall(_strebenfarbe())
-	else:
-		mat = Materialbibliothek.einfarbig(_strebenfarbe(), 0.9)
-
-	var dicke := 0.12
-	var laenge := 1.0
-	# Für jede Achse vier Kanten: Achse = Richtung der Strebe.
-	var achsen: Array[Vector3] = [Vector3.RIGHT, Vector3.UP, Vector3.FORWARD]
-	for achse in achsen:
-		var groesse := Vector3(dicke, dicke, dicke)
-		groesse += achse.abs() * (laenge - dicke)
-		var quer_a := Vector3.UP if achse == Vector3.RIGHT else Vector3.RIGHT
-		var quer_b := achse.cross(quer_a).normalized()
-		for i in 4:
-			var vz_a := 1.0 if i < 2 else -1.0
-			var vz_b := 1.0 if i % 2 == 0 else -1.0
-			var strebe := MeshInstance3D.new()
-			var m := BoxMesh.new()
-			m.size = groesse
-			strebe.mesh = m
-			strebe.material_override = mat
-			strebe.position = quer_a * (0.46 * vz_a) + quer_b * (0.46 * vz_b)
-			_modell.add_child(strebe)
+		return _mattes_metall(Farben.FELS_HELL)
+	return _mattes_metall(Farben.KISTE_EISEN)
 
 
-## Beschriftet alle vier Seitenflächen mit dem Symbol der Art.
-func _baue_symbole() -> void:
+## Metall aus der Bibliothek mit gedämpftem Metallanteil.
+##
+## `Materialbibliothek.metall()` ist voll metallisch (0.85). Ohne
+## Spiegelungssonde hat solches Metall nichts zu spiegeln und wird im
+## Bild fast schwarz. Für Beschläge zählt aber die Form, nicht der
+## Spiegel – deshalb hier eine Kopie mit weniger Metallanteil.
+static func _mattes_metall(farbe: Color) -> StandardMaterial3D:
+	var schluessel := farbe.to_html()
+	if not _metall_kopien.has(schluessel):
+		var m := Materialbibliothek.metall(farbe).duplicate() as StandardMaterial3D
+		m.metallic = 0.3
+		m.roughness = 0.45
+		_metall_kopien[schluessel] = m
+	return _metall_kopien[schluessel]
+
+
+## Material des Symbols.
+func _akzent_material() -> StandardMaterial3D:
+	match art:
+		Art.FRUCHT_MEHRFACH:
+			return Materialbibliothek.leuchtend(Farben.FRUCHT, 0.35)
+		Art.LEBEN:
+			return Materialbibliothek.leuchtend(Color(0.96, 1.0, 0.94), 0.25)
+		Art.FEDER, Art.EISEN:
+			return _mattes_metall(Farben.FELS_HELL)
+		Art.SPRUNG:
+			return Materialbibliothek.leuchtend(Color(0.86, 0.95, 1.0), 0.5)
+		Art.TNT:
+			return Materialbibliothek.einfarbig(Color(0.10, 0.08, 0.07), 0.6)
+		Art.NITRO:
+			return Materialbibliothek.einfarbig(Color(0.05, 0.09, 0.05), 0.5)
+		Art.CHECKPOINT:
+			return Materialbibliothek.einfarbig(Color(0.96, 0.98, 0.94), 0.7)
+		_:
+			return Materialbibliothek.einfarbig(Farben.HOLZ_DUNKEL, 0.8)
+
+
+# ---------------------------------------------------------------- Beschriftung
+
+## Nur TNT und Feder tragen Text – die Zahl ändert sich zur Laufzeit und
+## sitzt deshalb als Label3D in der eingelassenen Fläche.
+func _baue_beschriftung() -> void:
 	var text := _symboltext()
 	if text == "":
 		return
-	var stellen: Array[Vector3] = [
-		Vector3(0.0, 0.0, 0.505),
-		Vector3(0.0, 0.0, -0.505),
-		Vector3(0.505, 0.0, 0.0),
-		Vector3(-0.505, 0.0, 0.0),
-	]
-	var drehungen: Array[float] = [0.0, 180.0, 90.0, -90.0]
-	for i in stellen.size():
+	for i in SEITEN.size():
 		var schild := Label3D.new()
 		schild.text = text
-		schild.font_size = 110
-		schild.pixel_size = 0.0042
+		schild.font_size = 60
+		schild.pixel_size = 0.0034
 		schild.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 		schild.double_sided = false
 		schild.modulate = _symbolfarbe()
-		schild.outline_size = 16
-		schild.outline_modulate = Color(0.06, 0.05, 0.04, 0.9)
-		schild.position = stellen[i]
-		schild.rotation_degrees = Vector3(0.0, drehungen[i], 0.0)
+		schild.outline_size = 10
+		schild.outline_modulate = Color(0.06, 0.05, 0.04, 0.95)
+		schild.position = SEITEN[i][0] * 0.442
+		schild.rotation_degrees = Vector3(0.0, SEITEN_DREHUNG[i], 0.0)
 		_modell.add_child(schild)
 		_beschriftungen.append(schild)
+
+
+## Kisten mit eingelassener Fläche in der mittleren Brettreihe.
+func _hat_feld() -> bool:
+	return art == Art.TNT or art == Art.FEDER or art == Art.NITRO \
+			or art == Art.FRUCHT_MEHRFACH
 
 
 ## Symbol je Art. Leerer Text = keine Beschriftung.
 func _symboltext() -> String:
 	match art:
-		Art.FRUCHT_MEHRFACH:
-			return "x5"
-		Art.LEBEN:
-			return "1UP"
 		Art.FEDER:
 			return str(_spruenge_uebrig)
-		Art.SPRUNG:
-			return "^"
 		Art.TNT:
 			return "TNT"
-		Art.NITRO:
-			return "N"
-		Art.CHECKPOINT:
-			return "C"
 		_:
 			return ""
 
@@ -204,10 +499,6 @@ func _symbolfarbe() -> Color:
 	match art:
 		Art.TNT:
 			return Color(1.0, 0.94, 0.85)
-		Art.NITRO:
-			return Color(0.85, 1.0, 0.88)
-		Art.SPRUNG:
-			return Color(0.90, 0.96, 1.0)
 		_:
 			return Color(0.99, 0.95, 0.86)
 
@@ -230,7 +521,7 @@ func _process(delta: float) -> void:
 			# Warnendes Pulsieren
 			var puls := 0.5 + 0.5 * sin(_zeit * 6.0)
 			if _korpus_material != null:
-				_korpus_material.emission_energy_multiplier = 0.35 + puls * 1.5
+				_korpus_material.emission_energy_multiplier = 0.08 + puls * 0.34
 			_modell.scale = Vector3.ONE * (1.0 + puls * 0.04)
 		Art.TNT:
 			if _countdown >= 0.0:

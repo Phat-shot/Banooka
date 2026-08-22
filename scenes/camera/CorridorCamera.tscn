@@ -7,6 +7,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.2, 12)
 fov = 60.0
 far = 200.0
 script = ExtResource("1_cam")
-hoehe = 5.4
+hoehe = 6.0
 abstand = 9.5
 blick_vorlauf = 6.0

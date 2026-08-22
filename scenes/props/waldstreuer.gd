@@ -18,10 +18,14 @@ const GRAS_SZENE := preload("res://scenes/props/Gras.tscn")
 
 ## Laubfarben, aus denen die Bäume würfeln. Wenige Töne, damit die
 ## Material-Zwischenspeicher der Materialbibliothek klein bleiben.
+## Fünf Töne statt drei: darunter ein sehr dunkler und ein ins Gelbe
+## gehender – ein Bestand aus lauter gleichgrünen Bäumen wirkt gemalt.
 const LAUBTOENE: Array[Color] = [
-	Color(0.20, 0.44, 0.16),
-	Color(0.13, 0.30, 0.12),
-	Color(0.35, 0.60, 0.22),
+	Color(0.22, 0.47, 0.16),   # Farben.LAUB
+	Color(0.13, 0.30, 0.12),   # Farben.LAUB_DUNKEL
+	Color(0.41, 0.66, 0.24),   # Farben.LAUB_HELL
+	Color(0.30, 0.52, 0.17),
+	Color(0.46, 0.60, 0.21),
 ]
 
 ## Größe der Streufläche in Metern (X mal Z), zentriert um den Knoten.
@@ -54,11 +58,13 @@ const LAUBTOENE: Array[Color] = [
 
 @export_group("Gras")
 ## Anzahl der Grasfelder (jedes ist ein einziger MultiMesh-Knoten).
-@export_range(0, 40) var grasfelder: int = 4
-## Büschel je Grasfeld.
-@export_range(1, 800) var gras_dichte: int = 150
+@export_range(0, 40) var grasfelder: int = 5
+## Büschel je Grasfeld (das Feld hebt zu dünne Werte selbst an).
+@export_range(1, 800) var gras_dichte: int = 220
 ## Kantenlänge eines Grasfeldes in Metern.
-@export_range(1.0, 30.0, 0.5) var gras_feldgroesse: float = 6.0
+@export_range(1.0, 30.0, 0.5) var gras_feldgroesse: float = 7.0
+## Halmhöhe der Grasfelder in Metern – kurz und dicht wirkt wie Wiese.
+@export_range(0.1, 1.2, 0.01) var gras_hoehe: float = 0.32
 
 @export_group("Gelände")
 ## Höhe, auf der die Props abgesetzt werden (lokale Y-Koordinate).
@@ -113,7 +119,9 @@ func _setze_baum() -> void:
 		b.art = Baum.Art.LAUBBAUM
 	b.hoehe = _rng.randf_range(minf(baum_hoehe_min, baum_hoehe_max),
 			maxf(baum_hoehe_min, baum_hoehe_max))
-	b.staerke = _rng.randf_range(0.8, 1.25)
+	# breite Streuung bei Stammstärke und Kronenform: kein Baum wie der andere
+	b.staerke = _rng.randf_range(0.7, 1.45)
+	b.kronenform = Baum.Kronenform.ZUFALL
 	b.laubfarbe = LAUBTOENE[_rng.randi_range(0, LAUBTOENE.size() - 1)]
 	b.saat = PropWerkzeug.kindsaat(_rng)
 	b.kollision = kollision
@@ -127,7 +135,9 @@ func _setze_stein() -> void:
 	s.groesse = _rng.randf_range(0.5, 2.2)
 	s.brocken = _rng.randi_range(2, 4)
 	s.flach = _rng.randf() < 0.3
-	s.bemoost = _rng.randf() < 0.7
+	# Moos nur auf jedem zweiten Findling – sonst wird der Wald grün in grün
+	s.bemoost = _rng.randf() < 0.45
+	s.zerklueftung = _rng.randf_range(0.3, 0.45)
 	s.saat = PropWerkzeug.kindsaat(_rng)
 	s.kollision = kollision
 	s.position = _zufallsplatz(0.6)
@@ -172,8 +182,8 @@ func _setze_grasfeld() -> void:
 	var g := GRAS_SZENE.instantiate() as Grasfeld
 	var kante := gras_feldgroesse * _rng.randf_range(0.7, 1.25)
 	g.flaeche = Vector2(kante, kante)
-	g.anzahl = maxi(int(gras_dichte * _rng.randf_range(0.7, 1.2)), 1)
-	g.halm_hoehe = _rng.randf_range(0.35, 0.7)
+	g.anzahl = maxi(int(gras_dichte * _rng.randf_range(0.8, 1.2)), 1)
+	g.halm_hoehe = gras_hoehe * _rng.randf_range(0.8, 1.25)
 	g.saat = PropWerkzeug.kindsaat(_rng)
 	# Grasfelder werden nicht gedreht: die Fläche ist ohnehin quadratisch,
 	# und ohne Drehung passt die Freihaltezone exakt.

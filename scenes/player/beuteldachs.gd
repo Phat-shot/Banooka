@@ -65,13 +65,18 @@ func _ready() -> void:
 # ---------------------------------------------------------------- Aufbau
 
 ## Baut den kompletten Beuteldachs aus Primitiven auf.
+##
+## Silhouette: breite Schultern, schmale Hüfte, lange Schnauze, hohe
+## Ohren, buschiger Schweif. Die Zeichnung im Fell (heller Bauch, dunkles
+## Rückenband, geringelter Schweif) gibt der Figur auch aus der Ferne
+## eine erkennbare Kontur.
 func _baue() -> void:
 	_teile = Node3D.new()
 	_teile.name = "Teile"
 	add_child(_teile)
 
 	var fell := Materialbibliothek.fell()
-	var bauchfell := Materialbibliothek.fell(Farben.FELL_BAUCH)
+	var bauchfell := Materialbibliothek.fell(Farben.FELL_BAUCH.lerp(Farben.FRUCHT, 0.22))
 	var dunkelfell := Materialbibliothek.fell(Farben.FELL_DUNKEL)
 	var nasenfarbe := Materialbibliothek.einfarbig(Farben.NASE, 0.35)
 	var augapfel := Materialbibliothek.einfarbig(Color(0.97, 0.97, 0.93), 0.25)
@@ -79,19 +84,37 @@ func _baue() -> void:
 	# --- Rumpf: trägt als Wurzel alle übrigen Teile ---
 	_koerper = MeshInstance3D.new()
 	_koerper.name = "Koerper"
-	_koerper.mesh = _kapsel(0.30, 0.88)
+	_koerper.mesh = _kapsel(0.29, 0.86)
 	_koerper.material_override = fell
 	_koerper.position.y = RUMPF_Y
 	_teile.add_child(_koerper)
 
-	# Hellerer Bauch, leicht abgeflacht und nach vorn (-Z) versetzt
-	var bauch := _netz(_koerper, "Bauch", _kugel(0.24), bauchfell,
-			Vector3(0.0, -0.06, -0.16))
-	bauch.scale = Vector3(1.0, 1.15, 0.78)
+	# Breiter Brustkorb – macht die Schultern kräftig, die Hüfte bleibt schmal
+	var brust := _netz(_koerper, "Brust", _kugel(0.27), fell, Vector3(0.0, 0.20, -0.02))
+	brust.scale = Vector3(1.28, 0.76, 1.04)
+
+	# Dunkle Halskrause – setzt den Kopf von den Schultern ab
+	var kragen := _netz(_koerper, "Kragen", _kugel(0.215), dunkelfell,
+			Vector3(0.0, 0.34, -0.03))
+	kragen.scale = Vector3(1.12, 0.42, 1.10)
+
+	# Heller Bauch, deutlich nach vorn (-Z) gewölbt
+	var bauch := _netz(_koerper, "Bauch", _kugel(0.215), bauchfell,
+			Vector3(0.0, -0.09, -0.165))
+	bauch.scale = Vector3(0.98, 1.18, 0.74)
+
+	# Dunkles Rückenband: drei flach aufliegende Flecken, nach unten schmaler
+	var zeichnung := Materialbibliothek.fell(Farben.FELL_DUNKEL.darkened(0.32))
+	var band: Array = [[0.25, 0.250, 0.125, 1.45], [0.02, 0.272, 0.140, 1.45],
+			[-0.21, 0.262, 0.110, 1.30]]
+	for i in band.size():
+		var fleck := _netz(_koerper, "Rueckenband%d" % i, _kugel(band[i][2]),
+				zeichnung, Vector3(0.0, band[i][0], band[i][1]))
+		fleck.scale = Vector3(band[i][3], 1.0, 0.20)
 
 	_baue_kopf(fell, bauchfell, dunkelfell, nasenfarbe, augapfel)
-	_baue_arme(fell, bauchfell)
-	_baue_beine(fell, bauchfell)
+	_baue_arme(fell, dunkelfell)
+	_baue_beine(fell, dunkelfell)
 	_baue_schweif(fell, dunkelfell)
 
 	# --- Spin-Ring (Geschwister des Rumpfes, wird nicht mitgestaucht) ---
@@ -106,32 +129,78 @@ func _baue() -> void:
 	_teile.add_child(_spin_ring)
 
 
-## Kopf mit spitzer Schnauze, Nase, Augen und aufgestellten Ohren.
+## Kopf mit langer Schnauze, Wangen, Augen samt Lidern, Brauen,
+## Stachelfrisur und hohen Ohren.
 func _baue_kopf(fell: Material, bauchfell: Material, dunkelfell: Material,
 		nasenfarbe: Material, augapfel: Material) -> void:
-	_kopf = _gelenk(_koerper, "Kopf", Vector3(0.0, 0.42, -0.02))
+	_kopf = _gelenk(_koerper, "Kopf", Vector3(0.0, 0.40, -0.03))
 
-	var schaedel := _netz(_kopf, "Schaedel", _kugel(0.24), fell)
-	schaedel.scale = Vector3(1.06, 1.0, 1.10)
+	var schaedel := _netz(_kopf, "Schaedel", _kugel(0.235), fell)
+	schaedel.scale = Vector3(1.08, 0.99, 1.00)
 
-	# Spitze Schnauze: Kegel, der nach -Z zeigt
-	var schnauze := _netz(_kopf, "Schnauze", _kegel(0.16, 0.035, 0.32), fell,
-			Vector3(0.0, -0.05, -0.20))
+	# Wangen: geben dem Kopf Breite und trennen ihn von der Schnauze
+	for seite in [-1.0, 1.0]:
+		var wange := _netz(_kopf, "Wange%s" % ("R" if seite > 0.0 else "L"),
+				_kugel(0.105), fell, Vector3(0.135 * seite, -0.09, -0.12))
+		wange.scale = Vector3(0.9, 0.82, 1.15)
+
+	# Lange, flache Schnauze: breiter als hoch, ragt deutlich nach -Z heraus
+	var schnauze := _netz(_kopf, "Schnauze", _kegel(0.135, 0.048, 0.46), fell,
+			Vector3(0.0, -0.06, -0.27))
 	schnauze.rotation.x = -PI * 0.5
+	schnauze.scale = Vector3(1.12, 1.0, 0.72)
 
 	# Helle Unterseite der Schnauze
-	var kinn := _netz(_kopf, "Kinn", _kugel(0.11), bauchfell,
-			Vector3(0.0, -0.10, -0.17))
-	kinn.scale = Vector3(0.85, 0.55, 1.25)
+	var kinn := _netz(_kopf, "Kinn", _kugel(0.115), bauchfell,
+			Vector3(0.0, -0.115, -0.26))
+	kinn.scale = Vector3(0.90, 0.50, 1.55)
 
-	_netz(_kopf, "Nase", _kugel(0.058), nasenfarbe, Vector3(0.0, -0.045, -0.365))
+	# Dunkler Mundstrich unter der Nase
+	var mund := _netz(_kopf, "Mund", _kugel(0.05), nasenfarbe,
+			Vector3(0.0, -0.105, -0.395))
+	mund.scale = Vector3(1.45, 0.26, 0.7)
 
-	# Augen mit Pupillen
+	var nase := _netz(_kopf, "Nase", _kugel(0.062), nasenfarbe,
+			Vector3(0.0, -0.028, -0.455))
+	nase.scale = Vector3(1.3, 0.88, 0.85)
+
+	# Helle Blesse über Nasenrücken und Stirn – die Dachszeichnung
+	var blesse := _netz(_kopf, "Blesse", _kugel(0.10), bauchfell,
+			Vector3(0.0, 0.005, -0.275))
+	blesse.scale = Vector3(0.44, 0.55, 2.5)
+
+	# Augen: dunkle Maske, Augapfel, große Pupille, Glanzpunkt, Lid und Braue
 	for seite in [-1.0, 1.0]:
-		var name_teil := "Auge%s" % ("R" if seite > 0.0 else "L")
-		var auge := _netz(_kopf, name_teil, _kugel(0.072), augapfel,
-				Vector3(0.115 * seite, 0.075, -0.175))
-		_netz(auge, "Pupille", _kugel(0.036), nasenfarbe, Vector3(0.0, 0.0, -0.052))
+		var kuerzel := "R" if seite > 0.0 else "L"
+		# Dunkle Augenmaske: zieht sich vom Nasenrücken bis zum Ohr
+		var maske := _netz(_kopf, "Maske%s" % kuerzel, _kugel(0.125), dunkelfell,
+				Vector3(0.128 * seite, 0.085, -0.155))
+		maske.scale = Vector3(1.10, 0.92, 0.72)
+		maske.rotation.z = -0.22 * seite
+
+		var auge := _netz(_kopf, "Auge%s" % kuerzel, _kugel(0.080), augapfel,
+				Vector3(0.118 * seite, 0.085, -0.185))
+		auge.scale = Vector3(1.0, 1.12, 1.0)
+		_netz(auge, "Pupille", _kugel(0.043), nasenfarbe, Vector3(0.0, -0.004, -0.050))
+		var glanz := _netz(auge, "Glanz", _kugel(0.018), augapfel,
+				Vector3(-0.020 * seite, 0.028, -0.066))
+		glanz.scale = Vector3(1.0, 1.0, 0.6)
+
+		# Oberlid: zieht die Augen zu und gibt der Figur einen wachen Blick
+		var lid := _netz(auge, "Lid", _kugel(0.086), fell, Vector3(0.0, 0.050, 0.006))
+		lid.scale = Vector3(1.0, 0.66, 1.0)
+
+		# Braue: leicht nach außen angehoben
+		var braue := _netz(_kopf, "Braue%s" % kuerzel, _kugel(0.055), dunkelfell,
+				Vector3(0.122 * seite, 0.175, -0.165))
+		braue.scale = Vector3(1.55, 0.42, 0.55)
+		braue.rotation.z = -0.28 * seite
+
+	# Stachelfrisur zwischen den Ohren
+	for i in 3:
+		var strubbel := _netz(_kopf, "Stachel%d" % i, _kegel(0.048, 0.0, 0.17),
+				dunkelfell, Vector3((float(i) - 1.0) * 0.085, 0.205, 0.055))
+		strubbel.rotation.x = 0.85 + absf(float(i) - 1.0) * 0.12
 
 	# Aufgestellte Ohren – Dreiecksprismen auf eigenen Gelenken
 	_ohr_rechts = _baue_ohr(1.0, fell, dunkelfell)
@@ -141,61 +210,74 @@ func _baue_kopf(fell: Material, bauchfell: Material, dunkelfell: Material,
 ## Ein Ohr; seite = +1 rechts (+X), -1 links (-X).
 func _baue_ohr(seite: float, fell: Material, dunkelfell: Material) -> Node3D:
 	var gelenk := _gelenk(_kopf, "Ohr%s" % ("R" if seite > 0.0 else "L"),
-			Vector3(0.135 * seite, 0.11, 0.03))
+			Vector3(0.145 * seite, 0.125, 0.02))
 	gelenk.rotation = Vector3(OHR_RUHE, 0.0, -OHR_SPREIZUNG * seite)
 
 	var muschel := PrismMesh.new()
-	muschel.size = Vector3(0.15, 0.18, 0.07)
-	_netz(gelenk, "Muschel", muschel, fell, Vector3(0.0, 0.10, 0.0))
+	muschel.size = Vector3(0.17, 0.20, 0.075)
+	_netz(gelenk, "Muschel", muschel, fell, Vector3(0.0, 0.105, 0.0))
 
 	var innen := PrismMesh.new()
-	innen.size = Vector3(0.085, 0.11, 0.02)
-	_netz(gelenk, "Innenohr", innen, dunkelfell, Vector3(0.0, 0.085, -0.042))
+	innen.size = Vector3(0.10, 0.125, 0.02)
+	_netz(gelenk, "Innenohr", innen, dunkelfell, Vector3(0.0, 0.09, -0.045))
 	return gelenk
 
 
-## Beide Arme mit Händen.
-func _baue_arme(fell: Material, bauchfell: Material) -> void:
-	_arm_rechts = _baue_arm(1.0, fell, bauchfell)
-	_arm_links = _baue_arm(-1.0, fell, bauchfell)
+## Beide Arme mit dunklen Pfoten.
+func _baue_arme(fell: Material, dunkelfell: Material) -> void:
+	_arm_rechts = _baue_arm(1.0, fell, dunkelfell)
+	_arm_links = _baue_arm(-1.0, fell, dunkelfell)
 
 
-func _baue_arm(seite: float, fell: Material, bauchfell: Material) -> Node3D:
+func _baue_arm(seite: float, fell: Material, dunkelfell: Material) -> Node3D:
 	var gelenk := _gelenk(_koerper, "Arm%s" % ("R" if seite > 0.0 else "L"),
-			Vector3(0.28 * seite, 0.22, 0.0))
-	_netz(gelenk, "Schulter", _kugel(0.095), fell)
-	_netz(gelenk, "Oberarm", _kapsel(0.075, 0.30), fell, Vector3(0.0, -0.17, 0.0))
-	var hand := _netz(gelenk, "Hand", _kugel(0.09), bauchfell, Vector3(0.0, -0.35, 0.0))
-	hand.scale = Vector3(0.9, 1.0, 1.15)
+			Vector3(0.29 * seite, 0.22, 0.0))
+	var schulter := _netz(gelenk, "Schulter", _kugel(0.105), fell)
+	schulter.scale = Vector3(1.0, 0.95, 1.0)
+	_netz(gelenk, "Oberarm", _kapsel(0.072, 0.30), fell, Vector3(0.0, -0.17, 0.0))
+	var hand := _netz(gelenk, "Hand", _kugel(0.095), dunkelfell, Vector3(0.0, -0.35, 0.0))
+	hand.scale = Vector3(0.9, 1.0, 1.2)
 	return gelenk
 
 
-## Beide Beine mit Füßen.
-func _baue_beine(fell: Material, bauchfell: Material) -> void:
-	_bein_rechts = _baue_bein(1.0, fell, bauchfell)
-	_bein_links = _baue_bein(-1.0, fell, bauchfell)
+## Beide Beine mit dunklen Füßen.
+func _baue_beine(fell: Material, dunkelfell: Material) -> void:
+	_bein_rechts = _baue_bein(1.0, fell, dunkelfell)
+	_bein_links = _baue_bein(-1.0, fell, dunkelfell)
 
 
-func _baue_bein(seite: float, fell: Material, bauchfell: Material) -> Node3D:
+func _baue_bein(seite: float, fell: Material, dunkelfell: Material) -> Node3D:
 	var gelenk := _gelenk(_koerper, "Bein%s" % ("R" if seite > 0.0 else "L"),
-			Vector3(0.15 * seite, -0.30, 0.0))
-	_netz(gelenk, "Schenkel", _kapsel(0.10, 0.32), fell, Vector3(0.0, -0.14, 0.0))
+			Vector3(0.155 * seite, -0.30, 0.0))
+	_netz(gelenk, "Schenkel", _kapsel(0.105, 0.32), fell, Vector3(0.0, -0.14, 0.0))
 
 	var fuss := BoxMesh.new()
-	fuss.size = Vector3(0.18, 0.10, 0.30)
-	_netz(gelenk, "Fuss", fuss, bauchfell, Vector3(0.0, -0.345, -0.07))
+	fuss.size = Vector3(0.19, 0.105, 0.31)
+	_netz(gelenk, "Fuss", fuss, dunkelfell, Vector3(0.0, -0.345, -0.075))
+	# Helle Zehenkappe – trennt den Fuß optisch vom Boden
+	var kappe := _netz(gelenk, "Zehen", _kugel(0.075), fell,
+			Vector3(0.0, -0.345, -0.215))
+	kappe.scale = Vector3(1.2, 0.65, 0.7)
 	return gelenk
 
 
-## Buschiger Schweif aus mehreren Kugeln auf zwei Gelenken.
+## Buschiger Schweif aus mehreren Kugeln auf zwei Gelenken, mit Ringen.
 func _baue_schweif(fell: Material, dunkelfell: Material) -> void:
 	_schweif = _gelenk(_koerper, "Schweif", Vector3(0.0, -0.16, 0.22))
-	var wurzel := _netz(_schweif, "Wurzel", _kugel(0.135), fell, Vector3(0.0, 0.03, 0.05))
-	wurzel.scale = Vector3(0.95, 1.0, 1.1)
+	var wurzel := _netz(_schweif, "Wurzel", _kugel(0.115), fell, Vector3(0.0, 0.03, 0.05))
+	wurzel.scale = Vector3(0.95, 1.0, 1.15)
 
-	_schweif_spitze = _gelenk(_schweif, "Spitze", Vector3(0.0, 0.13, 0.13))
-	_netz(_schweif_spitze, "Busch", _kugel(0.11), fell, Vector3(0.0, 0.02, 0.03))
-	_netz(_schweif_spitze, "Zipfel", _kugel(0.08), dunkelfell, Vector3(0.0, 0.09, 0.10))
+	# Erster Ring
+	var ring_a := _netz(_schweif, "RingA", _kugel(0.112), dunkelfell,
+			Vector3(0.0, 0.085, 0.09))
+	ring_a.scale = Vector3(1.02, 0.30, 1.02)
+
+	_schweif_spitze = _gelenk(_schweif, "Spitze", Vector3(0.0, 0.12, 0.12))
+	_netz(_schweif_spitze, "Busch", _kugel(0.098), fell, Vector3(0.0, 0.02, 0.03))
+	var ring_b := _netz(_schweif_spitze, "RingB", _kugel(0.095), dunkelfell,
+			Vector3(0.0, 0.055, 0.055))
+	ring_b.scale = Vector3(1.02, 0.30, 1.02)
+	_netz(_schweif_spitze, "Zipfel", _kugel(0.072), dunkelfell, Vector3(0.0, 0.10, 0.10))
 
 
 # ------------------------------------------------------- Bau-Hilfsfunktionen

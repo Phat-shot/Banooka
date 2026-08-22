@@ -403,7 +403,7 @@ func _fruechte_reihe(von: float, bis: float, anzahl: int,
 ## Absturzzone. Darauf stehen die Bäume, deren Kronen bis auf Weghöhe reichen.
 func _waldboden_bauen() -> void:
 	LevelWerkzeuge.korridor(geometrie, verlauf, [
-		{"von": 0.0, "bis": M_ENDE, "breite": 70.0},
+		{"von": 0.0, "bis": M_ENDE, "breite": 110.0},
 	], {
 		"oben": Materialbibliothek.waldboden(),
 		"kante": Materialbibliothek.waldboden(),
@@ -482,102 +482,120 @@ func _bestaende_unten() -> void:
 		nummer += 1
 
 
-## Deko unmittelbar am Weg: kleine Bäume, Wurzelbögen, Findlinge,
-## Grasnarben, Farne und Pilze.
+## Deko am Weg. Wichtig: Auf dem Weg selbst stehen nur niedrige Dinge.
+## Bäume wachsen aus der Schlucht neben dem Grat empor und rahmen den Weg
+## ein – stünden sie auf dem Weg, geriete die Verfolgerkamera in ihre Krone.
 func _wegrand_bepflanzen() -> void:
-	# Bäume dicht am Weg, abwechselnd links und rechts
-	var baum_stellen := [
-		[8.0, -4.6, 6.5], [15.0, 4.4, 7.5], [24.0, -4.4, 5.5], [36.0, 4.2, 8.0],
-		[46.0, -3.8, 6.0], [66.0, 3.6, 7.0], [86.0, -4.2, 6.5], [98.0, 4.4, 9.0],
-		[108.0, -4.6, 7.5], [124.0, 4.6, 6.0], [140.0, -4.4, 8.5], [156.0, 4.2, 7.0],
-		[164.0, -3.4, 6.0], [186.0, 3.2, 5.5], [206.0, -4.0, 7.5],
-		[214.0, 5.6, 9.0], [222.0, -5.6, 8.0], [232.0, 5.0, 7.0],
+	_rahmenbaeume()
+	_wegdeko()
+
+
+## Hohe Bäume, die vom Waldboden bis über Weghöhe reichen.
+func _rahmenbaeume() -> void:
+	var stellen := [
+		[8.0, -1.0, 17.0], [15.0, 1.0, 19.0], [24.0, -1.0, 16.0], [36.0, 1.0, 20.0],
+		[46.0, -1.0, 17.5], [54.0, 1.0, 16.0], [66.0, 1.0, 18.0], [78.0, -1.0, 17.0],
+		[86.0, -1.0, 19.0], [98.0, 1.0, 21.0], [108.0, -1.0, 18.5], [118.0, 1.0, 17.0],
+		[124.0, 1.0, 16.5], [140.0, -1.0, 20.0], [150.0, 1.0, 18.0], [156.0, -1.0, 17.0],
+		[164.0, -1.0, 19.5], [172.0, 1.0, 18.0], [186.0, 1.0, 17.5], [196.0, -1.0, 20.0],
+		[206.0, -1.0, 18.0], [214.0, 1.0, 21.0], [222.0, -1.0, 19.0], [230.0, 1.0, 17.5],
 	]
-	for i in baum_stellen.size():
-		var e: Array = baum_stellen[i]
+	for i in stellen.size():
+		var e: Array = stellen[i]
+		var strecke: float = e[0]
+		var seite: float = e[1]
+		# Deutlich außerhalb der Wegkante, damit die Kamera frei bleibt
+		var abstand := _rand_bei(strecke, 0.0) + 4.5 + float(i % 3) * 1.6
 		var b := BAUM.instantiate() as Baum
 		b.hoehe = e[2]
 		b.saat = 400 + i * 13
 		b.art = Baum.Art.NADELBAUM if i % 4 == 3 else Baum.Art.LAUBBAUM
 		b.laubfarbe = Farben.LAUB.lerp(Farben.LAUB_HELL, float(i % 3) * 0.4)
-		b.position = LevelWerkzeuge.punkt(verlauf, e[0], e[1], -0.2)
-		b.rotation.y = randf() * TAU
+		b.position = LevelWerkzeuge.punkt(verlauf, strecke, seite * abstand, WALDBODEN_HOEHE)
+		b.rotation.y = float(i) * 1.37
 		deko.add_child(b)
 
-	# Totholz als Blickfang
-	for stelle in [[54.0, -3.2], [132.0, 3.4], [196.0, -2.8]]:
+	# Totholz als Blickfang in der Schlucht
+	for stelle in [[54.0, -1.0], [132.0, 1.0], [196.0, -1.0]]:
+		var strecke: float = stelle[0]
 		var t := BAUM.instantiate() as Baum
 		t.art = Baum.Art.TOTHOLZ
-		t.hoehe = 4.5
-		t.saat = int(stelle[0])
-		t.position = LevelWerkzeuge.punkt(verlauf, stelle[0], stelle[1], -0.2)
+		t.hoehe = 13.0
+		t.saat = int(strecke)
+		t.position = LevelWerkzeuge.punkt(verlauf, strecke,
+				stelle[1] * (_rand_bei(strecke, 0.0) + 5.0), WALDBODEN_HOEHE)
 		deko.add_child(t)
 
+
+## Niedrige Deko auf dem Weg selbst: Wurzeln, Findlinge, Gras, Kleinzeug.
+## Alles bleibt unter Kniehöhe, damit die Sicht frei bleibt.
+func _wegdeko() -> void:
 	# Wurzelbögen quer über den Weg – Hindernisse zum Drüberspringen
 	for stelle in [[20.0, 0.0, 4.5], [72.0, 0.0, 4.0], [144.0, -0.5, 4.5],
 			[180.0, 0.0, 3.5], [212.0, 0.5, 5.0]]:
+		var strecke: float = stelle[0]
 		var w := WURZEL.instantiate() as Wurzel
 		w.spannweite = stelle[2]
 		w.hoehe = 1.0
-		w.saat = int(stelle[0]) * 3
-		w.position = LevelWerkzeuge.punkt(verlauf, stelle[0], stelle[1], 0.0)
-		w.rotation.y = LevelWerkzeuge.drehung(verlauf, stelle[0]) + PI * 0.5
+		w.saat = int(strecke) * 3
+		w.position = LevelWerkzeuge.punkt(verlauf, strecke, stelle[1], 0.0)
+		w.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke) + PI * 0.5
 		deko.add_child(w)
 
-	# Findlinge am Wegesrand
-	for i in 14:
-		var s := 12.0 + float(i) * 16.0
+	# Findlinge am Wegesrand, innerhalb der Kante
+	for i in 16:
+		var s := 12.0 + float(i) * 14.0
 		if s > M_ENDE - 6.0:
 			break
 		var seite := 1.0 if i % 2 == 0 else -1.0
 		var st := STEIN.instantiate() as Stein
-		st.groesse = 0.7 + float(i % 3) * 0.45
+		st.groesse = 0.55 + float(i % 3) * 0.3
 		st.saat = 700 + i * 11
-		st.bemoost = true
-		st.position = LevelWerkzeuge.punkt(verlauf, s, seite * 3.4, -0.15)
+		st.bemoost = i % 3 == 0
+		st.position = LevelWerkzeuge.punkt(verlauf, s,
+				seite * maxf(_rand_bei(s, 1.1), 0.5), -0.15)
 		deko.add_child(st)
 
-	# Grasnarben entlang des Weges
-	for i in 16:
-		var s := 5.0 + float(i) * 14.0
+	# Grasnarben entlang des Weges, direkt an der Kante
+	for i in 22:
+		var s := 5.0 + float(i) * 10.5
 		if s > M_ENDE - 4.0:
 			break
 		var seite := -1.0 if i % 2 == 0 else 1.0
 		var g := GRASFELD.instantiate() as Grasfeld
-		g.flaeche = Vector2(4.5, 5.0)
-		g.anzahl = 110
+		g.flaeche = Vector2(3.2, 5.0)
+		g.anzahl = 150
 		g.saat = 200 + i * 7
-		g.position = LevelWerkzeuge.punkt(verlauf, s, seite * 2.9, 0.0)
+		g.position = LevelWerkzeuge.punkt(verlauf, s,
+				seite * maxf(_rand_bei(s, 1.6), 0.4), 0.0)
 		g.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 		deko.add_child(g)
 
-	# Farne, Pilze und Blumen als Kleinzeug
+	# Farne, Pilze, Büsche und Blumen
 	var arten := [Kleinzeug.Art.FARN, Kleinzeug.Art.PILZ, Kleinzeug.Art.BUSCH,
 			Kleinzeug.Art.BLUME]
-	for i in 40:
-		var s := 4.0 + float(i) * 5.8
+	for i in 44:
+		var s := 4.0 + float(i) * 5.2
 		if s > M_ENDE - 3.0:
 			break
-		var seite := 2.4 + float(i % 3) * 0.7
-		if i % 2 == 0:
-			seite = -seite
+		var seite := -1.0 if i % 2 == 0 else 1.0
 		var k := KLEINZEUG.instantiate() as Kleinzeug
 		k.art = arten[i % arten.size()]
-		k.groesse = 0.5 + float(i % 4) * 0.2
+		k.groesse = 0.45 + float(i % 4) * 0.18
 		k.saat = 900 + i * 5
-		k.position = LevelWerkzeuge.punkt(verlauf, s, seite, 0.0)
-		k.rotation.y = randf() * TAU
+		k.position = LevelWerkzeuge.punkt(verlauf, s,
+				seite * maxf(_rand_bei(s, 1.4) - float(i % 3) * 0.5, 0.3), 0.0)
+		k.rotation.y = float(i) * 0.9
 		deko.add_child(k)
 
 
 # =========================================================== Lücken
 
-## Setzt an jede Abbruchkante zwei Warnpfosten mit Querbalken, damit
-## Löcher schon von weitem als Löcher zu erkennen sind.
+## Setzt an jede Abbruchkante Warnpfosten mit Querbalken und einen
+## Warnstreifen auf dem Weg, damit Löcher von weitem als Löcher erkennbar sind.
 func _luecken_markieren() -> void:
 	for i in ABSCHNITTE.size():
 		var a: Dictionary = ABSCHNITTE[i]
-		# Ende dieses Abschnitts: folgt eine echte Lücke?
 		if i + 1 < ABSCHNITTE.size():
 			var naechster: Dictionary = ABSCHNITTE[i + 1]
 			if naechster["von"] - a["bis"] > 0.5:
@@ -592,7 +610,7 @@ func _warnbalken(strecke: float, breite: float) -> void:
 	var halb := breite * 0.5 - 0.55
 	var drehung := LevelWerkzeuge.drehung(verlauf, strecke)
 
-	for seite in [-1.0, 1.0]:
+	for seite: float in [-1.0, 1.0]:
 		var gruppe := Node3D.new()
 		gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seite * halb, 0.45)
 		gruppe.rotation.y = drehung
@@ -620,8 +638,7 @@ func _warnbalken(strecke: float, breite: float) -> void:
 		kappe.material_override = streifen
 		gruppe.add_child(kappe)
 
-	# Querbalken auf Kniehöhe – hoch genug zum Warnen, tief genug, um den
-	# Blick auf die Lücke nicht zu verstellen
+	# Querbalken auf Kniehöhe – warnt, ohne die Sicht auf die Lücke zu nehmen
 	var balken := MeshInstance3D.new()
 	var quader := BoxMesh.new()
 	quader.size = Vector3(halb * 2.0, 0.1, 0.08)
@@ -631,7 +648,7 @@ func _warnbalken(strecke: float, breite: float) -> void:
 	balken.rotation.y = drehung
 	deko.add_child(balken)
 
-	# Warnstreifen direkt auf dem Weg: aus der Verfolgerkamera gut sichtbar
+	# Warnstreifen auf dem Weg: aus der Verfolgerkamera gut sichtbar
 	var streifen_mesh := BoxMesh.new()
 	streifen_mesh.size = Vector3(halb * 2.0 + 0.6, 0.04, 0.45)
 	var markierung := MeshInstance3D.new()

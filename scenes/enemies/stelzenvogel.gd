@@ -37,44 +37,63 @@ func _ready() -> void:
 
 # ---------------------------------------------------------- Optik
 
+## Dunkles Gefieder, knallgelbe Stelzen, leuchtend roter Stachelkamm:
+## Aus der Spielkamera sieht man vor allem den Kamm – und der sagt
+## unmissverständlich "hier nicht landen".
 func _baue() -> void:
-	var gefieder := Materialbibliothek.fell(Farben.WASSER_HELL.darkened(0.28))
-	var bauch_mat := Materialbibliothek.einfarbig(Farben.FELL_BAUCH.darkened(0.08), 0.85)
-	var stelzen := Materialbibliothek.einfarbig(Farben.KISTE_FEDER.darkened(0.2), 0.8)
-	var schnabel_mat := Materialbibliothek.einfarbig(Farben.FRUCHT, 0.5)
-	var stachel_mat := Materialbibliothek.einfarbig(Farben.WARNUNG, 0.4)
+	var gefieder := Materialbibliothek.fell(Farben.WASSER.darkened(0.34))
+	var deckfeder := Materialbibliothek.fell(Farben.WASSER_HELL.darkened(0.30))
+	var bauch_mat := Materialbibliothek.einfarbig(Farben.FELL_BAUCH, 0.85)
+	var stelzen := Materialbibliothek.einfarbig(Farben.KISTE_FEDER.darkened(0.02), 0.75)
+	var schnabel_mat := Materialbibliothek.einfarbig(Farben.FRUCHT.darkened(0.05), 0.45)
+	var stachel_mat := Materialbibliothek.leuchtend(Farben.WARNUNG, 0.45)
 	var dunkel := Materialbibliothek.einfarbig(Farben.NASE, 0.5)
-	var augapfel := Materialbibliothek.einfarbig(Farben.FELL_BAUCH, 0.3)
+	var augapfel := Materialbibliothek.einfarbig(Color(0.99, 0.97, 0.90), 0.25)
 
 	# --- Zwei lange Stelzenbeine, jeweils an einem Drehpunkt in der Hüfte ---
 	for seite: float in [-1.0, 1.0]:
 		var huefte := Node3D.new()
 		huefte.name = "Huefte"
-		huefte.position = Vector3(0.17 * seite, HUEFT_HOEHE, 0.0)
+		huefte.position = Vector3(0.18 * seite, HUEFT_HOEHE, 0.0)
 		modell.add_child(huefte)
 		_beine.append(huefte)
 
-		_teil(huefte, _zylinder(0.045, 0.06, HUEFT_HOEHE, 8), stelzen,
+		_teil(huefte, _zylinder(0.05, 0.07, HUEFT_HOEHE, 8), stelzen,
 				Vector3(0.0, -HUEFT_HOEHE * 0.5, 0.0), Vector3.ZERO, Vector3.ONE, "Stelze")
-		# Rückwärts geknickter Fuß
-		_teil(huefte, _quader(Vector3(0.16, 0.05, 0.34)), stelzen,
-				Vector3(0.0, -HUEFT_HOEHE + 0.02, -0.06), Vector3.ZERO, Vector3.ONE, "Fuss")
+		# Kniewulst – bricht die dünne Linie auf
+		_teil(huefte, _kugel(0.075, 8, 6), stelzen, Vector3(0.0, -0.42, 0.0),
+				Vector3.ZERO, Vector3(1.0, 1.2, 1.0), "Knie")
+		# Rückwärts geknickter Fuß mit drei Zehen
+		for zehe: float in [-1.0, 0.0, 1.0]:
+			_teil(huefte, _quader(Vector3(0.07, 0.045, 0.34)), stelzen,
+					Vector3(0.075 * zehe, -HUEFT_HOEHE + 0.02, -0.10),
+					Vector3(0.0, 13.0 * zehe, 0.0), Vector3.ONE, "Zehe")
 
 	# --- Schmaler, hoch sitzender Rumpf ---
-	_rumpf = _teil(modell, _kugel(0.4, 12, 9), gefieder, Vector3(0.0, 1.42, 0.02),
-			Vector3.ZERO, Vector3(0.62, 0.78, 1.1), "Rumpf")
-	_teil(_rumpf, _kugel(0.36, 10, 7), bauch_mat, Vector3(0.0, -0.14, -0.1),
-			Vector3.ZERO, Vector3(0.85, 0.7, 0.85), "Bauch")
+	_rumpf = _teil(modell, _kugel(0.42, 12, 9), gefieder, Vector3(0.0, 1.42, 0.02),
+			Vector3.ZERO, Vector3(0.64, 0.82, 1.14), "Rumpf")
+	_teil(_rumpf, _kugel(0.38, 10, 7), bauch_mat, Vector3(0.0, -0.16, -0.12),
+			Vector3.ZERO, Vector3(0.86, 0.68, 0.86), "Bauch")
 	# Spitzer Schwanz nach hinten
-	_teil(modell, _zylinder(0.14, 0.0, 0.5, 8), gefieder, Vector3(0.0, 1.5, 0.42),
+	_teil(modell, _zylinder(0.16, 0.0, 0.56, 8), deckfeder, Vector3(0.0, 1.50, 0.44),
 			Vector3(-70.0, 0.0, 0.0), Vector3.ONE, "Schwanz")
 
-	# --- Flügel, eng angelegt ---
+	# --- Flügel, eng angelegt, mit heller Schwinge ---
 	for seite: float in [-1.0, 1.0]:
-		var fluegel := _teil(modell, _quader(Vector3(0.07, 0.42, 0.6)), gefieder,
-				Vector3(0.26 * seite, 1.44, 0.04),
+		var fluegel := _teil(modell, _quader(Vector3(0.08, 0.46, 0.64)), gefieder,
+				Vector3(0.27 * seite, 1.44, 0.04),
 				Vector3(0.0, 0.0, -8.0 * seite), Vector3.ONE, "Fluegel")
+		_teil(fluegel, _quader(Vector3(0.09, 0.10, 0.5)), bauch_mat,
+				Vector3(0.0, -0.20, 0.02), Vector3.ZERO, Vector3.ONE, "Schwinge")
 		_fluegel.append(fluegel)
+
+	# --- Rückenstacheln: der Kamm zieht sich bis auf den Rumpf ---
+	for i in 3:
+		var laenge := 0.26 - float(i) * 0.04
+		_teil(modell, _zylinder(0.06, 0.0, laenge, 6), stachel_mat,
+				Vector3(0.0, 1.72 + laenge * 0.4 - float(i) * 0.07,
+						0.06 + float(i) * 0.16),
+				Vector3(float(i) * 11.0 + 16.0, 0.0, 0.0), Vector3.ONE, "Rueckenstachel")
 
 	# --- Hals mit Kopf: hängt an einem Drehpunkt, damit er picken kann ---
 	_hals = Node3D.new()
@@ -82,27 +101,32 @@ func _baue() -> void:
 	_hals.position = Vector3(0.0, 1.72, -0.05)
 	modell.add_child(_hals)
 
-	_teil(_hals, _zylinder(0.09, 0.07, 0.52, 8), gefieder, Vector3(0.0, 0.26, -0.04),
+	_teil(_hals, _zylinder(0.10, 0.08, 0.54, 8), gefieder, Vector3(0.0, 0.27, -0.04),
 			Vector3(6.0, 0.0, 0.0), Vector3.ONE, "Halsrohr")
-	var kopf := _teil(_hals, _kugel(0.18, 10, 8), gefieder, Vector3(0.0, 0.56, -0.09),
-			Vector3.ZERO, Vector3(0.9, 0.95, 1.05), "Kopf")
+	var kopf := _teil(_hals, _kugel(0.20, 10, 8), gefieder, Vector3(0.0, 0.58, -0.10),
+			Vector3.ZERO, Vector3(0.92, 0.96, 1.06), "Kopf")
 
-	# Langer, spitzer Schnabel nach vorn
-	_teil(kopf, _zylinder(0.08, 0.0, 0.46, 8), schnabel_mat, Vector3(0.0, -0.02, -0.26),
+	# Langer, spitzer Schnabel nach vorn, mit dunkler Spitze
+	_teil(kopf, _zylinder(0.09, 0.0, 0.52, 8), schnabel_mat, Vector3(0.0, -0.02, -0.28),
 			Vector3(-95.0, 0.0, 0.0), Vector3.ONE, "Schnabel")
+	# Roter Kehllappen – noch ein Warnsignal
+	_teil(kopf, _kugel(0.075, 8, 6), stachel_mat, Vector3(0.0, -0.14, -0.16),
+			Vector3.ZERO, Vector3(0.7, 1.3, 0.6), "Kehllappen")
 
 	# Stachelkamm nach OBEN – darauf kann niemand landen
-	for i in 3:
-		var hoehe := 0.3 - float(i) * 0.06
-		_teil(kopf, _zylinder(0.05, 0.0, hoehe, 6), stachel_mat,
-				Vector3(0.0, 0.14 + hoehe * 0.5, 0.02 + float(i) * 0.11),
-				Vector3(float(i) * 9.0, 0.0, 0.0), Vector3.ONE, "Stachel")
+	for i in 5:
+		var hoehe := 0.34 - float(i) * 0.042
+		_teil(kopf, _zylinder(0.055, 0.0, hoehe, 6), stachel_mat,
+				Vector3(0.0, 0.15 + hoehe * 0.44, 0.02 + float(i) * 0.10),
+				Vector3(float(i) * 8.0, 0.0, 0.0), Vector3.ONE, "Stachel")
 
-	# Augen
+	# Augen mit dunklem Ring – wirken größer und wacher
 	for seite: float in [-1.0, 1.0]:
-		var auge := _teil(kopf, _kugel(0.07, 8, 6), augapfel,
-				Vector3(0.12 * seite, 0.04, -0.1), Vector3.ZERO, Vector3.ONE, "Auge")
-		_teil(auge, _kugel(0.04, 6, 5), dunkel, Vector3(0.0, 0.0, -0.05),
+		_teil(kopf, _kugel(0.09, 8, 6), dunkel, Vector3(0.125 * seite, 0.05, -0.09),
+				Vector3.ZERO, Vector3(1.0, 1.0, 0.8), "Augenring")
+		var auge := _teil(kopf, _kugel(0.072, 8, 6), augapfel,
+				Vector3(0.128 * seite, 0.05, -0.11), Vector3.ZERO, Vector3.ONE, "Auge")
+		_teil(auge, _kugel(0.042, 6, 5), dunkel, Vector3(0.0, 0.0, -0.05),
 				Vector3.ZERO, Vector3.ONE, "Pupille")
 
 

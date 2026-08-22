@@ -2,20 +2,48 @@ extends RefCounted
 class_name Farben
 ## Zentrale Farbpalette. Alle Materialien greifen hierauf zu, damit das
 ## Spiel farblich zusammenpasst.
+##
+## Hinweis zur Helligkeit: Das Level beleuchtet die Welt mit Himmels-Ambiente
+## (bläulich, Energie 0.85) und filmischem Tonemapping. Dunkle, wenig
+## gesättigte Töne kippen dadurch ins Graublaue – Erde sah deshalb aus wie
+## Asphalt. Die Erd- und Holztöne sind daher bewusst hell und warm
+## gehalten, damit sie im Bild noch als Erde ankommen.
 
-# Wald
-const RINDE := Color(0.29, 0.20, 0.13)
-const RINDE_HELL := Color(0.42, 0.30, 0.19)
-const LAUB_DUNKEL := Color(0.13, 0.30, 0.12)
-const LAUB := Color(0.20, 0.44, 0.16)
-const LAUB_HELL := Color(0.35, 0.60, 0.22)
-const GRAS := Color(0.24, 0.45, 0.19)
-const GRAS_HELL := Color(0.42, 0.62, 0.26)
-const ERDE := Color(0.31, 0.23, 0.15)
-const ERDE_HELL := Color(0.45, 0.35, 0.23)
-const FELS := Color(0.42, 0.42, 0.45)
-const FELS_HELL := Color(0.58, 0.58, 0.60)
-const MOOS := Color(0.26, 0.42, 0.20)
+# Wald – Rinde und Blattwerk
+const RINDE := Color(0.33, 0.22, 0.13)
+const RINDE_HELL := Color(0.54, 0.39, 0.24)
+const RINDE_DUNKEL := Color(0.17, 0.11, 0.06)
+const LAUB_DUNKEL := Color(0.16, 0.34, 0.13)
+const LAUB := Color(0.22, 0.47, 0.16)
+const LAUB_HELL := Color(0.41, 0.66, 0.24)
+const LAUB_GELB := Color(0.62, 0.68, 0.24)
+
+# Wald – Grasflächen
+const GRAS := Color(0.27, 0.50, 0.18)
+const GRAS_HELL := Color(0.51, 0.72, 0.27)
+const GRAS_DUNKEL := Color(0.14, 0.31, 0.10)
+const GRAS_TROCKEN := Color(0.63, 0.62, 0.28)
+
+# Wald – Erde und Weg
+const ERDE := Color(0.44, 0.31, 0.19)
+const ERDE_HELL := Color(0.68, 0.53, 0.33)
+const ERDE_DUNKEL := Color(0.26, 0.17, 0.10)
+const WEG := Color(0.63, 0.48, 0.29)
+const WEG_HELL := Color(0.88, 0.73, 0.48)
+const WEG_DUNKEL := Color(0.42, 0.29, 0.17)
+const LAUBSTREU := Color(0.63, 0.44, 0.20)
+const LAUBSTREU_ROT := Color(0.60, 0.36, 0.17)
+
+# Wald – Fels
+const FELS := Color(0.50, 0.47, 0.42)
+const FELS_HELL := Color(0.64, 0.61, 0.55)
+const FELS_DUNKEL := Color(0.34, 0.31, 0.28)
+const FELS_WARM := Color(0.60, 0.49, 0.35)
+const FLECHTE := Color(0.62, 0.68, 0.50)
+const MOOS := Color(0.28, 0.46, 0.19)
+const MOOS_HELL := Color(0.45, 0.62, 0.26)
+const KIES := Color(0.54, 0.51, 0.46)
+const KIES_HELL := Color(0.76, 0.73, 0.67)
 
 # Wasser
 const WASSER := Color(0.13, 0.42, 0.52)
@@ -24,6 +52,7 @@ const WASSER_HELL := Color(0.35, 0.72, 0.78)
 # Kisten
 const HOLZ := Color(0.71, 0.40, 0.11)
 const HOLZ_DUNKEL := Color(0.35, 0.20, 0.06)
+const HOLZ_FUGE := Color(0.15, 0.08, 0.03)
 const KISTE_LEBEN := Color(0.26, 0.80, 0.40)
 const KISTE_TNT := Color(0.80, 0.16, 0.13)
 const KISTE_NITRO := Color(0.10, 0.55, 0.25)
@@ -31,6 +60,8 @@ const KISTE_FEDER := Color(0.95, 0.75, 0.20)
 const KISTE_SPRUNG := Color(0.30, 0.55, 0.95)
 const KISTE_EISEN := Color(0.55, 0.57, 0.62)
 const KISTE_CHECKPOINT := Color(0.27, 0.80, 0.42)
+const ROST := Color(0.46, 0.24, 0.11)
+const ROST_HELL := Color(0.66, 0.38, 0.16)
 
 # Spieler und Effekte
 const FELL := Color(0.94, 0.44, 0.13)
