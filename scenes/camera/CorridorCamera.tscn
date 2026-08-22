@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/corridor_camera.gd" id="1_cam"]
+
+[node name="CorridorCamera" type="Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.2, 12)
+fov = 60.0
+far = 200.0
+script = ExtResource("1_cam")

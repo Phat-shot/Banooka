@@ -1,0 +1,35 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/test_level.gd" id="1_level"]
+[ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/camera/CorridorCamera.tscn" id="3_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
+
+[sub_resource type="Environment" id="Umgebung"]
+background_mode = 1
+background_color = Color(0.102, 0.165, 0.29, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.533, 0.6, 0.8, 1)
+ambient_light_energy = 0.7
+fog_enabled = true
+fog_light_color = Color(0.102, 0.165, 0.29, 1)
+fog_density = 0.015
+
+[node name="Testlevel" type="Node3D"]
+script = ExtResource("1_level")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Umgebung")
+
+[node name="Sonne" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 20, 0)
+light_color = Color(1, 0.949, 0.867, 1)
+light_energy = 1.6
+shadow_enabled = true
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
+
+[node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
+
+[node name="HUD" parent="." instance=ExtResource("4_hud")]

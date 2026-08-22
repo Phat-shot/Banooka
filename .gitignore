@@ -1,0 +1,14 @@
+# Godot 4
+.godot/
+/android/
+/build/
+/export/
+export_presets.cfg
+*.translation
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Claude Code (lokale Einstellungen)
+.claude/settings.local.json

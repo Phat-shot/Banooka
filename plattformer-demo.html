@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Korridor-Plattformer – Demo</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#0a0e1a;font-family:'Segoe UI',system-ui,sans-serif;touch-action:none;-webkit-user-select:none;user-select:none}
+  #hud{position:fixed;top:10px;left:12px;color:#fff;z-index:10;text-shadow:0 2px 4px rgba(0,0,0,.7);font-weight:700}
+  #hud .fruit{color:#ffb347;font-size:20px}
+  #hud .lives{color:#ff6b6b;font-size:16px;margin-top:2px}
+  #hud .boxes{color:#d9a05b;font-size:14px;margin-top:2px}
+  #msg{position:fixed;top:42%;width:100%;text-align:center;color:#fff;font-size:28px;font-weight:800;text-shadow:0 3px 8px rgba(0,0,0,.8);z-index:10;pointer-events:none;opacity:0;transition:opacity .3s}
+  /* Touch controls */
+  #joyZone{position:fixed;left:0;bottom:0;width:45%;height:45%;z-index:20}
+  #joyBase{position:absolute;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.25);display:none}
+  #joyStick{position:absolute;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.45)}
+  .btn{position:fixed;width:64px;height:64px;border-radius:50%;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;z-index:20;border:2px solid rgba(255,255,255,.3);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  #btnJump{right:20px;bottom:96px;background:rgba(80,160,255,.45)}
+  #btnSpin{right:96px;bottom:32px;background:rgba(255,140,60,.45)}
+  #btnSlide{right:20px;bottom:20px;background:rgba(160,90,255,.45)}
+  #keys{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.45);font-size:12px;z-index:10;text-align:center}
+  @media (pointer:coarse){#keys{display:none}}
+  @media (pointer:fine){.btn,#joyZone{display:none}}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="fruit">🍊 <span id="fruitN">0</span></div>
+  <div class="lives">♥ <span id="livesN">3</span></div>
+  <div class="boxes">Kisten: <span id="boxN">0</span>/<span id="boxT">0</span></div>
+</div>
+<div id="msg"></div>
+<div id="joyZone"><div id="joyBase"><div id="joyStick"></div></div></div>
+<div class="btn" id="btnJump">JUMP</div>
+<div class="btn" id="btnSpin">SPIN</div>
+<div class="btn" id="btnSlide">SLIDE</div>
+<div id="keys">WASD/Pfeile: Laufen · Leertaste: Sprung (2× = Doppelsprung) · J/Strg: Spin · Shift: Slide (Slide+Sprung = hoher Sprung) · Shift in der Luft: Bauchplatscher</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+// ============ SETUP ============
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a2a4a);
+scene.fog = new THREE.Fog(0x1a2a4a, 30, 90);
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, .1, 200);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
+const sun = new THREE.DirectionalLight(0xfff2dd, 1.6);
+sun.position.set(8,20,6); sun.castShadow = true;
+sun.shadow.camera.left=-30; sun.shadow.camera.right=30; sun.shadow.camera.top=30; sun.shadow.camera.bottom=-30;
+sun.shadow.mapSize.set(1024,1024);
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0x8899cc,.7));
+
+// ============ PHYSIK-KONSTANTEN (an Crash 2 angelehnt) ============
+const G = -38;              // Gravitation
+const JUMP_V = 12.2;        // fixe Sprungkraft (~0.55 s hoch+runter kurzer Sprung)
+const JUMP_CUT = .45;       // Sprung loslassen => Höhe kappen (variable Höhe wie Crash)
+const RUN_SPEED = 8.5;
+const AIR_CTRL = .82;       // reduzierte Luftkontrolle
+const SLIDE_SPEED = 13.5;
+const SLIDE_TIME = .42;
+const SLIDEJUMP_V = 14.5;   // Slide-Jump springt höher (Crash-2-Tech)
+const DJUMP_V = 10.5;       // Doppelsprung (zweiter Sprung etwas schwächer)
+const SLAM_V = -30;
+const SPIN_TIME = .38;
+
+// ============ SPIELER ============
+const player = new THREE.Group();
+const bodyMat = new THREE.MeshStandardMaterial({color:0xff8c3a});
+const body = new THREE.Mesh(new THREE.CapsuleGeometry(.38,.6,6,12), bodyMat);
+body.position.y=.7; body.castShadow=true; player.add(body);
+const eyeL = new THREE.Mesh(new THREE.SphereGeometry(.09,8,8), new THREE.MeshBasicMaterial({color:0xffffff}));
+const eyeR = eyeL.clone(); eyeL.position.set(-.15,1.05,.3); eyeR.position.set(.15,1.05,.3);
+player.add(eyeL,eyeR);
+const spinRing = new THREE.Mesh(new THREE.TorusGeometry(.85,.08,8,24), new THREE.MeshBasicMaterial({color:0xffe066,transparent:true,opacity:0}));
+spinRing.rotation.x = Math.PI/2; spinRing.position.y=.6; player.add(spinRing);
+scene.add(player);
+
+const P = {
+  pos:new THREE.Vector3(0,1,4), vel:new THREE.Vector3(),
+  grounded:false, sliding:0, spinning:0, slamming:false, canDJump:false,
+  invuln:0, fruits:0, lives:3, checkpoint:new THREE.Vector3(0,1,4)
+};
+
+// ============ LEVEL ============
+const solids=[];   // begehbare Boxen {min,max,mesh}
+const crates=[];   // {mesh,type,broken}
+const fruits=[];   // {mesh,taken}
+const hazards=[];  // {min,max}
+let boxTotal=0, boxBroken=0;
+
+function addBox(x,y,z,w,h,d,color,receive=true){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color}));
+  m.position.set(x,y,z); m.receiveShadow=receive; m.castShadow=true; scene.add(m);
+  solids.push({min:new THREE.Vector3(x-w/2,y-h/2,z-d/2),max:new THREE.Vector3(x+w/2,y+h/2,z+d/2),mesh:m});
+  return m;
+}
+function addCrate(x,y,z,type='normal'){
+  const col = type==='checkpoint'?0x44cc66 : type==='bounce'?0xd9a05b : 0xb5651d;
+  const m=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:col}));
+  // Kreuzstreben-Optik
+  const edge=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:0x5a3210}));
+  m.add(edge);
+  if(type==='checkpoint'){
+    const c=new THREE.Mesh(new THREE.SphereGeometry(.18,8,8),new THREE.MeshBasicMaterial({color:0xffffff}));
+    c.position.y=.0; m.add(c);
+  }
+  m.position.set(x,y,z); m.castShadow=true; scene.add(m);
+  crates.push({mesh:m,type,broken:false});
+  if(type!=='checkpoint') boxTotal++;
+}
+function addFruit(x,y,z){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(.22,10,10),new THREE.MeshStandardMaterial({color:0xffb347,emissive:0x663300}));
+  m.position.set(x,y,z); scene.add(m); fruits.push({mesh:m,taken:false});
+}
+function addHazard(x,y,z,w,h,d){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color:0xcc2222,emissive:0x550000}));
+  m.position.set(x,y,z); scene.add(m);
+  // Stacheln
+  for(let i=0;i<Math.floor(w);i++)for(let j=0;j<Math.floor(d);j++){
+    const s=new THREE.Mesh(new THREE.ConeGeometry(.15,.4,6),new THREE.MeshStandardMaterial({color:0xff4444}));
+    s.position.set(x-w/2+.5+i, y+h/2+.2, z-d/2+.5+j); scene.add(s);
+  }
+  hazards.push({min:new THREE.Vector3(x-w/2,y-h/2,z-d/2),max:new THREE.Vector3(x+w/2,y+h/2+.4,z+d/2)});
+}
+
+// --- Testlevel: Korridor Richtung -Z ---
+const groundCol=0x3d6b35, pathCol=0x8a6f47;
+addBox(0,-.5,-10, 8,1,40, groundCol);            // Startabschnitt
+addBox(0,-.5,-38, 6,1,12, groundCol);            // nach Lücke 1
+addBox(-1.5,.5,-36, 1.2,1,1.2, pathCol);         // Stufe
+addBox(0,-.5,-58, 8,1,20, groundCol);            // nach Lücke 2
+addBox(2,.75,-52, 2,2.5,2, pathCol);             // Block (Slide-Jump drüber oder vorbei)
+addBox(0,-.5,-80, 6,1,16, groundCol);            // Endabschnitt
+addBox(0,.25,-86, 4,.5,3, 0xd4b04a);             // Ziel-Podest
+addHazard(0,0,-46, 4,.2,2);                      // Stachelfeld auf Boden (drüberspringen)
+
+// Kisten
+addCrate(-1.5,.5,-6); addCrate(-1.5,1.5,-6); addCrate(1.8,.5,-12);
+addCrate(0,.5,-18,'checkpoint');
+addCrate(.5,.5,-34); addCrate(1.5,.5,-34);
+addCrate(0,.5,-55,'checkpoint');
+addCrate(-2,.5,-62); addCrate(-2,1.5,-62); addCrate(-2,2.5,-62);
+addCrate(1,.5,-76);
+// Früchte
+for(let i=0;i<5;i++) addFruit(0,.6,-8-i*1.2);
+addFruit(-1.5,2.6,-36); addFruit(2,2.6,-52);
+for(let i=0;i<4;i++) addFruit(Math.sin(i)*1.5,.6,-66-i*2);
+document.getElementById('boxT').textContent=boxTotal;
+
+// Ziel
+const goal=new THREE.Mesh(new THREE.CylinderGeometry(.6,.6,3,12),new THREE.MeshStandardMaterial({color:0x66ddff,emissive:0x114455,transparent:true,opacity:.75}));
+goal.position.set(0,2,-86); scene.add(goal);
+
+// ============ INPUT ============
+const input={x:0,z:0,jump:false,jumpHeld:false,spin:false,slide:false,slideHeld:false};
+const keys={};
+addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='Space'&&!input.jumpHeld){input.jump=true} 
+  if(e.code==='Space')input.jumpHeld=true;
+  if(e.code==='KeyJ'||e.code==='ControlLeft')input.spin=true;
+  if(e.code==='ShiftLeft'&&!input.slideHeld){input.slide=true}
+  if(e.code==='ShiftLeft')input.slideHeld=true;
+  if(e.code==='Space')e.preventDefault();
+});
+addEventListener('keyup',e=>{
+  keys[e.code]=false;
+  if(e.code==='Space')input.jumpHeld=false;
+  if(e.code==='ShiftLeft')input.slideHeld=false;
+});
+function readKeyboard(){
+  let x=0,z=0;
+  if(keys['KeyA']||keys['ArrowLeft'])x-=1;
+  if(keys['KeyD']||keys['ArrowRight'])x+=1;
+  if(keys['KeyW']||keys['ArrowUp'])z-=1;
+  if(keys['KeyS']||keys['ArrowDown'])z+=1;
+  if(x||z){input.x=x;input.z=z}
+}
+// Touch: Joystick
+const joyZone=document.getElementById('joyZone'),joyBase=document.getElementById('joyBase'),joyStick=document.getElementById('joyStick');
+let joyId=null,joyCX=0,joyCY=0;
+joyZone.addEventListener('touchstart',e=>{
+  const t=e.changedTouches[0]; joyId=t.identifier;
+  joyCX=t.clientX; joyCY=t.clientY;
+  joyBase.style.display='block';
+  joyBase.style.left=(joyCX-55)+'px'; joyBase.style.top=(joyCY-55)+'px';
+  joyStick.style.left='30px'; joyStick.style.top='30px';
+},{passive:true});
+addEventListener('touchmove',e=>{
+  for(const t of e.changedTouches){ if(t.identifier!==joyId)continue;
+    let dx=t.clientX-joyCX, dy=t.clientY-joyCY;
+    const len=Math.hypot(dx,dy), max=45;
+    if(len>max){dx*=max/len;dy*=max/len}
+    joyStick.style.left=(30+dx)+'px'; joyStick.style.top=(30+dy)+'px';
+    input.x=dx/max; input.z=dy/max;
+  }
+},{passive:true});
+addEventListener('touchend',e=>{
+  for(const t of e.changedTouches){ if(t.identifier===joyId){joyId=null;joyBase.style.display='none';input.x=0;input.z=0} }
+},{passive:true});
+// Touch: Buttons
+function bindBtn(id,down,up){
+  const el=document.getElementById(id);
+  el.addEventListener('touchstart',e=>{e.preventDefault();down()});
+  if(up)el.addEventListener('touchend',e=>{e.preventDefault();up()});
+}
+bindBtn('btnJump',()=>{input.jump=true;input.jumpHeld=true},()=>{input.jumpHeld=false});
+bindBtn('btnSpin',()=>{input.spin=true});
+bindBtn('btnSlide',()=>{input.slide=true;input.slideHeld=true},()=>{input.slideHeld=false});
+
+// ============ HILFEN ============
+const msgEl=document.getElementById('msg');
+let msgTimer=0;
+function showMsg(t,dur=1.8){msgEl.textContent=t;msgEl.style.opacity=1;msgTimer=dur}
+function updHUD(){
+  document.getElementById('fruitN').textContent=P.fruits;
+  document.getElementById('livesN').textContent=P.lives;
+  document.getElementById('boxN').textContent=boxBroken;
+}
+const R=.38, PH=1.3; // Spieler-Radius & Höhe
+function aabbHit(min,max,pos,r,h){
+  return pos.x+r>min.x&&pos.x-r<max.x && pos.y+h>min.y&&pos.y<max.y && pos.z+r>min.z&&pos.z-r<max.z;
+}
+function respawn(){
+  P.pos.copy(P.checkpoint); P.vel.set(0,0,0); P.sliding=0; P.spinning=0; P.slamming=false; P.invuln=1.2;
+}
+function die(){
+  P.lives--; updHUD();
+  if(P.lives<0){ P.lives=3; P.fruits=0; showMsg('GAME OVER'); }
+  else showMsg('Autsch!');
+  respawn();
+}
+
+// ============ GAME LOOP ============
+let last=performance.now(), goalReached=false;
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min((now-last)/1000,.05); last=now;
+  input.x*= (joyId!==null)?1:0; input.z*=(joyId!==null)?1:0; // Tastatur setzt neu
+  readKeyboard();
+
+  // --- Timer ---
+  if(P.spinning>0)P.spinning-=dt;
+  if(P.sliding>0)P.sliding-=dt;
+  if(P.invuln>0)P.invuln-=dt;
+  if(msgTimer>0){msgTimer-=dt; if(msgTimer<=0)msgEl.style.opacity=0}
+
+  // --- Horizontal ---
+  const ctrl=P.grounded?1:AIR_CTRL;
+  let mx=input.x, mz=input.z;
+  const ml=Math.hypot(mx,mz); if(ml>1){mx/=ml;mz/=ml}
+  if(P.sliding>0){
+    // Slide: Richtung eingefroren, hohes Tempo
+    P.vel.x=P.slideDir.x*SLIDE_SPEED; P.vel.z=P.slideDir.z*SLIDE_SPEED;
+  }else{
+    P.vel.x=mx*RUN_SPEED*ctrl; P.vel.z=mz*RUN_SPEED*ctrl;
+  }
+  // Blickrichtung
+  if(ml>.1&&P.sliding<=0){ player.rotation.y=Math.atan2(mx,mz) }
+
+  // --- Aktionen ---
+  if(input.slide){ input.slide=false;
+    if(P.grounded&&ml>.1&&P.sliding<=0){
+      P.sliding=SLIDE_TIME; P.slideDir=new THREE.Vector3(mx,0,mz).normalize();
+    } else if(!P.grounded&&!P.slamming){ // Bodyslam in der Luft
+      P.slamming=true; P.vel.y=SLAM_V;
+    }
+  }
+  if(input.jump){ input.jump=false;
+    if(P.grounded){
+      P.vel.y = P.sliding>0 ? SLIDEJUMP_V : JUMP_V;  // Slide-Jump höher
+      P.sliding=0; P.grounded=false; P.canDJump=true;
+    } else if(P.canDJump&&!P.slamming){                // Doppelsprung
+      P.vel.y=DJUMP_V; P.canDJump=false; P.spinning=Math.max(P.spinning,.2);
+    }
+  }
+  // Variable Sprunghöhe (Taste losgelassen)
+  if(!input.jumpHeld&&P.vel.y>JUMP_V*JUMP_CUT&&!P.slamming) P.vel.y=JUMP_V*JUMP_CUT;
+  if(input.spin){ input.spin=false;
+    if(P.spinning<=0){P.spinning=SPIN_TIME}
+  }
+
+  // --- Gravitation & Bewegung mit Kollision (Achsen getrennt) ---
+  P.vel.y+=G*dt;
+  const move=P.vel.clone().multiplyScalar(dt);
+  // X
+  P.pos.x+=move.x;
+  for(const s of solids) if(aabbHit(s.min,s.max,P.pos,R,PH)){
+    P.pos.x = move.x>0 ? s.min.x-R : s.max.x+R;
+  }
+  // Z
+  P.pos.z+=move.z;
+  for(const s of solids) if(aabbHit(s.min,s.max,P.pos,R,PH)){
+    P.pos.z = move.z>0 ? s.min.z-R : s.max.z+R;
+  }
+  // Y
+  P.pos.y+=move.y;
+  P.grounded=false;
+  for(const s of solids) if(aabbHit(s.min,s.max,P.pos,R,PH)){
+    if(move.y<=0){ P.pos.y=s.max.y; P.vel.y=0; P.grounded=true; P.canDJump=false;
+      if(P.slamming){P.slamming=false; slamShock()}
+    } else { P.pos.y=s.min.y-PH; P.vel.y=0 }
+  }
+
+  // --- Kisten (Kollision + zerbrechen) ---
+  for(const c of crates){ if(c.broken)continue;
+    const cp=c.mesh.position;
+    const min=new THREE.Vector3(cp.x-.5,cp.y-.5,cp.z-.5), max=new THREE.Vector3(cp.x+.5,cp.y+.5,cp.z+.5);
+    if(!aabbHit(min,max,P.pos,R+.35,PH))continue;
+    const spinHit=P.spinning>0, slamHit=P.slamming||(P.vel.y<-4&&P.pos.y>max.y-.3);
+    if(c.type==='checkpoint'&&(spinHit||slamHit)){
+      c.broken=true; c.mesh.visible=false;
+      P.checkpoint.set(cp.x,cp.y+.6,cp.z);
+      showMsg('✓ Checkpoint',1.2);
+    } else if(c.type!=='checkpoint'&&(spinHit||slamHit)){
+      c.broken=true; c.mesh.visible=false; boxBroken++;
+      P.fruits++; updHUD();
+      if(boxBroken===boxTotal)showMsg('Alle Kisten! 💎');
+    } else {
+      // solide Kiste: wegschieben
+      const dx=P.pos.x-cp.x, dz=P.pos.z-cp.z;
+      if(Math.abs(dx)>Math.abs(dz)) P.pos.x=cp.x+Math.sign(dx)*(R+.55);
+      else P.pos.z=cp.z+Math.sign(dz)*(R+.55);
+      // oben drauf stehen
+      if(P.vel.y<=0&&P.pos.y>max.y-.4){P.pos.y=max.y;P.vel.y=0;P.grounded=true;
+        if(P.slamming){P.slamming=false}}
+    }
+  }
+  function slamShock(){ // Bodyslam zerbricht Kisten im Umkreis
+    for(const c of crates){ if(c.broken)continue;
+      if(c.mesh.position.distanceTo(P.pos)<2){
+        c.broken=true;c.mesh.visible=false;
+        if(c.type==='checkpoint'){P.checkpoint.copy(c.mesh.position).y+=.6;showMsg('✓ Checkpoint',1.2)}
+        else{boxBroken++;P.fruits++;updHUD()}
+      }
+    }
+  }
+
+  // --- Früchte ---
+  for(const f of fruits){ if(f.taken)continue;
+    f.mesh.rotation.y+=dt*3;
+    if(f.mesh.position.distanceTo(new THREE.Vector3(P.pos.x,P.pos.y+.5,P.pos.z))<1){
+      f.taken=true; f.mesh.visible=false; P.fruits++; updHUD();
+    }
+  }
+
+  // --- Gefahren & Absturz ---
+  if(P.invuln<=0) for(const h of hazards) if(aabbHit(h.min,h.max,P.pos,R,PH)){die();break}
+  if(P.pos.y<-8) die();
+
+  // --- Ziel ---
+  goal.rotation.y+=dt;
+  if(!goalReached&&P.pos.distanceTo(goal.position)<1.6){
+    goalReached=true; showMsg('LEVEL GESCHAFFT! 🏆',4);
+  }
+
+  // --- Visuals ---
+  player.position.copy(P.pos);
+  body.scale.y = P.sliding>0 ? .45 : 1;
+  body.position.y = P.sliding>0 ? .4 : .7;
+  if(P.spinning>0){ player.rotation.y+=dt*30; spinRing.material.opacity=.85 }
+  else spinRing.material.opacity=Math.max(0,spinRing.material.opacity-dt*5);
+  if(P.invuln>0) body.material.transparent=true, body.material.opacity=.5+.5*Math.sin(now*.02);
+  else body.material.opacity=1;
+
+  // Kamera: hinter dem Spieler, Korridor-Blick
+  const camTarget=new THREE.Vector3(P.pos.x*.5, P.pos.y+4.2, P.pos.z+8);
+  camera.position.lerp(camTarget,1-Math.pow(.001,dt));
+  camera.lookAt(P.pos.x*.5, P.pos.y+1, P.pos.z-4);
+
+  renderer.render(scene,camera);
+}
+updHUD();
+showMsg('Los geht\'s! Kisten mit SPIN zerbrechen',2.5);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
