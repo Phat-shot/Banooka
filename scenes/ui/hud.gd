@@ -50,8 +50,11 @@ func _process(delta: float) -> void:
 
 func _zeichne_tafel() -> void:
 	var schrift := _tafel.get_theme_default_font()
+	# Im Portalraum gibt es keine Kisten – dann entfällt die Zeile,
+	# statt "0 / 0" anzuzeigen.
+	var zeigt_kisten := _kisten_gesamt > 0
 	var breite := 230.0
-	var hoehe := 104.0
+	var hoehe := 104.0 if zeigt_kisten else 78.0
 
 	# Hintergrundtafel mit weicher Kante
 	_runde_flaeche(Rect2(0, 0, breite, hoehe), Color(0.04, 0.07, 0.06, 0.55), 14.0)
@@ -75,6 +78,8 @@ func _zeichne_tafel() -> void:
 				Color(1, 0.5, 0.5, 0.9))
 
 	# --- Kisten ---
+	if not zeigt_kisten:
+		return
 	y = 86.0
 	_kisten_symbol(Vector2(26, y), 9.0)
 	var voll_text := _kisten >= _kisten_gesamt and _kisten_gesamt > 0

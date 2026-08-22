@@ -1,0 +1,71 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scenes/hub/hub.gd" id="1_hub"]
+[ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://scripts/folge_kamera.gd" id="3_kamera"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Himmel"]
+sky_top_color = Color(0.19, 0.32, 0.58, 1)
+sky_horizon_color = Color(0.72, 0.7, 0.66, 1)
+sky_curve = 0.14
+ground_bottom_color = Color(0.42, 0.45, 0.47, 1)
+ground_horizon_color = Color(0.72, 0.7, 0.66, 1)
+sun_angle_max = 22.0
+sun_curve = 0.2
+
+[sub_resource type="Sky" id="SkyRes"]
+sky_material = SubResource("Himmel")
+
+[sub_resource type="Environment" id="Umgebung"]
+background_mode = 2
+sky = SubResource("SkyRes")
+ambient_light_source = 2
+ambient_light_color = Color(0.58, 0.63, 0.72, 1)
+ambient_light_energy = 0.95
+tonemap_mode = 3
+tonemap_exposure = 1.05
+tonemap_white = 6.0
+fog_enabled = true
+fog_mode = 0
+fog_light_color = Color(0.55, 0.6, 0.64, 1)
+fog_light_energy = 0.8
+fog_density = 0.0028
+fog_aerial_perspective = 0.2
+fog_sky_affect = 0.05
+adjustment_enabled = true
+adjustment_contrast = 1.06
+adjustment_saturation = 1.18
+
+[node name="Hub" type="Node3D"]
+script = ExtResource("1_hub")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Umgebung")
+
+[node name="Sonne" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
+light_color = Color(1, 0.949, 0.878, 1)
+light_energy = 1.5
+light_specular = 0.4
+shadow_enabled = true
+shadow_bias = 0.04
+shadow_normal_bias = 1.5
+directional_shadow_mode = 2
+directional_shadow_max_distance = 70.0
+directional_shadow_split_1 = 0.1
+directional_shadow_split_2 = 0.26
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 2.5)
+
+[node name="Kamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.7071, 0.7071, 0, -0.7071, 0.7071, 0, 10.5, 13)
+fov = 58.0
+far = 200.0
+script = ExtResource("3_kamera")
+versatz = Vector3(0, 6.4, 8.2)
+blick_hoehe = 1.5
+glaettung = 0.0015
+
+[node name="HUD" parent="." instance=ExtResource("4_hud")]
