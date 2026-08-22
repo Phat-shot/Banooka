@@ -94,7 +94,7 @@ func zum_splash() -> void:
 
 func zum_hub() -> void:
 	aktuelles_level = 0
-	_wechseln(HUB_SZENE)
+	_wechseln(HUB_SZENE, "Portalraum")
 
 
 ## Startet ein Level. Gibt false zurück, wenn es verschlossen oder
@@ -104,7 +104,7 @@ func zum_level(nummer: int) -> bool:
 		return false
 	aktuelles_level = nummer
 	GameState.neu_beginnen()
-	_wechseln(LEVEL_SZENEN[nummer - 1])
+	_wechseln(LEVEL_SZENEN[nummer - 1], "Level %02d" % nummer)
 	return true
 
 
@@ -121,11 +121,27 @@ func level_abschliessen(alle_kisten: bool) -> void:
 	fortschritt_geaendert.emit()
 
 
-func _wechseln(pfad: String) -> void:
+## Wechselt die Szene. Mit Titel wird vorher der Ladebildschirm
+## eingeblendet – erst wenn er tatsächlich gezeichnet ist, beginnt der
+## Wechsel, sonst sähe man während des Aufbaus die alte Szene einfrieren.
+func _wechseln(pfad: String, ladetitel: String = "") -> void:
 	if pfad.is_empty() or not ResourceLoader.exists(pfad):
 		push_warning("Szene fehlt: %s" % pfad)
 		return
-	get_tree().change_scene_to_file.call_deferred(pfad)
+	if ladetitel.is_empty():
+		get_tree().change_scene_to_file.call_deferred(pfad)
+		return
+	_wechseln_mit_ladeschirm(pfad, ladetitel)
+
+
+func _wechseln_mit_ladeschirm(pfad: String, titel: String) -> void:
+	Ladeschirm.zeigen(titel)
+	# Zwei Bilder abwarten, damit der Ladebildschirm wirklich sichtbar ist,
+	# bevor der Hauptfaden mit dem Aufbau blockiert.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Ladeschirm.fortschritt(0.05, "Szene wird geladen")
+	get_tree().change_scene_to_file(pfad)
 
 
 # ----------------------------------------------------------- Spielstand

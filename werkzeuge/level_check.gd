@@ -28,6 +28,9 @@ func _ready() -> void:
 	print("Level: ", pfad)
 	_level = load(pfad).instantiate()
 	add_child(_level)
+	# Der Aufbau läuft über mehrere Bilder (Ladebildschirm) – abwarten.
+	if _level.has_signal("aufbau_fertig"):
+		await _level.aufbau_fertig
 	for i in 4:
 		await get_tree().physics_frame
 	_raum = get_viewport().world_3d.direct_space_state

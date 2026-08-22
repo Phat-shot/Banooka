@@ -75,6 +75,16 @@ func _ready() -> void:
 
 	_baue_rundgang()
 	_spieler_setzen()
+	_wegweiser_setzen()
+	# Der Portalraum wird über den Ladebildschirm betreten – er steht jetzt.
+	Ladeschirm.verbergen()
+
+
+## Pfeil über dem Spieler, der auf das nächste offene Portal zeigt.
+func _wegweiser_setzen() -> void:
+	var pfeil := Wegweiser.new()
+	pfeil.name = "Wegweiser"
+	_objekte.add_child(pfeil)
 
 
 func _gruppe(bezeichnung: String) -> Node3D:

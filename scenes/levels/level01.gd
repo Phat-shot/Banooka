@@ -44,16 +44,38 @@ const WASSER_HOEHE := -13.4     ## Bachlauf am Grund der Schlucht (nur Kulisse)
 
 
 func _baue() -> void:
-	_verlauf_anlegen()
-	_waldboden_bauen()
-	_boden_bauen()
-	_plattformen_bauen()
-	_wald_bauen()
-	_portale_setzen()
-	_gefahren_setzen()
-	_kisten_setzen()
-	_gegner_setzen()
-	_fruechte_setzen()
+	for schritt in _bauschritte():
+		var tun: Callable = schritt["tun"]
+		tun.call()
+
+
+## Aufbau in Einzelschritten, damit der Ladebildschirm mitläuft.
+## Die Waldbestände sind der teuerste Teil und stehen deshalb einzeln
+## in der Liste.
+func _bauschritte() -> Array:
+	var schritte: Array = [
+		{"text": "Wegverlauf", "tun": _verlauf_anlegen},
+		{"text": "Waldboden", "tun": _waldboden_bauen},
+		{"text": "Weg wird angelegt", "tun": _boden_bauen},
+		{"text": "Plattformen", "tun": _plattformen_bauen},
+	]
+	# Der Verlauf muss stehen, bevor die Bestände gesetzt werden – die
+	# Anzahl hängt nur von der Streckenlänge ab, nicht von der Kurve.
+	for nummer in _bestand_anzahl():
+		schritte.append({
+			"text": "Wald wächst (%d/%d)" % [nummer + 1, _bestand_anzahl()],
+			"tun": _bestand_setzen.bind(nummer),
+		})
+	schritte.append_array([
+		{"text": "Bäume am Wegesrand", "tun": _rahmenbaeume},
+		{"text": "Farne und Pilze", "tun": _wegdeko},
+		{"text": "Portale", "tun": _portale_setzen},
+		{"text": "Bach und Stacheln", "tun": _gefahren_setzen},
+		{"text": "Kisten werden gestapelt", "tun": _kisten_setzen},
+		{"text": "Gegner beziehen Stellung", "tun": _gegner_setzen},
+		{"text": "Früchte werden verteilt", "tun": _fruechte_setzen},
+	])
+	return schritte
 
 
 ## Der Weg durch den Wald: zwei große Kurven und ein Anstieg zum Ziel.
@@ -446,8 +468,8 @@ func _auf_absturz(koerper: Node3D) -> void:
 
 # =========================================================== Wald
 
-## Verteilt den Wald: große Bestände unten auf dem Waldboden und
-## einzelne Bäume, Wurzeln, Steine und Gras direkt am Wegesrand.
+## Verteilt den Wald in einem Rutsch. Wird nur noch von außen genutzt;
+## der Levelaufbau ruft die Teile einzeln über `_bauschritte()` auf.
 func _wald_bauen() -> void:
 	_bestaende_unten()
 	_wegrand_bepflanzen()
@@ -456,9 +478,20 @@ func _wald_bauen() -> void:
 ## Waldbestände auf dem Waldboden. Die Kronen ragen bis auf Weghöhe herauf
 ## und rahmen den Pfad ein.
 func _bestaende_unten() -> void:
-	var s := 6.0
-	var nummer := 0
-	while s < M_ENDE:
+	for nummer in _bestand_anzahl():
+		_bestand_setzen(nummer)
+
+
+## Anzahl der Waldbestände entlang des Weges.
+func _bestand_anzahl() -> int:
+	return int(ceil((M_ENDE - 6.0) / 26.0))
+
+
+## Ein Waldbestand auf dem Waldboden. Einzeln aufrufbar, damit der
+## Ladebildschirm zwischen den Beständen ein Bild zeichnen kann –
+## sie sind der teuerste Teil des Aufbaus.
+func _bestand_setzen(nummer: int) -> void:
+		var s := 6.0 + float(nummer) * 26.0
 		var streuer := WALDSTREUER.instantiate() as Waldstreuer
 		streuer.flaeche = Vector2(34.0, 30.0)
 		streuer.anzahl = 22
@@ -478,8 +511,6 @@ func _bestaende_unten() -> void:
 		streuer.position = LevelWerkzeuge.punkt(verlauf, s, 0.0, WALDBODEN_HOEHE)
 		streuer.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 		deko.add_child(streuer)
-		s += 26.0
-		nummer += 1
 
 
 ## Deko am Weg. Wichtig: Auf dem Weg selbst stehen nur niedrige Dinge.

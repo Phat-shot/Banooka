@@ -7,6 +7,11 @@ class_name LevelBasis
 ## Kamera an den Verlauf hängen, Kisten zählen, Zielportal verdrahten,
 ## Spieler ans Startportal setzen.
 
+## Wird ausgelöst, sobald das Level vollständig aufgebaut ist. Der Aufbau
+## läuft über mehrere Bilder, damit der Ladebildschirm mitläuft – wer auf
+## das fertige Level warten muss, hängt sich hier an.
+signal aufbau_fertig
+
 ## Startpunkt des Spielers relativ zum Verlauf (Strecke auf der Kurve).
 @export var start_strecke := 2.0
 ## Hilfslinien und Zahlen ausgeben (nur zum Bauen des Levels).
@@ -31,7 +36,7 @@ func _ready() -> void:
 	objekte = _gruppe("Objekte")
 	deko = _gruppe("Deko")
 
-	_baue()
+	await _aufbauen()
 
 	if verlauf != null:
 		_pfad_knoten = Path3D.new()
@@ -49,11 +54,40 @@ func _ready() -> void:
 	_portale_verbinden()
 	_kisten_zaehlen()
 	_nach_aufbau()
+	Ladeschirm.fortschritt(1.0, "Fertig")
+	Ladeschirm.verbergen()
+	aufbau_fertig.emit()
+
+
+## Baut das Level auf. Liefert `_bauschritte()` eine Liste, wird sie
+## Schritt für Schritt abgearbeitet und dazwischen jeweils ein Bild
+## freigegeben – so bleibt der Ladebildschirm während des Aufbaus lebendig
+## und meldet Fortschritt. Sonst wird einmalig `_baue()` aufgerufen.
+func _aufbauen() -> void:
+	var schritte := _bauschritte()
+	if schritte.is_empty():
+		_baue()
+		return
+	for i in schritte.size():
+		var schritt: Dictionary = schritte[i]
+		Ladeschirm.fortschritt(0.05 + 0.9 * float(i) / float(schritte.size()),
+				String(schritt.get("text", "")))
+		var tun: Callable = schritt["tun"]
+		tun.call()
+		# Ein Bild freigeben, damit die Anzeige weiterläuft
+		await get_tree().process_frame
 
 
 ## Haken: Hier baut das konkrete Level seinen Inhalt auf.
+## Wird nur genutzt, wenn `_bauschritte()` leer ist.
 func _baue() -> void:
 	pass
+
+
+## Haken: Aufbau in einzelnen Schritten, je ein Wörterbuch
+## {"text": String, "tun": Callable}. Ermöglicht einen Ladebalken.
+func _bauschritte() -> Array:
+	return []
 
 
 ## Haken: Wird ganz am Schluss aufgerufen, wenn alles steht.
