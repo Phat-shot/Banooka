@@ -183,15 +183,20 @@ static func _stirn(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceTool,
 	var runter := Vector3.DOWN * tiefe
 
 	var al := mitte - r * halb
+	var il := mitte - r * innen
+	var ir := mitte + r * innen
 	var ar := mitte + r * halb
-	# Kante quer über das Wegende: macht das Loch von weitem sichtbar
-	_quad(kante, al + hoch, ar + hoch, al + hoch + n * kb, ar + hoch + n * kb, Vector3.UP)
-	_quad(kante, al, al + hoch, ar, ar + hoch, n)
-	# Wand nach unten
+
+	# Die Kante läuft NUR über die beiden Randstreifen um die Ecke – nicht
+	# quer über den Weg. Sonst stünde vor jeder Lücke eine Mauer, gegen die
+	# der Spieler beim Anlauf rennt.
+	_quad(kante, al + hoch, il + hoch, al + hoch + n * kb, il + hoch + n * kb, Vector3.UP)
+	_quad(kante, ir + hoch, ar + hoch, ir + hoch + n * kb, ar + hoch + n * kb, Vector3.UP)
+	_quad(kante, al, al + hoch, il, il + hoch, n)
+	_quad(kante, ir, ir + hoch, ar, ar + hoch, n)
+
+	# Stirnwand nach unten über die volle Breite: das Loch bekommt eine Kante
 	_quad(klippe, al + hoch, al + runter, ar + hoch, ar + runter, n)
-	# innere Kanten-Ecken schließen
-	_quad(kante, mitte - r * innen, mitte - r * innen + hoch, al, al + hoch, -v if am_anfang else v)
-	_quad(kante, mitte + r * innen, mitte + r * innen + hoch, ar, ar + hoch, -v if am_anfang else v)
 
 
 # ------------------------------------------------------------- Mesh-Hilfen

@@ -38,9 +38,9 @@ const M_LICHTUNG := 208.0
 const M_ENDE := 236.0
 
 # Höhen relativ zum Weg
-const WALDBODEN_HOEHE := -8.2   ## sichtbarer Waldboden tief unter dem Pfad
-const ABSTURZ_HOEHE := -7.8     ## darunter ist der Sturz tödlich
-const WASSER_HOEHE := -7.2      ## Bachlauf am Grund der Schlucht
+const WALDBODEN_HOEHE := -14.0  ## sichtbarer Waldboden tief unter dem Pfad
+const ABSTURZ_HOEHE := -6.0     ## darunter ist der Sturz tödlich
+const WASSER_HOEHE := -13.4     ## Bachlauf am Grund der Schlucht (nur Kulisse)
 
 
 func _baue() -> void:
@@ -108,7 +108,7 @@ func _boden_bauen() -> void:
 		"kante": Materialbibliothek.gras(),     # erhöhte Rasenkante als Begrenzung
 		"klippe": Materialbibliothek.fels(),    # Felswand macht die Tiefe sichtbar
 	}, {
-		"tiefe": 9.0,
+		"tiefe": 15.5,
 		"schritt": 1.0,
 		"kante_hoehe": 0.45,
 		"kante_breite": 0.8,
@@ -192,11 +192,14 @@ func _portale_setzen() -> void:
 # =========================================================== Gefahren
 
 func _gefahren_setzen() -> void:
-	# --- Bach am Grund der Schlucht, direkt über dem Waldboden ---
-	_wasser(59.0, Vector2(20.0, 26.0), WASSER_HOEHE)
-	_wasser(77.0, Vector2(20.0, 26.0), WASSER_HOEHE)
+	# --- Bach am Grund der Schlucht. Reine Kulisse: der Spieler wird
+	# schon von der Absturzzone weit darüber abgefangen. ---
+	_wasser(50.0, Vector2(26.0, 40.0), WASSER_HOEHE).toedlich = false
+	_wasser(86.0, Vector2(26.0, 40.0), WASSER_HOEHE).toedlich = false
 	# --- Absturzzone: wer vom Pfad fällt, überlebt es nicht ---
 	_absturzzonen()
+	# --- Lücken sichtbar markieren ---
+	_luecken_markieren()
 
 	# --- Stachelfelder in der Stachelpassage ---
 	_stacheln(106.0, 0.0, Vector2(4.0, 3.0), false)
@@ -406,7 +409,7 @@ func _waldboden_bauen() -> void:
 		"kante": Materialbibliothek.waldboden(),
 		"klippe": Materialbibliothek.fels(),
 	}, {
-		"tiefe": 16.0,
+		"tiefe": 22.0,
 		"schritt": 4.0,
 		"kollision": false,
 		"kante_hoehe": 0.0,
@@ -565,3 +568,75 @@ func _wegrand_bepflanzen() -> void:
 		k.position = LevelWerkzeuge.punkt(verlauf, s, seite, 0.0)
 		k.rotation.y = randf() * TAU
 		deko.add_child(k)
+
+
+# =========================================================== Lücken
+
+## Setzt an jede Abbruchkante zwei Warnpfosten mit Querbalken, damit
+## Löcher schon von weitem als Löcher zu erkennen sind.
+func _luecken_markieren() -> void:
+	for i in ABSCHNITTE.size():
+		var a: Dictionary = ABSCHNITTE[i]
+		# Ende dieses Abschnitts: folgt eine echte Lücke?
+		if i + 1 < ABSCHNITTE.size():
+			var naechster: Dictionary = ABSCHNITTE[i + 1]
+			if naechster["von"] - a["bis"] > 0.5:
+				_warnbalken(a["bis"] - 0.5, a.get("breite_ende", a["breite"]))
+				_warnbalken(naechster["von"] + 0.5, naechster["breite"])
+
+
+## Zwei Holzpfosten mit Querbalken quer zum Weg, knapp vor der Kante.
+func _warnbalken(strecke: float, breite: float) -> void:
+	var holz := Materialbibliothek.kistenholz(Farben.HOLZ_DUNKEL)
+	var streifen := Materialbibliothek.leuchtend(Color(1.0, 0.85, 0.25), 0.5)
+	var halb := breite * 0.5 - 0.55
+	var drehung := LevelWerkzeuge.drehung(verlauf, strecke)
+
+	for seite in [-1.0, 1.0]:
+		var gruppe := Node3D.new()
+		gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seite * halb, 0.45)
+		gruppe.rotation.y = drehung
+		deko.add_child(gruppe)
+
+		var pfosten := MeshInstance3D.new()
+		var zylinder := CylinderMesh.new()
+		zylinder.top_radius = 0.09
+		zylinder.bottom_radius = 0.11
+		zylinder.height = 1.1
+		zylinder.radial_segments = 8
+		pfosten.mesh = zylinder
+		pfosten.position.y = 0.55
+		pfosten.material_override = holz
+		gruppe.add_child(pfosten)
+
+		var kappe := MeshInstance3D.new()
+		var band := CylinderMesh.new()
+		band.top_radius = 0.13
+		band.bottom_radius = 0.13
+		band.height = 0.18
+		band.radial_segments = 8
+		kappe.mesh = band
+		kappe.position.y = 1.0
+		kappe.material_override = streifen
+		gruppe.add_child(kappe)
+
+	# Querbalken auf Kniehöhe – hoch genug zum Warnen, tief genug, um den
+	# Blick auf die Lücke nicht zu verstellen
+	var balken := MeshInstance3D.new()
+	var quader := BoxMesh.new()
+	quader.size = Vector3(halb * 2.0, 0.1, 0.08)
+	balken.mesh = quader
+	balken.material_override = holz
+	balken.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.62)
+	balken.rotation.y = drehung
+	deko.add_child(balken)
+
+	# Warnstreifen direkt auf dem Weg: aus der Verfolgerkamera gut sichtbar
+	var streifen_mesh := BoxMesh.new()
+	streifen_mesh.size = Vector3(halb * 2.0 + 0.6, 0.04, 0.45)
+	var markierung := MeshInstance3D.new()
+	markierung.mesh = streifen_mesh
+	markierung.material_override = streifen
+	markierung.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.03)
+	markierung.rotation.y = drehung
+	deko.add_child(markierung)
