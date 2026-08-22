@@ -1,0 +1,548 @@
+extends LevelBasis
+## Level 01 – "Wurzelschlucht"
+##
+## Ein kurviger Waldpfad in fünf Abschnitten. Der Verlauf steckt in einer
+## Kurve; alle Objekte werden über `LevelWerkzeuge.punkt(verlauf, strecke,
+## seitlich, hoehe)` relativ dazu platziert. Wer den Verlauf ändert,
+## verschiebt damit automatisch alles Übrige mit.
+##
+## Abschnitte (Strecke auf der Kurve):
+##     0 –  42  Waldrand   – Anlaufstrecke, erste Kisten, Draufspring-Gegner
+##    42 – 100  Schlucht   – Rechtskurve, Bach mit Lücken, Federkiste, Spin-Gegner
+##   100 – 158  Stacheln   – Linkskurve, Stachelfelder, Slide-Gegner, TNT
+##   158 – 208  Kronen     – Anstieg, schmaler Grat, Sprungkisten, Nitro
+##   208 – 236  Lichtung   – Lebenskiste, Zielportal
+
+const KISTE := preload("res://scenes/crates/Kiste.tscn")
+const FRUCHT := preload("res://scenes/fruits/Frucht.tscn")
+const SUMPFKROETE := preload("res://scenes/enemies/Sumpfkroete.tscn")
+const STELZENVOGEL := preload("res://scenes/enemies/Stelzenvogel.tscn")
+const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
+const WASSER := preload("res://scenes/hazards/Wasser.tscn")
+const STACHELN := preload("res://scenes/hazards/Stacheln.tscn")
+const STARTPORTAL := preload("res://scenes/portals/StartPortal.tscn")
+const ZIELPORTAL := preload("res://scenes/portals/ZielPortal.tscn")
+const BAUM := preload("res://scenes/props/Baum.tscn")
+const WURZEL := preload("res://scenes/props/Wurzel.tscn")
+const STEIN := preload("res://scenes/props/Stein.tscn")
+const GRASFELD := preload("res://scenes/props/Gras.tscn")
+const KLEINZEUG := preload("res://scenes/props/Kleinzeug.tscn")
+const WALDSTREUER := preload("res://scenes/props/Waldstreuer.tscn")
+
+# Strecken-Marken der Abschnitte
+const M_WALDRAND := 0.0
+const M_SCHLUCHT := 42.0
+const M_STACHELN := 100.0
+const M_KRONEN := 158.0
+const M_LICHTUNG := 208.0
+const M_ENDE := 236.0
+
+# Höhen relativ zum Weg
+const WALDBODEN_HOEHE := -8.2   ## sichtbarer Waldboden tief unter dem Pfad
+const ABSTURZ_HOEHE := -7.8     ## darunter ist der Sturz tödlich
+const WASSER_HOEHE := -7.2      ## Bachlauf am Grund der Schlucht
+
+
+func _baue() -> void:
+	_verlauf_anlegen()
+	_waldboden_bauen()
+	_boden_bauen()
+	_plattformen_bauen()
+	_wald_bauen()
+	_portale_setzen()
+	_gefahren_setzen()
+	_kisten_setzen()
+	_gegner_setzen()
+	_fruechte_setzen()
+
+
+## Der Weg durch den Wald: zwei große Kurven und ein Anstieg zum Ziel.
+func _verlauf_anlegen() -> void:
+	verlauf = LevelWerkzeuge.kurve_aus_punkten([
+		Vector3(0, 0, 4),        # Startportal
+		Vector3(0, 0, -18),      # gerade Anlaufstrecke
+		Vector3(3, 0, -36),      # Beginn der Rechtskurve
+		Vector3(13, 0, -52),     # Schlucht
+		Vector3(28, 1, -63),
+		Vector3(45, 1, -70),     # Ende der Rechtskurve
+		Vector3(62, 2, -80),     # Stachelpassage, Linkskurve beginnt
+		Vector3(72, 3, -98),
+		Vector3(74, 4, -120),
+		Vector3(68, 6, -140),    # Anstieg in die Baumkronen
+		Vector3(56, 8, -156),
+		Vector3(40, 9, -168),
+		Vector3(22, 10, -175),   # Lichtung
+		Vector3(4, 10, -178),
+	])
+
+
+## Bodenstreifen mit Lücken. Die Lücken sind die Sprungpassagen –
+## darunter liegt je nach Abschnitt Wasser oder Abgrund.
+## Bodenstreifen mit Lücken. Die Lücken sind die Sprungpassagen –
+## darunter liegt der Waldboden, abgefangen von der Absturzzone.
+## Diese Liste ist die einzige Quelle für den Wegverlauf: `_breite_bei()`
+## liest sie ebenfalls aus, damit Objekte nie neben dem Weg landen.
+const ABSCHNITTE := [
+	# --- Waldrand: breit und sicher, eine kleine Lücke zum Üben ---
+	{"von": 0.0, "bis": 26.0, "breite": 11.0},
+	{"von": 30.0, "bis": 42.0, "breite": 10.0},
+	# --- Schlucht: schmaler, zwei Lücken über dem Bach ---
+	{"von": 42.0, "bis": 56.0, "breite": 9.0, "breite_ende": 7.0},
+	{"von": 62.0, "bis": 74.0, "breite": 7.0},
+	{"von": 80.0, "bis": 100.0, "breite": 8.0, "breite_ende": 10.0},
+	# --- Stachelpassage: breit genug zum Ausweichen ---
+	{"von": 100.0, "bis": 128.0, "breite": 10.0},
+	{"von": 132.0, "bis": 158.0, "breite": 9.0},
+	# --- Baumkronen: schmaler Grat mit Lücken ---
+	{"von": 158.0, "bis": 172.0, "breite": 7.0},
+	{"von": 178.0, "bis": 190.0, "breite": 6.0},
+	{"von": 196.0, "bis": 208.0, "breite": 7.0, "breite_ende": 9.0},
+	# --- Lichtung: weite Fläche zum Abschluss ---
+	{"von": 208.0, "bis": 236.0, "breite": 13.0},
+]
+
+
+func _boden_bauen() -> void:
+	LevelWerkzeuge.korridor(geometrie, verlauf, ABSCHNITTE,
+			Materialbibliothek.waldboden(), 8.0, 1.2)
+
+
+## Breite des Weges an dieser Stelle. 0.0 bedeutet: hier ist eine Lücke.
+func _breite_bei(strecke: float) -> float:
+	for a in ABSCHNITTE:
+		var von: float = a["von"]
+		var bis: float = a["bis"]
+		if strecke >= von and strecke <= bis:
+			var t := inverse_lerp(von, bis, strecke)
+			return lerpf(a["breite"], a.get("breite_ende", a["breite"]), t)
+	return 0.0
+
+
+## Größter seitlicher Abstand, bei dem ein Objekt noch sicher auf dem Weg steht.
+func _rand_bei(strecke: float, sicherheit: float = 1.3) -> float:
+	return maxf(_breite_bei(strecke) * 0.5 - sicherheit, 0.0)
+
+
+## Schiebt eine Strecke vom Rand eines Abschnitts weg, damit Objekte
+## nicht auf der Abbruchkante stehen.
+func _weg_von_der_kante(strecke: float, abstand: float) -> float:
+	for a in ABSCHNITTE:
+		var von: float = a["von"]
+		var bis: float = a["bis"]
+		if strecke >= von and strecke <= bis:
+			if bis - von <= abstand * 2.0:
+				return (von + bis) * 0.5
+			return clampf(strecke, von + abstand, bis - abstand)
+	return strecke
+
+
+## Einzelne Plattformen über den Lücken und als Kletterhilfen.
+func _plattformen_bauen() -> void:
+	var fels := Materialbibliothek.fels()
+	var gras := Materialbibliothek.gras()
+
+	# Trittstein in der ersten Lücke (Waldrand)
+	_stein_plattform(28.0, 0.0, -0.4, Vector3(3.0, 0.8, 3.0), fels)
+
+	# Schlucht: zwei versetzte Felsplateaus in den Lücken
+	_stein_plattform(59.0, -1.5, 0.4, Vector3(3.2, 0.8, 3.2), fels)
+	_stein_plattform(77.0, 1.8, 0.8, Vector3(3.0, 0.8, 3.0), fels)
+
+	# Stachelpassage: erhöhter Umweg über zwei Grasplateaus
+	_stein_plattform(112.0, -3.6, 1.8, Vector3(4.0, 0.7, 5.0), gras)
+	_stein_plattform(120.0, -3.6, 3.0, Vector3(4.0, 0.7, 4.0), gras)
+	_stein_plattform(130.0, 0.0, 0.6, Vector3(4.5, 0.8, 3.0), fels)
+
+	# Baumkronen: Stufen im Anstieg und Trittsteine in den Lücken
+	_stein_plattform(175.0, 0.0, 1.2, Vector3(3.0, 0.8, 3.0), fels)
+	_stein_plattform(193.0, -1.2, 2.0, Vector3(2.8, 0.8, 2.8), fels)
+	_stein_plattform(199.0, 1.4, 3.2, Vector3(2.8, 0.8, 2.8), fels)
+
+
+## Plattform relativ zum Verlauf setzen, mit dem Weg mitgedreht.
+func _stein_plattform(strecke: float, seitlich: float, hoehe: float,
+		groesse: Vector3, material: Material) -> StaticBody3D:
+	var pos := LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	return LevelWerkzeuge.plattform(geometrie, pos, groesse, material,
+			LevelWerkzeuge.drehung(verlauf, strecke))
+
+
+# =========================================================== Portale
+
+func _portale_setzen() -> void:
+	var start := STARTPORTAL.instantiate()
+	start.position = LevelWerkzeuge.punkt(verlauf, 1.0, 0.0, 0.1)
+	start.rotation.y = LevelWerkzeuge.drehung(verlauf, 1.0)
+	objekte.add_child(start)
+
+	var ziel := ZIELPORTAL.instantiate()
+	ziel.position = LevelWerkzeuge.punkt(verlauf, M_ENDE - 4.0, 0.0, 0.1)
+	ziel.rotation.y = LevelWerkzeuge.drehung(verlauf, M_ENDE - 4.0)
+	objekte.add_child(ziel)
+
+
+# =========================================================== Gefahren
+
+func _gefahren_setzen() -> void:
+	# --- Bach am Grund der Schlucht, direkt über dem Waldboden ---
+	_wasser(59.0, Vector2(20.0, 26.0), WASSER_HOEHE)
+	_wasser(77.0, Vector2(20.0, 26.0), WASSER_HOEHE)
+	# --- Absturzzone: wer vom Pfad fällt, überlebt es nicht ---
+	_absturzzonen()
+
+	# --- Stachelfelder in der Stachelpassage ---
+	_stacheln(106.0, 0.0, Vector2(4.0, 3.0), false)
+	_stacheln(118.0, 1.0, Vector2(5.0, 3.0), true)
+	_stacheln(142.0, -1.0, Vector2(4.5, 3.5), false)
+	_stacheln(150.0, 2.0, Vector2(3.0, 3.0), true)
+
+	# --- Stacheln auf dem schmalen Grat der Baumkronen ---
+	_stacheln(184.0, -1.6, Vector2(2.5, 4.0), false)
+
+
+func _wasser(strecke: float, flaeche: Vector2, hoehe: float,
+		seitlich: float = 0.0) -> Wasser:
+	var w := WASSER.instantiate() as Wasser
+	w.flaeche = flaeche
+	w.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	w.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(w)
+	return w
+
+
+func _stacheln(strecke: float, seitlich: float, flaeche: Vector2,
+		einfahrbar: bool) -> Stacheln:
+	var st := STACHELN.instantiate() as Stacheln
+	st.flaeche = flaeche
+	st.einfahrbar = einfahrbar
+	st.versatz = fmod(strecke, 2.0)
+	st.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.02)
+	st.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(st)
+	return st
+
+
+# =========================================================== Kisten
+
+func _kisten_setzen() -> void:
+	# ---------- Waldrand: die Grundlagen ----------
+	_kiste(Kiste.Art.NORMAL, 10.0, -1.2)
+	_kiste(Kiste.Art.NORMAL, 10.0, 0.0)
+	_kiste(Kiste.Art.NORMAL, 10.0, 1.2)
+	_kiste(Kiste.Art.FRUCHT_MEHRFACH, 14.0, 0.0)
+	# Stapel: obere Kiste nur durch Draufspringen oder Spin erreichbar
+	_kiste(Kiste.Art.NORMAL, 22.0, -1.0)
+	_kiste(Kiste.Art.NORMAL, 22.0, -1.0, 1.5)
+	_kiste(Kiste.Art.NORMAL, 22.0, 1.0)
+	_kiste(Kiste.Art.CHECKPOINT, 34.0, 0.0)
+	_kiste(Kiste.Art.FRUCHT_MEHRFACH, 38.5, -1.8)
+
+	# ---------- Schlucht: Federkiste und Eisenplattformen ----------
+	_kiste(Kiste.Art.FEDER, 50.0, 0.0)
+	_kiste(Kiste.Art.NORMAL, 53.5, 1.6)
+	# Eisenkisten als Trittstufen über die zweite Lücke
+	_kiste(Kiste.Art.EISEN, 64.5, -1.0)
+	_kiste(Kiste.Art.EISEN, 66.5, -1.0, 1.5)
+	_kiste(Kiste.Art.NORMAL, 66.5, -1.0, 2.5)
+	_kiste(Kiste.Art.NORMAL, 70.0, 1.4)
+	# TNT-Kette: die TNT reißt die Nachbarn mit
+	_kiste(Kiste.Art.NORMAL, 84.0, -1.1)
+	_kiste(Kiste.Art.TNT, 84.0, 0.0)
+	_kiste(Kiste.Art.NORMAL, 84.0, 1.1)
+	_kiste(Kiste.Art.NORMAL, 85.2, 0.0)
+	_kiste(Kiste.Art.CHECKPOINT, 96.0, 0.0)
+
+	# ---------- Stachelpassage: Nitro als Fallstrick ----------
+	_kiste(Kiste.Art.FRUCHT_MEHRFACH, 112.0, -3.6, 1.8 + 0.85)
+	_kiste(Kiste.Art.NORMAL, 120.0, -3.6, 3.0 + 0.85)
+	_kiste(Kiste.Art.NITRO, 134.0, -1.4)
+	_kiste(Kiste.Art.NORMAL, 134.0, 0.2)
+	_kiste(Kiste.Art.NORMAL, 135.4, 0.2)
+	_kiste(Kiste.Art.NORMAL, 136.8, 0.2)
+	_kiste(Kiste.Art.FEDER, 148.0, 1.8)
+	_kiste(Kiste.Art.CHECKPOINT, 154.0, 0.0)
+
+	# ---------- Baumkronen: Sprungfedern und Nitro auf dem Grat ----------
+	_kiste(Kiste.Art.SPRUNG, 162.0, 0.0)
+	_kiste(Kiste.Art.NORMAL, 162.0, 0.0, 4.0)
+	_kiste(Kiste.Art.NORMAL, 163.4, 0.0, 4.0)
+	_kiste(Kiste.Art.NITRO, 186.0, 1.4)
+	_kiste(Kiste.Art.NITRO, 187.4, 1.4)
+	_kiste(Kiste.Art.NORMAL, 186.7, -1.2)
+	_kiste(Kiste.Art.FEDER, 194.0, -1.2, 2.0 + 0.5)
+	_kiste(Kiste.Art.TNT, 204.0, 0.0)
+	_kiste(Kiste.Art.NORMAL, 204.0, -1.2)
+	_kiste(Kiste.Art.NORMAL, 204.0, 1.2)
+
+	# ---------- Lichtung: Belohnung ----------
+	_kiste(Kiste.Art.LEBEN, 214.0, 0.0)
+	_kiste(Kiste.Art.NORMAL, 219.0, -2.0)
+	_kiste(Kiste.Art.NORMAL, 219.0, 0.0)
+	_kiste(Kiste.Art.NORMAL, 219.0, 2.0)
+	_kiste(Kiste.Art.FRUCHT_MEHRFACH, 224.0, 0.0)
+
+
+func _kiste(art: Kiste.Art, strecke: float, seitlich: float,
+		hoehe: float = 0.5) -> Kiste:
+	var k := KISTE.instantiate() as Kiste
+	k.art = art
+	k.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	k.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(k)
+	return k
+
+
+# =========================================================== Gegner
+
+func _gegner_setzen() -> void:
+	# ---------- Waldrand: Draufspringen lernen ----------
+	_gegner(SUMPFKROETE, 18.0, 0.0, 3.5, true)
+	_gegner(SUMPFKROETE, 39.0, 1.5, 3.0, true)
+
+	# ---------- Schlucht: Spin lernen ----------
+	_gegner(PANZERKAEFER, 52.0, 0.0, 2.5, true)
+	_gegner(PANZERKAEFER, 70.5, -1.0, 3.0, true)
+	_gegner(SUMPFKROETE, 88.0, 0.0, 3.0, true)
+
+	# ---------- Stachelpassage: Slide lernen ----------
+	_gegner(STELZENVOGEL, 110.0, -1.0, 3.0, true)
+	_gegner(STELZENVOGEL, 123.0, 0.5, 3.5, true)
+	_gegner(PANZERKAEFER, 138.0, -2.0, 2.5, true)
+	_gegner(STELZENVOGEL, 146.0, 0.0, 3.0, true)
+
+	# ---------- Baumkronen: alles gemischt ----------
+	_gegner(SUMPFKROETE, 166.0, 0.0, 2.5, true)
+	_gegner(PANZERKAEFER, 182.0, 1.2, 2.0, false)
+	_gegner(STELZENVOGEL, 200.0, 0.0, 2.5, true)
+
+	# ---------- Lichtung: letzte Wache ----------
+	_gegner(PANZERKAEFER, 216.0, 3.5, 3.0, true)
+	_gegner(SUMPFKROETE, 222.0, -3.5, 3.0, true)
+
+
+## Setzt einen Gegner auf den Weg. `quer` bestimmt, ob er quer zum
+## Korridor patrouilliert (true) oder ihm entlang (false).
+func _gegner(szene: PackedScene, strecke: float, seitlich: float,
+		weite: float, quer: bool) -> Gegner:
+	var g := szene.instantiate() as Gegner
+	# Nicht direkt an die Abbruchkante stellen
+	strecke = _weg_von_der_kante(strecke, 2.5)
+	# Der Gegner darf beim Patrouillieren nicht vom Weg laufen: seitlicher
+	# Versatz und Weite werden auf die Wegbreite an dieser Stelle begrenzt.
+	var rand := _rand_bei(strecke)
+	if quer:
+		seitlich = clampf(seitlich, -rand * 0.5, rand * 0.5)
+		weite = minf(weite, maxf(rand - absf(seitlich), 0.5))
+	else:
+		seitlich = clampf(seitlich, -rand, rand)
+		# Entlang des Weges: Weite so kürzen, dass beide Enden auf dem Weg liegen
+		var frei := 99.0
+		for a in ABSCHNITTE:
+			if strecke >= a["von"] and strecke <= a["bis"]:
+				frei = minf(strecke - a["von"], a["bis"] - strecke) - 1.0
+		weite = minf(weite, maxf(frei, 0.5))
+	g.patrouille_weite = weite
+	var richtung := LevelWerkzeuge.richtung(verlauf, strecke)
+	g.patrouille_achse = richtung.cross(Vector3.UP).normalized() if quer else richtung
+	# Position VOR add_child setzen: die Gegner merken sich in _ready()
+	# ihre Startposition für die Patrouille.
+	g.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.05)
+	g.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(g)
+	return g
+
+
+# =========================================================== Früchte
+
+func _fruechte_setzen() -> void:
+	# Führungslinien aus Früchten weisen den Weg und markieren Sprünge
+	_fruechte_reihe(6.0, 9.0, 4, 0.0, 0.9)
+	_fruechte_reihe(16.0, 20.0, 5, -1.4, 0.9)
+	_fruechte_reihe(26.5, 29.5, 4, 0.0, 2.2)      # Bogen über die erste Lücke
+	_fruechte_reihe(30.5, 33.5, 4, 0.0, 2.2)
+	_fruechte_reihe(44.0, 48.0, 5, 1.2, 0.9)
+	_fruechte_reihe(56.5, 61.5, 5, -1.5, 2.6)     # über den Bach
+	_fruechte_reihe(74.5, 79.5, 5, 1.8, 2.6)
+	_fruechte_reihe(90.0, 95.0, 5, 0.0, 0.9)
+	_fruechte_reihe(102.0, 105.0, 4, -2.5, 0.9)
+	_fruechte_reihe(113.0, 119.0, 6, -3.6, 3.0)   # auf dem Umweg über die Plateaus
+	_fruechte_reihe(126.0, 130.0, 5, 2.2, 0.9)
+	_fruechte_reihe(144.0, 148.0, 5, -1.8, 0.9)
+	_fruechte_reihe(160.0, 164.0, 4, -1.8, 0.9)
+	_fruechte_reihe(172.5, 177.5, 5, 0.0, 2.8)    # über die Grat-Lücke
+	_fruechte_reihe(190.5, 195.5, 5, 0.0, 3.4)
+	_fruechte_reihe(209.0, 213.0, 5, 0.0, 0.9)
+	_fruechte_reihe(226.0, 230.0, 6, 0.0, 0.9)
+
+
+func _fruechte_reihe(von: float, bis: float, anzahl: int,
+		seitlich: float, hoehe: float) -> void:
+	for i in anzahl:
+		var t := float(i) / maxf(float(anzahl - 1), 1.0)
+		var s := lerpf(von, bis, t)
+		var f := FRUCHT.instantiate()
+		f.position = LevelWerkzeuge.punkt(verlauf, s, seitlich, hoehe)
+		objekte.add_child(f)
+
+
+# =========================================================== Waldboden
+
+## Der Pfad verläuft auf einem Grat. Weit darunter liegt der Waldboden –
+## sichtbar, aber nicht begehbar; wer hinunterfällt, stirbt vorher in der
+## Absturzzone. Darauf stehen die Bäume, deren Kronen bis auf Weghöhe reichen.
+func _waldboden_bauen() -> void:
+	LevelWerkzeuge.korridor(geometrie, verlauf, [
+		{"von": 0.0, "bis": M_ENDE, "breite": 62.0},
+	], Materialbibliothek.waldboden(), 14.0, 3.0, false)
+
+
+## Reihe unsichtbarer Bereiche unter dem Pfad, die den Sturz beenden.
+func _absturzzonen() -> void:
+	var schritt := 18.0
+	var s := 0.0
+	while s < M_ENDE:
+		var zone := Area3D.new()
+		zone.collision_layer = 0
+		zone.collision_mask = 2
+		var form := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(70.0, 5.0, schritt + 4.0)
+		form.shape = box
+		zone.add_child(form)
+		zone.position = LevelWerkzeuge.punkt(verlauf, s + schritt * 0.5,
+				0.0, ABSTURZ_HOEHE - 2.5)
+		zone.rotation.y = LevelWerkzeuge.drehung(verlauf, s + schritt * 0.5)
+		zone.body_entered.connect(_auf_absturz)
+		geometrie.add_child(zone)
+		s += schritt
+
+
+func _auf_absturz(koerper: Node3D) -> void:
+	if koerper.is_in_group("spieler") and koerper.has_method("sterben"):
+		koerper.call("sterben")
+
+
+# =========================================================== Wald
+
+## Verteilt den Wald: große Bestände unten auf dem Waldboden und
+## einzelne Bäume, Wurzeln, Steine und Gras direkt am Wegesrand.
+func _wald_bauen() -> void:
+	_bestaende_unten()
+	_wegrand_bepflanzen()
+
+
+## Waldbestände auf dem Waldboden. Die Kronen ragen bis auf Weghöhe herauf
+## und rahmen den Pfad ein.
+func _bestaende_unten() -> void:
+	var s := 6.0
+	var nummer := 0
+	while s < M_ENDE:
+		var streuer := WALDSTREUER.instantiate() as Waldstreuer
+		streuer.flaeche = Vector2(34.0, 30.0)
+		streuer.anzahl = 22
+		streuer.saat = 1000 + nummer * 37
+		streuer.mindestabstand_mitte = 9.0
+		streuer.anteil_baeume = 0.62
+		streuer.anteil_steine = 0.16
+		streuer.anteil_wurzeln = 0.06
+		streuer.baum_hoehe_min = 7.0
+		streuer.baum_hoehe_max = 12.5
+		streuer.anteil_nadelbaum = 0.35
+		streuer.anteil_totholz = 0.1
+		streuer.grasfelder = 2
+		streuer.gras_dichte = 90
+		streuer.gras_feldgroesse = 8.0
+		streuer.hoehen_streuung = 0.6
+		streuer.position = LevelWerkzeuge.punkt(verlauf, s, 0.0, WALDBODEN_HOEHE)
+		streuer.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
+		deko.add_child(streuer)
+		s += 26.0
+		nummer += 1
+
+
+## Deko unmittelbar am Weg: kleine Bäume, Wurzelbögen, Findlinge,
+## Grasnarben, Farne und Pilze.
+func _wegrand_bepflanzen() -> void:
+	# Bäume dicht am Weg, abwechselnd links und rechts
+	var baum_stellen := [
+		[8.0, -4.6, 6.5], [15.0, 4.4, 7.5], [24.0, -4.4, 5.5], [36.0, 4.2, 8.0],
+		[46.0, -3.8, 6.0], [66.0, 3.6, 7.0], [86.0, -4.2, 6.5], [98.0, 4.4, 9.0],
+		[108.0, -4.6, 7.5], [124.0, 4.6, 6.0], [140.0, -4.4, 8.5], [156.0, 4.2, 7.0],
+		[164.0, -3.4, 6.0], [186.0, 3.2, 5.5], [206.0, -4.0, 7.5],
+		[214.0, 5.6, 9.0], [222.0, -5.6, 8.0], [232.0, 5.0, 7.0],
+	]
+	for i in baum_stellen.size():
+		var e: Array = baum_stellen[i]
+		var b := BAUM.instantiate() as Baum
+		b.hoehe = e[2]
+		b.saat = 400 + i * 13
+		b.art = Baum.Art.NADELBAUM if i % 4 == 3 else Baum.Art.LAUBBAUM
+		b.laubfarbe = Farben.LAUB.lerp(Farben.LAUB_HELL, float(i % 3) * 0.4)
+		b.position = LevelWerkzeuge.punkt(verlauf, e[0], e[1], -0.2)
+		b.rotation.y = randf() * TAU
+		deko.add_child(b)
+
+	# Totholz als Blickfang
+	for stelle in [[54.0, -3.2], [132.0, 3.4], [196.0, -2.8]]:
+		var t := BAUM.instantiate() as Baum
+		t.art = Baum.Art.TOTHOLZ
+		t.hoehe = 4.5
+		t.saat = int(stelle[0])
+		t.position = LevelWerkzeuge.punkt(verlauf, stelle[0], stelle[1], -0.2)
+		deko.add_child(t)
+
+	# Wurzelbögen quer über den Weg – Hindernisse zum Drüberspringen
+	for stelle in [[20.0, 0.0, 4.5], [72.0, 0.0, 4.0], [144.0, -0.5, 4.5],
+			[180.0, 0.0, 3.5], [212.0, 0.5, 5.0]]:
+		var w := WURZEL.instantiate() as Wurzel
+		w.spannweite = stelle[2]
+		w.hoehe = 1.0
+		w.saat = int(stelle[0]) * 3
+		w.position = LevelWerkzeuge.punkt(verlauf, stelle[0], stelle[1], 0.0)
+		w.rotation.y = LevelWerkzeuge.drehung(verlauf, stelle[0]) + PI * 0.5
+		deko.add_child(w)
+
+	# Findlinge am Wegesrand
+	for i in 14:
+		var s := 12.0 + float(i) * 16.0
+		if s > M_ENDE - 6.0:
+			break
+		var seite := 1.0 if i % 2 == 0 else -1.0
+		var st := STEIN.instantiate() as Stein
+		st.groesse = 0.7 + float(i % 3) * 0.45
+		st.saat = 700 + i * 11
+		st.bemoost = true
+		st.position = LevelWerkzeuge.punkt(verlauf, s, seite * 3.4, -0.15)
+		deko.add_child(st)
+
+	# Grasnarben entlang des Weges
+	for i in 16:
+		var s := 5.0 + float(i) * 14.0
+		if s > M_ENDE - 4.0:
+			break
+		var seite := -1.0 if i % 2 == 0 else 1.0
+		var g := GRASFELD.instantiate() as Grasfeld
+		g.flaeche = Vector2(4.5, 5.0)
+		g.anzahl = 110
+		g.saat = 200 + i * 7
+		g.position = LevelWerkzeuge.punkt(verlauf, s, seite * 2.9, 0.0)
+		g.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
+		deko.add_child(g)
+
+	# Farne, Pilze und Blumen als Kleinzeug
+	var arten := [Kleinzeug.Art.FARN, Kleinzeug.Art.PILZ, Kleinzeug.Art.BUSCH,
+			Kleinzeug.Art.BLUME]
+	for i in 40:
+		var s := 4.0 + float(i) * 5.8
+		if s > M_ENDE - 3.0:
+			break
+		var seite := 2.4 + float(i % 3) * 0.7
+		if i % 2 == 0:
+			seite = -seite
+		var k := KLEINZEUG.instantiate() as Kleinzeug
+		k.art = arten[i % arten.size()]
+		k.groesse = 0.5 + float(i % 4) * 0.2
+		k.saat = 900 + i * 5
+		k.position = LevelWerkzeuge.punkt(verlauf, s, seite, 0.0)
+		k.rotation.y = randf() * TAU
+		deko.add_child(k)

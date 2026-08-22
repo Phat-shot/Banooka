@@ -6,23 +6,72 @@ Charaktere oder Assets.
 
 ## Stand
 
-Grundgerüst mit vollständigem Player-Controller. Kisten, Früchte, Gegner,
-Hub und die Level 01–25 folgen in eigenen Schritten.
+Level 01 ist spielbar. Hub und die Level 02–25 folgen.
 
 | Bereich | Status |
 |---|---|
 | Projektstruktur, Autoloads, Input-Map | fertig |
 | Player-Controller (komplettes Move-Set) | fertig |
-| Korridor-Kamera | fertig |
+| Beuteldachs-Modell mit Animationen | fertig |
+| Korridor-Kamera (folgt auch Kurven) | fertig |
 | HUD + virtuelle Touch-Steuerung | fertig |
-| Testkorridor zum Ausprobieren | fertig |
-| Kisten / Früchte / Gegner / Hazards | offen |
-| Hub und Level 01–25 | offen |
+| Kisten (9 Arten), Früchte | fertig |
+| Gegner (3 Arten) | fertig |
+| Wasser, Stacheln, Start-/Zielportal | fertig |
+| Wald-Props, prozedurale Texturen | fertig |
+| Level 01 "Wurzelschlucht" | fertig |
+| Hub und Level 02–25 | offen |
+
+## Level 01 – Wurzelschlucht
+
+Ein 236 m langer Waldpfad auf einem Grat, in fünf Abschnitten. Der Verlauf
+steckt in einer `Curve3D`; alle Objekte werden relativ dazu platziert, ein
+geänderter Verlauf verschiebt also alles mit.
+
+| Strecke | Abschnitt | Inhalt |
+|---|---|---|
+| 0–42 m | Waldrand | Anlaufstrecke, erste Kisten, Sumpfkröten zum Draufspringen |
+| 42–100 m | Schlucht | Rechtskurve, Bach mit Lücken, Federkiste, Panzerkäfer |
+| 100–158 m | Stacheln | Linkskurve, Stachelfelder, Stelzenvögel, TNT-Kette |
+| 158–208 m | Baumkronen | Anstieg, schmaler Grat, Sprungfeder, Nitro |
+| 208–236 m | Lichtung | Extraleben, Zielportal |
+
+43 Kisten (37 zählen für den Edelstein), 14 Gegner, 82 Früchte, drei
+Checkpoints. Wer neben den Pfad fällt, landet in der Absturzzone.
+
+### Gegner
+
+| Gegner | Nur besiegbar durch |
+|---|---|
+| Sumpfkröte | Draufspringen |
+| Stelzenvogel | Slide (der Kamm oben verhindert Draufspringen) |
+| Panzerkäfer | Spin-Attacke |
+
+Der Bauchplatscher wirkt bei allen dreien.
+
+### Kisten
+
+`NORMAL` (1 Frucht) · `FRUCHT_MEHRFACH` (5) · `LEBEN` · `FEDER` (10 Absprünge,
+je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (3 s Countdown) ·
+`NITRO` (explodiert bei Berührung) · `EISEN` (unzerbrechlich) · `CHECKPOINT`
 
 ## Starten
 
 Projektordner in Godot 4.3+ öffnen und F5 drücken. Die Hauptszene ist
-`scenes/levels/Testlevel.tscn` – ein reiner Testkorridor für den Controller.
+`scenes/levels/Level01.tscn`. `scenes/levels/Testlevel.tscn` bleibt als
+schlichter Testkorridor für den Controller erhalten.
+
+## Prüfen
+
+```bash
+bash werkzeuge/pruefe.sh
+```
+
+Läuft auf einer Kopie des Projekts und prüft drei Dinge: GDScript-Parse-Fehler,
+das Laden und Instanziieren jeder Szene (findet auch Fehler in `_ready()`), und
+die Geometrie von Level 01 – ob alle Kisten und Gegner auf festem Boden stehen,
+ob Patrouillen nicht ins Leere laufen und ob die Absturzzone greift. Muss
+`ERGEBNIS: SAUBER` melden.
 
 ## Im Browser starten
 
@@ -94,13 +143,21 @@ Alle Werte stammen 1:1 aus `plattformer-demo.html` und sind in
 ```
 autoload/GameState.gd      Früchte, Leben, Kisten-Zähler, Checkpoint
 autoload/InputHub.gd       Tastatur + Touch zu einem Eingabezustand gebündelt
-scenes/player/             Player.tscn + player.gd (CharacterBody3D)
+scenes/player/             Player.tscn, player.gd, beuteldachs.gd (Modell)
 scenes/camera/             CorridorCamera.tscn
+scenes/crates/             Kiste.tscn + kiste.gd (alle neun Arten)
+scenes/enemies/            gegner.gd + Sumpfkroete/Stelzenvogel/Panzerkaefer
+scenes/fruits/             Frucht.tscn
+scenes/hazards/            Wasser.tscn, Stacheln.tscn
+scenes/portals/            StartPortal.tscn, ZielPortal.tscn
+scenes/props/              Baum, Wurzel, Stein, Gras, Kleinzeug, Waldstreuer
+scenes/levels/             level_basis.gd, Level01.tscn, Testlevel.tscn
 scenes/ui/                 HUD.tscn, TouchControls.tscn
-scenes/levels/             Testlevel.tscn (später Level01 … Level25)
-scenes/crates|fruits|hazards|enemies|hub/   noch leer
-scripts/                   szenenunabhängige Skripte
+scripts/                   angriff, farben, materialbibliothek, level_werkzeuge
+shaders/                   wasser.gdshader
+werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Webserver
 assets/CREDITS.md          Quellen und Lizenzen
+ARCHITEKTUR.md             verbindliche Schnittstellen
 ```
 
 ## Rendering

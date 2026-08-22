@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/portals/portal.gd" id="1_portal"]
+
+[sub_resource type="CylinderShape3D" id="FormPortal"]
+height = 2.3
+radius = 1.04
+
+[node name="StartPortal" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_portal")
+ist_ziel = false
+
+[node name="Kollision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+shape = SubResource("FormPortal")

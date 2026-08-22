@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/enemies/stelzenvogel.gd" id="1_vogel"]
+
+[sub_resource type="CapsuleShape3D" id="FormVogel"]
+radius = 0.45
+height = 2.3
+
+[node name="Stelzenvogel" type="Node3D" groups=["gegner"]]
+script = ExtResource("1_vogel")
+
+[node name="Trefferzone" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Kollision" type="CollisionShape3D" parent="Trefferzone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+shape = SubResource("FormVogel")

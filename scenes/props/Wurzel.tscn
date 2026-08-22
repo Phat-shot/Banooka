@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/props/wurzel.gd" id="1_wurzel"]
+
+[node name="Wurzel" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_wurzel")

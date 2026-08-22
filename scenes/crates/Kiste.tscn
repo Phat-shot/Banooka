@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/crates/kiste.gd" id="1_kiste"]
+
+[sub_resource type="BoxShape3D" id="FormKiste"]
+size = Vector3(1, 1, 1)
+
+[sub_resource type="BoxShape3D" id="FormTreffer"]
+size = Vector3(1.15, 1.9, 1.15)
+
+[node name="Kiste" type="StaticBody3D" groups=["kisten"]]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_kiste")
+
+[node name="Kollision" type="CollisionShape3D" parent="."]
+shape = SubResource("FormKiste")
+
+[node name="Modell" type="Node3D" parent="."]
+
+[node name="Trefferzone" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="KollisionTreffer" type="CollisionShape3D" parent="Trefferzone"]
+shape = SubResource("FormTreffer")

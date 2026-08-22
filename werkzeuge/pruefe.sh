@@ -34,7 +34,13 @@ SZENEN="$(timeout 300 godot --headless --path "$ZIEL" res://werkzeuge/SzenenChec
 	| grep -Ev "$RAUSCHEN")"
 echo "$SZENEN" | grep -E "ok:|FEHLER|SCRIPT ERROR|ERROR:|Szenen geprüft|Szenen-Check"
 
-if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR"; then
+echo "--- 3/3 Level geometrisch prüfen ---"
+LEVEL="$(timeout 300 godot --headless --path "$ZIEL" res://werkzeuge/LevelCheck.tscn 2>&1 \
+	| grep -Ev "$RAUSCHEN")"
+echo "$LEVEL" | grep -E "FEHLER|geprüft|Problem|Absturzzone|schwebt|steckt|==="
+
+if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
+		|| echo "$LEVEL" | grep -qE "FEHLER"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1
 fi

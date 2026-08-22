@@ -55,6 +55,10 @@ var _slide_dir := Vector3.ZERO
 var _blick_y := 0.0
 var _slide_hitbox_aktiv := false
 var _tempo := 0.0
+## Solange gesetzt, wird die Sprunghöhe nicht gekappt. Wird von
+## `abprallen()` gesetzt, damit Feder- und Sprungkisten ihre volle
+## Höhe behalten – die Sprungtaste ist dabei ja nicht gedrückt.
+var _kein_jump_cut := false
 
 
 func _ready() -> void:
@@ -111,13 +115,17 @@ func _physics_process(delta: float) -> void:
 			velocity.y = SLIDEJUMP_V if sliding > 0.0 else JUMP_V
 			sliding = 0.0
 			can_djump = true
+			_kein_jump_cut = false
 		elif can_djump and not slamming:
 			velocity.y = DJUMP_V
 			can_djump = false
 			spinning = maxf(spinning, DJUMP_SPIN_TIME)
+			_kein_jump_cut = false
 
 	# --- Variable Sprunghöhe: Taste losgelassen => kappen ---
-	if not InputHub.sprung_gehalten() and velocity.y > JUMP_V * JUMP_CUT and not slamming:
+	# Abprallen von Feder-/Sprungkisten und Gegnern wird nicht gekappt.
+	if not _kein_jump_cut and not InputHub.sprung_gehalten() \
+			and velocity.y > JUMP_V * JUMP_CUT and not slamming:
 		velocity.y = JUMP_V * JUMP_CUT
 
 	# --- Spin-Attacke ---
@@ -134,6 +142,7 @@ func _physics_process(delta: float) -> void:
 	# --- Landung ---
 	if is_on_floor():
 		can_djump = false
+		_kein_jump_cut = false
 		if slamming:
 			slamming = false
 			_schockwelle()
@@ -172,6 +181,7 @@ func abprallen(hoehe: float = ABPRALL_V) -> void:
 	velocity.y = hoehe
 	slamming = false
 	can_djump = true
+	_kein_jump_cut = true
 	abgeprallt.emit()
 
 
@@ -195,6 +205,7 @@ func respawn() -> void:
 	slamming = false
 	can_djump = false
 	gesperrt = false
+	_kein_jump_cut = false
 	invuln = INVULN_ZEIT
 	_slide_hitbox_aktiv = false
 	_kollision.set_deferred("disabled", false)

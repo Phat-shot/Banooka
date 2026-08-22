@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="Banooka"
 config/description="3D-Korridor-Plattformer (Godot 4)"
-run/main_scene="res://scenes/levels/Testlevel.tscn"
+run/main_scene="res://scenes/levels/Level01.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 

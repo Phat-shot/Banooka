@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/hazards/wasser.gd" id="1_wasser"]
+
+[sub_resource type="BoxShape3D" id="FormWasser"]
+size = Vector3(10, 3, 10)
+
+[node name="Wasser" type="Node3D"]
+script = ExtResource("1_wasser")
+
+[node name="Zone" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Kollision" type="CollisionShape3D" parent="Zone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.45, 0)
+shape = SubResource("FormWasser")

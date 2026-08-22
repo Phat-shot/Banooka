@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/hazards/stacheln.gd" id="1_stacheln"]
+
+[sub_resource type="BoxShape3D" id="FormStacheln"]
+size = Vector3(3, 0.82, 3)
+
+[node name="Stacheln" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_stacheln")
+
+[node name="Kollision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.41, 0)
+shape = SubResource("FormStacheln")
