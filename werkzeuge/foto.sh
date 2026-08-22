@@ -6,6 +6,11 @@
 # Beispiele:
 #   bash werkzeuge/foto.sh /tmp/bilder
 #   bash werkzeuge/foto.sh /tmp/bilder seite 24,59,130
+#   FOTO_LEVEL=res://scenes/hub/Hub.tscn bash werkzeuge/foto.sh /tmp/bilder orbit 0,90,180
+#
+# Modi: verfolger (Spielkamera am Korridor), seite (quer darauf),
+#       orbit (Kamera umkreist die Szene – für Räume und Menüs).
+# Szenen ohne Korridorverlauf wechseln automatisch in den Orbit-Modus.
 #
 # Godot zeichnet im Headless-Modus nicht (dort gibt es nur den
 # Dummy-Renderer). Deshalb läuft das über einen echten Bildschirm; das

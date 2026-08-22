@@ -20,13 +20,18 @@ const SLIDE_SPEED := 13.5    ## Slide-Tempo
 const SLIDE_TIME := 0.42     ## Slide-Dauer
 const SLIDEJUMP_V := 14.5    ## Sprung aus dem Slide heraus
 const SLAM_V := -30.0        ## Bauchplatscher
-const SPIN_TIME := 0.38      ## Dauer der Spin-Attacke
+const SPIN_TIME := 0.55      ## Dauer der Spin-Attacke
 
 # --- Weitere Kennwerte ---
 const DJUMP_SPIN_TIME := 0.2 ## Kurzer Spin-Effekt beim Doppelsprung
 const SLAM_RADIUS := 2.0     ## Schockwelle des Bauchplatschers
 const TODESHOEHE := -12.0    ## Unterhalb dieser Höhe stirbt der Spieler
 const INVULN_ZEIT := 1.2     ## Unverwundbarkeit nach dem Respawn
+const SPIN_REICHWEITE := 1.7 ## Wirkradius der Spin-Attacke
+const FALL_GEDAECHTNIS := 0.25
+## Wie lange ein Fall noch als Treffer zählt. move_and_slide setzt vel.y
+## beim Aufsetzen sofort auf 0 – ohne dieses Gedächtnis verpufft der
+## Treffer von oben, weil die Trefferzone erst danach prüft.
 const ABPRALL_V := 16.0      ## Standard-Absprunghöhe von Federkisten und Gegnern
 
 signal spin_gestartet
@@ -55,6 +60,8 @@ var _slide_dir := Vector3.ZERO
 var _blick_y := 0.0
 var _slide_hitbox_aktiv := false
 var _tempo := 0.0
+var _fall_rest := 0.0
+var _spin_geprueft := false
 ## Solange gesetzt, wird die Sprunghöhe nicht gekappt. Wird von
 ## `abprallen()` gesetzt, damit Feder- und Sprungkisten ihre volle
 ## Höhe behalten – die Sprungtaste ist dabei ja nicht gedrückt.
@@ -82,7 +89,7 @@ func _physics_process(delta: float) -> void:
 	var am_boden := is_on_floor()
 
 	# --- Horizontale Bewegung ---
-	var eingabe := InputHub.bewegung()
+	var eingabe := _kamerarelativ(InputHub.bewegung())
 	var staerke := eingabe.length()
 	var ctrl := 1.0 if am_boden else AIR_CTRL
 
@@ -116,6 +123,7 @@ func _physics_process(delta: float) -> void:
 			sliding = 0.0
 			can_djump = true
 			_kein_jump_cut = false
+			_fall_rest = 0.0
 		elif can_djump and not slamming:
 			velocity.y = DJUMP_V
 			can_djump = false
@@ -131,12 +139,22 @@ func _physics_process(delta: float) -> void:
 	# --- Spin-Attacke ---
 	if InputHub.spin_gedrueckt() and spinning <= 0.0:
 		spinning = SPIN_TIME
+		_spin_geprueft = false
 		spin_gestartet.emit()
+	if spinning > 0.0:
+		_spin_treffer()
 
 	_hitbox_aktualisieren()
 
 	# --- Gravitation und Bewegung ---
 	velocity.y += G * delta
+
+	# Fall merken, bevor move_and_slide vel.y beim Aufsetzen auf 0 zieht
+	if velocity.y < Angriff.FALL_SCHWELLE:
+		_fall_rest = FALL_GEDAECHTNIS
+	else:
+		_fall_rest = maxf(_fall_rest - delta, 0.0)
+
 	move_and_slide()
 
 	# --- Landung ---
@@ -171,7 +189,7 @@ func angriffe() -> int:
 		maske |= Angriff.SLIDE
 	if slamming:
 		maske |= Angriff.SLAM
-	if velocity.y < Angriff.FALL_SCHWELLE:
+	if _fall_rest > 0.0:
 		maske |= Angriff.FALLEN
 	return maske
 
@@ -189,6 +207,7 @@ func setze_blickrichtung(winkel: float) -> void:
 ## Schleudert den Spieler nach oben (Federkiste, Sprung auf einen Gegner).
 func abprallen(hoehe: float = ABPRALL_V) -> void:
 	velocity.y = hoehe
+	_fall_rest = 0.0
 	slamming = false
 	can_djump = true
 	_kein_jump_cut = true
@@ -218,9 +237,14 @@ func respawn() -> void:
 	_kein_jump_cut = false
 	invuln = INVULN_ZEIT
 	_slide_hitbox_aktiv = false
+	_fall_rest = 0.0
 	_kollision.set_deferred("disabled", false)
 	_kollision_slide.set_deferred("disabled", true)
 	global_position = GameState.checkpoint
+	# Kamera mitnehmen, sonst steht der Spieler kurz außerhalb des Bildes
+	var kamera := get_viewport().get_camera_3d()
+	if kamera != null and kamera.has_method("sofort_ausrichten"):
+		kamera.call("sofort_ausrichten")
 
 
 # ---------------------------------------------------------- Intern
@@ -242,3 +266,54 @@ func _schockwelle() -> void:
 		if kiste is Node3D and kiste.has_method("zerbrechen"):
 			if kiste.global_position.distance_to(global_position) < SLAM_RADIUS:
 				kiste.zerbrechen(Angriff.SLAM)
+
+
+## Rechnet die Eingabe in die Blickrichtung der Kamera um.
+##
+## Ohne das zeigt "vorwärts" immer nach Welt-Norden. Sobald der Korridor
+## eine Kurve macht und die Kamera mitschwenkt, passt die Steuerung dann
+## nicht mehr zum Bild.
+func _kamerarelativ(eingabe: Vector2) -> Vector2:
+	if eingabe.length_squared() < 0.0001:
+		return eingabe
+	var kamera := get_viewport().get_camera_3d()
+	if kamera == null:
+		return eingabe
+
+	var basis := kamera.global_transform.basis
+	var vor := -basis.z
+	vor.y = 0.0
+	var rechts := basis.x
+	rechts.y = 0.0
+	if vor.length_squared() < 0.0001 or rechts.length_squared() < 0.0001:
+		return eingabe
+	vor = vor.normalized()
+	rechts = rechts.normalized()
+
+	# eingabe.y ist -1 für "vorwärts" (siehe Input-Map)
+	var welt := rechts * eingabe.x - vor * eingabe.y
+	return Vector2(welt.x, welt.z)
+
+
+## Aktive Reichweite der Spin-Attacke.
+##
+## Kisten und Gegner prüfen sonst nur, ob der Spielerkörper ihre
+## Trefferzone berührt – das ist beim Vorbeidrehen frustrierend knapp.
+## Der Spin greift deshalb selbst nach Zielen im Umkreis.
+func _spin_treffer() -> void:
+	for kiste in get_tree().get_nodes_in_group("kisten"):
+		if not (kiste is Node3D) or not kiste.has_method("zerbrechen"):
+			continue
+		if kiste.global_position.distance_to(global_position + Vector3.UP * 0.5) < SPIN_REICHWEITE:
+			kiste.zerbrechen(Angriff.SPIN)
+
+	for gegner in get_tree().get_nodes_in_group("gegner"):
+		if not (gegner is Node3D) or not gegner.has_method("besiegen"):
+			continue
+		# Nur Gegner erwischen, die überhaupt per Spin zu besiegen sind –
+		# sonst würde der Spin Gegner umwerfen, die anders gehen.
+		var besiegbar: int = gegner.get("besiegbar_durch")
+		if not (besiegbar & Angriff.SPIN):
+			continue
+		if gegner.global_position.distance_to(global_position + Vector3.UP * 0.5) < SPIN_REICHWEITE:
+			gegner.besiegen(Angriff.SPIN)

@@ -25,10 +25,13 @@ Die Physikwerte daraus sind verbindlich und 1:1 zu übernehmen.
 | SLIDE_TIME | 0.42 s | Slide-Dauer, Hitbox halbiert |
 | SLIDEJUMP_V | 14.5 | Slide-Jump: Sprung während Slide ⇒ höher als Normalsprung |
 | SLAM_V | -30 | Bauchplatscher: Slide-Taste in der Luft ⇒ senkrecht runter |
-| SPIN_TIME | 0.38 s | Spin-Attacke (zerbricht Kisten, besiegt Gegner) |
+| SPIN_TIME | 0.55 s | Spin-Attacke (zerbricht Kisten, besiegt Gegner), Wirkradius 1,7 m |
 
 Regeln:
 - Doppelsprung nur 1× pro Luftphase; Reset bei Bodenkontakt; nicht während Bauchplatscher.
+- Steuerung ist **kamerarelativ**: „vorwärts" heißt immer „ins Bild hinein", auch in Kurven.
+- Treffer von oben zählen noch 0,25 s nach dem schnellsten Fall nach (Fall-Gedächtnis),
+  weil `move_and_slide` beim Aufsetzen `vel.y` sofort auf 0 zieht.
 - Bauchplatscher zerbricht bei Landung Kisten im Radius 2 m (Schockwelle).
 - Kisten zerbrechen durch: Spin, Bauchplatscher, Draufspringen mit Fallgeschwindigkeit.
 

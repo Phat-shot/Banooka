@@ -12,8 +12,11 @@ const SLIDE := 2      ## Slide läuft
 const SLAM := 4       ## Bauchplatscher läuft (in der Luft, nach unten)
 const FALLEN := 8     ## Spieler fällt schnell genug zum Draufspringen
 
-## Fallgeschwindigkeit, ab der FALLEN gesetzt wird (Wert aus der Demo).
-const FALL_SCHWELLE := -4.0
+## Fallgeschwindigkeit, ab der FALLEN gesetzt wird.
+## Bewusst großzügiger als die -4.0 der Demo: mit -4.0 zählte ein Treffer
+## erst bei ordentlichem Fall, und weil move_and_slide beim Aufsetzen
+## vel.y sofort auf 0 zieht, kam das Bit oft gar nicht an.
+const FALL_SCHWELLE := -2.0
 
 ## Lesbare Namen für Debug-Ausgaben.
 static func als_text(maske: int) -> String:

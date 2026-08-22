@@ -42,6 +42,10 @@ func _ready() -> void:
 	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
 	_kamera_verbinden()
 	_spieler_setzen()
+	# Erst Spieler setzen, dann Kamera nachziehen – sonst steht der
+	# Spieler beim ersten Bild außerhalb des Sichtfelds.
+	if _kamera != null and _kamera.has_method("sofort_ausrichten"):
+		_kamera.call("sofort_ausrichten")
 	_portale_verbinden()
 	_kisten_zaehlen()
 	_nach_aufbau()
@@ -104,6 +108,12 @@ func _auf_level_geschafft() -> void:
 	if debug:
 		print("Level geschafft – Kisten: %d/%d, Früchte: %d"
 				% [GameState.kisten_zerbrochen, GameState.kisten_gesamt, GameState.fruechte])
+	var alle_kisten := GameState.kisten_gesamt > 0 \
+			and GameState.kisten_zerbrochen >= GameState.kisten_gesamt
+	Spielfluss.level_abschliessen(alle_kisten)
+	# Kurz die Schlussmeldung stehen lassen, dann zurück in den Portalraum
+	await get_tree().create_timer(4.5).timeout
+	Spielfluss.zum_hub()
 
 
 ## Zählt alle zählenden Kisten im Level und meldet sie dem Spielstand.

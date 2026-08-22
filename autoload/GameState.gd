@@ -31,6 +31,18 @@ func level_starten(start_position: Vector3, kisten_im_level: int = 0) -> void:
 	kisten_geaendert.emit(kisten_zerbrochen, kisten_gesamt)
 
 
+## Setzt Leben und Früchte für einen frischen Levelversuch zurück.
+## Wird vom Spielfluss beim Betreten eines Levels aufgerufen.
+func neu_beginnen() -> void:
+	leben = START_LEBEN
+	fruechte = 0
+	kisten_zerbrochen = 0
+	kisten_gesamt = 0
+	fruechte_geaendert.emit(fruechte)
+	leben_geaendert.emit(leben)
+	kisten_geaendert.emit(0, 0)
+
+
 func frucht_einsammeln(anzahl: int = 1) -> void:
 	fruechte += anzahl
 	while fruechte >= FRUECHTE_PRO_EXTRALEBEN:

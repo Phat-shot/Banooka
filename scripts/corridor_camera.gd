@@ -24,10 +24,23 @@ extends Camera3D
 
 var _ziel: Node3D
 var _kurve_knoten: Path3D
+## Beim ersten Bild darf die Kamera nicht erst hinfahren – sonst startet
+## der Spieler außerhalb des Bildes.
+var _muss_springen := true
 
 
 func _ready() -> void:
 	_ziel_suchen()
+	sofort_ausrichten()
+
+
+## Setzt die Kamera ohne Nachziehen direkt an ihre Sollposition.
+## Wird beim Levelstart und nach dem Respawn aufgerufen.
+func sofort_ausrichten() -> void:
+	_muss_springen = true
+	_ziel_suchen()
+	if _ziel != null and is_instance_valid(_ziel):
+		_folgen(1.0)
 
 
 func _ziel_suchen() -> void:
@@ -43,7 +56,10 @@ func _process(delta: float) -> void:
 	if _ziel == null or not is_instance_valid(_ziel):
 		_ziel_suchen()
 		return
+	_folgen(delta)
 
+
+func _folgen(delta: float) -> void:
 	var p := _ziel.global_position
 	var wunsch: Vector3
 	var blickziel: Vector3
@@ -73,6 +89,10 @@ func _process(delta: float) -> void:
 		wunsch = Vector3(p.x * seiten_faktor, p.y + hoehe, p.z + abstand)
 		blickziel = Vector3(p.x * seiten_faktor, p.y + 1.0, p.z - blick_vorlauf)
 
-	global_position = global_position.lerp(wunsch, 1.0 - pow(glaettung, delta))
+	if _muss_springen:
+		global_position = wunsch
+		_muss_springen = false
+	else:
+		global_position = global_position.lerp(wunsch, 1.0 - pow(glaettung, delta))
 	if global_position.distance_squared_to(blickziel) > 0.001:
 		look_at(blickziel, Vector3.UP)

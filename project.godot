@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="Banooka"
 config/description="3D-Korridor-Plattformer (Godot 4)"
-run/main_scene="res://scenes/levels/Level01.tscn"
+run/main_scene="res://scenes/ui/Splash.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -24,6 +24,7 @@ config/icon="res://icon.svg"
 
 GameState="*res://autoload/GameState.gd"
 InputHub="*res://autoload/InputHub.gd"
+Spielfluss="*res://autoload/Spielfluss.gd"
 
 [display]
 
