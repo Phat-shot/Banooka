@@ -1,4 +1,5 @@
 extends CharacterBody3D
+class_name Spieler
 ## Spieler-Controller (CharacterBody3D).
 ##
 ## Das komplette Move-Set ist 1:1 aus plattformer-demo.html übernommen:
@@ -24,19 +25,18 @@ const SPIN_TIME := 0.38      ## Dauer der Spin-Attacke
 # --- Weitere Kennwerte ---
 const DJUMP_SPIN_TIME := 0.2 ## Kurzer Spin-Effekt beim Doppelsprung
 const SLAM_RADIUS := 2.0     ## Schockwelle des Bauchplatschers
-const TODESHOEHE := -8.0     ## Unterhalb dieser Höhe stirbt der Spieler
+const TODESHOEHE := -12.0    ## Unterhalb dieser Höhe stirbt der Spieler
 const INVULN_ZEIT := 1.2     ## Unverwundbarkeit nach dem Respawn
-const SPIN_DREHUNG := 30.0   ## Drehgeschwindigkeit des Modells beim Spin
+const ABPRALL_V := 16.0      ## Standard-Absprunghöhe von Federkisten und Gegnern
 
 signal spin_gestartet
 signal bauchplatscher_gelandet(pos: Vector3)
 signal gestorben
+signal abgeprallt
 
 @onready var _kollision: CollisionShape3D = $Kollision
 @onready var _kollision_slide: CollisionShape3D = $KollisionSlide
-@onready var _modell: Node3D = $Modell
-@onready var _koerper: MeshInstance3D = $Modell/Koerper
-@onready var _spin_ring: MeshInstance3D = $Modell/SpinRing
+@onready var _modell: SpielerModell = $Modell
 
 ## Restlaufzeit des Slides in Sekunden (> 0 = Slide aktiv).
 var sliding := 0.0
@@ -48,14 +48,17 @@ var slamming := false
 var can_djump := false
 ## Restlaufzeit der Unverwundbarkeit.
 var invuln := 0.0
+## Steuerung gesperrt (z. B. während einer Portal-Animation).
+var gesperrt := false
 
 var _slide_dir := Vector3.ZERO
 var _blick_y := 0.0
 var _slide_hitbox_aktiv := false
-var _ring_alpha := 0.0
+var _tempo := 0.0
 
 
 func _ready() -> void:
+	add_to_group("spieler")
 	GameState.level_starten(global_position)
 
 
@@ -64,6 +67,13 @@ func _physics_process(delta: float) -> void:
 	spinning = maxf(spinning - delta, 0.0)
 	sliding = maxf(sliding - delta, 0.0)
 	invuln = maxf(invuln - delta, 0.0)
+
+	if gesperrt:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		velocity.y += G * delta
+		move_and_slide()
+		return
 
 	var am_boden := is_on_floor()
 
@@ -83,6 +93,7 @@ func _physics_process(delta: float) -> void:
 	# --- Blickrichtung merken (Modell schaut in -Z) ---
 	if staerke > 0.1 and sliding <= 0.0:
 		_blick_y = atan2(-eingabe.x, -eingabe.y)
+	_tempo = staerke
 
 	# --- Slide bzw. Bauchplatscher ---
 	if InputHub.slide_gedrueckt():
@@ -133,26 +144,65 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	# Slide: Körper flach drücken (Hitbox wird separat halbiert)
-	var im_slide := sliding > 0.0
-	_koerper.scale.y = 0.45 if im_slide else 1.0
-	_koerper.position.y = 0.4 if im_slide else 0.7
+	if is_instance_valid(_modell):
+		_modell.setze_blick(_blick_y)
+		_modell.aktualisiere(delta, _tempo, not is_on_floor(), sliding, spinning)
+		_modell.sichtbarkeit(invuln <= 0.0 or fmod(invuln, 0.2) > 0.1)
 
-	# Spin: Modell schnell drehen, Ring einblenden
+
+# ---------------------------------------------------------- Schnittstelle
+
+## Aktuell laufende Angriffsarten als Bitmaske (siehe scripts/angriff.gd).
+## Gegner und Kisten fragen das ab, um zu entscheiden, ob sie getroffen sind.
+func angriffe() -> int:
+	var maske := Angriff.KEINER
 	if spinning > 0.0:
-		_modell.rotation.y += delta * SPIN_DREHUNG
-		_ring_alpha = 0.85
-	else:
-		_modell.rotation.y = _blick_y
-		_ring_alpha = maxf(_ring_alpha - delta * 5.0, 0.0)
+		maske |= Angriff.SPIN
+	if sliding > 0.0:
+		maske |= Angriff.SLIDE
+	if slamming:
+		maske |= Angriff.SLAM
+	if velocity.y < Angriff.FALL_SCHWELLE:
+		maske |= Angriff.FALLEN
+	return maske
 
-	var ring_mat := _spin_ring.get_surface_override_material(0)
-	if ring_mat is StandardMaterial3D:
-		ring_mat.albedo_color.a = _ring_alpha
 
-	# Unverwundbarkeit: Blinken
-	_modell.visible = invuln <= 0.0 or fmod(invuln, 0.2) > 0.1
+## Schleudert den Spieler nach oben (Federkiste, Sprung auf einen Gegner).
+func abprallen(hoehe: float = ABPRALL_V) -> void:
+	velocity.y = hoehe
+	slamming = false
+	can_djump = true
+	abgeprallt.emit()
 
+
+## Schaden nehmen. Während der Unverwundbarkeit wirkungslos.
+func schaden_nehmen() -> void:
+	if invuln > 0.0:
+		return
+	sterben()
+
+
+func sterben() -> void:
+	gestorben.emit()
+	GameState.leben_verlieren()
+	respawn()
+
+
+func respawn() -> void:
+	velocity = Vector3.ZERO
+	sliding = 0.0
+	spinning = 0.0
+	slamming = false
+	can_djump = false
+	gesperrt = false
+	invuln = INVULN_ZEIT
+	_slide_hitbox_aktiv = false
+	_kollision.set_deferred("disabled", false)
+	_kollision_slide.set_deferred("disabled", true)
+	global_position = GameState.checkpoint
+
+
+# ---------------------------------------------------------- Intern
 
 ## Schaltet zwischen normaler und halbierter Hitbox um.
 func _hitbox_aktualisieren() -> void:
@@ -170,23 +220,4 @@ func _schockwelle() -> void:
 	for kiste in get_tree().get_nodes_in_group("kisten"):
 		if kiste is Node3D and kiste.has_method("zerbrechen"):
 			if kiste.global_position.distance_to(global_position) < SLAM_RADIUS:
-				kiste.zerbrechen()
-
-
-func sterben() -> void:
-	gestorben.emit()
-	GameState.leben_verlieren()
-	respawn()
-
-
-func respawn() -> void:
-	velocity = Vector3.ZERO
-	sliding = 0.0
-	spinning = 0.0
-	slamming = false
-	can_djump = false
-	invuln = INVULN_ZEIT
-	_slide_hitbox_aktiv = false
-	_kollision.set_deferred("disabled", false)
-	_kollision_slide.set_deferred("disabled", true)
-	global_position = GameState.checkpoint
+				kiste.zerbrechen(Angriff.SLAM)

@@ -1,15 +1,21 @@
 extends Camera3D
 ## Korridor-Kamera: folgt dem Spieler von schräg hinten oben.
-## Werte 1:1 aus plattformer-demo.html übernommen.
+##
+## Zwei Betriebsarten:
+##   ohne Pfad – gerader Korridor Richtung -Z (Werte 1:1 aus der HTML-Demo)
+##   mit Pfad  – die Kamera fährt auf einem Path3D hinter dem Spieler her
+##               und folgt damit auch Kurven im Levelverlauf.
 
 ## Ziel-Knoten. Bleibt das Feld leer, wird der erste Knoten
 ## aus der Gruppe "spieler" verwendet.
 @export var ziel_pfad: NodePath
+## Optionaler Path3D, dem der Korridor folgt. Ohne Pfad: gerader Korridor.
+@export var kurve_pfad: NodePath
 ## Höhe über dem Spieler.
 @export var hoehe := 4.2
-## Abstand hinter dem Spieler (in +Z, der Korridor verläuft Richtung -Z).
+## Abstand hinter dem Spieler.
 @export var abstand := 8.0
-## Die Kamera folgt seitlichen Bewegungen nur zur Hälfte (Korridor-Optik).
+## Seitliche Bewegungen werden nur zu diesem Anteil mitgefahren.
 @export var seiten_faktor := 0.5
 ## Blickpunkt vor dem Spieler.
 @export var blick_vorlauf := 4.0
@@ -17,6 +23,7 @@ extends Camera3D
 @export var glaettung := 0.001
 
 var _ziel: Node3D
+var _kurve_knoten: Path3D
 
 
 func _ready() -> void:
@@ -28,6 +35,8 @@ func _ziel_suchen() -> void:
 		_ziel = get_node_or_null(ziel_pfad) as Node3D
 	if _ziel == null:
 		_ziel = get_tree().get_first_node_in_group("spieler") as Node3D
+	if _kurve_knoten == null and not kurve_pfad.is_empty():
+		_kurve_knoten = get_node_or_null(kurve_pfad) as Path3D
 
 
 func _process(delta: float) -> void:
@@ -36,9 +45,34 @@ func _process(delta: float) -> void:
 		return
 
 	var p := _ziel.global_position
-	var wunsch := Vector3(p.x * seiten_faktor, p.y + hoehe, p.z + abstand)
-	global_position = global_position.lerp(wunsch, 1.0 - pow(glaettung, delta))
+	var wunsch: Vector3
+	var blickziel: Vector3
 
-	var blickziel := Vector3(p.x * seiten_faktor, p.y + 1.0, p.z - blick_vorlauf)
+	if _kurve_knoten != null and _kurve_knoten.curve != null \
+			and _kurve_knoten.curve.point_count >= 2:
+		# --- Kurvenbetrieb: Kamera fährt auf dem Pfad hinter dem Spieler ---
+		var kurve := _kurve_knoten.curve
+		var laenge := kurve.get_baked_length()
+		var lokal := _kurve_knoten.to_local(p)
+		var strecke := kurve.get_closest_offset(lokal)
+
+		var mitte := _kurve_knoten.to_global(kurve.sample_baked(strecke))
+		var versatz := p - mitte
+		versatz.y = 0.0
+
+		var kam_punkt := _kurve_knoten.to_global(
+				kurve.sample_baked(clampf(strecke - abstand, 0.0, laenge)))
+		wunsch = kam_punkt + Vector3.UP * (p.y - mitte.y + hoehe) + versatz * seiten_faktor
+
+		blickziel = _kurve_knoten.to_global(
+				kurve.sample_baked(clampf(strecke + blick_vorlauf, 0.0, laenge)))
+		blickziel.y = p.y + 1.0
+		blickziel += versatz * seiten_faktor
+	else:
+		# --- Gerader Korridor Richtung -Z (Verhalten der HTML-Demo) ---
+		wunsch = Vector3(p.x * seiten_faktor, p.y + hoehe, p.z + abstand)
+		blickziel = Vector3(p.x * seiten_faktor, p.y + 1.0, p.z - blick_vorlauf)
+
+	global_position = global_position.lerp(wunsch, 1.0 - pow(glaettung, delta))
 	if global_position.distance_squared_to(blickziel) > 0.001:
 		look_at(blickziel, Vector3.UP)

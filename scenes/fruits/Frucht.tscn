@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/fruits/frucht.gd" id="1_frucht"]
+
+[sub_resource type="SphereShape3D" id="FormFrucht"]
+radius = 0.45
+
+[node name="Frucht" type="Area3D"]
+script = ExtResource("1_frucht")
+
+[node name="Kollision" type="CollisionShape3D" parent="."]
+shape = SubResource("FormFrucht")
+
+[node name="Modell" type="Node3D" parent="."]
