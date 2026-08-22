@@ -1,0 +1,7 @@
+.git
+.godot
+export
+build
+*.md
+.claude
+plattformer-demo.html

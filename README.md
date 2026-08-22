@@ -118,6 +118,66 @@ Der Server lauscht auf allen Netzwerkschnittstellen. Vom Handy im selben
 WLAN `http://<IP-des-Rechners>:8060/` aufrufen – dann erscheinen auch die
 virtuellen Touch-Buttons, die am Desktop ausgeblendet bleiben.
 
+## Docker: im Browser spielen, ohne Godot
+
+Das Abbild enthält die fertig gebaute Web-Version und liefert sie über
+nginx aus. Auf dem Zielrechner wird nur Docker gebraucht.
+
+```bash
+docker run --rm -p 8080:80 ghcr.io/phat-shot/banooka:latest
+```
+
+Dann <http://localhost:8080> öffnen. Oder aus dem Projektordner heraus
+selbst bauen:
+
+```bash
+docker compose up -d --build
+```
+
+Der Build läuft zweistufig: die erste Stufe lädt Godot samt Web-Templates
+und exportiert das Spiel, die zweite enthält nur noch nginx und die
+fertigen Dateien. Das WebAssembly wird beim Bauen vorkomprimiert und über
+`gzip_static` ausgeliefert – aus rund 34 MB werden etwa 9 MB über die
+Leitung. `/gesundheit` liefert einen Health-Check für Orchestrierung.
+
+Der Workflow `.github/workflows/docker.yml` baut das Abbild bei jedem
+Push nach `main`, veröffentlicht es in der GitHub Container Registry und
+startet es anschließend testweise, um Startseite, WebAssembly-MIME-Typ
+und Header zu prüfen.
+
+## Android: APK bauen
+
+`.github/workflows/android.yml` baut bei jedem Push nach `main` ein
+Debug-APK und legt es als Artefakt ab. Der Export läuft ohne Gradle über
+die vorgefertigten Android-Templates; gebraucht werden nur ein
+Schlüsselspeicher und `apksigner`/`zipalign` aus dem Android-SDK, das auf
+den GitHub-Läufern bereits vorhanden ist.
+
+Für ein signiertes Release-APK diese Geheimnisse im Repository hinterlegen:
+
+| Geheimnis | Inhalt |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | Schlüsselspeicher, base64-kodiert |
+| `ANDROID_KEYSTORE_PASSWORD` | Passwort des Schlüsselspeichers |
+| `ANDROID_KEY_ALIAS` | Alias des Schlüssels |
+
+Schlüsselspeicher anlegen und kodieren:
+
+```bash
+keytool -genkeypair -v -keystore banooka.keystore -alias banooka \
+        -keyalg RSA -keysize 2048 -validity 10000
+base64 -w0 banooka.keystore
+```
+
+Ein Tag `v*` hängt die APKs zusätzlich an die GitHub-Veröffentlichung.
+
+Lokal geht der Export genauso, sobald die Android-Templates über
+*Editor → Export-Templates verwalten* installiert sind:
+
+```bash
+godot --headless --path . --export-debug "Android" build/banooka-debug.apk
+```
+
 ## Steuerung
 
 | Aktion | Tastatur | Touch |

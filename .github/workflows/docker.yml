@@ -1,0 +1,89 @@
+# Baut das Spiel als Web-Version, packt sie in ein nginx-Abbild und
+# veröffentlicht es in der GitHub Container Registry.
+#
+# Danach genügt auf einem beliebigen Rechner mit Docker:
+#   docker run --rm -p 8080:80 ghcr.io/<benutzer>/banooka:latest
+# und das Spiel läuft im Browser.
+
+name: Web-Abbild bauen und veröffentlichen
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  abbild:
+    name: Docker-Abbild
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      - name: Buildx einrichten
+        uses: docker/setup-buildx-action@v3
+
+      - name: An der Registry anmelden
+        # Bei Pull Requests nicht anmelden – dort wird nur gebaut, nicht veröffentlicht.
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Namen und Marken bestimmen
+        id: marken
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Bauen und veröffentlichen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.marken.outputs.tags }}
+          labels: ${{ steps.marken.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Abbild ausprobieren
+        # Nur wenn veröffentlicht wurde – sonst gibt es kein Abbild zum Ziehen.
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          MARKE="$(echo '${{ steps.marken.outputs.tags }}' | head -n1)"
+          docker run -d --name banooka-test -p 8080:80 "$MARKE"
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/gesundheit >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          echo "--- Startseite ---"
+          curl -fsS -o /dev/null -w 'index.html: HTTP %{http_code}, %{content_type}\n' \
+            http://localhost:8080/
+          echo "--- WebAssembly ---"
+          curl -fsS -o /dev/null -w 'index.wasm: HTTP %{http_code}, %{content_type}, %{size_download} Bytes\n' \
+            -H 'Accept-Encoding: gzip' http://localhost:8080/index.wasm
+          echo "--- Header ---"
+          curl -fsSI http://localhost:8080/ | grep -i cross-origin
+          docker rm -f banooka-test

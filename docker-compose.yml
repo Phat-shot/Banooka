@@ -1,0 +1,22 @@
+# Banooka im Browser spielen – ohne Godot auf dem Rechner.
+#
+#   docker compose up -d      und dann http://localhost:8080 öffnen
+#
+# Fertiges Abbild statt selbst bauen:
+#   docker run --rm -p 8080:80 ghcr.io/phat-shot/banooka:latest
+
+services:
+  banooka:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: ghcr.io/phat-shot/banooka:latest
+    container_name: banooka
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/gesundheit"]
+      interval: 30s
+      timeout: 3s
+      retries: 3

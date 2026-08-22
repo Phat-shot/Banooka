@@ -1,0 +1,150 @@
+# Baut die Android-Fassung als APK.
+#
+# Ohne Gradle-Build: Godot nutzt die vorgefertigten Android-Templates.
+# Gebraucht werden dafür nur ein Schlüsselspeicher und apksigner/zipalign
+# aus dem Android-SDK, das auf den GitHub-Läufern schon installiert ist.
+#
+# Standardmäßig entsteht ein Debug-APK als Artefakt. Sind die Geheimnisse
+# ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD und ANDROID_KEY_ALIAS
+# hinterlegt, wird zusätzlich ein signiertes Release-APK gebaut und bei
+# einem v*-Tag an die Veröffentlichung gehängt.
+
+name: Android-APK bauen
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  apk:
+    name: APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      - name: Java einrichten (liefert keytool und apksigner)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Godot und Templates aus dem Zwischenspeicher
+        id: zwischenspeicher
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot-bin
+            ~/.local/share/godot/export_templates
+          key: godot-android-${{ env.GODOT_VERSION }}
+
+      - name: Godot und Android-Templates laden
+        if: steps.zwischenspeicher.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          AUSGABE="4.7.2-stable"
+          BASIS="https://github.com/godotengine/godot/releases/download/${AUSGABE}"
+
+          mkdir -p ~/godot-bin
+          curl -sSL -o /tmp/godot.zip "${BASIS}/Godot_v${AUSGABE}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp
+          mv "/tmp/Godot_v${AUSGABE}_linux.x86_64" ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+
+          # Nur die Android-Templates entpacken statt aller rund 1 GB
+          curl -sSL -o /tmp/templates.tpz "${BASIS}/Godot_v${AUSGABE}_export_templates.tpz"
+          ZIEL=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$ZIEL"
+          unzip -j -o -q /tmp/templates.tpz 'templates/android*' 'templates/version.txt' -d "$ZIEL"
+          ls -lh "$ZIEL"
+
+      - name: Debug-Schlüsselspeicher erzeugen
+        run: |
+          set -euo pipefail
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey \
+            -keypass android -storepass android \
+            -keystore ~/debug.keystore -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US" -noprompt
+
+      - name: Editor-Einstellungen für den Export schreiben
+        run: |
+          set -euo pipefail
+          # Godot findet apksigner und zipalign über den SDK-Pfad in den
+          # Editor-Einstellungen; im Headless-Betrieb legen wir die Datei an.
+          mkdir -p ~/.config/godot
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          echo "Android-SDK: $SDK"
+          cat > ~/.config/godot/editor_settings-4.7.tres <<TRES
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$SDK"
+          export/android/debug_keystore = "$HOME/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          TRES
+          sed -i 's/^          //' ~/.config/godot/editor_settings-4.7.tres
+          cat ~/.config/godot/editor_settings-4.7.tres
+
+      - name: Projekt importieren
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          ~/godot-bin/godot --headless --path . --import 2>&1 | tail -5
+
+      - name: Debug-APK bauen
+        run: |
+          set -euo pipefail
+          ~/godot-bin/godot --headless --path . \
+            --export-debug "Android" build/banooka-debug.apk 2>&1 | tail -30
+          test -f build/banooka-debug.apk
+          ls -lh build/banooka-debug.apk
+
+      - name: Release-APK bauen
+        # Nur wenn ein echter Schlüsselspeicher hinterlegt ist
+        if: env.KEYSTORE != ''
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          echo "$KEYSTORE" | base64 -d > ~/release.keystore
+          python3 - <<'PY'
+          import os, re, pathlib
+          p = pathlib.Path("export_presets.cfg")
+          s = p.read_text()
+          s = s.replace('keystore/release=""',
+                        'keystore/release="%s/release.keystore"' % os.environ["HOME"])
+          s = s.replace('keystore/release_user=""',
+                        'keystore/release_user="%s"' % os.environ["KEY_ALIAS"])
+          s = s.replace('keystore/release_password=""',
+                        'keystore/release_password="%s"' % os.environ["KEYSTORE_PASS"])
+          p.write_text(s)
+          PY
+          ~/godot-bin/godot --headless --path . \
+            --export-release "Android" build/banooka.apk 2>&1 | tail -30
+          test -f build/banooka.apk
+          ls -lh build/banooka.apk
+
+      - name: APK als Artefakt ablegen
+        uses: actions/upload-artifact@v4
+        with:
+          name: banooka-apk
+          path: build/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: An die Veröffentlichung hängen
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/*.apk
