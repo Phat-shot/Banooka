@@ -14,6 +14,8 @@ extends Node
 ##                 "orbit"     – Kamera umkreist die Szene (für Räume und Menüs)
 ##   FOTO_STELLEN  verfolger/seite: Strecken in Metern, mit Komma getrennt
 ##                 orbit: Winkel in Grad
+##   FOTO_WARTEN   Bilder, die vor jeder Aufnahme abgewartet werden
+##                 (Vorgabe 24) – für Einblend-Animationen hochsetzen
 ##   FOTO_RADIUS   nur orbit: Abstand zur Mitte (Vorgabe 26)
 ##   FOTO_HOEHE    nur orbit: Höhe über der Mitte (Vorgabe 14)
 
@@ -104,7 +106,10 @@ func _fotografiere(stellen: PackedStringArray, modus: String) -> void:
 				_kamera.global_position = mitte + quer * 34.0 + Vector3.UP * 8.0
 				_kamera.look_at(mitte + Vector3.DOWN * 3.0, Vector3.UP)
 
-		for f in 24:
+		var warten := 24
+		if not OS.get_environment("FOTO_WARTEN").is_empty():
+			warten = int(OS.get_environment("FOTO_WARTEN"))
+		for f in warten:
 			await get_tree().process_frame
 		await RenderingServer.frame_post_draw
 		var name := "%s/%s_%02d_%03d.png" % [ziel, modus, i, int(wert)]
