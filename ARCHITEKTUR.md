@@ -131,3 +131,57 @@ func sichtbarkeit(sichtbar: bool)
 Ohne `kurve_pfad` gerader Korridor Richtung -Z. Mit einem `Path3D` in
 `kurve_pfad` fährt die Kamera auf der Kurve hinter dem Spieler her und
 folgt damit auch Biegungen im Level.
+
+## Level (`scenes/levels/level_basis.gd`, `class_name LevelBasis`)
+
+Ein Level erbt von `LevelBasis` und baut seinen Inhalt in `_baue()` auf.
+Die Basisklasse legt die Knoten `Geometrie`, `Objekte` und `Deko` an,
+hängt die Kamera an den Verlauf, setzt den Spieler ans Startportal,
+zählt die Kisten und verbindet das Signal `level_geschafft`.
+
+**Wichtig:** Position immer *vor* `add_child()` setzen. Gegner merken
+sich in `_ready()` ihre Startposition für die Patrouille – wird die
+Position erst danach gesetzt, springen sie zum Ursprung zurück.
+
+Props werden als Szene instanziiert (`preload(".../Baum.tscn").instantiate()`),
+nicht über `Baum.new()`.
+
+## Levelbau (`scripts/level_werkzeuge.gd`, `class_name LevelWerkzeuge`)
+
+```gdscript
+static func kurve_aus_punkten(punkte: Array, glaettung := 0.45) -> Curve3D
+static func korridor(elternteil, kurve, abschnitte, material,
+        tiefe := 6.0, schritt := 1.0, mit_kollision := true) -> MeshInstance3D
+static func plattform(elternteil, pos, groesse, material, drehung_y := 0.0)
+static func punkt(kurve, strecke, seitlich := 0.0, hoehe := 0.0) -> Vector3
+static func richtung(kurve, strecke) -> Vector3
+static func drehung(kurve, strecke) -> float
+```
+
+`abschnitte` ist eine Liste `{"von", "bis", "breite", "breite_ende"}`.
+Lücken zwischen den Abschnitten sind die Sprungpassagen. Level 01 hält
+diese Liste in `ABSCHNITTE` als einzige Quelle und leitet daraus
+`_breite_bei()`, `_rand_bei()` und `_weg_von_der_kante()` ab – so kann
+kein Objekt neben dem Weg oder auf einer Abbruchkante landen.
+
+Godot zeichnet Dreiecke als Vorderseite, wenn ihre Punkte aus
+Blickrichtung **im Uhrzeigersinn** liegen (empirisch bestimmt).
+
+## Props (`scenes/props/`)
+
+`Baum` (LAUBBAUM/NADELBAUM/TOTHOLZ), `Wurzel`, `Stein`, `Grasfeld`
+(MultiMesh + Wind-Vertexshader, ein Zeichenaufruf), `Kleinzeug`
+(FARN/PILZ/BUSCH/BLUME), `Waldstreuer`. Jedes hat `saat` für
+reproduzierbaren Zufall; Bäume, Wurzeln und Steine haben Kollision
+auf Ebene 1, Gras und Kleinzeug nicht.
+
+## Gefahren und Portale
+
+`Wasser` (`flaeche`, `tiefe`, `toedlich`) mit eigenem Wellen-Shader,
+`Stacheln` (`flaeche`, `einfahrbar`, `takt`), `Portal` (`ist_ziel`).
+Das Zielportal sperrt den Spieler, zieht ihn ein und löst
+`level_geschafft` aus.
+
+**Renderer:** Das Projekt läuft auf `gl_compatibility` (Web-Export).
+Keine `SCREEN_TEXTURE`/`DEPTH_TEXTURE`, keine Compute-Shader, kein
+SDFGI oder Volumetric Fog.
