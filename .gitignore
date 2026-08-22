@@ -3,7 +3,7 @@
 /android/
 /build/
 /export/
-export_presets.cfg
+# export_presets.cfg wird bewusst versioniert (nur Web-Preset, keine Schluessel)
 *.translation
 
 # Betriebssystem

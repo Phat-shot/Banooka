@@ -24,6 +24,51 @@ Hub und die Level 01–25 folgen in eigenen Schritten.
 Projektordner in Godot 4.3+ öffnen und F5 drücken. Die Hauptszene ist
 `scenes/levels/Testlevel.tscn` – ein reiner Testkorridor für den Controller.
 
+## Im Browser starten
+
+Der Web-Export ist als Preset **Web** in `export_presets.cfg` hinterlegt
+(Ausgabe nach `export/web/`, ohne Thread-Unterstützung – damit läuft der
+Build auf jedem beliebigen Webserver, auch auf GitHub Pages oder itch.io).
+
+### Bereits exportierten Build starten
+
+```bash
+python3 werkzeuge/web_server.py
+```
+
+Der Server lauscht auf <http://localhost:8060/> und öffnet den Browser.
+Ein anderer Port geht per `python3 werkzeuge/web_server.py 9000`,
+ohne Browser-Start mit `--no-open`.
+
+Wichtig: Ein Godot-Web-Export lässt sich **nicht** per Doppelklick auf
+`index.html` öffnen – Browser blockieren WebAssembly über `file://`.
+Es muss immer über `http://` ausgeliefert werden.
+
+### Neu exportieren
+
+Einmalig Godot und die Export-Templates installieren:
+
+```bash
+sudo pacman -S godot
+```
+
+Danach im Editor unter *Editor → Export-Templates verwalten* die zur
+Godot-Version passenden Templates herunterladen (einmalig, ca. 1 GB).
+
+Export dann entweder im Editor über *Projekt → Exportieren → Web*, oder
+auf der Kommandozeile:
+
+```bash
+godot --headless --path . --export-release "Web" export/web/index.html
+python3 werkzeuge/web_server.py
+```
+
+### Auf dem Handy testen
+
+Der Server lauscht auf allen Netzwerkschnittstellen. Vom Handy im selben
+WLAN `http://<IP-des-Rechners>:8060/` aufrufen – dann erscheinen auch die
+virtuellen Touch-Buttons, die am Desktop ausgeblendet bleiben.
+
 ## Steuerung
 
 | Aktion | Tastatur | Touch |
