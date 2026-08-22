@@ -127,7 +127,17 @@ nginx aus. Auf dem Zielrechner wird nur Docker gebraucht.
 docker run --rm -p 8080:80 ghcr.io/phat-shot/banooka:latest
 ```
 
-Dann <http://localhost:8080> öffnen. Oder aus dem Projektordner heraus
+Dann <http://localhost:8080> öffnen.
+
+Das Paket erbt die Sichtbarkeit des Repositories und ist damit vorerst
+privat – zum Ziehen ist eine Anmeldung nötig:
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u Phat-shot --password-stdin
+```
+
+Wer es ohne Anmeldung erreichbar machen will, stellt das Paket unter
+*GitHub → Packages → banooka → Package settings* auf öffentlich. Oder aus dem Projektordner heraus
 selbst bauen:
 
 ```bash
