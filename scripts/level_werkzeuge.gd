@@ -273,107 +273,97 @@ static func kurve_aus_punkten(punkte: Array, glaettung: float = 0.45) -> Curve3D
 
 ## Zwei Wände links und rechts des Weges, die mit ihm mitlaufen.
 ##
-## Ohne sie liegt ein Level als heller Streifen im Nebel; mit ihnen steckt
-## der Spieler in einer Schlucht und sieht an jeder Kurve, wohin es geht.
-## Die Wände tragen KEINE Kollision: Sie stehen außerhalb der begehbaren
-## Fläche, wer sie erreicht, fällt ohnehin. Kollision hier hieße nur, dass
-## man an ihnen hängen bleibt.
+## Aus Blöcken, nicht aus einer gesweepten Fläche. Der erste Entwurf zog
+## ein Dreiecksband entlang der Kurve und terrassierte es; sobald der
+## Rücksprung je Stufe schwankte, kippte die Normale einzelner Vierecke,
+## deren Rückseiten wurden weggeschnitten und übrig blieben schwebende
+## Splitter. Ein Quader hat seine Normalen dagegen von Haus aus richtig,
+## es gibt keine Nähte und keine Ausrichtungsfrage.
 ##
-## `abschnitte`: [{"von", "bis", "abstand", "hoehe"}] – `abstand` ist der
-## seitliche Abstand von der Wegmitte, `hoehe` die Wandhöhe über dem Weg.
-## `optionen`: {"schritt", "neigung", "zacken", "saat", "sockel", "stufen"}
+## Alle Blöcke einer Wand hängen in einem MultiMesh – das sind je Level
+## einige tausend, aber nur ein Zeichenaufruf.
+##
+## Die Wände tragen KEINE Kollision: Sie stehen außerhalb der begehbaren
+## Fläche. Zum Begrenzen dient `leitwand()`, die glatt ist und an der man
+## nicht hängen bleibt.
+##
+## `abschnitte`: [{"von", "bis", "abstand", "hoehe"}]
+## `optionen`: {"schritt", "lagen", "block", "saat", "sockel"}
 static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		material: Material, optionen: Dictionary = {}) -> Node3D:
 	var schritt: float = optionen.get("schritt", 3.0)
-	var neigung: float = optionen.get("neigung", 2.5)   ## wie weit sie oben ausstellt
-	var zacken: float = optionen.get("zacken", 3.5)     ## Höhenrauschen der Oberkante
-	var sockel: float = optionen.get("sockel", 6.0)     ## wie tief sie unter den Weg reicht
-	var stufen: int = optionen.get("stufen", 4)         ## Terrassen je Wand
+	var lagen: int = optionen.get("lagen", 4)        ## Blocklagen übereinander
+	var block: float = optionen.get("block", 3.2)    ## Grundmaß eines Blocks
+	var sockel: float = optionen.get("sockel", 6.0)  ## wie tief die unterste Lage reicht
 	var saat: int = optionen.get("saat", 1234)
 
-	var rauschen := FastNoiseLite.new()
-	rauschen.seed = saat
-	rauschen.frequency = 0.06
-	rauschen.fractal_octaves = 3
+	var wuerfel := RandomNumberGenerator.new()
+	wuerfel.seed = saat
 
 	var wurzel := Node3D.new()
 	wurzel.name = "Schluchtwand"
 	elternteil.add_child(wurzel)
 
+	var stellen: Array[Transform3D] = []
 	for eintrag in abschnitte:
 		var von: float = eintrag.get("von", 0.0)
 		var bis: float = eintrag.get("bis", 0.0)
 		if bis <= von:
 			continue
-		for seite: float in [-1.0, 1.0]:
-			var st := SurfaceTool.new()
-			st.begin(Mesh.PRIMITIVE_TRIANGLES)
-			_wandflaeche(st, kurve, von, bis,
-					eintrag.get("abstand", 8.0), eintrag.get("hoehe", 14.0),
-					seite, schritt, neigung, zacken, sockel, stufen, rauschen)
-			_flaeche(wurzel, st, material, "Wand")
+		var abstand: float = eintrag.get("abstand", 8.0)
+		var hoehe: float = eintrag.get("hoehe", 12.0)
+		var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+		for i in anzahl:
+			var s := lerpf(von, bis, (float(i) + 0.5) / float(anzahl))
+			for seite: float in [-1.0, 1.0]:
+				_wandbloecke(stellen, kurve, s, abstand, hoehe, seite, lagen,
+						block, sockel, wuerfel)
+
+	var netz := BoxMesh.new()
+	netz.size = Vector3.ONE
+	var haufen := MultiMesh.new()
+	haufen.transform_format = MultiMesh.TRANSFORM_3D
+	haufen.mesh = netz
+	haufen.instance_count = stellen.size()
+	for i in stellen.size():
+		haufen.set_instance_transform(i, stellen[i])
+
+	var anzeige := MultiMeshInstance3D.new()
+	anzeige.name = "Bloecke"
+	anzeige.multimesh = haufen
+	anzeige.material_override = material
+	wurzel.add_child(anzeige)
 	return wurzel
 
 
-static func _wandflaeche(st: SurfaceTool, kurve: Curve3D, von: float, bis: float,
-		abstand: float, hoehe: float, seite: float, schritt: float,
-		neigung: float, zacken: float, sockel: float, stufen: int,
-		rauschen: FastNoiseLite) -> void:
-	var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
-	var laenge := kurve.get_baked_length()
-	var vorher: Array = []
-	for i in anzahl + 1:
-		var s := lerpf(von, bis, float(i) / float(anzahl))
-		var jetzt := _wandprofil(kurve, s, abstand, hoehe, seite, neigung,
-				zacken, sockel, stufen, rauschen, laenge)
-		if not vorher.is_empty():
-			for k in jetzt.size() - 1:
-				var a0: Vector3 = vorher[k]
-				var a1: Vector3 = vorher[k + 1]
-				var b0: Vector3 = jetzt[k]
-				var b1: Vector3 = jetzt[k + 1]
-				# Senkrechte Flächen zeigen zur Wegmitte, Simse nach oben.
-				var hoch := absf(a1.y - a0.y)
-				var quer_weit := (a1 - a0)
-				quer_weit.y = 0.0
-				var n := Vector3.UP if quer_weit.length() > hoch \
-						else -_rechts(kurve, s) * seite
-				_quad(st, a0, a1, b0, b1, n)
-		vorher = jetzt
-
-
-## Querschnitt der Wand an einer Stelle, von unten nach oben.
+## Eine Säule aus Blöcken an einer Stelle der Wand.
 ##
-## Eine glatte Fläche mit Rauschtextur reichte nicht: Sie flimmerte aus
-## jeder Entfernung und hatte keine Form. Die Wand ist deshalb terrassiert
-## – je Stufe eine senkrechte Fläche und ein waagerechtes Sims. Damit trägt
-## die Geometrie das Bild und die Textur muss es nicht allein tun.
-static func _wandprofil(kurve: Curve3D, s: float, abstand: float, hoehe: float,
-		seite: float, neigung: float, zacken: float, sockel: float,
-		stufen: int, rauschen: FastNoiseLite, laenge: float) -> Array:
-	var mitte := kurve.sample_baked(clampf(s, 0.0, laenge))
+## Die Lagen springen nach oben leicht zurück und werden kleiner – das
+## ergibt die Terrassierung, ohne dass eine Fläche gebogen werden müsste.
+static func _wandbloecke(hinein: Array[Transform3D], kurve: Curve3D, s: float,
+		abstand: float, hoehe: float, seite: float, lagen: int, block: float,
+		sockel: float, wuerfel: RandomNumberGenerator) -> void:
 	var r := _rechts(kurve, s) * seite
-	var quer := abstand + rauschen.get_noise_2d(s * 0.35, seite * 90.0) * 0.8
+	var dreh := drehung(kurve, s)
 
-	var punkte: Array = [
-		mitte + r * quer + Vector3.DOWN * sockel,
-		mitte + r * quer,
-	]
-	var letztes_quer := quer
-	for k in stufen:
-		var t := float(k + 1) / float(stufen)
-		# Die Oberkante wackelt, die Zwischenstufen weniger stark.
-		var zack := rauschen.get_noise_2d(s * 0.5, (seite * 40.0) + k * 17.0) \
-				* zacken * t
-		var y := hoehe * t + zack
-		var neues_quer := quer + neigung * t \
-				+ rauschen.get_noise_2d(s * 0.7, k * 31.0) * 0.5
-		neues_quer = maxf(neues_quer, letztes_quer)
-		# Senkrechte Fläche bis zur Stufenhöhe, dann das Sims nach außen.
-		punkte.append(mitte + r * letztes_quer + Vector3.UP * y)
-		punkte.append(mitte + r * neues_quer + Vector3.UP * y)
-		letztes_quer = neues_quer
-	return punkte
+	# Unterste Lage reicht unter den Weg, damit unten keine Fuge klafft.
+	var lagen_hoehe := (hoehe + sockel) / float(lagen)
+	var y := -sockel
+	for k in lagen:
+		var t := float(k) / float(maxi(lagen - 1, 1))
+		var tiefe := block * lerpf(1.0, 0.55, t) * wuerfel.randf_range(0.8, 1.25)
+		var breite := block * wuerfel.randf_range(0.7, 1.15)
+		var hoch := lagen_hoehe * wuerfel.randf_range(0.9, 1.3)
+		# Nach oben etwas zurücktreten, aber nie über den Weg lehnen.
+		var quer := abstand + block * 0.5 + t * block * 0.35 \
+				+ wuerfel.randf_range(-0.25, 0.45)
+
+		var mitte := punkt(kurve, s, seite * quer, y + hoch * 0.5)
+		var form := Transform3D(Basis.IDENTITY, mitte)
+		form.basis = Basis(Vector3.UP, dreh + wuerfel.randf_range(-0.12, 0.12))
+		form.basis = form.basis.scaled(Vector3(tiefe, hoch, breite))
+		hinein.append(form)
+		y += hoch * wuerfel.randf_range(0.7, 0.92)   # Lagen überlappen sich
 
 
 ## Unsichtbare Leitwand am Rand der Schlucht.

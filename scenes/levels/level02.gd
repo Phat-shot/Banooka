@@ -157,8 +157,8 @@ func _verlauf_anlegen() -> void:
 func _waende_bauen() -> void:
 	var stoff := Materialbibliothek.eisfels()
 	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE, stoff, {
-		"schritt": 2.6, "neigung": 1.0, "zacken": 1.6,
-		"sockel": 30.0, "stufen": 4, "saat": 2802,
+		"schritt": 2.4, "lagen": 4, "block": 3.0,
+		"sockel": 12.0, "saat": 2802,
 	})
 	# Die Sichtwand ist ein Dreiecksnetz und taugt nicht als Begrenzung –
 	# an ihren Zacken bliebe man hängen. Dahinter läuft eine glatte

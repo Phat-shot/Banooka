@@ -63,5 +63,8 @@ directional_shadow_split_2 = 0.22
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
 
 [node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
+hoehe = 5.6
+abstand = 9.5
+blick_vorlauf = 6.0
 
 [node name="HUD" parent="." instance=ExtResource("4_hud")]
