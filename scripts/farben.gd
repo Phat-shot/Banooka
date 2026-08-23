@@ -98,6 +98,11 @@ const EIS_DUNKEL := Color(0.24, 0.48, 0.63)
 const NADEL_FROST := Color(0.17, 0.34, 0.30)   ## verschneite Nadelbäume
 const EIS_TIEF := Color(0.16, 0.34, 0.52)      ## Schluchtwand aus altem Eis
 const FROSTFELS := Color(0.36, 0.42, 0.52)     ## Fels unter der Schneedecke
+## Schluchtwand im Schnee: warmer Fels. In den Vorlagen ist im Eislevel
+## nur das Eis kalt – der Fels bleibt braun-ocker, sonst wird das ganze
+## Bild einfarbig blau.
+const SCHLUCHTFELS := Color(0.58, 0.45, 0.35)
+const SCHLUCHTFELS_HELL := Color(0.82, 0.68, 0.52)
 const KRISTALL_BLAU := Color(0.38, 0.82, 1.0)
 const KRISTALL_VIOLETT := Color(0.66, 0.48, 0.98)
 const GLUT := Color(1.0, 0.58, 0.16)           ## Feuerschalen als Gegenfarbe

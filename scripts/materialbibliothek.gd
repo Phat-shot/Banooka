@@ -482,6 +482,62 @@ static func frostfels() -> StandardMaterial3D:
 	return _hole("frostfels", func() -> StandardMaterial3D: return _baue_frostfels())
 
 
+## Warmes Gestein für die Schluchtwände im Schnee.
+##
+## Aus den Vorlagen: dort ist nur das Eis kalt, der Fels ist braun-ocker.
+## Eine Schlucht ganz in Blau wird monochrom, und dann trägt kein Ding im
+## Bild mehr Farbe – die Kisten verlieren ihren Vorrang, weil alles um
+## sie herum gleich still ist. Der Warmton stellt den Gegensatz wieder
+## her, den das Eis braucht, um kalt zu wirken.
+##
+## Bewusst flau gehalten: Es ist Kulisse, keine Spielfläche. Die
+## Zeichnung bleibt grob und ruhig, alle Feinheit gehört an den Weg.
+static func frostgestein() -> StandardMaterial3D:
+	return _hole("frostgestein", func() -> StandardMaterial3D: return _baue_frostgestein())
+
+
+static func _baue_frostgestein() -> StandardMaterial3D:
+	var k := 256
+	var block := _zellen(6205, 0.032, k, FastNoiseLite.RETURN_CELL_VALUE, 18.0)
+	var fuge := _zellen(6205, 0.032, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 18.0)
+	var korn := _fbm(6215, 0.18, 3, k)
+
+	var dunkel := Farben.SCHLUCHTFELS.darkened(0.22)
+	var mittel := Farben.SCHLUCHTFELS
+	var hell := Farben.SCHLUCHTFELS_HELL
+
+	var farbe := PackedByteArray(); farbe.resize(k * k * 3)
+	var hoehe := PackedByteArray(); hoehe.resize(k * k)
+	var rau := PackedByteArray(); rau.resize(k * k)
+	var ao := PackedByteArray(); ao.resize(k * k)
+
+	var j := 0
+	for i in k * k:
+		var stufe := floorf(block[i] * _B * 4.0) / 3.0
+		var spalt := clampf(1.0 - fuge[i] * _B * 5.5, 0.0, 1.0)
+
+		var c := mittel.lerp(hell, clampf(stufe, 0.0, 1.0))
+		c = c.lerp(dunkel, spalt * 0.75)
+		var g := (korn[i] * _B - 0.5) * 0.05
+		farbe[j] = int(clampf(c.r + g, 0.0, 1.0) * 255.0)
+		farbe[j + 1] = int(clampf(c.g + g, 0.0, 1.0) * 255.0)
+		farbe[j + 2] = int(clampf(c.b + g, 0.0, 1.0) * 255.0)
+		j += 3
+
+		var h := clampf(0.36 + stufe * 0.44 - spalt * 0.6, 0.0, 1.0)
+		hoehe[i] = int(h * 255.0)
+		rau[i] = int(clampf(0.86 - stufe * 0.1, 0.0, 1.0) * 255.0)
+		ao[i] = int(clampf(0.5 + 0.5 * h, 0.0, 1.0) * 255.0)
+
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _farbtextur(farbe, k)
+	_karten_setzen(m, hoehe, rau, ao, k, 2.4, 0.8)
+	m.uv1_triplanar = true
+	m.uv1_triplanar_sharpness = 1.8
+	m.uv1_scale = Vector3(0.28, 0.28, 0.28)
+	return m
+
+
 ## Wie beim Eis: Zellrauschen statt Simplex, sonst wird der Fels wolkig.
 ##
 ## Der Ton liegt bewusst hell. Aus diesem Fels bestehen die Tritt- und

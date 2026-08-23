@@ -155,10 +155,17 @@ func _verlauf_anlegen() -> void:
 ## Die beiden Schluchtwände. Sie tragen keine Kollision: Sie stehen
 ## außerhalb des begehbaren Wegs, wer sie erreicht, fällt ohnehin.
 func _waende_bauen() -> void:
-	var stoff := Materialbibliothek.eisfels()
-	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE, stoff, {
+	# Drei Schichten statt einer: warmer Fels als Grundton, Eisbänder in
+	# Wellen darüber, Schnee auf der obersten Lage. Eine Wand ganz aus Eis
+	# machte das Bild einfarbig blau – dann trägt nichts mehr Farbe und die
+	# Kisten verlieren ihren Vorrang.
+	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE,
+			Materialbibliothek.frostgestein(), {
 		"schritt": 2.4, "lagen": 4, "block": 3.0,
 		"sockel": 12.0, "saat": 2802,
+		"adermaterial": Materialbibliothek.eisfels(),
+		"deckmaterial": Materialbibliothek.firn(),
+		"aderdichte": 0.25,
 	})
 	# Die Sichtwand ist ein Dreiecksnetz und taugt nicht als Begrenzung –
 	# an ihren Zacken bliebe man hängen. Dahinter läuft eine glatte
