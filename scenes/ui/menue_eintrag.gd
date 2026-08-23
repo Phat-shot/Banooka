@@ -16,7 +16,11 @@ const GRUND_GEWAEHLT := Color(0.10, 0.09, 0.06, 0.86)
 const GRUND_RUHE := Color(0.05, 0.06, 0.05, 0.52)
 
 var beschriftung := ""
+## Zweite, kleinere Zeile – bleibt leer, wenn nichts dransteht.
+var unterzeile := ""
 var schriftgroesse := 27
+## Gedämpft gezeichnet: Eintrag ist sichtbar, aber ohne Inhalt (leerer Slot).
+var gedaempft := false
 var gewaehlt := false
 var _puls := 0.0          ## läuft nach dem Auswählen kurz aus
 
@@ -76,13 +80,25 @@ func _zeichne() -> void:
 	if schrift == null:
 		return
 	var farbe := SCHRIFT_GEWAEHLT if gewaehlt else SCHRIFT_RUHE
+	if gedaempft:
+		farbe = Color(farbe.r, farbe.g, farbe.b, 0.45)
 	var einzug := 26.0 if gewaehlt else 20.0
+	# Mit Unterzeile rückt die Hauptzeile nach oben, sonst steht sie mittig.
 	var grundlinie := feld.size.y * 0.5 + schriftgroesse * 0.36
+	if not unterzeile.is_empty():
+		grundlinie = feld.size.y * 0.5 - 2.0
 	var ort := Vector2(einzug, grundlinie)
 	draw_string(schrift, ort + Vector2(1.5, 2.0), beschriftung,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, schriftgroesse, Color(0, 0, 0, 0.55))
 	draw_string(schrift, ort, beschriftung,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, schriftgroesse, farbe)
+	if not unterzeile.is_empty():
+		var klein := maxi(schriftgroesse - 9, 12)
+		var unten := Vector2(einzug, grundlinie + klein + 6.0)
+		draw_string(schrift, unten + Vector2(1.0, 1.5), unterzeile,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, klein, Color(0, 0, 0, 0.5))
+		draw_string(schrift, unten, unterzeile, HORIZONTAL_ALIGNMENT_LEFT,
+				-1, klein, Color(farbe.r, farbe.g, farbe.b, farbe.a * 0.72))
 
 	if gewaehlt:
 		_pfeil(Vector2(feld.size.x - 26.0, feld.size.y * 0.5), 8.0)

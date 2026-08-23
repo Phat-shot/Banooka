@@ -76,6 +76,8 @@ func _ready() -> void:
 	_baue_rundgang()
 	_spieler_setzen()
 	_wegweiser_setzen()
+	# Der Portalraum ist der einzige Ort, an dem gespeichert wird.
+	Spielfluss.speichern()
 	# Der Portalraum wird über den Ladebildschirm betreten – er steht jetzt.
 	Ladeschirm.verbergen()
 

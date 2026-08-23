@@ -114,6 +114,30 @@ func leben_verlieren()
 func zeige_nachricht(text: String, dauer := 1.8)
 ```
 
+## Speicherplätze (`autoload/Spielfluss.gd`)
+
+Vier Plätze, jeder eine eigene Datei `user://spielstand_<n>.cfg`.
+Geschrieben wird **ausschließlich beim Betreten des Portalraums**
+(`hub.gd` ruft `Spielfluss.speichern()`), nie mitten im Level – so ist
+immer klar, worauf ein Spielstand zurückfällt.
+
+```gdscript
+const SLOTS := 4
+var aktueller_slot := 0             # 0 = noch keiner gewählt
+
+func slot_daten(slot: int) -> Dictionary   # Kopfdaten, ohne zu laden
+func neues_spiel(slot: int) -> void        # Platz leeren und in den Hub
+func spiel_laden(slot: int) -> bool        # Platz laden und in den Hub
+func speichern() -> void                   # nur mit gewähltem Platz
+func slot_loeschen(slot: int) -> void
+func bester_stand() -> Dictionary          # weitester Stand aller Plätze
+```
+
+Das Startmenü (`scenes/ui/splash.gd`) hat genau drei Einträge – Neues
+Spiel, Spiel laden, Einstellungen. Beide Spiel-Einträge öffnen dieselbe
+Tafel-Übersicht mit den vier Plätzen; ein belegter Platz fragt vor dem
+Überschreiben nach.
+
 ## Eingabe (`autoload/InputHub.gd`)
 
 Tastatur, Gamepad und Touch laufen an einer Stelle zusammen; der Spieler
