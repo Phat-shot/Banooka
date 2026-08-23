@@ -25,6 +25,15 @@ extends Camera3D
 @export var blick_vorlauf := 4.0
 ## Glättung: kleinerer Wert = härteres Nachziehen.
 @export var glaettung := 0.001
+## Wie schnell die Kamera Höhenunterschiede des Spielers nachfährt.
+##
+## Nicht sofort: Sonst hebt und senkt sich das ganze Bild bei jedem
+## Sprung mit, und weil in einem Plattformer dauernd gesprungen wird,
+## wackelt es ununterbrochen. Mit diesem Wert braucht die Kamera rund eine
+## halbe Sekunde für einen Höhenwechsel – ein Sprung (0,64 s hin und
+## zurück) läuft dadurch fast unbemerkt durch, ein echter Anstieg im
+## Levelverlauf wird aber sauber mitgenommen.
+@export var hoehe_folge := 2.6
 ## Seitenansicht: Abstand quer zum Weg (0 = normale Verfolgerkamera).
 ## Das Vorzeichen wählt die Seite.
 @export var seitenblick := 0.0
@@ -36,6 +45,8 @@ var _kurve_knoten: Path3D
 ## Beim ersten Bild darf die Kamera nicht erst hinfahren – sonst startet
 ## der Spieler außerhalb des Bildes.
 var _muss_springen := true
+## Nachgezogene Höhe des Spielers über der Wegkurve.
+var _hoehe_versatz := 0.0
 
 
 func _ready() -> void:
@@ -85,6 +96,14 @@ func _folgen(delta: float) -> void:
 		var versatz := p - mitte
 		versatz.y = 0.0
 
+		# Höhe getrennt und träge nachziehen – siehe `hoehe_folge`.
+		var ziel_hoehe := p.y - mitte.y
+		if _muss_springen:
+			_hoehe_versatz = ziel_hoehe
+		else:
+			_hoehe_versatz = lerpf(_hoehe_versatz, ziel_hoehe,
+					clampf(delta * hoehe_folge, 0.0, 1.0))
+
 		if absf(seitenblick) > 0.01:
 			# Seitenansicht: quer neben den Weg stellen und den Spieler
 			# anschauen. Die Kamera fährt mit, bleibt aber auf Höhe seiner
@@ -99,17 +118,19 @@ func _folgen(delta: float) -> void:
 					else Vector3.FORWARD
 			var rechts := richtung.cross(Vector3.UP).normalized()
 			wunsch = mitte + rechts * seitenblick \
-					+ Vector3.UP * (p.y - mitte.y + seitenblick_hoehe)
+					+ Vector3.UP * (_hoehe_versatz + seitenblick_hoehe)
 			blickziel = Vector3(p.x, p.y + 0.9, p.z)
 		else:
 			var kam_punkt := _kurve_knoten.to_global(
 					kurve.sample_baked(clampf(strecke - abstand, 0.0, laenge)))
-			wunsch = kam_punkt + Vector3.UP * (p.y - mitte.y + hoehe) \
+			wunsch = kam_punkt + Vector3.UP * (_hoehe_versatz + hoehe) \
 					+ versatz * seiten_faktor
 
 			blickziel = _kurve_knoten.to_global(
 					kurve.sample_baked(clampf(strecke + blick_vorlauf, 0.0, laenge)))
-			blickziel.y = p.y + 1.0
+			# Auch der Blickpunkt folgt der geglätteten Höhe, sonst kippte
+			# die Kamera bei jedem Sprung nach oben statt sich zu heben.
+			blickziel.y = mitte.y + _hoehe_versatz + 1.0
 			blickziel += versatz * seiten_faktor
 	else:
 		# --- Gerader Korridor Richtung -Z (Verhalten der HTML-Demo) ---

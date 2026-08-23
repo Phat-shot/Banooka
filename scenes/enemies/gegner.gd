@@ -14,6 +14,20 @@ class_name Gegner
 ##
 ## Die Optik bauen die abgeleiteten Gegner in `_baue()` prozedural auf,
 ## die Fortbewegung läuft über `_bewegung()`. Beide sind hier leere Haken.
+##
+## ZEICHENSPRACHE – verbindlich für jeden neuen Gegner:
+## Wer nur eine Angriffsart zulässt, muss die anderen SICHTBAR abwehren.
+## Der Spieler soll nie ausprobieren müssen, was wirkt.
+##
+##   Drehschlag wirkt nicht  ->  Stacheln, Klingen oder Draht auf
+##                               Schlaghöhe (rund 0,4 bis 1,0 m)
+##   Draufspringen wirkt nicht -> Panzer, Zapfen oder Dornen OBEN;
+##                               oder der Gegner schwebt außer Reichweite
+##   Slide wirkt nicht       ->  nichts Angreifbares unten: flach am Boden
+##                               anliegend oder hoch über dem Boden
+##
+## Umgekehrt gilt: Die Stelle, an der es wirkt, bleibt frei und ist hell
+## abgesetzt – bei der Gletscherkrabbe etwa die leuchtende Panzernaht.
 
 ## Gravitation der Todesanimation.
 const TODES_G := -32.0

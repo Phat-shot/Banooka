@@ -280,8 +280,11 @@ static func kurve_aus_punkten(punkte: Array, glaettung: float = 0.45) -> Curve3D
 ## Splitter. Ein Quader hat seine Normalen dagegen von Haus aus richtig,
 ## es gibt keine Nähte und keine Ausrichtungsfrage.
 ##
-## Alle Blöcke einer Wand hängen in einem MultiMesh – das sind je Level
-## einige tausend, aber nur ein Zeichenaufruf.
+## Je Seite ein eigenes MultiMesh, benannt "WandLinks" und "WandRechts" –
+## das sind je Level einige tausend Blöcke, aber nur zwei Zeichenaufrufe.
+## Getrennt sind sie, damit die Seitenansicht des 2D-Abschnitts die nahe
+## Wand ausblenden kann: Sonst stünde sie zwischen Kamera und Spieler und
+## das halbe Bild wäre zu.
 ##
 ## Die Wände tragen KEINE Kollision: Sie stehen außerhalb der begehbaren
 ## Fläche. Zum Begrenzen dient `leitwand()`, die glatt ist und an der man
@@ -304,7 +307,7 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 	wurzel.name = "Schluchtwand"
 	elternteil.add_child(wurzel)
 
-	var stellen: Array[Transform3D] = []
+	var je_seite := {-1.0: [] as Array[Transform3D], 1.0: [] as Array[Transform3D]}
 	for eintrag in abschnitte:
 		var von: float = eintrag.get("von", 0.0)
 		var bis: float = eintrag.get("bis", 0.0)
@@ -316,23 +319,25 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		for i in anzahl:
 			var s := lerpf(von, bis, (float(i) + 0.5) / float(anzahl))
 			for seite: float in [-1.0, 1.0]:
-				_wandbloecke(stellen, kurve, s, abstand, hoehe, seite, lagen,
-						block, sockel, wuerfel)
+				_wandbloecke(je_seite[seite], kurve, s, abstand, hoehe, seite,
+						lagen, block, sockel, wuerfel)
 
 	var netz := BoxMesh.new()
 	netz.size = Vector3.ONE
-	var haufen := MultiMesh.new()
-	haufen.transform_format = MultiMesh.TRANSFORM_3D
-	haufen.mesh = netz
-	haufen.instance_count = stellen.size()
-	for i in stellen.size():
-		haufen.set_instance_transform(i, stellen[i])
+	for seite: float in [-1.0, 1.0]:
+		var stellen: Array[Transform3D] = je_seite[seite]
+		var haufen := MultiMesh.new()
+		haufen.transform_format = MultiMesh.TRANSFORM_3D
+		haufen.mesh = netz
+		haufen.instance_count = stellen.size()
+		for i in stellen.size():
+			haufen.set_instance_transform(i, stellen[i])
 
-	var anzeige := MultiMeshInstance3D.new()
-	anzeige.name = "Bloecke"
-	anzeige.multimesh = haufen
-	anzeige.material_override = material
-	wurzel.add_child(anzeige)
+		var anzeige := MultiMeshInstance3D.new()
+		anzeige.name = "WandLinks" if seite < 0.0 else "WandRechts"
+		anzeige.multimesh = haufen
+		anzeige.material_override = material
+		wurzel.add_child(anzeige)
 	return wurzel
 
 

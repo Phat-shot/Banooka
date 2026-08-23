@@ -3,9 +3,12 @@ class_name Schneewiesel
 ## Schneewiesel – schlank, aufgerichtet, mit einem Kranz aus Eiszapfen
 ## auf dem Kopf.
 ##
-## NUR durch den Slide (oder den Bauchplatscher) zu besiegen: Wer darauf
-## springt, landet im Zapfenkranz; der Drehschlag geht an dem schmalen
-## Körper vorbei. Der Slide erwischt die Läufe.
+## NUR durch den Slide (oder den Bauchplatscher) zu besiegen.
+##
+## Das ist am Modell abzulesen: Oben der Zapfenkranz auf dem Kopf – da
+## springt niemand drauf. Auf Schlaghöhe ein Kragen aus gefrorenen
+## Borsten – da fasst kein Drehschlag hinein. Frei bleiben allein die
+## dünnen Läufe unten, und die holt der Slide.
 ##
 ## Es ist die "Slide"-Rolle im Schneelevel. Bewegung: schnelle Sprints mit
 ## kurzen Pausen, in denen es sich witternd aufrichtet.
@@ -43,8 +46,9 @@ func _ready() -> void:
 ## Zapfen zeigen nach oben und sind hell – sie sind die Warnung, dass
 ## Draufspringen hier nicht geht.
 func _baue() -> void:
-	var fell := Materialbibliothek.fell(Farben.SCHNEE)
-	var dunkelfell := Materialbibliothek.fell(Farben.SCHNEE_SCHATTEN.darkened(0.2))
+	# Weiß auf Schnee war unsichtbar – dunkler Rücken, heller Bauch.
+	var fell := Materialbibliothek.fell(Farben.FROSTTIER_HELL)
+	var dunkelfell := Materialbibliothek.fell(Farben.FROSTTIER.darkened(0.25))
 	var eis := Materialbibliothek.kristall(Farben.EIS_HELL)
 	var nase := Materialbibliothek.einfarbig(Farben.NASE, 0.35)
 	var auge := Materialbibliothek.leuchtend(Farben.KRISTALL_BLAU, 1.1)
@@ -58,6 +62,8 @@ func _baue() -> void:
 			Vector3.ZERO, Vector3(90.0, 0.0, 0.0), Vector3.ONE, "Leib")
 	_teil(_rumpf, _kugel(0.15), dunkelfell, Vector3(0.0, -0.05, 0.3),
 			Vector3.ZERO, Vector3(1.0, 0.85, 1.2), "Kruppe")
+	_teil(_rumpf, _kugel(0.13), Materialbibliothek.fell(Farben.FROSTTIER_BAUCH),
+			Vector3(0.0, -0.13, 0.0), Vector3.ZERO, Vector3(0.9, 0.6, 2.2), "Bauch")
 
 	_hals = Node3D.new()
 	_hals.name = "Hals"
@@ -81,6 +87,21 @@ func _baue() -> void:
 				Vector3(cos(winkel) * 16.0, 0.0, -sin(winkel) * 16.0),
 				Vector3.ONE, "Zapfen")
 		_zapfen.append(zapfen)
+
+	# Borstenkragen auf Schlaghöhe: die Warnung vor dem Drehschlag.
+	# Wie beim Klingenkranz der Krabbe: Drehpunkt schwenken, Borste darin
+	# nur noch nach außen kippen.
+	var borste := Materialbibliothek.kristall(Farben.EIS_HELL)
+	for i in 12:
+		var dreh := Node3D.new()
+		dreh.name = "Borstenpunkt"
+		dreh.position.z = -0.16
+		dreh.rotation.y = (float(i) / 12.0) * TAU
+		_rumpf.add_child(dreh)
+		var lang := 0.28 + (0.09 if i % 2 == 0 else 0.0)
+		_teil(dreh, _zylinder(0.034, 0.004, lang, 5), borste,
+				Vector3(0.0, 0.05, 0.17), Vector3(-76.0, 0.0, 0.0),
+				Vector3.ONE, "Borste")
 
 	# Vier hohe Läufe
 	for seite: float in [-1.0, 1.0]:

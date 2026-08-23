@@ -272,6 +272,9 @@ func warnbalken(strecke: float, breite: float,
 ## kamerarelativ ist: Was auf dem Schirm nach rechts geht, geht auch am
 ## Stick nach rechts.
 ##
+## Die Wand auf der Kameraseite wird dabei ausgeblendet – sonst stünde sie
+## zwischen Kamera und Spieler und nähme das halbe Bild.
+##
 ## In Stücken, weil ein einzelner Kasten einem kurvigen Weg nicht folgt.
 func kamerazone(von: float, bis: float, seitlich: float,
 		hoehe: float = 2.6) -> void:
@@ -303,6 +306,7 @@ func _kamera_seitlich(koerper: Node3D, seitlich: float, hoehe: float) -> void:
 		return
 	kamera.set("seitenblick", seitlich)
 	kamera.set("seitenblick_hoehe", hoehe)
+	_nahe_wand_zeigen(seitlich > 0.0, false)
 
 
 func _kamera_normal(koerper: Node3D) -> void:
@@ -312,3 +316,15 @@ func _kamera_normal(koerper: Node3D) -> void:
 	if kamera == null or not ("seitenblick" in kamera):
 		return
 	kamera.set("seitenblick", 0.0)
+	_nahe_wand_zeigen(true, true)
+	_nahe_wand_zeigen(false, true)
+
+
+## Blendet eine der beiden Schluchtwände ein oder aus.
+func _nahe_wand_zeigen(rechts: bool, sichtbar: bool) -> void:
+	var wand := geometrie.get_node_or_null("Schluchtwand")
+	if wand == null:
+		return
+	var teil := wand.get_node_or_null("WandRechts" if rechts else "WandLinks")
+	if teil != null:
+		teil.visible = sichtbar

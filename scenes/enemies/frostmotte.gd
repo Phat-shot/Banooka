@@ -2,9 +2,12 @@ extends Gegner
 class_name Frostmotte
 ## Frostmotte – schwebt über dem Weg und kreuzt ihn langsam.
 ##
-## NUR durch den Drehschlag (oder den Bauchplatscher) zu besiegen: Sie
-## schwebt zu hoch zum Draufspringen und ein Slide geht unter ihr durch.
-## Der Drehschlag reicht dagegen weit genug hinauf.
+## NUR durch den Drehschlag (oder den Bauchplatscher) zu besiegen.
+##
+## Das ist am Modell abzulesen: Auf dem Rücken sitzt ein Kamm aus
+## Eiszapfen – da springt niemand drauf. Und sie schwebt über Slide-Höhe,
+## unten ist nichts zu erwischen. Frei und weich bleibt allein die Flanke,
+## und genau dorthin reicht der Drehschlag.
 ##
 ## Sie ist die "schlagen"-Rolle im Schneelevel – dieselbe Aufgabe wie die
 ## Sumpfkröte im Wald, aber mit einer Silhouette, die ins Setting passt.
@@ -32,9 +35,9 @@ func _init() -> void:
 ## breit und blass: Aus der Spielkamera von schräg oben ist von einem
 ## fliegenden Gegner sonst kaum etwas zu sehen.
 func _baue() -> void:
-	var pelz := Materialbibliothek.fell(Farben.SCHNEE_SCHATTEN.darkened(0.15))
-	var fluegelstoff := Materialbibliothek.transparent(Farben.EIS_HELL, 0.35)
-	var dunkel := Materialbibliothek.einfarbig(Farben.EIS_DUNKEL, 0.5)
+	var pelz := Materialbibliothek.fell(Farben.FROSTTIER)
+	var fluegelstoff := Materialbibliothek.transparent(Farben.EIS_HELL, 0.55)
+	var dunkel := Materialbibliothek.einfarbig(Farben.FROSTTIER.darkened(0.4), 0.5)
 	var auge := Materialbibliothek.leuchtend(Farben.KRISTALL_BLAU, 1.4)
 
 	_koerper = _teil(modell, _kugel(0.24), pelz, Vector3(0.0, SCHWEBE_HOEHE, 0.0),
@@ -69,6 +72,14 @@ func _baue() -> void:
 
 		_teil(_koerper, _kugel(0.05), auge, Vector3(seite * 0.075, 0.09, -0.36),
 				Vector3.ZERO, Vector3.ONE, "Auge")
+
+	# Zapfenkamm auf dem Rücken: die Warnung, dass Draufspringen ausfällt.
+	var eis := Materialbibliothek.kristall(Farben.EIS_HELL)
+	for i in 5:
+		var laenge := 0.16 + sin(float(i) / 4.0 * PI) * 0.12
+		_teil(_koerper, _zylinder(0.038, 0.004, laenge, 5), eis,
+				Vector3(0.0, 0.16, -0.16 + i * 0.09),
+				Vector3(-14.0 + i * 7.0, 0.0, 0.0), Vector3.ONE, "Zapfen")
 
 
 # ---------------------------------------------------------- Bewegung

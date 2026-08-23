@@ -101,6 +101,12 @@ const FROSTFELS := Color(0.36, 0.42, 0.52)     ## Fels unter der Schneedecke
 const KRISTALL_BLAU := Color(0.38, 0.82, 1.0)
 const KRISTALL_VIOLETT := Color(0.66, 0.48, 0.98)
 const GLUT := Color(1.0, 0.58, 0.16)           ## Feuerschalen als Gegenfarbe
+## Gegnerkörper im Schnee. Bewusst dunkel und satt: Auf weißem Grund
+## verschwindet alles Helle, und die Referenzbilder zeigen durchweg
+## dunkle Silhouetten mit hellen Akzenten nur dort, wo die Gefahr sitzt.
+const FROSTTIER := Color(0.19, 0.26, 0.40)
+const FROSTTIER_HELL := Color(0.34, 0.44, 0.60)
+const FROSTTIER_BAUCH := Color(0.62, 0.70, 0.82)
 
 const HIMMEL_OBEN := Color(0.29, 0.51, 0.72)
 const HIMMEL_UNTEN := Color(0.62, 0.74, 0.78)

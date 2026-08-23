@@ -2,9 +2,12 @@ extends Gegner
 class_name Gletscherkrabbe
 ## Gletscherkrabbe – breit, flach, mit einem Panzer aus Klareis.
 ##
-## NUR durch Draufspringen (oder den Bauchplatscher) zu besiegen: Der
-## Panzer läuft rundum spitz zu, Drehschlag und Slide gleiten daran ab.
-## Oben in der Mitte sitzt aber eine Naht, und die hält kein Gewicht.
+## NUR durch Draufspringen (oder den Bauchplatscher) zu besiegen.
+##
+## Das ist am Modell abzulesen: Rundherum auf Schlag- und Slidehöhe steht
+## ein Kranz aus Eisklingen ab – da greift weder Drehschlag noch Slide.
+## Frei bleibt allein die Oberseite, und dort leuchtet die Panzernaht als
+## Einladung: Genau da hält der Panzer kein Gewicht.
 ##
 ## Sie ist die "draufspringen"-Rolle im Schneelevel. Bewegung: seitliches
 ## Krabbeln mit ruckartigen Richtungswechseln, dazu klappernde Scheren.
@@ -33,9 +36,11 @@ func _init() -> void:
 ## Hinweis, wo man treffen muss – sie ist von schräg oben genau das, was
 ## die Spielkamera zeigt.
 func _baue() -> void:
-	var panzer := Materialbibliothek.kristall(Farben.EIS)
-	var naht := Materialbibliothek.leuchtend(Farben.EIS_HELL, 0.9)
-	var chitin := Materialbibliothek.einfarbig(Farben.EIS_DUNKEL.darkened(0.2), 0.55)
+	# Undurchsichtig und dunkel: Ein durchscheinender Panzer aus Klareis war
+	# auf Schnee schlicht nicht zu sehen.
+	var panzer := Materialbibliothek.einfarbig(Farben.FROSTTIER, 0.45, 0.15)
+	var naht := Materialbibliothek.leuchtend(Farben.EIS_HELL, 1.4)
+	var chitin := Materialbibliothek.einfarbig(Farben.FROSTTIER.darkened(0.35), 0.55)
 	var auge := Materialbibliothek.leuchtend(Farben.KRISTALL_VIOLETT, 1.2)
 
 	_panzer = _teil(modell, _kugel(0.46), panzer, Vector3(0.0, 0.34, 0.0),
@@ -59,13 +64,29 @@ func _baue() -> void:
 		modell.add_child(gelenk)
 		_teil(gelenk, _quader(Vector3(0.16, 0.1, 0.3)), chitin,
 				Vector3(seite * 0.1, 0.0, -0.12), Vector3.ZERO, Vector3.ONE, "Arm")
-		var oben := _teil(gelenk, _quader(Vector3(0.2, 0.09, 0.26)), panzer,
+		var oben := _teil(gelenk, _quader(Vector3(0.2, 0.09, 0.26)), chitin,
 				Vector3(seite * 0.2, 0.06, -0.3), Vector3.ZERO, Vector3.ONE, "Backe")
 		oben.name = "BackeOben"
-		_teil(gelenk, _quader(Vector3(0.2, 0.09, 0.26)), panzer,
+		_teil(gelenk, _quader(Vector3(0.2, 0.09, 0.26)), chitin,
 				Vector3(seite * 0.2, -0.05, -0.3), Vector3.ZERO, Vector3.ONE,
 				"BackeUnten")
 		_scheren.append(oben)
+
+	# Klingenkranz auf Schlag- und Slidehöhe: die Warnung, dass hier weder
+	# Drehschlag noch Slide etwas ausrichtet.
+	# Über einen Drehpunkt je Klinge statt über Eulerwinkel: Ein Zylinder
+	# liegt auf +Y, und ihn per rotation.x/y gleichzeitig auszurichten und
+	# im Kreis zu stellen ergab keine Krone, sondern verstreute Splitter.
+	# Der Drehpunkt schwenkt, die Klinge kippt darin nur noch nach außen.
+	var klinge := Materialbibliothek.kristall(Farben.EIS_HELL)
+	for i in 10:
+		var dreh := Node3D.new()
+		dreh.name = "Klingenpunkt"
+		dreh.rotation.y = (float(i) / 10.0) * TAU
+		modell.add_child(dreh)
+		_teil(dreh, _zylinder(0.075, 0.006, 0.44, 5), klinge,
+				Vector3(0.0, 0.30, 0.46), Vector3(-74.0, 0.0, 0.0),
+				Vector3.ONE, "Klinge")
 
 	# Sechs Beine
 	for seite: float in [-1.0, 1.0]:
