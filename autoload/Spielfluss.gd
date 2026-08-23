@@ -80,12 +80,31 @@ func level_gebaut(nummer: int) -> bool:
 
 ## Darf der Spieler dieses Level betreten?
 ##
-## Offen ist alles, was gebaut ist. `freigeschaltet` bleibt als
-## Fortschrittsmarke erhalten (Startbildschirm, Portalraum), sperrt aber
-## nichts mehr – sonst hinge ein neues Level am Spielstand und wäre auf
-## bestehenden Geräten unsichtbar, bis man den Fortschritt zurücksetzt.
+## Innerhalb eines Raums ist jedes gebaute Level offen – die Reihenfolge
+## darin bleibt dem Spieler überlassen. Der nächste Raum öffnet erst,
+## wenn der vorige abgeschlossen ist. Im Debugmodus ist alles offen.
 func level_offen(nummer: int) -> bool:
-	return level_gebaut(nummer)
+	if not level_gebaut(nummer):
+		return false
+	return raum_offen(raum_von_level(nummer))
+
+
+## Ist dieser Raum betretbar? Raum 1 immer, jeder weitere erst, wenn der
+## vorige abgeschlossen ist.
+func raum_offen(raum: int) -> bool:
+	if raum <= 1 or GameState.debug:
+		return true
+	return raum_abgeschlossen(raum - 1)
+
+
+## Sind alle gebauten Level dieses Raums geschafft?
+## Ein Raum ohne gebaute Level gilt als abgeschlossen – sonst hinge der
+## Fortschritt an Leveln, die es noch gar nicht gibt.
+func raum_abgeschlossen(raum: int) -> bool:
+	for nummer in level_im_raum(raum):
+		if level_gebaut(nummer) and not geschafft.has(nummer):
+			return false
+	return true
 
 
 ## Raum (1-basiert), in dem dieses Level liegt.
@@ -99,14 +118,6 @@ func level_im_raum(raum: int) -> Array[int]:
 	for i in LEVEL_JE_RAUM:
 		liste.append((raum - 1) * LEVEL_JE_RAUM + i + 1)
 	return liste
-
-
-## Ist mindestens ein Level dieses Raums freigeschaltet?
-func raum_offen(raum: int) -> bool:
-	for nummer in level_im_raum(raum):
-		if level_offen(nummer):
-			return true
-	return false
 
 
 # ----------------------------------------------------------- Wechseln
@@ -138,11 +149,15 @@ func zum_level(nummer: int) -> bool:
 
 
 ## Wird vom Zielportal aufgerufen, wenn ein Level geschafft ist.
-func level_abschliessen(alle_kisten: bool) -> void:
+##
+## Beide Edelsteine sind dauerhaft: Wer sie einmal geholt hat, behält sie
+## auch nach einem schlechteren Durchlauf.
+func level_abschliessen(alle_kisten: bool, ohne_tod: bool = false) -> void:
 	if aktuelles_level < 1:
 		return
 	var eintrag: Dictionary = geschafft.get(aktuelles_level, {})
 	eintrag["kisten"] = bool(eintrag.get("kisten", false)) or alle_kisten
+	eintrag["ohne_tod"] = bool(eintrag.get("ohne_tod", false)) or ohne_tod
 	eintrag["fruechte"] = maxi(int(eintrag.get("fruechte", 0)), GameState.fruechte)
 	geschafft[aktuelles_level] = eintrag
 	freigeschaltet = maxi(freigeschaltet, mini(aktuelles_level + 1, LEVEL_GESAMT))
@@ -158,6 +173,9 @@ func _wechseln(pfad: String, ladetitel: String = "") -> void:
 	if pfad.is_empty() or not ResourceLoader.exists(pfad):
 		push_warning("Szene fehlt: %s" % pfad)
 		return
+	# Touch-Zustand aufräumen, sonst nimmt die neue Szene den Daumen vom
+	# Portal-Eingang als dauerhaften Steuerbefehl mit.
+	InputHub.zuruecksetzen()
 	if ladetitel.is_empty():
 		get_tree().change_scene_to_file.call_deferred(pfad)
 		return

@@ -78,6 +78,8 @@ var _eisflaechen := {}
 
 func _ready() -> void:
 	add_to_group("spieler")
+	# Die Schutzladungen kreisen als Masken um die Figur.
+	add_child(Schutzmaske.new())
 	GameState.level_starten(global_position)
 
 

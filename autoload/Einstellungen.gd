@@ -22,11 +22,20 @@ const SPEICHERPFAD := "user://einstellungen.cfg"
 var eigenes_modell := ""
 ## Feinjustierung der Figurengröße, 1.0 = auf Standardhöhe eingepasst.
 var modell_groesse := 1.0
+## Debugmodus: unendlich Leben, immer Schutz, alle Räume offen.
+## Bleibt über Sitzungen erhalten, damit man beim Prüfen eines Levels
+## nicht jedes Mal neu einschaltet.
+var debug := false:
+	set(an):
+		debug = an
+		GameState.debug = an
+		geaendert.emit()
 
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ORDNER)
 	laden()
+	GameState.debug = debug
 
 
 ## Absoluter Pfad des gewählten Modells, oder "" für den Beuteldachs.
@@ -104,6 +113,7 @@ func speichern() -> void:
 	var datei := ConfigFile.new()
 	datei.set_value("figur", "modell", eigenes_modell)
 	datei.set_value("figur", "groesse", modell_groesse)
+	datei.set_value("spiel", "debug", debug)
 	datei.save(SPEICHERPFAD)
 
 
@@ -113,3 +123,4 @@ func laden() -> void:
 		return
 	eigenes_modell = String(datei.get_value("figur", "modell", ""))
 	modell_groesse = clampf(float(datei.get_value("figur", "groesse", 1.0)), 0.5, 2.0)
+	debug = bool(datei.get_value("spiel", "debug", false))

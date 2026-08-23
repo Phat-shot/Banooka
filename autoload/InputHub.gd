@@ -74,6 +74,23 @@ func _input(event: InputEvent) -> void:
 # --- Abfragen für den Spieler ---
 
 ## Bewegungseingabe als Vector2(x, z) im Weltkoordinatensystem.
+## Setzt alle Touch-Zustände zurück.
+##
+## Nötig beim Szenenwechsel: Wer mit dem Daumen auf dem Joystick ins
+## Portal läuft, hebt ihn erst, wenn die neue Szene schon steht. Das
+## Loslassen erreicht die alte Touch-Steuerung dann nicht mehr, und
+## `touch_bewegung` behielt seinen letzten Wert – im nächsten Level lief
+## die Figur ohne Zutun immer in dieselbe Richtung los. Der InputHub ist
+## ein Autoload und überlebt den Wechsel, also muss er hier aufräumen.
+func zuruecksetzen() -> void:
+	touch_bewegung = Vector2.ZERO
+	_touch_sprung_neu = false
+	_touch_sprung_gehalten = false
+	_touch_spin_neu = false
+	_touch_slide_neu = false
+	_touch_slide_gehalten = false
+
+
 func bewegung() -> Vector2:
 	var v := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	if v.length() < 0.05:

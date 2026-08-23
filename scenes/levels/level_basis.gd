@@ -30,6 +30,17 @@ var _pfad_knoten: Path3D
 var _spieler: Node3D
 var _kamera: Camera3D
 
+## Bauplan aller zurücksetzbaren Objekte (Kisten und Gegner), in der
+## Reihenfolge, in der sie beim Aufbau entstanden sind. Je Eintrag:
+## {"szene", "eltern", "transform", "werte"}.
+var _bauplan: Array = []
+## Aktuelle Knoten zum Bauplan. Ein freigegebener Platz ist null.
+var _lebendig: Array = []
+## Stand beim letzten Checkpoint: welche Plätze standen da noch, und wie
+## viele Kisten waren zu dem Zeitpunkt zerbrochen.
+var _stand_plaetze := {}
+var _stand_kisten := 0
+
 
 func _ready() -> void:
 	geometrie = _gruppe("Geometrie")
@@ -53,6 +64,12 @@ func _ready() -> void:
 		_kamera.call("sofort_ausrichten")
 	_portale_verbinden()
 	_kisten_zaehlen()
+	_bauplan_erfassen()
+	# Zweites Aufräumen: Der Wechsel setzt den Touch-Zustand schon zurück,
+	# aber während des Aufbaus liegt der Daumen oft noch auf dem Schirm.
+	InputHub.zuruecksetzen()
+	GameState.level_zuruecksetzen.connect(_auf_zuruecksetzen)
+	GameState.checkpoint_gesetzt.connect(_stand_sichern)
 	_nach_aufbau()
 	Ladeschirm.fortschritt(1.0, "Fertig")
 	Ladeschirm.verbergen()
@@ -144,7 +161,7 @@ func _auf_level_geschafft() -> void:
 				% [GameState.kisten_zerbrochen, GameState.kisten_gesamt, GameState.fruechte])
 	var alle_kisten := GameState.kisten_gesamt > 0 \
 			and GameState.kisten_zerbrochen >= GameState.kisten_gesamt
-	Spielfluss.level_abschliessen(alle_kisten)
+	Spielfluss.level_abschliessen(alle_kisten, GameState.ohne_tod)
 	# Kurz die Schlussmeldung stehen lassen, dann zurück in den Portalraum
 	await get_tree().create_timer(4.5).timeout
 	Spielfluss.zum_hub()
@@ -164,6 +181,106 @@ func _kisten_zaehlen() -> void:
 	GameState.kisten_geaendert.emit(0, anzahl)
 	if debug:
 		print("Kisten im Level: ", anzahl)
+
+
+# ------------------------------------------------- Zurücksetzen
+
+## Merkt sich, was zurücksetzbar ist.
+##
+## Ohne das blieb ein Level nach dem Tod leergeräumt: Kisten waren fort,
+## Gegner besiegt, und wer alle Kisten wollte, musste das Level über den
+## Portalraum neu starten. Statt jeder Kiste ein Wiederbeleben beizubringen
+## merkt sich das Level, WIE sie entstanden ist, und baut sie neu.
+func _bauplan_erfassen() -> void:
+	_bauplan.clear()
+	_lebendig.clear()
+	for knoten in _alle_knoten(self):
+		if not (knoten.is_in_group("kisten") or knoten.is_in_group("gegner")):
+			continue
+		var teil := knoten as Node3D
+		if teil == null or teil.scene_file_path.is_empty():
+			continue
+		_bauplan.append({
+			"szene": teil.scene_file_path,
+			"eltern": get_path_to(teil.get_parent()),
+			"transform": teil.transform,
+			"werte": _exportwerte(teil),
+		})
+		_lebendig.append(teil)
+	_stand_sichern()
+
+
+## Alle im Skript deklarierten und gespeicherten Eigenschaften eines
+## Knotens – also genau das, was ein Level per @export einstellt.
+func _exportwerte(knoten: Node) -> Dictionary:
+	var werte := {}
+	for eintrag in knoten.get_property_list():
+		var art: int = eintrag.get("usage", 0)
+		if art & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
+			continue
+		if art & PROPERTY_USAGE_STORAGE == 0:
+			continue
+		werte[String(eintrag["name"])] = knoten.get(String(eintrag["name"]))
+	return werte
+
+
+## Sichert den Stand: Welche Plätze stehen noch, wie viele Kisten sind hin.
+func _stand_sichern() -> void:
+	_stand_plaetze.clear()
+	for i in _lebendig.size():
+		if is_instance_valid(_lebendig[i]):
+			_stand_plaetze[i] = true
+	_stand_kisten = GameState.kisten_zerbrochen
+
+
+func _auf_zuruecksetzen(von_vorn: bool) -> void:
+	# Aufgeschoben, weil zerbrochene Kisten mit queue_free() erst am Ende
+	# des Bildes verschwinden – sonst stünden sie doppelt da.
+	_zuruecksetzen.call_deferred(von_vorn)
+
+
+func _zuruecksetzen(von_vorn: bool) -> void:
+	if von_vorn:
+		_stand_plaetze.clear()
+		for i in _bauplan.size():
+			_stand_plaetze[i] = true
+		_stand_kisten = 0
+
+	var wieder := 0
+	for i in _bauplan.size():
+		var soll_stehen: bool = _stand_plaetze.has(i)
+		var steht: bool = is_instance_valid(_lebendig[i])
+		if soll_stehen and not steht:
+			_lebendig[i] = _aufstellen(_bauplan[i])
+			wieder += 1
+		elif not soll_stehen and steht:
+			# Nach dem Checkpoint zerbrochen und seither wieder aufgebaut:
+			# darf nicht doppelt stehen bleiben.
+			_lebendig[i].queue_free()
+			_lebendig[i] = null
+
+	GameState.kisten_zerbrochen = _stand_kisten
+	GameState.kisten_geaendert.emit(GameState.kisten_zerbrochen, GameState.kisten_gesamt)
+	if debug and wieder > 0:
+		print("Level zurückgesetzt: %d Objekte wieder aufgestellt" % wieder)
+
+
+func _aufstellen(eintrag: Dictionary) -> Node3D:
+	var szene := load(String(eintrag["szene"])) as PackedScene
+	if szene == null:
+		return null
+	var knoten := szene.instantiate() as Node3D
+	if knoten == null:
+		return null
+	var werte: Dictionary = eintrag["werte"]
+	for name in werte:
+		knoten.set(String(name), werte[name])
+	var eltern := get_node_or_null(eintrag["eltern"] as NodePath)
+	if eltern == null:
+		eltern = objekte
+	eltern.add_child(knoten)
+	knoten.transform = eintrag["transform"]
+	return knoten
 
 
 func _alle_knoten(wurzel: Node) -> Array[Node]:

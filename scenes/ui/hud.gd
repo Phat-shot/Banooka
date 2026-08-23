@@ -16,7 +16,6 @@ var _fruechte := 0
 var _leben := GameState.START_LEBEN
 var _kisten := 0
 var _kisten_gesamt := 0
-var _schutz := 0
 
 var _nachricht_timer := 0.0
 var _puls := 0.0          ## kurzes Aufblitzen beim Einsammeln
@@ -28,13 +27,11 @@ func _ready() -> void:
 	GameState.leben_geaendert.connect(_auf_leben)
 	GameState.kisten_geaendert.connect(_auf_kisten)
 	GameState.nachricht.connect(_auf_nachricht)
-	GameState.schutz_geaendert.connect(_auf_schutz)
 
 	_fruechte = GameState.fruechte
 	_leben = GameState.leben
 	_kisten = GameState.kisten_zerbrochen
 	_kisten_gesamt = GameState.kisten_gesamt
-	_schutz = GameState.schutz
 
 	_tafel.draw.connect(_zeichne_tafel)
 	_nachricht.modulate.a = 0.0
@@ -68,14 +65,9 @@ func _zeichne_tafel() -> void:
 	# Im Portalraum gibt es keine Kisten – dann entfällt die Zeile,
 	# statt "0 / 0" anzuzeigen.
 	var zeigt_kisten := _kisten_gesamt > 0
-	# Die Schutzzeile erscheint erst, wenn man welchen hat – eine leere
-	# Reihe Schilde würde sonst dauernd Platz und Aufmerksamkeit kosten.
-	var zeigt_schutz := _schutz > 0
 	var breite := 230.0
 	var hoehe := 78.0
 	if zeigt_kisten:
-		hoehe += 26.0
-	if zeigt_schutz:
 		hoehe += 26.0
 
 	# Hintergrundtafel mit weicher Kante
@@ -99,12 +91,10 @@ func _zeichne_tafel() -> void:
 		_text(schrift, Vector2(26 + 5 * 20 + 4, y + 5), "+%d" % (_leben - 5), 14,
 				Color(1, 0.5, 0.5, 0.9))
 
-	# --- Schutz ---
+	# Der Schutz steht nicht mehr hier: Er kreist als Maske um die Figur.
+	# Im Spiel schaut man auf die Figur, nicht in die Ecke – wer im Sprung
+	# getroffen wird, soll am Bild sehen, dass noch etwas abfängt.
 	y = 84.0
-	if zeigt_schutz:
-		for i in GameState.SCHUTZ_MAX:
-			_schutz_symbol(Vector2(26 + i * 22, y), 8.0, i < _schutz)
-		y += 26.0
 
 	# --- Kisten ---
 	if not zeigt_kisten:
@@ -154,23 +144,6 @@ func _herz(mitte: Vector2, r: float, voll: bool) -> void:
 	]), farbe)
 
 
-## Schutz: kleines Wappenschild. Gefüllt = vorhanden, sonst nur Umriss.
-func _schutz_symbol(mitte: Vector2, r: float, voll: bool) -> void:
-	var farbe := Farben.KISTE_SCHUTZ.lightened(0.15) if voll else Color(1, 1, 1, 0.16)
-	var ecken := PackedVector2Array([
-		mitte + Vector2(-r, -r * 0.95),
-		mitte + Vector2(r, -r * 0.95),
-		mitte + Vector2(r * 0.82, r * 0.35),
-		mitte + Vector2(0.0, r * 1.15),
-		mitte + Vector2(-r * 0.82, r * 0.35),
-	])
-	_tafel.draw_colored_polygon(ecken, farbe)
-	if voll:
-		# Heller Grat in der Mitte, damit das Schild plastisch wirkt
-		_tafel.draw_line(mitte + Vector2(0.0, -r * 0.75),
-				mitte + Vector2(0.0, r * 0.9), Color(1, 1, 1, 0.5), 1.5)
-
-
 ## Kiste: Quadrat mit Kreuzstreben.
 func _kisten_symbol(mitte: Vector2, r: float) -> void:
 	var feld := Rect2(mitte - Vector2(r, r), Vector2(r * 2, r * 2))
@@ -215,11 +188,6 @@ func _auf_fruechte(anzahl: int) -> void:
 func _auf_leben(anzahl: int) -> void:
 	_leben = anzahl
 	_puls_leben = 1.0
-	_tafel.queue_redraw()
-
-
-func _auf_schutz(anzahl: int) -> void:
-	_schutz = anzahl
 	_tafel.queue_redraw()
 
 

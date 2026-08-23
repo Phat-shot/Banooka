@@ -44,6 +44,7 @@ const WAND_HOEHE := 5.6
 const KRANZ_HOEHE := 0.5
 const TEILER_HOEHE := 3.0
 const TEILER_DICKE := 0.9
+const SPERRE_HOEHE := 4.2      ## Gitter vor einem gesperrten Raum
 
 ## Ab diesem Abstand zur Kamera ist eine Torbeschriftung voll sichtbar;
 ## darunter blendet sie aus, damit sie beim Durchlaufen nicht das Bild
@@ -337,6 +338,8 @@ func _baue_raum(index: int, grad: float) -> void:
 		_baue_trennmauer(grad + SEKTOR_HALB)
 
 	_baue_torbogen(index, grad)
+	if not Spielfluss.raum_offen(index + 1):
+		_baue_sperre(index, grad)
 
 	var nummern := Spielfluss.level_im_raum(index + 1)
 	for i in nummern.size():
@@ -360,6 +363,76 @@ func _baue_raum(index: int, grad: float) -> void:
 			_deko_frostkronen(grad)
 		_:
 			_deko_glutkessel(grad)
+
+
+## Gitter vor einem noch gesperrten Raum.
+##
+## Die Portale dahinter sind ohnehin dunkel, aber ein Raum, den man
+## betreten kann und in dem dann nichts geht, liest sich wie ein Fehler.
+## Das Gitter sagt vorher, woran es liegt: Erst den Raum davor abschließen.
+##
+## Im Debugmodus wird es gar nicht erst gebaut – dort ist alles offen.
+func _baue_sperre(index: int, grad: float) -> void:
+	var sperre := Node3D.new()
+	sperre.name = "Sperre%d" % (index + 1)
+	_objekte.add_child(sperre)
+
+	var eisen := Materialbibliothek.metall(Farben.KISTE_EISEN.darkened(0.45))
+	var warnton := Materialbibliothek.leuchtend(Farben.WARNUNG, 1.1)
+	var koerper := StaticBody3D.new()
+	koerper.name = "Riegel"
+	koerper.collision_layer = 1
+	koerper.collision_mask = 0
+	sperre.add_child(koerper)
+
+	# Senkrechte Stäbe über die ganze Raumbreite
+	var staebe := 13
+	for i in staebe:
+		var t := float(i) / float(staebe - 1)
+		var winkel := lerpf(grad - SEKTOR_HALB + 0.4, grad + SEKTOR_HALB - 0.4, t)
+		_quader(sperre, ort(winkel, TOR_R, SPERRE_HOEHE * 0.5),
+				Vector3(0.16, SPERRE_HOEHE, 0.16), eisen, nach_aussen(winkel), false)
+		var form := CollisionShape3D.new()
+		var kasten := BoxShape3D.new()
+		# Die Kästen greifen ineinander, sonst schlüpft man zwischen zwei
+		# Stäben hindurch – der Spieler ist schmaler als der Stababstand.
+		kasten.size = Vector3(1.4, SPERRE_HOEHE, 0.7)
+		form.shape = kasten
+		form.position = ort(winkel, TOR_R, SPERRE_HOEHE * 0.5)
+		form.rotation.y = nach_aussen(winkel)
+		koerper.add_child(form)
+
+	# Zwei Querriegel und ein Warnband oben
+	for hoehe: float in [SPERRE_HOEHE * 0.32, SPERRE_HOEHE * 0.78]:
+		_bogenriegel(sperre, grad, hoehe, 0.18, eisen)
+	_bogenriegel(sperre, grad, SPERRE_HOEHE - 0.12, 0.1, warnton)
+
+	# Schild mit dem Grund
+	var schild := Label3D.new()
+	schild.text = "Erst %s abschließen" % Spielfluss.RAUM_NAMEN[maxi(index - 1, 0)]
+	schild.font_size = 96
+	schild.pixel_size = 0.012
+	schild.modulate = Farben.WARNUNG.lightened(0.35)
+	schild.outline_size = 26
+	schild.outline_modulate = Color(0.05, 0.03, 0.02, 0.9)
+	schild.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	schild.double_sided = false
+	schild.no_depth_test = false
+	schild.position = ort(grad, TOR_R - 0.35, SPERRE_HOEHE * 0.56)
+	sperre.add_child(schild)
+	schild.rotation.y = nach_aussen(grad) + PI
+
+
+## Ein waagerechter Riegel, der dem Bogen des Raums folgt.
+func _bogenriegel(elternteil: Node3D, grad: float, hoehe: float,
+		dicke: float, stoff: Material) -> void:
+	var stuecke := 10
+	for i in stuecke:
+		var a := lerpf(grad - SEKTOR_HALB, grad + SEKTOR_HALB,
+				(float(i) + 0.5) / float(stuecke))
+		var breite := deg_to_rad(SEKTOR_HALB * 2.0) * TOR_R / float(stuecke) + 0.06
+		_quader(elternteil, ort(a, TOR_R, hoehe),
+				Vector3(breite, dicke, dicke), stoff, nach_aussen(a), false)
 
 
 func _baue_trennmauer(grad: float) -> void:

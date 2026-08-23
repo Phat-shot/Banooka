@@ -107,6 +107,8 @@ func _baue_menue() -> void:
 		_neuer_eintrag("Datei wählen …", _datei_waehlen)
 	if not Einstellungen.eigenes_modell.is_empty():
 		_neuer_eintrag("Diese Figur löschen", _figur_loeschen)
+	_neuer_eintrag("Debugmodus:  %s" % ("an" if Einstellungen.debug else "aus"),
+			_debug_umschalten)
 	_neuer_eintrag("Zurück", _zurueck)
 	_waehle(mini(_index, _eintraege.size() - 1))
 
@@ -234,6 +236,17 @@ func _figur_loeschen() -> void:
 		return
 	Einstellungen.entfernen(name)
 	_zeige_meldung("%s gelöscht" % name)
+
+
+## Debugmodus: unendlich Leben, immer Schutz, alle Räume offen.
+func _debug_umschalten(_richtung: int = 1) -> void:
+	Einstellungen.debug = not Einstellungen.debug
+	Einstellungen.speichern()
+	_baue_menue()
+	if Einstellungen.debug:
+		_zeige_meldung("Debugmodus an – unendlich Leben, immer Schutz, alle Räume offen")
+	else:
+		_zeige_meldung("Debugmodus aus")
 
 
 func _zurueck() -> void:

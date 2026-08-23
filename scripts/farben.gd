@@ -56,6 +56,10 @@ const WASSER_HELL := Color(0.35, 0.72, 0.78)
 const HOLZ := Color(0.71, 0.40, 0.11)
 const HOLZ_DUNKEL := Color(0.35, 0.20, 0.06)
 const HOLZ_FUGE := Color(0.15, 0.08, 0.03)
+## Fragezeichenkiste: eigenes Gelb. Vorher war sie eine gewöhnliche
+## Holzkiste mit drei kleinen Früchten darauf – im Spiel nicht von einer
+## normalen Kiste zu unterscheiden.
+const KISTE_FRAGE := Color(0.93, 0.68, 0.10)
 const KISTE_LEBEN := Color(0.26, 0.80, 0.40)
 const KISTE_TNT := Color(0.80, 0.16, 0.13)
 const KISTE_NITRO := Color(0.10, 0.55, 0.25)
@@ -78,6 +82,11 @@ const FRUCHT_BLATT := Color(0.30, 0.60, 0.22)
 const PORTAL_START := Color(0.35, 0.85, 0.55)
 const PORTAL_ZIEL := Color(0.40, 0.85, 1.0)
 const WARNUNG := Color(1.0, 0.30, 0.20)
+## Edelsteine für die beiden Kunststücke je Level und der Schein um ein
+## geschafftes Portal.
+const EDELSTEIN_KISTEN := Color(0.40, 0.85, 1.0)     ## alle Kisten
+const EDELSTEIN_OHNE_TOD := Color(1.0, 0.34, 0.42)   ## ohne einen Tod
+const ERFOLG_SCHEIN := Color(1.0, 0.80, 0.38)
 
 # Himmel und Nebel
 # --- Sumpf (Level 03) ---
