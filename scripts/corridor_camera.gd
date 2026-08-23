@@ -1,10 +1,14 @@
 extends Camera3D
 ## Korridor-Kamera: folgt dem Spieler von schräg hinten oben.
 ##
-## Zwei Betriebsarten:
-##   ohne Pfad – gerader Korridor Richtung -Z (Werte 1:1 aus der HTML-Demo)
-##   mit Pfad  – die Kamera fährt auf einem Path3D hinter dem Spieler her
-##               und folgt damit auch Kurven im Levelverlauf.
+## Drei Betriebsarten:
+##   ohne Pfad     – gerader Korridor Richtung -Z (Werte 1:1 aus der Demo)
+##   mit Pfad      – die Kamera fährt auf einem Path3D hinter dem Spieler
+##                   her und folgt damit auch Kurven im Levelverlauf.
+##   Seitenansicht – die Kamera stellt sich quer neben den Weg; das Bild
+##                   wird zum 2D-Scroller. Die Steuerung stimmt dabei von
+##                   selbst, weil sie kamerarelativ ist: Was auf dem Schirm
+##                   nach rechts geht, geht auch am Stick nach rechts.
 
 ## Ziel-Knoten. Bleibt das Feld leer, wird der erste Knoten
 ## aus der Gruppe "spieler" verwendet.
@@ -21,6 +25,11 @@ extends Camera3D
 @export var blick_vorlauf := 4.0
 ## Glättung: kleinerer Wert = härteres Nachziehen.
 @export var glaettung := 0.001
+## Seitenansicht: Abstand quer zum Weg (0 = normale Verfolgerkamera).
+## Das Vorzeichen wählt die Seite.
+@export var seitenblick := 0.0
+## Höhe der Kamera über dem Spieler in der Seitenansicht.
+@export var seitenblick_hoehe := 2.4
 
 var _ziel: Node3D
 var _kurve_knoten: Path3D
@@ -76,14 +85,32 @@ func _folgen(delta: float) -> void:
 		var versatz := p - mitte
 		versatz.y = 0.0
 
-		var kam_punkt := _kurve_knoten.to_global(
-				kurve.sample_baked(clampf(strecke - abstand, 0.0, laenge)))
-		wunsch = kam_punkt + Vector3.UP * (p.y - mitte.y + hoehe) + versatz * seiten_faktor
+		if absf(seitenblick) > 0.01:
+			# Seitenansicht: quer neben den Weg stellen und den Spieler
+			# anschauen. Die Kamera fährt mit, bleibt aber auf Höhe seiner
+			# Stelle auf der Kurve – dadurch scrollt das Bild flach mit.
+			var vor := _kurve_knoten.to_global(
+					kurve.sample_baked(clampf(strecke + 0.5, 0.0, laenge)))
+			var zurueck := _kurve_knoten.to_global(
+					kurve.sample_baked(clampf(strecke - 0.5, 0.0, laenge)))
+			var richtung := (vor - zurueck)
+			richtung.y = 0.0
+			richtung = richtung.normalized() if richtung.length() > 0.001 \
+					else Vector3.FORWARD
+			var rechts := richtung.cross(Vector3.UP).normalized()
+			wunsch = mitte + rechts * seitenblick \
+					+ Vector3.UP * (p.y - mitte.y + seitenblick_hoehe)
+			blickziel = Vector3(p.x, p.y + 0.9, p.z)
+		else:
+			var kam_punkt := _kurve_knoten.to_global(
+					kurve.sample_baked(clampf(strecke - abstand, 0.0, laenge)))
+			wunsch = kam_punkt + Vector3.UP * (p.y - mitte.y + hoehe) \
+					+ versatz * seiten_faktor
 
-		blickziel = _kurve_knoten.to_global(
-				kurve.sample_baked(clampf(strecke + blick_vorlauf, 0.0, laenge)))
-		blickziel.y = p.y + 1.0
-		blickziel += versatz * seiten_faktor
+			blickziel = _kurve_knoten.to_global(
+					kurve.sample_baked(clampf(strecke + blick_vorlauf, 0.0, laenge)))
+			blickziel.y = p.y + 1.0
+			blickziel += versatz * seiten_faktor
 	else:
 		# --- Gerader Korridor Richtung -Z (Verhalten der HTML-Demo) ---
 		wunsch = Vector3(p.x * seiten_faktor, p.y + hoehe, p.z + abstand)

@@ -33,6 +33,10 @@ const FALL_GEDAECHTNIS := 0.25
 ## beim Aufsetzen sofort auf 0 – ohne dieses Gedächtnis verpufft der
 ## Treffer von oben, weil die Trefferzone erst danach prüft.
 const ABPRALL_V := 16.0      ## Standard-Absprunghöhe von Federkisten und Gegnern
+## Wie träge die Figur auf blankem Eis Tempo aufnimmt und abbaut.
+## Kleiner Wert = rutschiger. Die Physikwerte oben bleiben unangetastet:
+## Eis ändert nicht das Lauftempo, nur wie schnell es erreicht wird.
+const EIS_GRIFF := 2.4
 
 signal spin_gestartet
 signal bauchplatscher_gelandet(pos: Vector3)
@@ -66,6 +70,10 @@ var _spin_geprueft := false
 ## `abprallen()` gesetzt, damit Feder- und Sprungkisten ihre volle
 ## Höhe behalten – die Sprungtaste ist dabei ja nicht gedrückt.
 var _kein_jump_cut := false
+## Betretene Eisflächen (Instanz-ID -> Glätte). Mehrere überlappende
+## Flächen dürfen sich nicht gegenseitig ausschalten, deshalb eine Liste
+## und nicht ein einzelner Wert.
+var _eisflaechen := {}
 
 
 func _ready() -> void:
@@ -98,8 +106,19 @@ func _physics_process(delta: float) -> void:
 		velocity.x = _slide_dir.x * SLIDE_SPEED
 		velocity.z = _slide_dir.z * SLIDE_SPEED
 	else:
-		velocity.x = eingabe.x * RUN_SPEED * ctrl
-		velocity.z = eingabe.y * RUN_SPEED * ctrl
+		var ziel_x := eingabe.x * RUN_SPEED * ctrl
+		var ziel_z := eingabe.y * RUN_SPEED * ctrl
+		var glatt := glaette()
+		if am_boden and glatt > 0.0:
+			# Auf Eis greift nichts sofort: Die Figur nimmt Tempo träge auf
+			# und baut es genauso träge ab. Wer die Richtung wechselt,
+			# rutscht erst einmal weiter geradeaus.
+			var griff := lerpf(1.0, EIS_GRIFF * delta, glatt)
+			velocity.x = lerpf(velocity.x, ziel_x, clampf(griff, 0.0, 1.0))
+			velocity.z = lerpf(velocity.z, ziel_z, clampf(griff, 0.0, 1.0))
+		else:
+			velocity.x = ziel_x
+			velocity.z = ziel_z
 
 	# --- Blickrichtung merken (Modell schaut in -Z) ---
 	if staerke > 0.1 and sliding <= 0.0:
@@ -192,6 +211,23 @@ func angriffe() -> int:
 	if _fall_rest > 0.0:
 		maske |= Angriff.FALLEN
 	return maske
+
+
+## Glätte des Bodens: 0 = normaler Grip, 1 = blankes Eis. Betretene
+## Eisflächen melden sich hier an; es gilt die glatteste.
+func glaette() -> float:
+	var hoechste := 0.0
+	for wert in _eisflaechen.values():
+		hoechste = maxf(hoechste, float(wert))
+	return hoechste
+
+
+func betritt_eis(kennung: int, wert: float) -> void:
+	_eisflaechen[kennung] = wert
+
+
+func verlaesst_eis(kennung: int) -> void:
+	_eisflaechen.erase(kennung)
 
 
 ## Setzt die Blickrichtung, ohne den Spieler zu bewegen. Wird beim

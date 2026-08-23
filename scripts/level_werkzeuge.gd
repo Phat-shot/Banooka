@@ -267,3 +267,75 @@ static func kurve_aus_punkten(punkte: Array, glaettung: float = 0.45) -> Curve3D
 		var tangente := (nachher - vorher) * glaettung * 0.5
 		kurve.add_point(p, -tangente, tangente)
 	return kurve
+
+
+# ------------------------------------------------------------- Schlucht
+
+## Zwei Wände links und rechts des Weges, die mit ihm mitlaufen.
+##
+## Ohne sie liegt ein Level als heller Streifen im Nebel; mit ihnen steckt
+## der Spieler in einer Schlucht und sieht an jeder Kurve, wohin es geht.
+## Die Wände tragen KEINE Kollision: Sie stehen außerhalb der begehbaren
+## Fläche, wer sie erreicht, fällt ohnehin. Kollision hier hieße nur, dass
+## man an ihnen hängen bleibt.
+##
+## `abschnitte`: [{"von", "bis", "abstand", "hoehe"}] – `abstand` ist der
+## seitliche Abstand von der Wegmitte, `hoehe` die Wandhöhe über dem Weg.
+## `optionen`: {"schritt", "neigung", "zacken", "saat", "sockel"}
+static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
+		material: Material, optionen: Dictionary = {}) -> Node3D:
+	var schritt: float = optionen.get("schritt", 3.0)
+	var neigung: float = optionen.get("neigung", 2.5)   ## wie weit sie oben ausstellt
+	var zacken: float = optionen.get("zacken", 3.5)     ## Höhenrauschen der Oberkante
+	var sockel: float = optionen.get("sockel", 6.0)     ## wie tief sie unter den Weg reicht
+	var saat: int = optionen.get("saat", 1234)
+
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = saat
+	rauschen.frequency = 0.06
+	rauschen.fractal_octaves = 3
+
+	var wurzel := Node3D.new()
+	wurzel.name = "Schluchtwand"
+	elternteil.add_child(wurzel)
+
+	for eintrag in abschnitte:
+		var von: float = eintrag.get("von", 0.0)
+		var bis: float = eintrag.get("bis", 0.0)
+		if bis <= von:
+			continue
+		for seite: float in [-1.0, 1.0]:
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			_wandflaeche(st, kurve, von, bis,
+					eintrag.get("abstand", 8.0), eintrag.get("hoehe", 14.0),
+					seite, schritt, neigung, zacken, sockel, rauschen)
+			_flaeche(wurzel, st, material, "Wand")
+	return wurzel
+
+
+static func _wandflaeche(st: SurfaceTool, kurve: Curve3D, von: float, bis: float,
+		abstand: float, hoehe: float, seite: float, schritt: float,
+		neigung: float, zacken: float, sockel: float,
+		rauschen: FastNoiseLite) -> void:
+	var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+	var laenge := kurve.get_baked_length()
+	var vorher := {}
+	for i in anzahl + 1:
+		var s := lerpf(von, bis, float(i) / float(anzahl))
+		var mitte := kurve.sample_baked(clampf(s, 0.0, laenge))
+		var r := _rechts(kurve, s) * seite
+		# Die Oberkante wackelt, damit keine gerade Mauer entsteht.
+		var zack := rauschen.get_noise_2d(s * 0.6, seite * 40.0) * zacken
+		var quer := abstand + rauschen.get_noise_2d(s * 0.35, seite * 90.0) * 1.4
+		var q := {
+			"unten": mitte + r * quer + Vector3.DOWN * sockel,
+			"fuss": mitte + r * quer,
+			"oben": mitte + r * (quer + neigung) + Vector3.UP * (hoehe + zack),
+			"n": -r,
+		}
+		if not vorher.is_empty():
+			# Zur Wegmitte hin sichtbar – die Rückseite sieht nie jemand.
+			_quad(st, vorher["unten"], vorher["oben"], q["unten"], q["oben"],
+					vorher["n"])
+		vorher = q

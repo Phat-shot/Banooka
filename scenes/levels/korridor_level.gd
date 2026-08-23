@@ -171,12 +171,18 @@ func wasser(strecke: float, flaeche: Vector2, hoehe: float,
 	return w
 
 
+## `farbe` mit Alpha 0 = Vorgabe des Stachelfelds (rostiges Eisen).
+## Die Farbe muss VOR `add_child` stehen: Das Feld baut seine Zacken in
+## `_ready()`, ein späteres Setzen käme zu spät und bliebe wirkungslos.
 func stacheln(strecke: float, seitlich: float, flaeche: Vector2,
-		einfahrbar: bool) -> Stacheln:
+		einfahrbar: bool, farbe: Color = Color(0, 0, 0, 0)) -> Stacheln:
 	var st := STACHELN.instantiate() as Stacheln
 	st.flaeche = flaeche
 	st.einfahrbar = einfahrbar
 	st.versatz = fmod(strecke, 2.0)
+	if farbe.a > 0.0:
+		st.rostig = false
+		st.eigenfarbe = farbe
 	st.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.02)
 	st.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(st)
@@ -256,3 +262,53 @@ func warnbalken(strecke: float, breite: float,
 		schild.position.y = 1.0
 		schild.material_override = streifen
 		gruppe.add_child(schild)
+
+
+# ------------------------------------------------------------- Kamera
+
+## Schaltet die Kamera auf Seitenansicht, solange der Spieler zwischen
+## `von` und `bis` steht – das Bild wird für diesen Abschnitt zum
+## 2D-Scroller. Die Steuerung stimmt dabei von selbst, weil sie
+## kamerarelativ ist: Was auf dem Schirm nach rechts geht, geht auch am
+## Stick nach rechts.
+##
+## In Stücken, weil ein einzelner Kasten einem kurvigen Weg nicht folgt.
+func kamerazone(von: float, bis: float, seitlich: float,
+		hoehe: float = 2.6) -> void:
+	var schritt := 12.0
+	var s := von
+	while s < bis:
+		var laenge := minf(schritt, bis - s)
+		var zone := Area3D.new()
+		zone.collision_layer = 0
+		zone.collision_mask = 2
+		var form := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(30.0, 14.0, laenge)
+		form.shape = box
+		zone.add_child(form)
+		zone.position = LevelWerkzeuge.punkt(verlauf, s + laenge * 0.5, 0.0, 4.0)
+		zone.rotation.y = LevelWerkzeuge.drehung(verlauf, s + laenge * 0.5)
+		zone.body_entered.connect(_kamera_seitlich.bind(seitlich, hoehe))
+		zone.body_exited.connect(_kamera_normal)
+		geometrie.add_child(zone)
+		s += laenge
+
+
+func _kamera_seitlich(koerper: Node3D, seitlich: float, hoehe: float) -> void:
+	if not koerper.is_in_group("spieler"):
+		return
+	var kamera := get_viewport().get_camera_3d()
+	if kamera == null or not ("seitenblick" in kamera):
+		return
+	kamera.set("seitenblick", seitlich)
+	kamera.set("seitenblick_hoehe", hoehe)
+
+
+func _kamera_normal(koerper: Node3D) -> void:
+	if not koerper.is_in_group("spieler"):
+		return
+	var kamera := get_viewport().get_camera_3d()
+	if kamera == null or not ("seitenblick" in kamera):
+		return
+	kamera.set("seitenblick", 0.0)

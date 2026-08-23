@@ -6,11 +6,11 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
 [sub_resource type="ProceduralSkyMaterial" id="Himmel"]
-sky_top_color = Color(0.42, 0.56, 0.75, 1)
-sky_horizon_color = Color(0.83, 0.88, 0.93, 1)
-sky_curve = 0.18
-ground_bottom_color = Color(0.72, 0.78, 0.86, 1)
-ground_horizon_color = Color(0.83, 0.88, 0.93, 1)
+sky_top_color = Color(0.16, 0.31, 0.58, 1)
+sky_horizon_color = Color(0.62, 0.76, 0.9, 1)
+sky_curve = 0.1
+ground_bottom_color = Color(0.3, 0.4, 0.56, 1)
+ground_horizon_color = Color(0.62, 0.76, 0.9, 1)
 sun_angle_max = 30.0
 sun_curve = 0.25
 
@@ -21,24 +21,24 @@ sky_material = SubResource("Himmel")
 background_mode = 2
 sky = SubResource("SkyRes")
 ambient_light_source = 2
-ambient_light_color = Color(0.72, 0.79, 0.9, 1)
-ambient_light_energy = 0.95
+ambient_light_color = Color(0.66, 0.73, 0.85, 1)
+ambient_light_energy = 0.55
 tonemap_mode = 3
-tonemap_exposure = 0.95
+tonemap_exposure = 1.0
 tonemap_white = 6.0
 fog_enabled = true
 fog_mode = 0
-fog_light_color = Color(0.8, 0.86, 0.92, 1)
-fog_light_energy = 0.9
-fog_density = 0.0075
-fog_aerial_perspective = 0.35
-fog_sky_affect = 0.1
-fog_height = 2.0
-fog_height_density = 0.14
+fog_light_color = Color(0.55, 0.7, 0.88, 1)
+fog_light_energy = 0.7
+fog_density = 0.0022
+fog_aerial_perspective = 0.2
+fog_sky_affect = 0.05
+fog_height = 4.0
+fog_height_density = 0.06
 adjustment_enabled = true
 adjustment_brightness = 1.0
-adjustment_contrast = 1.05
-adjustment_saturation = 1.05
+adjustment_contrast = 1.14
+adjustment_saturation = 1.3
 
 [node name="Level02" type="Node3D"]
 script = ExtResource("1_level")
@@ -48,9 +48,9 @@ environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
-light_color = Color(0.976, 0.98, 1, 1)
-light_energy = 1.25
-light_specular = 0.6
+light_color = Color(1, 0.965, 0.898, 1)
+light_energy = 2.1
+light_specular = 0.7
 shadow_enabled = true
 shadow_bias = 0.04
 shadow_normal_bias = 1.5

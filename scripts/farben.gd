@@ -95,6 +95,11 @@ const EIS := Color(0.52, 0.78, 0.88)
 const EIS_HELL := Color(0.79, 0.94, 0.98)
 const EIS_DUNKEL := Color(0.24, 0.48, 0.63)
 const NADEL_FROST := Color(0.17, 0.34, 0.30)   ## verschneite Nadelbäume
+const EIS_TIEF := Color(0.16, 0.34, 0.52)      ## Schluchtwand aus altem Eis
+const FROSTFELS := Color(0.36, 0.42, 0.52)     ## Fels unter der Schneedecke
+const KRISTALL_BLAU := Color(0.38, 0.82, 1.0)
+const KRISTALL_VIOLETT := Color(0.66, 0.48, 0.98)
+const GLUT := Color(1.0, 0.58, 0.16)           ## Feuerschalen als Gegenfarbe
 
 const HIMMEL_OBEN := Color(0.29, 0.51, 0.72)
 const HIMMEL_UNTEN := Color(0.62, 0.74, 0.78)

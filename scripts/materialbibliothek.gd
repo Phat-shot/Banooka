@@ -288,7 +288,7 @@ static func schnee() -> StandardMaterial3D:
 	return _hole("schnee", func() -> StandardMaterial3D:
 		var m := StandardMaterial3D.new()
 		m.albedo_texture = rauschtextur(6101, 0.010,
-				Farben.SCHNEE_SCHATTEN, Farben.SCHNEE_HELL)
+				Farben.SCHNEE_SCHATTEN.lerp(Farben.SCHNEE, 0.45), Farben.SCHNEE_HELL)
 		m.normal_enabled = true
 		m.normal_texture = normalmap(6101, 0.035, 1.4)
 		m.normal_scale = 0.85
@@ -308,6 +308,52 @@ static func firn() -> StandardMaterial3D:
 		m.normal_texture = normalmap(6102, 0.09, 2.2)
 		m.normal_scale = 1.0
 		m.roughness = 0.78
+		return m)
+
+
+## Schluchtwand aus altem Gletschereis: tiefblau, schrundig, mit hellen
+## Kanten. Das ist die Gegenfarbe zum fast weißen Weg – ohne sie
+## verschwimmt in einem Schneelevel alles zu einer Fläche.
+static func eisfels() -> StandardMaterial3D:
+	return _hole("eisfels", func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		# Fein gekachelt: Mit grober Kachelung (uv1_scale 0.35) wurde aus der
+		# Wand eine einzige blaue Schmiere über den halben Bildschirm.
+		m.albedo_texture = rauschtextur(6104, 0.09, Farben.EIS_TIEF.darkened(0.3),
+				Farben.EIS_HELL)
+		m.normal_enabled = true
+		m.normal_texture = normalmap(6104, 0.16, 2.8)
+		m.normal_scale = 1.4
+		m.uv1_scale = Vector3(2.2, 2.2, 2.2)
+		m.roughness = 0.5
+		return m)
+
+
+## Frostfels für Vorsprünge und Blöcke – kühler als der Waldfels, damit er
+## im Schnee nicht braun aussieht.
+static func frostfels() -> StandardMaterial3D:
+	return _hole("frostfels", func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = rauschtextur(6105, 0.05, Farben.FROSTFELS.darkened(0.4),
+				Farben.FROSTFELS.lightened(0.3))
+		m.normal_enabled = true
+		m.normal_texture = normalmap(6105, 0.12, 2.2)
+		m.normal_scale = 1.0
+		m.roughness = 0.72
+		return m)
+
+
+## Leuchtender Kristall: durchscheinend und selbstleuchtend zugleich.
+static func kristall(farbe: Color) -> StandardMaterial3D:
+	return _hole("kristall_%s" % farbe.to_html(), func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(farbe.r, farbe.g, farbe.b, 0.72)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.emission_enabled = true
+		m.emission = farbe
+		m.emission_energy_multiplier = 1.5
+		m.roughness = 0.1
+		m.metallic_specular = 0.9
 		return m)
 
 
