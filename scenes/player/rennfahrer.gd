@@ -294,11 +294,14 @@ func setze_blickrichtung(_winkel: float) -> void:
 	pass
 
 
-## Ein Rennen kennt keinen Tod, nur Zeitverlust.
+## Ein Rennen kennt keinen Tod, nur Zeitverlust. Der Schutz fängt hier
+## also keinen Treffer ab, sondern den Dreher – und damit die Sekunden.
 func schaden_nehmen() -> void:
 	if invuln > 0.0:
 		return
 	invuln = 0.6
+	if GameState.schutz_verbrauchen():
+		return
 	_dreher()
 
 

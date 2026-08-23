@@ -60,6 +60,7 @@ const KISTE_FEDER := Color(0.95, 0.75, 0.20)
 const KISTE_SPRUNG := Color(0.30, 0.55, 0.95)
 const KISTE_EISEN := Color(0.55, 0.57, 0.62)
 const KISTE_CHECKPOINT := Color(0.27, 0.80, 0.42)
+const KISTE_SCHUTZ := Color(0.30, 0.68, 0.95)
 const ROST := Color(0.46, 0.24, 0.11)
 const ROST_HELL := Color(0.66, 0.38, 0.16)
 

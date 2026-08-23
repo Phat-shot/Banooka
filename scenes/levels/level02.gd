@@ -511,6 +511,7 @@ func _kisten_setzen() -> void:
 	kiste(Kiste.Art.NORMAL, 8.0, 0.0)
 	kiste(Kiste.Art.NORMAL, 8.0, 1.6)
 	kiste(Kiste.Art.FRUCHT_MEHRFACH, 14.0, 0.0)
+	kiste(Kiste.Art.SCHUTZ, 20.0, 2.2)
 	kiste(Kiste.Art.CHECKPOINT, 24.0, -2.4)
 	kiste(Kiste.Art.EISEN, 28.0, 1.8)
 	kiste(Kiste.Art.NORMAL, 28.0, 1.8, 1.6)
@@ -535,6 +536,7 @@ func _kisten_setzen() -> void:
 	kiste(Kiste.Art.NORMAL, 148.0, -1.2)
 
 	# ---------- Kristallgrotte ----------
+	kiste(Kiste.Art.SCHUTZ, 152.0, 2.0)
 	kiste(Kiste.Art.CHECKPOINT, 156.0, -3.0)
 	kiste(Kiste.Art.TNT, 164.0, -1.0)
 	kiste(Kiste.Art.NORMAL, 164.0, 0.8)

@@ -65,8 +65,13 @@ func level_gebaut(nummer: int) -> bool:
 
 
 ## Darf der Spieler dieses Level betreten?
+##
+## Offen ist alles, was gebaut ist. `freigeschaltet` bleibt als
+## Fortschrittsmarke erhalten (Startbildschirm, Portalraum), sperrt aber
+## nichts mehr – sonst hinge ein neues Level am Spielstand und wäre auf
+## bestehenden Geräten unsichtbar, bis man den Fortschritt zurücksetzt.
 func level_offen(nummer: int) -> bool:
-	return level_gebaut(nummer) and nummer <= freigeschaltet
+	return level_gebaut(nummer)
 
 
 ## Raum (1-basiert), in dem dieses Level liegt.

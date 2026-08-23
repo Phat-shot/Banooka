@@ -202,6 +202,9 @@ func abprallen(hoehe: float = ABPRALL_V) -> void:
 func schaden_nehmen() -> void:
 	if invuln > 0.0 or _fertig:
 		return
+	if GameState.schutz_verbrauchen():
+		invuln = INVULN_ZEIT
+		return
 	sterben()
 
 

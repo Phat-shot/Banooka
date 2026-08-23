@@ -21,6 +21,7 @@ enum Art {
 	NITRO,            ## explodiert bei jeder Berührung
 	EISEN,            ## unzerbrechlich, reine Plattform
 	CHECKPOINT,       ## setzt den Respawn-Punkt
+	SCHUTZ,           ## gibt eine Schutzladung (bis zu drei stapelbar)
 }
 
 # --- Kennwerte ---
@@ -255,6 +256,8 @@ func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool)
 		Art.CHECKPOINT:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_checkpoint(akzent, rahmen, tf))
 			_sym_fahne(akzent, rahmen)
+		Art.SCHUTZ:
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_schutz(akzent, tf))
 		_:
 			pass
 
@@ -278,6 +281,21 @@ func _sym_fruechte(st: SurfaceTool, tf: Transform3D) -> void:
 
 
 ## Erhabenes Kreuz für die Lebenskiste.
+## Schutz: ein Wappenschild, aus vier nach unten schmaler werdenden Lagen
+## aufgebaut. Aus der Spielkamera reicht die Silhouette – ein feiner
+## gezeichnetes Wappen wäre bei dieser Größe nicht zu erkennen.
+func _sym_schutz(st: SurfaceTool, tf: Transform3D) -> void:
+	var lagen := [
+		{"y": 0.075, "b": 0.190, "h": 0.055},
+		{"y": 0.020, "b": 0.175, "h": 0.058},
+		{"y": -0.040, "b": 0.130, "h": 0.060},
+		{"y": -0.092, "b": 0.062, "h": 0.048},
+	]
+	for lage in lagen:
+		Kistengeometrie.quader(st, Vector3(0.0, lage["y"], 0.018),
+				Vector3(lage["b"], lage["h"], 0.022), 0.008, UV_METALL, tf)
+
+
 func _sym_leben(st: SurfaceTool, tf: Transform3D) -> void:
 	Kistengeometrie.quader(st, Vector3(0.0, 0.0, 0.018),
 			Vector3(0.055, 0.185, 0.022), 0.01, UV_METALL, tf)
@@ -372,6 +390,8 @@ func _material_fuer_art() -> StandardMaterial3D:
 			return Materialbibliothek.kistenholz(Farben.KISTE_FEDER)
 		Art.CHECKPOINT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_CHECKPOINT)
+		Art.SCHUTZ:
+			return Materialbibliothek.kistenholz(Farben.KISTE_SCHUTZ)
 		Art.TNT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_TNT)
 		Art.NITRO:
@@ -400,6 +420,8 @@ func _rahmen_material() -> StandardMaterial3D:
 			return Materialbibliothek.kistenholz(Farben.KISTE_LEBEN.darkened(0.48))
 		Art.CHECKPOINT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_CHECKPOINT.darkened(0.5))
+		Art.SCHUTZ:
+			return Materialbibliothek.kistenholz(Farben.KISTE_SCHUTZ.darkened(0.5))
 		Art.TNT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_TNT.darkened(0.52))
 		Art.NITRO:
@@ -444,6 +466,8 @@ func _akzent_material() -> StandardMaterial3D:
 			return _mattes_metall(Farben.FELS_HELL)
 		Art.SPRUNG:
 			return Materialbibliothek.leuchtend(Color(0.86, 0.95, 1.0), 0.5)
+		Art.SCHUTZ:
+			return Materialbibliothek.leuchtend(Color(0.82, 0.95, 1.0), 0.6)
 		Art.TNT:
 			return Materialbibliothek.einfarbig(Color(0.10, 0.08, 0.07), 0.6)
 		Art.NITRO:
@@ -661,6 +685,9 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 			GameState.leben += 1
 			GameState.leben_geaendert.emit(GameState.leben)
 			GameState.zeige_nachricht("Extraleben!", 1.5)
+		Art.SCHUTZ:
+			GameState.kiste_zerbrochen()
+			GameState.schutz_aufnehmen()
 		Art.FRUCHT_MEHRFACH:
 			GameState.kiste_zerbrochen()
 			Frucht.streuen(get_parent(), global_position, FRUECHTE_MEHRFACH)

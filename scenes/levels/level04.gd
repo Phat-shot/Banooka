@@ -229,18 +229,21 @@ func _kisten_setzen() -> void:
 	_kistenreihe(28.0, 4, -3.0)
 	_kistenreihe(44.0, 4, 3.0)
 	_kistenreihe(74.0, 5, 0.0)
-	_kistenreihe(92.0, 4, -2.6)
+	_kistenreihe(88.0, 4, -2.6)
 	_kistenreihe(114.0, 4, 2.6)
 	_kistenreihe(134.0, 5, 0.0)
 	_kistenreihe(174.0, 4, 2.8)
 	_kistenreihe(190.0, 4, -2.8)
 	_kistenreihe(224.0, 5, 3.4)
-	_kistenreihe(250.0, 5, -3.4)
+	_kistenreihe(254.0, 5, -3.4)
 	_kistenreihe(268.0, 4, 0.0)
 	_kistenreihe(286.0, 6, 0.0)
 
 	# Ein Extraleben kurz vor dem Ziel, gut sichtbar in der Mitte
 	kiste(Kiste.Art.LEBEN, 300.0, 0.0)
+	# Schutz vor den beiden dichtesten Hindernisfolgen
+	kiste(Kiste.Art.SCHUTZ, 64.0, 0.0)
+	kiste(Kiste.Art.SCHUTZ, 212.0, 0.0)
 
 
 func _kistenreihe(von: float, anzahl: int, seitlich: float) -> void:

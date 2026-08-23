@@ -82,6 +82,10 @@ func _keiler_nachziehen(delta: float) -> void:
 func schaden_nehmen() -> void:
 	if invuln > 0.0 or _fertig:
 		return
+	# Der Schutz fängt das Stolpern ab – man verliert also keinen Vorsprung.
+	if GameState.schutz_verbrauchen():
+		invuln = INVULN_ZEIT * 0.6
+		return
 	invuln = INVULN_ZEIT * 0.6
 	_taumel = taumel_dauer
 	tempo = maxf(tempo_start * 0.6, tempo * (1.0 - treffer_bremse))

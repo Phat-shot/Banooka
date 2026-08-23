@@ -88,6 +88,12 @@ func _pruefe_gegner_patrouille() -> void:
 func _pruefe_absturz() -> void:
 	var verlauf = _level.get("verlauf")
 	var spieler := get_tree().get_first_node_in_group("spieler") as Node3D
+	# In Ritt- und Fluchtleveln klebt der Spieler auf der Kurve und setzt
+	# seine Position jedes Bild neu – er lässt sich gar nicht neben den Pfad
+	# fallen. Die Probe meldete dort sechs Fehler, wo keiner war.
+	if spieler != null and "boden_pruefer" in spieler:
+		print("  Absturzzone: entfällt (Schienenlevel, kein Sturz möglich)")
+		return
 	var stellen := [10.0, 45.0, 90.0, 135.0, 180.0, 225.0]
 	var misslungen := 0
 	for s: float in stellen:

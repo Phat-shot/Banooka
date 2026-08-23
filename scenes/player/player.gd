@@ -251,8 +251,16 @@ func abprallen(hoehe: float = ABPRALL_V) -> void:
 
 
 ## Schaden nehmen. Während der Unverwundbarkeit wirkungslos.
+##
+## Eine Schutzladung fängt den Treffer ab und schenkt dieselbe kurze
+## Unverwundbarkeit wie ein Respawn – sonst zöge ein einziger Gegner in
+## einem Bild gleich alle drei Ladungen ab. Stürze laufen nicht hierher,
+## sondern direkt in `sterben()`; dort greift der Schutz bewusst nicht.
 func schaden_nehmen() -> void:
 	if invuln > 0.0:
+		return
+	if GameState.schutz_verbrauchen():
+		invuln = INVULN_ZEIT
 		return
 	sterben()
 

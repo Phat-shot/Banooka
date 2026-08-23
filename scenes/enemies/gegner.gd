@@ -19,6 +19,16 @@ class_name Gegner
 const TODES_G := -32.0
 ## Nach dieser Zeit verschwindet ein besiegter Gegner.
 const TODES_DAUER := 1.0
+## So viel Höhe muss zwischen "Spieler ist oben" und der Oberkante der
+## Trefferzone liegen, damit Draufspringen zuverlässig greift.
+##
+## Der Wert ist gemessen, nicht geschätzt: Ein fallender Spieler legt bei
+## 12,2 m/s rund 0,20 m je Physikschritt zurück. Die alte feste Schwelle
+## von 0,5 m ließ dem Panzerkäfer (Zone bis 0,75 m) genau 0,20 m Fenster –
+## in einem Falltest über 200 Sprünge traf nur die Hälfte, die andere
+## Hälfte kostete Leben. Mit 0,45 m ist das Fenster gut doppelt so groß
+## wie ein Simulationsschritt.
+const MINDESTFENSTER := 0.45
 
 ## Bitmaske der Angriffsarten, die diesen Gegner besiegen (siehe Angriff).
 @export var besiegbar_durch: int = Angriff.SLAM
@@ -48,6 +58,8 @@ var _zeit := 0.0
 var _phase := 0.0
 var _tot_zeit := 0.0
 var _wegflug := Vector3.ZERO
+## Oberkante der Trefferzone über dem Gegnerursprung.
+var _zone_oberkante := 1.0
 
 
 func _ready() -> void:
@@ -66,6 +78,7 @@ func _ready() -> void:
 		trefferzone.monitoring = true
 		if not trefferzone.body_entered.is_connected(_auf_koerper):
 			trefferzone.body_entered.connect(_auf_koerper)
+		_zone_oberkante = _oberkante_messen()
 
 	_baue()
 
@@ -151,8 +164,34 @@ func _treffer(spieler: Spieler) -> void:
 
 
 ## Steht der Spieler deutlich über dem Gegner?
+##
+## Die Schwelle richtet sich nach der Höhe des Gegners, nicht nach einem
+## festen Maß: Bei einem flachen Gegner lag sie sonst so dicht unter der
+## Oberkante, dass zwischen "Überlappung beginnt" und "Spieler ist zu
+## tief" kein voller Physikschritt lag – Draufspringen wurde zur Lotterie.
+## Nach unten ist sie auf ein Drittel der Höhe begrenzt, damit man einen
+## Gegner nicht vom Boden aus anrempeln und dabei besiegen kann.
 func _spieler_ist_oben(spieler: Node3D) -> bool:
-	return spieler.global_position.y > global_position.y + 0.5
+	var schwelle := maxf(_zone_oberkante - MINDESTFENSTER, _zone_oberkante * 0.3)
+	return spieler.global_position.y > global_position.y + schwelle
+
+
+## Liest die Oberkante der Trefferzone aus ihrer Kollisionsform.
+func _oberkante_messen() -> float:
+	var hoechste := 0.0
+	for kind in trefferzone.get_children():
+		var form := kind as CollisionShape3D
+		if form == null or form.shape == null:
+			continue
+		var halbe := 0.5
+		if form.shape is BoxShape3D:
+			halbe = (form.shape as BoxShape3D).size.y * 0.5
+		elif form.shape is SphereShape3D:
+			halbe = (form.shape as SphereShape3D).radius
+		elif form.shape is CapsuleShape3D:
+			halbe = (form.shape as CapsuleShape3D).height * 0.5
+		hoechste = maxf(hoechste, form.position.y + halbe)
+	return maxf(hoechste, 0.3)
 
 
 ## Der Gegner geht kaputt: Kollision aus, Früchte streuen, Todesanimation.

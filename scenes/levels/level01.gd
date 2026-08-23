@@ -267,6 +267,7 @@ func _kisten_setzen() -> void:
 	_kiste(Kiste.Art.NORMAL, 22.0, -1.0)
 	_kiste(Kiste.Art.NORMAL, 22.0, -1.0, 1.5)
 	_kiste(Kiste.Art.NORMAL, 22.0, 1.0)
+	_kiste(Kiste.Art.SCHUTZ, 22.0, -2.2)
 	_kiste(Kiste.Art.CHECKPOINT, 34.0, 0.0)
 	_kiste(Kiste.Art.FRUCHT_MEHRFACH, 38.5, -1.8)
 
@@ -293,6 +294,7 @@ func _kisten_setzen() -> void:
 	_kiste(Kiste.Art.NORMAL, 135.4, 0.2)
 	_kiste(Kiste.Art.NORMAL, 136.8, 0.2)
 	_kiste(Kiste.Art.FEDER, 148.0, 1.8)
+	_kiste(Kiste.Art.SCHUTZ, 150.0, 2.2)
 	_kiste(Kiste.Art.CHECKPOINT, 154.0, 0.0)
 
 	# ---------- Baumkronen: Sprungfedern und Nitro auf dem Grat ----------

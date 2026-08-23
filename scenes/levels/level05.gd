@@ -223,6 +223,10 @@ func _kisten_setzen() -> void:
 		for i in eintrag["n"]:
 			kiste(Kiste.Art.NORMAL, eintrag["s"] + i * 1.6, eintrag["q"])
 	kiste(Kiste.Art.LEBEN, 344.0, 0.0)
+	# Schutz vor den beiden dichtesten Hindernisfolgen – ein abgefangener
+	# Stolperer ist hier bares Vorsprung.
+	kiste(Kiste.Art.SCHUTZ, 76.0, 0.0)
+	kiste(Kiste.Art.SCHUTZ, 244.0, 0.0)
 
 
 func _fruechte_setzen() -> void:

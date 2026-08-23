@@ -6,14 +6,20 @@ signal fruechte_geaendert(anzahl: int)
 signal leben_geaendert(anzahl: int)
 signal kisten_geaendert(zerbrochen: int, gesamt: int)
 signal nachricht(text: String, dauer: float)
+signal schutz_geaendert(anzahl: int)
 
 const START_LEBEN := 3
 const FRUECHTE_PRO_EXTRALEBEN := 100
+## So viele Schutzladungen lassen sich stapeln.
+const SCHUTZ_MAX := 3
 
 var fruechte := 0
 var leben := START_LEBEN
 var kisten_zerbrochen := 0
 var kisten_gesamt := 0
+## Schutzladungen: Jede fängt einen Treffer ab. Stürze fängt sie NICHT ab –
+## die laufen an `schaden_nehmen()` vorbei und sollen es auch.
+var schutz := 0
 
 ## Respawn-Punkt (letzte Checkpoint-Kiste) und Levelanfang.
 var checkpoint := Vector3.ZERO
@@ -26,6 +32,7 @@ func level_starten(start_position: Vector3, kisten_im_level: int = 0) -> void:
 	checkpoint = start_position
 	kisten_zerbrochen = 0
 	kisten_gesamt = kisten_im_level
+	schutz_geaendert.emit(schutz)
 	fruechte_geaendert.emit(fruechte)
 	leben_geaendert.emit(leben)
 	kisten_geaendert.emit(kisten_zerbrochen, kisten_gesamt)
@@ -38,9 +45,34 @@ func neu_beginnen() -> void:
 	fruechte = 0
 	kisten_zerbrochen = 0
 	kisten_gesamt = 0
+	# Der Schutz gilt je Levelversuch; über einen Neustart nimmt man ihn
+	# nicht mit, sonst sammelte man ihn im leichten Level für das schwere.
+	schutz = 0
+	schutz_geaendert.emit(schutz)
 	fruechte_geaendert.emit(fruechte)
 	leben_geaendert.emit(leben)
 	kisten_geaendert.emit(0, 0)
+
+
+## Eine Schutzladung aufnehmen. Über `SCHUTZ_MAX` hinaus verfällt sie.
+func schutz_aufnehmen() -> void:
+	if schutz >= SCHUTZ_MAX:
+		zeige_nachricht("Schutz bereits voll", 1.2)
+		return
+	schutz += 1
+	schutz_geaendert.emit(schutz)
+	zeige_nachricht("Schutz %d/%d" % [schutz, SCHUTZ_MAX], 1.4)
+
+
+## Verbraucht eine Ladung. Gibt true zurück, wenn eine da war – dann ist
+## der Treffer abgefangen.
+func schutz_verbrauchen() -> bool:
+	if schutz <= 0:
+		return false
+	schutz -= 1
+	schutz_geaendert.emit(schutz)
+	zeige_nachricht("Schutz hält!", 1.0)
+	return true
 
 
 func frucht_einsammeln(anzahl: int = 1) -> void:

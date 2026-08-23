@@ -197,6 +197,7 @@ func _kisten_setzen() -> void:
 	kiste(Kiste.Art.NORMAL, 7.0, 0.0)
 	kiste(Kiste.Art.NORMAL, 7.0, 1.6)
 	kiste(Kiste.Art.FRUCHT_MEHRFACH, 13.0, 0.0)
+	kiste(Kiste.Art.SCHUTZ, 16.0, 2.2)
 	kiste(Kiste.Art.CHECKPOINT, 20.0, -2.4)
 	kiste(Kiste.Art.EISEN, 25.0, 1.6)
 	kiste(Kiste.Art.NORMAL, 25.0, 1.6, 1.6)
@@ -222,6 +223,7 @@ func _kisten_setzen() -> void:
 	kiste(Kiste.Art.NORMAL, 143.0, 1.8)
 
 	# ---------- Schilfgürtel: TNT hinter dem Schilf ----------
+	kiste(Kiste.Art.SCHUTZ, 142.0, 2.2)
 	kiste(Kiste.Art.CHECKPOINT, 149.0, -3.0)
 	kiste(Kiste.Art.TNT, 156.0, -1.0)
 	kiste(Kiste.Art.NORMAL, 156.0, 0.8)
