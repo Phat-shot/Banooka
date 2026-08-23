@@ -18,11 +18,15 @@ class_name Reiter
 ## zerbricht. Geerbt bleiben damit auch Leben, Unverwundbarkeit und die
 ## ganze Schnittstelle, die HUD und Kamera erwarten.
 
-## Anfangs- und Höchsttempo der Katze in m/s.
-const TEMPO_START := 11.0
-const TEMPO_MAX := 19.0
-## So viel schneller wird sie je Sekunde.
-const TEMPO_ANSTIEG := 0.28
+## Anfangs- und Höchsttempo in m/s. Als Felder und nicht als Konstanten,
+## damit eine Fluchtstrecke andere Werte fahren kann als ein Ritt.
+@export var tempo_start := 11.0
+@export var tempo_max := 19.0
+## So viel schneller wird es je Sekunde.
+@export var tempo_anstieg := 0.28
+## Vorzeichen der Lenkung. Steht die Kamera vorn und blickt zurück, ist
+## rechts auf dem Schirm links auf der Strecke – dann gehört hier -1 hin.
+@export var lenk_richtung := 1.0
 ## Seitliches Lenktempo in m/s.
 const LENK_TEMPO := 9.0
 ## So schnell folgt der seitliche Versatz der Lenkung (kleiner = träger).
@@ -45,7 +49,7 @@ var ziel_strecke := 0.0
 ## Zurückgelegte Strecke auf der Kurve.
 var strecke := 0.0
 ## Aktuelles Tempo in m/s.
-var tempo := TEMPO_START
+var tempo := 11.0
 
 var _seitlich := 0.0
 var _seitlich_ziel := 0.0
@@ -57,11 +61,13 @@ var _kann_djump := false
 var _checkpoint := 0.0
 var _fertig := false
 
-@onready var _katze: Katze = $Katze
+## Reittier. Fehlt es (Fluchtstrecke zu Fuß), bleibt es schlicht leer.
+@onready var _katze: Katze = get_node_or_null("Katze") as Katze
 
 
 func _ready() -> void:
 	super._ready()
+	tempo = tempo_start
 	# Der Reiter bewegt sich nicht über die Physik, sondern setzt seine
 	# Position selbst. Ebene 2, damit Kisten- und Gegnerzonen ihn finden.
 	collision_layer = 2
@@ -75,7 +81,7 @@ func _physics_process(delta: float) -> void:
 		_stellung_setzen()
 		return
 
-	tempo = minf(tempo + TEMPO_ANSTIEG * delta, TEMPO_MAX)
+	tempo = minf(tempo + tempo_anstieg * delta, tempo_max)
 	strecke += tempo * delta
 
 	_lenken(delta)
@@ -90,7 +96,7 @@ func _physics_process(delta: float) -> void:
 ## Quer zum Weg lenken. Der Versatz folgt der Eingabe träge nach – eine
 ## rennende Katze springt nicht seitlich, sie zieht in die Kurve.
 func _lenken(delta: float) -> void:
-	var eingabe := InputHub.bewegung().x
+	var eingabe := InputHub.bewegung().x * lenk_richtung
 	_seitlich_ziel += eingabe * LENK_TEMPO * delta
 	var grenze := _grenze_bei(strecke)
 	_seitlich_ziel = clampf(_seitlich_ziel, -grenze, grenze)
@@ -138,7 +144,7 @@ func _stellung_setzen() -> void:
 
 	if is_instance_valid(_katze):
 		_katze.aktualisiere(get_physics_process_delta_time(),
-				tempo / TEMPO_MAX, _in_luft)
+				tempo / maxf(tempo_max, 0.001), _in_luft)
 		# In die Kurve legen: je stärker gelenkt wird, desto schräger.
 		var neigung := clampf((_seitlich_ziel - _seitlich) * 0.25, -0.3, 0.3)
 		_katze.rotation.z = lerpf(_katze.rotation.z, neigung, 0.2)
@@ -219,7 +225,7 @@ func respawn() -> void:
 	_hoehe = 0.0
 	_vy = 0.0
 	_in_luft = false
-	tempo = TEMPO_START
+	tempo = tempo_start
 	invuln = INVULN_ZEIT
 	_stellung_setzen()
 	# Kamera mitnehmen, sonst steht der Reiter kurz außerhalb des Bildes

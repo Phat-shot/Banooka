@@ -1,17 +1,17 @@
 [gd_scene load_steps=9 format=3]
 
-[ext_resource type="Script" path="res://scenes/levels/level05.gd" id="1_level"]
-[ext_resource type="PackedScene" path="res://scenes/player/Fluechtling.tscn" id="2_flucht"]
+[ext_resource type="Script" path="res://scenes/levels/level06.gd" id="1_level"]
+[ext_resource type="PackedScene" path="res://scenes/player/Rennfahrer.tscn" id="2_fahrer"]
 [ext_resource type="PackedScene" path="res://scenes/camera/CorridorCamera.tscn" id="3_cam"]
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
 [sub_resource type="ProceduralSkyMaterial" id="Himmel"]
-sky_top_color = Color(0.2, 0.3, 0.5, 1)
-sky_horizon_color = Color(0.82, 0.66, 0.45, 1)
-sky_curve = 0.14
-ground_bottom_color = Color(0.22, 0.18, 0.14, 1)
-ground_horizon_color = Color(0.82, 0.66, 0.45, 1)
-sun_angle_max = 26.0
+sky_top_color = Color(0.28, 0.5, 0.76, 1)
+sky_horizon_color = Color(0.72, 0.82, 0.86, 1)
+sky_curve = 0.13
+ground_bottom_color = Color(0.2, 0.28, 0.18, 1)
+ground_horizon_color = Color(0.72, 0.82, 0.86, 1)
+sun_angle_max = 24.0
 sun_curve = 0.2
 
 [sub_resource type="Sky" id="SkyRes"]
@@ -21,24 +21,24 @@ sky_material = SubResource("Himmel")
 background_mode = 2
 sky = SubResource("SkyRes")
 ambient_light_source = 2
-ambient_light_color = Color(0.62, 0.56, 0.5, 1)
-ambient_light_energy = 0.7
+ambient_light_color = Color(0.6, 0.68, 0.74, 1)
+ambient_light_energy = 0.85
 tonemap_mode = 3
 tonemap_exposure = 1.05
 tonemap_white = 6.0
 fog_enabled = true
 fog_mode = 0
-fog_light_color = Color(0.72, 0.6, 0.46, 1)
+fog_light_color = Color(0.6, 0.7, 0.72, 1)
 fog_light_energy = 0.8
 fog_density = 0.0035
-fog_aerial_perspective = 0.3
-fog_sky_affect = 0.08
+fog_aerial_perspective = 0.25
+fog_sky_affect = 0.05
 adjustment_enabled = true
 adjustment_brightness = 1.0
-adjustment_contrast = 1.12
-adjustment_saturation = 1.25
+adjustment_contrast = 1.06
+adjustment_saturation = 1.18
 
-[node name="Level05" type="Node3D"]
+[node name="Level06" type="Node3D"]
 script = ExtResource("1_level")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
@@ -46,24 +46,24 @@ environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
-light_color = Color(1, 0.898, 0.769, 1)
-light_energy = 1.6
-light_specular = 0.4
+light_color = Color(1, 0.961, 0.898, 1)
+light_energy = 1.35
+light_specular = 0.5
 shadow_enabled = true
 shadow_bias = 0.04
 shadow_normal_bias = 1.5
 directional_shadow_mode = 2
-directional_shadow_max_distance = 90.0
+directional_shadow_max_distance = 100.0
 directional_shadow_split_1 = 0.08
 directional_shadow_split_2 = 0.22
 
-[node name="Fluechtling" parent="." instance=ExtResource("2_flucht")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
+[node name="Rennfahrer" parent="." groups=["spieler"] instance=ExtResource("2_fahrer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+ist_spieler = true
 
 [node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
-hoehe = 4.4
-abstand = -13.0
-blick_vorlauf = -7.0
-seiten_faktor = 0.35
+hoehe = 4.6
+abstand = 9.5
+blick_vorlauf = 8.0
 
 [node name="HUD" parent="." instance=ExtResource("4_hud")]

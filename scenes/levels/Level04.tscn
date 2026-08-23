@@ -59,6 +59,9 @@ directional_shadow_split_2 = 0.22
 
 [node name="Reiter" parent="." instance=ExtResource("2_reiter")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
+tempo_start = 11.0
+tempo_max = 19.0
+tempo_anstieg = 0.28
 
 [node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
 hoehe = 6.4
