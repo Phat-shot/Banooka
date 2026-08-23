@@ -76,6 +76,26 @@ const PORTAL_ZIEL := Color(0.40, 0.85, 1.0)
 const WARNUNG := Color(1.0, 0.30, 0.20)
 
 # Himmel und Nebel
+# --- Sumpf (Level 03) ---
+const MOOR := Color(0.20, 0.26, 0.17)          ## nasser Torfboden
+const MOOR_HELL := Color(0.36, 0.42, 0.25)
+const MOOR_DUNKEL := Color(0.11, 0.15, 0.10)
+const TUEMPEL := Color(0.14, 0.28, 0.20)       ## trübes Standwasser
+const TUEMPEL_HELL := Color(0.32, 0.52, 0.36)
+const SCHILF := Color(0.52, 0.55, 0.28)
+const ALGE := Color(0.34, 0.56, 0.24)
+const BOHLE := Color(0.38, 0.29, 0.18)         ## verwittertes Steg-Holz
+
+# --- Winter (Level 02) ---
+const SCHNEE := Color(0.90, 0.93, 0.97)
+const SCHNEE_HELL := Color(0.98, 0.99, 1.00)
+const SCHNEE_SCHATTEN := Color(0.64, 0.73, 0.86)
+const FIRN := Color(0.80, 0.85, 0.92)          ## festgetretener Trittschnee
+const EIS := Color(0.52, 0.78, 0.88)
+const EIS_HELL := Color(0.79, 0.94, 0.98)
+const EIS_DUNKEL := Color(0.24, 0.48, 0.63)
+const NADEL_FROST := Color(0.17, 0.34, 0.30)   ## verschneite Nadelbäume
+
 const HIMMEL_OBEN := Color(0.29, 0.51, 0.72)
 const HIMMEL_UNTEN := Color(0.62, 0.74, 0.78)
 const NEBEL := Color(0.55, 0.66, 0.66)

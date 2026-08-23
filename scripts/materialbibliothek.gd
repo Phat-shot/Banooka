@@ -237,6 +237,98 @@ static func transparent(farbe: Color, leuchten: float = 0.8) -> StandardMaterial
 		return m)
 
 
+# ---------------------------------------------------------------- Sumpf
+
+## Torfboden: nass, dunkel, mit Algenschlieren. Bewusst dunkler als der
+## Waldweg – der Steg darüber soll sich klar abheben.
+static func moorboden() -> StandardMaterial3D:
+	return _hole("moorboden", func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = rauschtextur(7201, 0.030, Farben.MOOR_DUNKEL, Farben.MOOR_HELL)
+		m.normal_enabled = true
+		m.normal_texture = normalmap(7201, 0.075, 1.8)
+		m.normal_scale = 0.9
+		m.roughness = 0.72
+		return m)
+
+
+## Verwittertes Stegholz mit langer Maserung. Die gestreckte UV-Skala legt
+## die Maserung längs, damit Bohlen als Bohlen zu erkennen sind.
+static func bohlen() -> StandardMaterial3D:
+	return _hole("bohlen", func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = rauschtextur(7202, 0.055,
+				Farben.BOHLE.darkened(0.35), Farben.BOHLE.lightened(0.22))
+		m.normal_enabled = true
+		m.normal_texture = normalmap(7202, 0.11, 1.6)
+		m.normal_scale = 0.8
+		m.uv1_scale = Vector3(0.45, 2.4, 0.45)
+		m.roughness = 0.88
+		return m)
+
+
+## Algenteppich für Uferkanten und schwimmende Inseln.
+static func algen() -> StandardMaterial3D:
+	return _hole("algen", func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = rauschtextur(7203, 0.070, Farben.TUEMPEL, Farben.ALGE)
+		m.normal_enabled = true
+		m.normal_texture = normalmap(7203, 0.16, 1.2)
+		m.normal_scale = 0.6
+		m.roughness = 0.65
+		return m)
+
+
+# ---------------------------------------------------------------- Winter
+
+## Pulverschnee für die Wegdecke: fast weiß, mit blauen Mulden. Die
+## Normalmap ist bewusst kräftig – flacher Schnee sieht sonst aus wie
+## weißes Papier, sobald die Sonne flach steht.
+static func schnee() -> StandardMaterial3D:
+	return _hole("schnee", func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = rauschtextur(6101, 0.010,
+				Farben.SCHNEE_SCHATTEN, Farben.SCHNEE_HELL)
+		m.normal_enabled = true
+		m.normal_texture = normalmap(6101, 0.035, 1.4)
+		m.normal_scale = 0.85
+		m.uv1_scale = Vector3(0.7, 0.7, 0.7)
+		m.roughness = 0.86
+		return m)
+
+
+## Festgetretener Firn für Kanten und Plattformen – körniger und etwas
+## dunkler als die Wegdecke, damit sich die Ränder absetzen.
+static func firn() -> StandardMaterial3D:
+	return _hole("firn", func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = rauschtextur(6102, 0.045,
+				Farben.SCHNEE_SCHATTEN.darkened(0.12), Farben.FIRN)
+		m.normal_enabled = true
+		m.normal_texture = normalmap(6102, 0.09, 2.2)
+		m.normal_scale = 1.0
+		m.roughness = 0.78
+		return m)
+
+
+## Blankes Eis: glatt und leicht durchscheinend. Kein Spiegel – der
+## Renderer gl_compatibility hat keine Bildschirmspiegelung, ein hoher
+## Metallwert sähe hier nur grau aus.
+static func eis() -> StandardMaterial3D:
+	return _hole("eis", func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = rauschtextur(6103, 0.018, Farben.EIS_DUNKEL, Farben.EIS_HELL)
+		m.albedo_color = Color(1, 1, 1, 0.86)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.normal_enabled = true
+		m.normal_texture = normalmap(6103, 0.020, 0.7)
+		m.normal_scale = 0.4
+		m.roughness = 0.12
+		m.metallic = 0.15
+		m.metallic_specular = 0.85
+		return m)
+
+
 # ---------------------------------------------------------------- Umgebung
 
 ## Waldweg: warme, festgetretene Waldboden-Erde mit eingestreuten Steinen,

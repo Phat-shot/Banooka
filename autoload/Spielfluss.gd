@@ -21,7 +21,9 @@ const SPEICHERPFAD := "user://spielstand.cfg"
 ## Leerer Eintrag = noch nicht gebaut.
 const LEVEL_SZENEN := [
 	"res://scenes/levels/Level01.tscn",
-	"", "", "", "",
+	"res://scenes/levels/Level02.tscn",
+	"res://scenes/levels/Level03.tscn",
+	"", "",
 	"", "", "", "", "",
 	"", "", "", "", "",
 	"", "", "", "", "",
