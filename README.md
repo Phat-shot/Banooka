@@ -6,7 +6,8 @@ Charaktere oder Assets.
 
 ## Stand
 
-Level 01 ist spielbar. Hub und die Level 02–25 folgen.
+Der erste Abschnitt ist spielbar: Portalraum und die Level 01–05.
+Die Level 06–25 folgen.
 
 | Bereich | Status |
 |---|---|
@@ -20,7 +21,12 @@ Level 01 ist spielbar. Hub und die Level 02–25 folgen.
 | Wasser, Stacheln, Start-/Zielportal | fertig |
 | Wald-Props, prozedurale Texturen | fertig |
 | Level 01 "Wurzelschlucht" | fertig |
-| Hub und Level 02–25 | offen |
+| Level 02 "Frostgrat" (Schnee) | fertig |
+| Level 03 "Moorbrücken" (Sumpf) | fertig |
+| Level 04 "Katzensprung" (Ritt) | fertig |
+| Level 05 "Wettrennen" (Karts) | fertig |
+| Eigene Spielfigur in den Einstellungen | fertig |
+| Level 06–25 | offen |
 
 ## Level 01 – Wurzelschlucht
 
@@ -54,6 +60,47 @@ Der Bauchplatscher wirkt bei allen dreien.
 `NORMAL` (1 Frucht) · `FRUCHT_MEHRFACH` (5) · `LEBEN` · `FEDER` (10 Absprünge,
 je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (3 s Countdown) ·
 `NITRO` (explodiert bei Berührung) · `EISEN` (unzerbrechlich) · `CHECKPOINT`
+
+## Level 02 – Frostgrat
+
+Ein verschneiter Grat über 212 m, der um 14 m zum Gipfel ansteigt.
+Eisplatten in den Lücken, Eiszapfenfelder, tief darunter ein gefrorener
+See als Kulisse. 35 Kisten, 11 Gegner, drei Rastpunkte.
+
+## Level 03 – Moorbrücken
+
+Ein Bohlenweg durchs Moor, 212 m. Unter dem Weg liegt kein Abgrund,
+sondern tödliches Wasser – derselbe Fehltritt endet hier mit einem
+Platsch statt im Nichts. Schmale Stege, Wurzelinseln, Schilfgürtel.
+35 Kisten, 13 Gegner.
+
+## Level 04 – Katzensprung
+
+Ein Ritt-Level: Der Beuteldachs sitzt auf einer Wildkatze, die von selbst
+rennt und dabei von 11 auf 19 m/s beschleunigt. Gelenkt wird nur quer,
+gesprungen wie gewohnt; anhalten oder umkehren geht nicht. Steine und
+Stämme stehen abwechselnd links, rechts und in der Mitte – es bleibt
+immer genau eine Lücke, die Aufgabe ist, sie früh genug zu sehen.
+Kisten zerbrechen im Vorbeirennen. Vier Rastplätze auf 320 m.
+
+Die Lücken im Weg sind 5 m breit: ein Sprung trägt bei Anfangstempo
+7,1 m. Nach einem Sturz beginnt das Tempo wieder unten, eine breitere
+Lücke wäre dort zur Sackgasse geworden.
+
+## Level 05 – Wettrennen
+
+Drei Runden auf einem geschlossenen Rundkurs gegen vier Gegner-Karts.
+
+| Element | Wirkung |
+|---|---|
+| Schubfeld | sofortiger Schub, liegt auf der Ideallinie |
+| Schubkiste | sammelt eine Ladung, □ zündet sie (bis zu drei) |
+| Loch | wer nicht springt, dreht sich und verliert Zeit |
+
+Ein Rennen kennt keinen Tod: In ein Loch zu fallen kostet Zeit, kein
+Leben. Die Gegner fahren mit unterschiedlichem Können und einem
+Gummiband, das nur nach vorn zieht – ein Führender wird nicht gebremst,
+sonst wäre der eigene Vorsprung wertlos.
 
 ## Starten
 
@@ -269,7 +316,10 @@ scenes/fruits/             Frucht.tscn
 scenes/hazards/            Wasser.tscn, Stacheln.tscn
 scenes/portals/            StartPortal.tscn, ZielPortal.tscn
 scenes/props/              Baum, Wurzel, Stein, Gras, Kleinzeug, Waldstreuer
-scenes/levels/             level_basis.gd, Level01.tscn, Testlevel.tscn
+scenes/levels/             level_basis.gd, korridor_level.gd,
+                           Level01–Level05.tscn, Testlevel.tscn
+scenes/mounts/             katze.gd (Reittier, Level 04)
+scenes/vehicles/           kart.gd (Level 05)
 scenes/ui/                 HUD.tscn, TouchControls.tscn, statustafel.gd,
                            Splash.tscn, Optionen.tscn (Einstellungen)
 scripts/                   angriff, farben, materialbibliothek, level_werkzeuge,

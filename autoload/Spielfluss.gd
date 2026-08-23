@@ -24,7 +24,7 @@ const LEVEL_SZENEN := [
 	"res://scenes/levels/Level02.tscn",
 	"res://scenes/levels/Level03.tscn",
 	"res://scenes/levels/Level04.tscn",
-	"",
+	"res://scenes/levels/Level05.tscn",
 	"", "", "", "", "",
 	"", "", "", "", "",
 	"", "", "", "", "",

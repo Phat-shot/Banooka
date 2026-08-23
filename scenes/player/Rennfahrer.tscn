@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/player/rennfahrer.gd" id="1_fahrer"]
+[ext_resource type="Script" path="res://scenes/vehicles/kart.gd" id="2_kart"]
+[ext_resource type="Script" path="res://scenes/player/beuteldachs.gd" id="3_modell"]
+
+[sub_resource type="CapsuleShape3D" id="FormKart"]
+radius = 0.55
+height = 1.4
+
+[node name="Rennfahrer" type="CharacterBody3D"]
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("1_fahrer")
+
+[node name="Kollision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+shape = SubResource("FormKart")
+
+[node name="KollisionSlide" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("FormKart")
+disabled = true
+
+[node name="Kart" type="Node3D" parent="."]
+script = ExtResource("2_kart")
+
+[node name="Modell" type="Node3D" parent="."]
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0.62, 0.25)
+script = ExtResource("3_modell")
