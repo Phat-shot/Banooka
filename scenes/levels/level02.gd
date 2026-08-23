@@ -13,6 +13,11 @@ extends KorridorLevel
 ## Feuerschalen als warme Gegenfarbe – an ihnen erkennt man auf einen
 ## Blick, wo der Weg weitergeht.
 ##
+## Der Weg ist kein Plateau mehr: Die Eiswände stehen unmittelbar an der
+## Wegkante und tragen Kollision. Seitlich hinunterfallen geht damit gar
+## nicht – gefallen wird nur noch durch die Gletscherspalten im Boden, und
+## die spannen sich über die ganze Schluchtbreite, sind also echte Sprünge.
+##
 ## Abschnitte (Strecke auf der Kurve):
 ##     0 –  60  Gletschertor  – Einführung, Torbögen, erste Kisten
 ##    60 –  96  Eisrinne      – blankes Eis, hier wird geschlittert
@@ -20,9 +25,13 @@ extends KorridorLevel
 ##   154 – 206  Kristallgrotte– leuchtende Kristalle, dichte Gegnerfolge
 ##   206 – 236  Gipfel        – die Schlucht reißt auf, Zielportal
 
-const SUMPFKROETE := preload("res://scenes/enemies/Sumpfkroete.tscn")
-const STELZENVOGEL := preload("res://scenes/enemies/Stelzenvogel.tscn")
-const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
+## Eigene Gegner für das Setting. Die Waldgegner aus Level 01 kommen hier
+## nicht vor: Eine Sumpfkröte im Gletscher ist keine Gegnerwahl, sondern
+## eine fehlende. Die drei decken dieselben drei Rollen ab –
+## Drehschlag, Draufspringen, Slide –, sehen aber aus wie hier zu Hause.
+const FROSTMOTTE := preload("res://scenes/enemies/Frostmotte.tscn")
+const GLETSCHERKRABBE := preload("res://scenes/enemies/Gletscherkrabbe.tscn")
+const SCHNEEWIESEL := preload("res://scenes/enemies/Schneewiesel.tscn")
 const BAUM := preload("res://scenes/props/Baum.tscn")
 const STEIN := preload("res://scenes/props/Stein.tscn")
 const EISFLAECHE := preload("res://scenes/hazards/Eisflaeche.tscn")
@@ -38,39 +47,41 @@ const SCHLUCHTGRUND := -22.0   ## Grund der Schlucht, tief unter dem Weg
 const ABSTURZ := -6.0
 
 
+## Der Schluchtboden. Die Breite entspricht dem Abstand der Wände – der
+## Boden reicht also bis an sie heran, es gibt keinen Rand zum Herunterfallen.
+## Die Lücken sind Gletscherspalten über die ganze Breite.
 const STRECKE := [
-	# --- Gletschertor: breit und sicher, eine Übungslücke ---
-	{"von": 0.0, "bis": 34.0, "breite": 11.0},
-	{"von": 38.0, "bis": 60.0, "breite": 10.0},
-	# --- Eisrinne: schmaler, auf Eis wird jede Lücke zur Aufgabe ---
-	{"von": 60.0, "bis": 78.0, "breite": 8.0},
-	{"von": 83.0, "bis": 96.0, "breite": 8.0},
-	# --- Spalte: schmales Sims, im 2D-Bild gut zu treffen ---
-	{"von": 100.0, "bis": 116.0, "breite": 5.5},
-	{"von": 121.0, "bis": 136.0, "breite": 5.5},
-	{"von": 141.0, "bis": 154.0, "breite": 6.5},
-	# --- Kristallgrotte: wieder Platz zum Ausweichen ---
-	{"von": 154.0, "bis": 186.0, "breite": 10.0},
-	{"von": 191.0, "bis": 206.0, "breite": 9.0},
-	# --- Gipfel ---
-	{"von": 206.0, "bis": 236.0, "breite": 13.0},
+	# --- Gletschertor: weiteste Stelle, eine Übungsspalte ---
+	{"von": 0.0, "bis": 34.0, "breite": 13.0},
+	{"von": 38.0, "bis": 60.0, "breite": 13.0},
+	# --- Eisrinne: enger, auf Eis wird jede Spalte zur Aufgabe ---
+	{"von": 60.0, "bis": 78.0, "breite": 11.0},
+	{"von": 83.0, "bis": 96.0, "breite": 11.0},
+	# --- Spalte: engste Stelle, im 2D-Bild gut zu treffen ---
+	{"von": 100.0, "bis": 116.0, "breite": 9.0},
+	{"von": 121.0, "bis": 136.0, "breite": 9.0},
+	{"von": 141.0, "bis": 154.0, "breite": 9.0},
+	# --- Kristallgrotte ---
+	{"von": 154.0, "bis": 186.0, "breite": 12.0},
+	{"von": 191.0, "bis": 206.0, "breite": 12.0},
+	# --- Gipfel: die Schlucht reißt auf ---
+	{"von": 206.0, "bis": 236.0, "breite": 16.0},
 ]
 
 ## Die Schluchtwände: Abstand von der Wegmitte und Höhe je Abschnitt.
 ## Die Enge ist das Gestaltungsmittel – im 2D-Teil stehen sie am
 ## dichtesten, am Gipfel weichen sie ganz zurück.
-## Die Maße sind erprobt, nicht geraten. Mit 17 bis 24 m Höhe bei 5,5 bis
-## 9,5 m Abstand stand über dem Weg nur noch eine blaue Röhre – kein
-## Himmel, kein Anhaltspunkt, wo oben ist. Mit 9 m Höhe bei 13 m Abstand
-## verschwanden sie umgekehrt hinter dem Baumbestand und die Schlucht war
-## keine mehr. Diese Werte liegen dazwischen: hoch genug, um über den
-## Bäumen zu stehen, weit genug, um oben einen Streifen Himmel zu lassen.
+## Die Wände stehen jeweils eine halbe Bahnbreite von der Mitte entfernt,
+## also unmittelbar an der Kante des Schluchtbodens. Die Höhen sind
+## erprobt: 17 bis 24 m ergaben eine blaue Röhre ohne Himmel, 9 m
+## verschwanden hinter dem Baumbestand. Diese Werte stehen über den
+## Bäumen und lassen oben einen Streifen Himmel offen.
 const WAENDE := [
-	{"von": -8.0, "bis": 60.0, "abstand": 12.0, "hoehe": 13.0},
-	{"von": 60.0, "bis": 96.0, "abstand": 9.5, "hoehe": 15.0},
-	{"von": 96.0, "bis": 154.0, "abstand": 7.5, "hoehe": 17.0},
-	{"von": 154.0, "bis": 206.0, "abstand": 11.0, "hoehe": 12.0},
-	{"von": 206.0, "bis": 244.0, "abstand": 22.0, "hoehe": 6.0},
+	{"von": -8.0, "bis": 60.0, "abstand": 6.5, "hoehe": 14.0},
+	{"von": 60.0, "bis": 96.0, "abstand": 5.5, "hoehe": 16.0},
+	{"von": 96.0, "bis": 154.0, "abstand": 4.5, "hoehe": 18.0},
+	{"von": 154.0, "bis": 206.0, "abstand": 6.0, "hoehe": 13.0},
+	{"von": 206.0, "bis": 244.0, "abstand": 8.0, "hoehe": 7.0},
 ]
 
 
@@ -141,8 +152,23 @@ func _waende_bauen() -> void:
 	var stoff := Materialbibliothek.eisfels()
 	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE, stoff, {
 		"schritt": 2.6, "neigung": 4.5, "zacken": 2.5,
-		"sockel": 26.0, "saat": 2802,
+		"sockel": 30.0, "saat": 2802,
 	})
+	# Die Sichtwand ist ein Dreiecksnetz und taugt nicht als Begrenzung –
+	# an ihren Zacken bliebe man hängen. Dahinter läuft eine glatte
+	# Leitwand aus Kästen, die den Spieler auf dem Schluchtboden hält.
+	for w in WAENDE:
+		LevelWerkzeuge.leitwand(geometrie, verlauf, maxf(w["von"], 0.0),
+				minf(w["bis"], M_ENDE), w["abstand"] - 0.4, 5.0)
+	# Schneebank: steigt vom Boden zur Wand an und schließt die Fuge.
+	var baenke: Array = []
+	for w in WAENDE:
+		baenke.append({
+			"von": maxf(w["von"], -4.0), "bis": w["bis"],
+			"innen": w["abstand"] - 2.2, "aussen": w["abstand"] + 0.6,
+			"hoehe": -0.05,
+		})
+	LevelWerkzeuge.sims(geometrie, verlauf, baenke, Materialbibliothek.schnee())
 
 
 func _boden_bauen() -> void:
@@ -150,7 +176,7 @@ func _boden_bauen() -> void:
 		"oben": Materialbibliothek.schnee(),
 		"kante": Materialbibliothek.firn(),
 		"klippe": Materialbibliothek.frostfels(),
-	}, {"tiefe": 12.0, "schritt": 1.2, "kante_hoehe": 0.32, "kante_breite": 0.75})
+	}, {"tiefe": 16.0, "schritt": 1.2, "kante_hoehe": 0.28, "kante_breite": 0.6})
 	luecken_markieren(Farben.EIS_DUNKEL)
 
 
@@ -177,10 +203,15 @@ func _absturz_spannen() -> void:
 ## baut es genauso träge ab – wer zu spät bremst, rutscht über die Kante.
 ## Deshalb liegt vor jeder Lücke ein Stück blanker Boden zum Abfangen.
 func _eisflaechen_setzen() -> void:
+	# Fünf Strecken auf 236 m, zusammen rund 70 m – etwa ein Drittel. Das
+	# ist Absicht: Wenn alles schlittert, ist Schlittern kein Ereignis mehr,
+	# sondern nur noch eine schlechtere Steuerung.
 	for eintrag in [
-		{"von": 62.0, "bis": 76.0, "quer": 0.0, "breite": 7.0, "glaette": 0.85},
-		{"von": 84.0, "bis": 94.0, "quer": 0.0, "breite": 7.0, "glaette": 0.85},
-		{"von": 156.0, "bis": 172.0, "quer": 0.0, "breite": 8.0, "glaette": 0.7},
+		{"von": 62.0, "bis": 76.0, "quer": 0.0, "breite": 10.0, "glaette": 0.85},
+		{"von": 84.0, "bis": 94.0, "quer": 0.0, "breite": 10.0, "glaette": 0.85},
+		{"von": 103.0, "bis": 115.0, "quer": 0.0, "breite": 8.0, "glaette": 0.75},
+		{"von": 142.0, "bis": 152.0, "quer": 0.0, "breite": 8.0, "glaette": 0.75},
+		{"von": 156.0, "bis": 172.0, "quer": 0.0, "breite": 11.0, "glaette": 0.7},
 	]:
 		var laenge: float = eintrag["bis"] - eintrag["von"]
 		# In Stücken, damit die Platte den Kurven folgt.
@@ -351,33 +382,21 @@ func _feuer_bauen() -> void:
 
 ## Eisbögen spannen sich über den Weg. Sie geben der Schlucht einen Takt
 ## und verdecken beim Durchlaufen kurz die Sicht – dadurch wirkt die
-## Strecke länger, als sie ist.
+## Strecke länger, als sie ist. Der erste Entwurf setzte für Breite und
+## Höhe verschiedene Radien und lief nur bis ±66°; daraus wurden
+## freischwebende Blöcke statt eines Bogens. Jetzt baut sie
+## `LevelWerkzeuge.torbogen()` als echten Halbkreis von Boden zu Boden.
 func _boegen_bauen() -> void:
 	var eis := Materialbibliothek.eisfels()
 	for s: float in [22.0, 66.0, 104.0, 132.0, 162.0, 196.0]:
-		var breite := maxf(breite_bei(s), 6.0)
-		var bogen := Node3D.new()
-		bogen.position = LevelWerkzeuge.punkt(verlauf, s, 0.0, 0.0)
-		bogen.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
-		deko.add_child(bogen)
-		# Der Bogen aus sieben Blöcken, die sich zur Mitte neigen
-		var stufen := 7
-		for i in stufen:
-			var t := float(i) / float(stufen - 1)
-			var winkel := lerpf(-1.15, 1.15, t)
-			var block := MeshInstance3D.new()
-			var kasten := BoxMesh.new()
-			kasten.size = Vector3(1.5, 1.1, 1.7)
-			block.mesh = kasten
-			block.material_override = eis
-			block.position = Vector3(sin(winkel) * breite * 0.62, 1.2
-					+ cos(winkel) * 4.6, 0.0)
-			block.rotation.z = -winkel
-			bogen.add_child(block)
+		LevelWerkzeuge.torbogen(deko, verlauf, s, maxf(breite_bei(s), 6.0) * 1.05,
+				eis, 13, 0.0)
 
 
-## Verschneite Nadelbäume auf Simsen an den Wänden – sie füllen den Raum
-## zwischen Weg und Wandkante, der sonst leer bliebe.
+## Verschneite Nadelbäume dicht an den Wänden. Sie standen vorher auf
+## "Simsen", die es nicht gab, und hingen sichtbar in der Luft – in der
+## Seitenansicht des 2D-Abschnitts war das nicht zu übersehen. Jetzt
+## stehen sie auf dem Schluchtboden bzw. auf der Schneebank davor.
 func _wald_bauen() -> void:
 	var wuerfel := randi()
 	seed(20802)
@@ -385,18 +404,16 @@ func _wald_bauen() -> void:
 		var s := randf_range(-6.0, M_ENDE + 6.0)
 		var wand := _wand_bei(s)
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var quer := seite * randf_range(wand["abstand"] * 0.55, wand["abstand"] - 0.6)
+		var quer := seite * randf_range(wand["abstand"] - 1.9, wand["abstand"] - 0.3)
 		var baum := BAUM.instantiate() as Baum
 		baum.art = Baum.Art.NADELBAUM
-		baum.hoehe = randf_range(4.5, 9.0)
+		baum.hoehe = randf_range(3.5, 7.5)
 		baum.staerke = randf_range(0.6, 1.05)
 		baum.saat = 3000 + i
 		baum.laubfarbe = Farben.NADEL_FROST.lerp(Farben.SCHNEE, randf_range(0.1, 0.5))
 		baum.kollision = false
 		baum.wind = false
-		# Die Bäume stehen auf Simsen unterhalb der Wegkante, nicht im Nichts.
-		baum.position = LevelWerkzeuge.punkt(verlauf, s, quer,
-				randf_range(-4.5, -0.5))
+		baum.position = LevelWerkzeuge.punkt(verlauf, s, quer, 0.0)
 		deko.add_child(baum)
 	seed(wuerfel)
 
@@ -437,8 +454,8 @@ func _wehen_bauen() -> void:
 		stein.kollision = false
 		stein.saat = 7000 + i
 		stein.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * randf_range(wand["abstand"] * 0.5, wand["abstand"]),
-				randf_range(-6.0, -1.0))
+				seite * randf_range(wand["abstand"] - 2.0, wand["abstand"] - 0.4),
+				0.0)
 		deko.add_child(stein)
 	seed(wuerfel)
 
@@ -469,14 +486,15 @@ func _portale() -> void:
 
 # =========================================================== Gefahren
 
+## Keine Stachelfelder. Dornen aus dem Boden sind ein Wald- und
+## Kerkermotiv; im Gletscher wirkten sie wie hineinkopiert – rostbraun
+## sahen sie sogar aus wie Lava. Die Aufgabe dieses Levels ist das Eis,
+## und die steckt in den Schlitterstrecken.
+##
+## Was hier bleibt, sind die Gletscherspalten im Boden: Sie spannen sich
+## über die ganze Schluchtbreite und sind der einzige Weg nach unten.
 func _gefahren_setzen() -> void:
-	# Eisfarbe statt Rost: Rostbraune Zacken sehen im Schnee aus wie Lava.
-	var eis := Farben.EIS_HELL
-	stacheln(46.0, -2.6, Vector2(2.4, 5.0), false, eis)
-	stacheln(56.0, 2.4, Vector2(2.4, 4.0), false, eis)
-	stacheln(160.0, 2.2, Vector2(2.8, 4.0), true, eis)
-	stacheln(180.0, -2.0, Vector2(2.8, 4.5), true, eis)
-	stacheln(196.0, 1.6, Vector2(2.6, 3.6), true, eis)
+	pass
 
 
 # =========================================================== Kisten
@@ -532,26 +550,27 @@ func _kisten_setzen() -> void:
 # =========================================================== Gegner
 
 func _gegner_setzen() -> void:
-	# ---------- Gletschertor: Draufspringen ----------
-	gegner(PANZERKAEFER, 18.0, 0.0, 3.5, true)
-	gegner(PANZERKAEFER, 48.0, 1.5, 3.0, true)
+	# ---------- Gletschertor: Draufspringen lernen ----------
+	gegner(GLETSCHERKRABBE, 18.0, 0.0, 3.5, true)
+	gegner(GLETSCHERKRABBE, 48.0, 1.5, 3.0, true)
 
-	# ---------- Eisrinne: auf Eis ist jeder Gegner schwerer ----------
-	gegner(SUMPFKROETE, 68.0, 0.0, 2.5, true)
-	gegner(PANZERKAEFER, 90.0, 0.0, 2.5, true)
+	# ---------- Eisrinne: auf blankem Eis ist jeder Gegner schwerer ----------
+	gegner(FROSTMOTTE, 68.0, 0.0, 3.0, true)
+	gegner(GLETSCHERKRABBE, 90.0, 0.0, 2.5, true)
 
 	# ---------- Spalte: im 2D-Bild kommt alles frontal ----------
-	gegner(SUMPFKROETE, 110.0, 0.0, 2.0, true)
-	gegner(PANZERKAEFER, 130.0, 0.0, 2.0, true)
-	gegner(SUMPFKROETE, 146.0, 0.0, 2.0, true)
+	gegner(FROSTMOTTE, 110.0, 0.0, 2.5, true)
+	gegner(GLETSCHERKRABBE, 130.0, 0.0, 2.0, true)
+	gegner(FROSTMOTTE, 146.0, 0.0, 2.5, true)
 
-	# ---------- Kristallgrotte: Slide zwischen den Zapfen ----------
-	gegner(STELZENVOGEL, 166.0, -1.6, 3.0, true)
-	gegner(STELZENVOGEL, 174.0, 0.5, 3.5, true)
-	gegner(STELZENVOGEL, 194.0, -0.5, 3.0, true)
+	# ---------- Kristallgrotte: hier lernt man den Slide ----------
+	gegner(SCHNEEWIESEL, 166.0, -1.6, 4.0, true)
+	gegner(SCHNEEWIESEL, 176.0, 0.5, 4.5, true)
+	gegner(FROSTMOTTE, 186.0, 0.0, 3.0, true)
+	gegner(SCHNEEWIESEL, 196.0, -0.5, 4.0, true)
 
 	# ---------- Gipfel ----------
-	gegner(SUMPFKROETE, 216.0, 2.0, 3.5, true)
+	gegner(GLETSCHERKRABBE, 216.0, 2.0, 3.5, true)
 
 
 # =========================================================== Früchte

@@ -317,14 +317,16 @@ static func firn() -> StandardMaterial3D:
 static func eisfels() -> StandardMaterial3D:
 	return _hole("eisfels", func() -> StandardMaterial3D:
 		var m := StandardMaterial3D.new()
-		# Fein gekachelt: Mit grober Kachelung (uv1_scale 0.35) wurde aus der
-		# Wand eine einzige blaue Schmiere über den halben Bildschirm.
-		m.albedo_texture = rauschtextur(6104, 0.09, Farben.EIS_TIEF.darkened(0.3),
+		# Die Kachelung ist zweimal danebengegangen: uv1_scale 0.35 ergab
+		# eine blaue Schmiere über den halben Bildschirm, 2.2 ein feines
+		# Rauschen ohne Struktur. 1.0 mit grobem Grundrauschen zeigt große
+		# Eisformen und behält trotzdem Zeichnung.
+		m.albedo_texture = rauschtextur(6104, 0.035, Farben.EIS_TIEF.darkened(0.3),
 				Farben.EIS_HELL)
 		m.normal_enabled = true
-		m.normal_texture = normalmap(6104, 0.16, 2.8)
-		m.normal_scale = 1.4
-		m.uv1_scale = Vector3(2.2, 2.2, 2.2)
+		m.normal_texture = normalmap(6104, 0.075, 3.0)
+		m.normal_scale = 1.5
+		m.uv1_scale = Vector3(1.0, 1.0, 1.0)
 		m.roughness = 0.5
 		return m)
 

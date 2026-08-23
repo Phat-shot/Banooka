@@ -339,3 +339,114 @@ static func _wandflaeche(st: SurfaceTool, kurve: Curve3D, von: float, bis: float
 			_quad(st, vorher["unten"], vorher["oben"], q["unten"], q["oben"],
 					vorher["n"])
 		vorher = q
+
+
+## Unsichtbare Leitwand am Rand der Schlucht.
+##
+## Ein Korridorlevel ist bisher ein Plateau: Wer seitlich hinunterläuft,
+## fällt. In einer Schlucht ist das falsch – dort begrenzen Wände, und
+## fallen kann man nur durch eine Spalte im Boden. Diese Wand übernimmt
+## das Begrenzen.
+##
+## Sie besteht aus einzelnen Kästen statt aus einem Dreiecksnetz: Ein
+## Trimesh über die zerklüftete Sichtwand wäre teuer und würde den Spieler
+## an jeder Zacke hängen lassen. Die Kästen stehen glatt und dicht an der
+## Wand, davon merkt man beim Anlaufen nichts.
+static func leitwand(elternteil: Node3D, kurve: Curve3D, von: float, bis: float,
+		abstand: float, hoehe: float = 4.0, schritt: float = 3.0) -> StaticBody3D:
+	var koerper := StaticBody3D.new()
+	koerper.name = "Leitwand"
+	koerper.collision_layer = 1
+	koerper.collision_mask = 0
+	elternteil.add_child(koerper)
+
+	var s := von
+	while s < bis:
+		var laenge := minf(schritt, bis - s)
+		var mitte_s := s + laenge * 0.5
+		for seite: float in [-1.0, 1.0]:
+			var form := CollisionShape3D.new()
+			var kasten := BoxShape3D.new()
+			# Etwas länger als der Schritt, damit zwischen zwei Kästen in
+			# einer Kurve keine Lücke aufgeht.
+			kasten.size = Vector3(1.0, hoehe, laenge + 0.8)
+			form.shape = kasten
+			form.position = punkt(kurve, mitte_s, seite * (abstand + 0.5), hoehe * 0.5)
+			form.rotation.y = drehung(kurve, mitte_s)
+			koerper.add_child(form)
+		s += laenge
+	return koerper
+
+
+## Waagerechtes Sims entlang beider Schluchtwände.
+##
+## Es schließt den klaffenden Zwischenraum zwischen Weg und Wand und gibt
+## den Bäumen und Steinen eine Standfläche – ohne es hingen sie sichtbar
+## in der Luft, was in der Seitenansicht des 2D-Abschnitts sofort auffiel.
+## Rein optisch, ohne Kollision: Der Spieler soll den Weg nehmen.
+##
+## `abschnitte`: [{"von", "bis", "innen", "aussen", "hoehe"}]
+static func sims(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
+		material: Material, schritt: float = 3.0) -> Node3D:
+	var wurzel := Node3D.new()
+	wurzel.name = "Simse"
+	elternteil.add_child(wurzel)
+
+	for eintrag in abschnitte:
+		var von: float = eintrag.get("von", 0.0)
+		var bis: float = eintrag.get("bis", 0.0)
+		if bis <= von:
+			continue
+		for seite: float in [-1.0, 1.0]:
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+			var innen: float = eintrag.get("innen", 6.0)
+			var aussen: float = eintrag.get("aussen", 12.0)
+			var hoehe: float = eintrag.get("hoehe", -2.0)
+			var vorher := {}
+			for i in anzahl + 1:
+				var s := lerpf(von, bis, float(i) / float(anzahl))
+				var q := {
+					"i": punkt(kurve, s, seite * innen, hoehe),
+					"a": punkt(kurve, s, seite * aussen, hoehe + 0.6),
+				}
+				if not vorher.is_empty():
+					_quad(st, vorher["i"], vorher["a"], q["i"], q["a"], Vector3.UP)
+				vorher = q
+			_flaeche(wurzel, st, material, "Sims")
+	return wurzel
+
+
+## Ein Torbogen quer über den Weg, aus einzelnen Blöcken gesetzt.
+##
+## Der erste Versuch nahm für die Breite `breite * 0.62`, für die Höhe aber
+## einen festen Radius und lief nur bis ±66°. Daraus wurde eine
+## abgeschnittene Ellipse aus freischwebenden Blöcken. Hier ist es ein
+## echter Halbkreis: gleicher Radius für beide Achsen, von Boden zu Boden.
+static func torbogen(elternteil: Node3D, kurve: Curve3D, strecke: float,
+		spannweite: float, material: Material, bloecke: int = 11,
+		fusshoehe: float = 0.0) -> Node3D:
+	var bogen := Node3D.new()
+	bogen.name = "Torbogen"
+	bogen.position = punkt(kurve, strecke, 0.0, fusshoehe)
+	bogen.rotation.y = drehung(kurve, strecke)
+	elternteil.add_child(bogen)
+
+	var radius := spannweite * 0.5
+	# Blockbreite so wählen, dass sich die Blöcke am Scheitel berühren.
+	var bogenlaenge := PI * radius
+	var block_laenge := bogenlaenge / float(bloecke) * 1.15
+	for i in bloecke:
+		var t := (float(i) + 0.5) / float(bloecke)
+		var winkel := lerpf(-PI * 0.5, PI * 0.5, t)
+		var block := MeshInstance3D.new()
+		var kasten := BoxMesh.new()
+		kasten.size = Vector3(radius * 0.26, block_laenge, radius * 0.34)
+		block.mesh = kasten
+		block.material_override = material
+		block.position = Vector3(sin(winkel) * radius, cos(winkel) * radius, 0.0)
+		# Der Block steht quer zum Radius, also um den Winkel gedreht.
+		block.rotation.z = -winkel
+		bogen.add_child(block)
+	return bogen
