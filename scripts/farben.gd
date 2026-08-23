@@ -17,6 +17,9 @@ const LAUB_DUNKEL := Color(0.16, 0.34, 0.13)
 const LAUB := Color(0.22, 0.47, 0.16)
 const LAUB_HELL := Color(0.41, 0.66, 0.24)
 const LAUB_GELB := Color(0.62, 0.68, 0.24)
+## Farbtupfer im Blattwerk. In den Vorlagen sitzt zwischen dem Grün immer
+## ein Magenta- oder Gelbfleck, sonst wird der Rand eine grüne Masse.
+const BLUETE_MAGENTA := Color(0.60, 0.16, 0.38)
 
 # Wald – Grasflächen
 const GRAS := Color(0.27, 0.50, 0.18)
@@ -40,8 +43,8 @@ const FELS_HELL := Color(0.64, 0.61, 0.55)
 const FELS_DUNKEL := Color(0.34, 0.31, 0.28)
 const FELS_WARM := Color(0.60, 0.49, 0.35)
 const FLECHTE := Color(0.62, 0.68, 0.50)
-const MOOS := Color(0.28, 0.46, 0.19)
-const MOOS_HELL := Color(0.45, 0.62, 0.26)
+const MOOS := Color(0.21, 0.36, 0.14)
+const MOOS_HELL := Color(0.35, 0.53, 0.21)
 const KIES := Color(0.54, 0.51, 0.46)
 const KIES_HELL := Color(0.76, 0.73, 0.67)
 
@@ -103,6 +106,10 @@ const FROSTFELS := Color(0.36, 0.42, 0.52)     ## Fels unter der Schneedecke
 ## Bild einfarbig blau.
 const SCHLUCHTFELS := Color(0.58, 0.45, 0.35)
 const SCHLUCHTFELS_HELL := Color(0.82, 0.68, 0.52)
+## Schluchtwand im Wald: satter Erdton. Die Vorlagen halten den Waldgrund
+## warm und dunkel, das Grün sitzt obenauf und am Wegrand.
+const SCHLUCHTFELS_WALD := Color(0.46, 0.34, 0.22)
+const SCHLUCHTFELS_WALD_HELL := Color(0.70, 0.55, 0.34)
 const KRISTALL_BLAU := Color(0.38, 0.82, 1.0)
 const KRISTALL_VIOLETT := Color(0.66, 0.48, 0.98)
 const GLUT := Color(1.0, 0.58, 0.16)           ## Feuerschalen als Gegenfarbe

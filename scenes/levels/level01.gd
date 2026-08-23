@@ -56,6 +56,7 @@ func _bauschritte() -> Array:
 	var schritte: Array = [
 		{"text": "Wegverlauf", "tun": _verlauf_anlegen},
 		{"text": "Waldboden", "tun": _waldboden_bauen},
+		{"text": "Schluchtwände türmen sich", "tun": _waende_bauen},
 		{"text": "Weg wird angelegt", "tun": _boden_bauen},
 		{"text": "Plattformen", "tun": _plattformen_bauen},
 	]
@@ -68,6 +69,7 @@ func _bauschritte() -> Array:
 		})
 	schritte.append_array([
 		{"text": "Bäume am Wegesrand", "tun": _rahmenbaeume},
+		{"text": "Blattwerk am Schluchtrand", "tun": _rankenwerk},
 		{"text": "Farne und Pilze", "tun": _wegdeko},
 		{"text": "Portale", "tun": _portale_setzen},
 		{"text": "Bach und Stacheln", "tun": _gefahren_setzen},
@@ -122,6 +124,57 @@ const ABSCHNITTE := [
 	# --- Lichtung: weite Fläche zum Abschluss ---
 	{"von": 208.0, "bis": 236.0, "breite": 13.0},
 ]
+
+## Die Schluchtwände links und rechts. "Wurzelschlucht" hieß das Level von
+## Anfang an – ausgesehen hat es aber wie ein Grat im Nebel: ein heller
+## Streifen über einer leeren Fläche, ohne etwas, das den Blick rahmt. Die
+## Vorlagen machen es umgekehrt: der Weg ist eng gefasst, die Ränder laufen
+## dunkel aus, und dazwischen ist kein Loch, sondern dichte Wand.
+##
+## `abstand` ist der Abstand von der Wegmitte. In den meisten Abschnitten
+## steht die Wand unmittelbar an der Wegkante. Ausnahme sind die Baumkronen
+## (158–208): Dort ist der schmale Grat die Aufgabe, also weicht die Wand
+## zurück und bleibt reine Kulisse – seitlich herunterfallen kann man dort
+## weiterhin.
+const WAENDE := [
+	{"von": -8.0, "bis": 42.0, "abstand": 5.9, "hoehe": 9.5},
+	{"von": 42.0, "bis": 100.0, "abstand": 5.2, "hoehe": 11.0},
+	{"von": 100.0, "bis": 158.0, "abstand": 5.6, "hoehe": 10.0},
+	{"von": 158.0, "bis": 208.0, "abstand": 9.0, "hoehe": 8.0},
+	{"von": 208.0, "bis": 244.0, "abstand": 7.2, "hoehe": 6.5},
+]
+
+## Abschnitte, in denen die Wand am Weg steht und deshalb eine glatte
+## Leitwand davor braucht. Auf dem Grat der Baumkronen fehlt sie mit
+## Absicht: Dort soll man abstürzen können.
+const LEITWAENDE := [
+	{"von": 0.0, "bis": 42.0, "abstand": 5.3},
+	{"von": 42.0, "bis": 100.0, "abstand": 4.3},
+	{"von": 100.0, "bis": 158.0, "abstand": 4.9},
+	{"von": 208.0, "bis": 236.0, "abstand": 6.6},
+]
+
+
+## Die beiden Schluchtwände.
+##
+## Drei Schichten, wie im Schneelevel: warmes Wurzelgestein als Grundton,
+## Bänder aus dunkler Walderde darüber und eine Moosnarbe als Saum auf der
+## obersten Lage. Der erste Entwurf nahm das Wurzelmaterial für die Bänder;
+## das ist grünlich und ergab zusammen mit der Grasnarbe eine Wand aus
+## Limettenwürfeln. Die Wand trägt keine Kollision – dafür steht die glatte
+## Leitwand davor, an deren Kästen man nicht hängen bleibt.
+func _waende_bauen() -> void:
+	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE,
+			Materialbibliothek.wurzelfels(), {
+		"schritt": 2.4, "lagen": 4, "block": 3.2,
+		"sockel": 16.0, "saat": 1801,
+		"adermaterial": Materialbibliothek.waldboden(),
+		"deckmaterial": Materialbibliothek.moos(),
+		"aderdichte": 0.45,
+	})
+	for w in LEITWAENDE:
+		LevelWerkzeuge.leitwand(geometrie, verlauf, w["von"], w["bis"],
+				w["abstand"], 5.0)
 
 
 func _boden_bauen() -> void:
@@ -558,6 +611,56 @@ func _rahmenbaeume() -> void:
 		t.position = LevelWerkzeuge.punkt(verlauf, strecke,
 				stelle[1] * (_rand_bei(strecke, 0.0) + 5.0), WALDBODEN_HOEHE)
 		deko.add_child(t)
+
+
+## Blattwerk auf der Schluchtkante.
+##
+## In den Vorlagen ist der Weg von großen Blattformen gesäumt, und die
+## Bildränder laufen dunkel aus – das rahmt den Weg wie einen Tunnel. Unser
+## Rand war dagegen leer: erst Weg, dann Wand, dann Himmel. Diese Büschel
+## sitzen oben auf der Wand, hängen also über die Kante ins Bild und
+## schließen es nach oben.
+##
+## Sie stehen weit außerhalb des Wegs und tragen keine Kollision – sie sind
+## Rahmen, kein Hindernis.
+func _rankenwerk() -> void:
+	var wuerfel := randi()
+	seed(10145)
+	# Vier Grüntöne plus zwei Farbtupfer: in den Vorlagen sitzt zwischen dem
+	# Grün immer ein Magenta- oder Gelbfleck, sonst wird die Wand eine
+	# einzige grüne Masse.
+	var toene := [Farben.LAUB_DUNKEL, Farben.LAUB, Farben.LAUB_DUNKEL,
+			Farben.LAUB_HELL, Farben.BLUETE_MAGENTA, Farben.LAUB_GELB]
+	for i in 58:
+		var s := randf_range(-4.0, M_ENDE + 4.0)
+		var wand := _wand_bei(s)
+		var seite: float = -1.0 if i % 2 == 0 else 1.0
+		var b := BAUM.instantiate() as Baum
+		b.art = Baum.Art.LAUBBAUM
+		b.kronenform = Baum.Kronenform.BREIT
+		b.hoehe = randf_range(3.2, 5.0)
+		b.staerke = randf_range(0.5, 0.9)
+		b.saat = 4400 + i
+		b.laubfarbe = toene[i % toene.size()]
+		b.kollision = false
+		b.wind = false
+		# Der Stamm steckt in der Wandkrone, nur die Krone schaut heraus.
+		# Beim ersten Versuch standen sie frei über der Kante; von unten sah
+		# man dann Baumkronen im Himmel schweben, weil die Wand die Stämme
+		# verdeckte.
+		b.position = LevelWerkzeuge.punkt(verlauf, s,
+				seite * (wand["abstand"] + randf_range(-0.6, 0.9)),
+				wand["hoehe"] - b.hoehe * randf_range(0.45, 0.62))
+		deko.add_child(b)
+	seed(wuerfel)
+
+
+## Wandwerte an dieser Stelle. Innerhalb eines Abschnitts sind sie fest.
+func _wand_bei(strecke: float) -> Dictionary:
+	for w in WAENDE:
+		if strecke >= w["von"] and strecke <= w["bis"]:
+			return w
+	return WAENDE[0]
 
 
 ## Niedrige Deko auf dem Weg selbst: Wurzeln, Findlinge, Gras, Kleinzeug.

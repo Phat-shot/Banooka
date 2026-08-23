@@ -10,6 +10,16 @@
 set -uo pipefail
 
 PROJEKT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Ohne Godot prüft dieses Skript gar nichts – und meldete früher trotzdem
+# "SAUBER", weil jeder Aufruf still fehlschlug und die Ausgabe leer blieb.
+# Eine leere Ausgabe ist hier aber kein Beweis, sondern nur Schweigen.
+GODOT="${GODOT:-godot}"
+if ! command -v "$GODOT" >/dev/null 2>&1; then
+	echo "ABBRUCH: '$GODOT' nicht gefunden."
+	echo "Godot in den PATH legen oder GODOT=/pfad/zu/godot setzen."
+	exit 2
+fi
 ZIEL="$(mktemp -d "${TMPDIR:-/tmp}/banooka_check_XXXXXX")"
 trap 'rm -rf "$ZIEL"' EXIT
 
@@ -19,8 +29,8 @@ rm -rf "$ZIEL/.godot" "$ZIEL/.git" "$ZIEL/export"
 # Meldungen des Dummy-Renderers im Headless-Modus sind keine Projektfehler
 RAUSCHEN='mesh_get_surface_count|Parameter "m" is null|texture_free|Condition "!texture" is true'
 
-echo "--- 1/2 Import und Parse-Prüfung ---"
-IMPORT="$(timeout 300 godot --headless --path "$ZIEL" --import 2>&1 \
+echo "--- 1/3 Import und Parse-Prüfung ---"
+IMPORT="$(timeout 300 "$GODOT" --headless --path "$ZIEL" --import 2>&1 \
 	| grep -E "SCRIPT ERROR|Parse Error|ERROR:|Cannot|Invalid" \
 	| grep -Ev "$RAUSCHEN")"
 if [ -n "$IMPORT" ]; then
@@ -29,13 +39,13 @@ else
 	echo "keine Parse-Fehler"
 fi
 
-echo "--- 2/2 Szenen laden und instanziieren ---"
-SZENEN="$(timeout 300 godot --headless --path "$ZIEL" res://werkzeuge/SzenenCheck.tscn 2>&1 \
+echo "--- 2/3 Szenen laden und instanziieren ---"
+SZENEN="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/SzenenCheck.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$SZENEN" | grep -E "ok:|FEHLER|SCRIPT ERROR|ERROR:|Szenen geprüft|Szenen-Check"
 
 echo "--- 3/3 Level geometrisch prüfen ---"
-LEVEL="$(timeout 300 godot --headless --path "$ZIEL" res://werkzeuge/LevelCheck.tscn 2>&1 \
+LEVEL="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/LevelCheck.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$LEVEL" | grep -E "FEHLER|geprüft|Problem|Absturzzone|schwebt|steckt|==="
 

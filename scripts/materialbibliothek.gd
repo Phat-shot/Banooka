@@ -497,14 +497,36 @@ static func frostgestein() -> StandardMaterial3D:
 
 
 static func _baue_frostgestein() -> StandardMaterial3D:
-	var k := 256
-	var block := _zellen(6205, 0.032, k, FastNoiseLite.RETURN_CELL_VALUE, 18.0)
-	var fuge := _zellen(6205, 0.032, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 18.0)
-	var korn := _fbm(6215, 0.18, 3, k)
+	return _baue_bandfels(6205, Farben.SCHLUCHTFELS, Farben.SCHLUCHTFELS_HELL, 0.28)
 
-	var dunkel := Farben.SCHLUCHTFELS.darkened(0.22)
-	var mittel := Farben.SCHLUCHTFELS
-	var hell := Farben.SCHLUCHTFELS_HELL
+
+## Warmes Wurzelgestein für die Schluchtwände im Wald.
+##
+## Gleicher Bau wie das Frostgestein, nur in Erdtönen: In den Vorlagen
+## ist der Waldgrund warm und satt, das Grün sitzt obenauf und am Rand.
+static func wurzelfels() -> StandardMaterial3D:
+	return _hole("wurzelfels", func() -> StandardMaterial3D:
+		return _baue_bandfels(6305, Farben.SCHLUCHTFELS_WALD,
+				Farben.SCHLUCHTFELS_WALD_HELL, 0.46))
+
+
+## Moosnarbe für den Schluchtrand im Wald.
+static func moos() -> StandardMaterial3D:
+	return _hole("moos", func() -> StandardMaterial3D:
+		return _baue_bandfels(6405, Farben.MOOS, Farben.MOOS_HELL, 0.34))
+
+
+## Gemeinsamer Bau für alle Schluchtwände: Zellrauschen, in vier Stufen
+## gerastert, mit dunklen Spalten dazwischen. Bewusst flau – es ist
+## Kulisse, keine Spielfläche, und alle Feinheit gehört an den Weg.
+static func _baue_bandfels(saat: int, mittel: Color, hell: Color,
+		kachel: float) -> StandardMaterial3D:
+	var k := 256
+	var block := _zellen(saat, 0.032, k, FastNoiseLite.RETURN_CELL_VALUE, 18.0)
+	var fuge := _zellen(saat, 0.032, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 18.0)
+	var korn := _fbm(saat + 10, 0.18, 3, k)
+
+	var dunkel := mittel.darkened(0.22)
 
 	var farbe := PackedByteArray(); farbe.resize(k * k * 3)
 	var hoehe := PackedByteArray(); hoehe.resize(k * k)
@@ -517,7 +539,7 @@ static func _baue_frostgestein() -> StandardMaterial3D:
 		var spalt := clampf(1.0 - fuge[i] * _B * 5.5, 0.0, 1.0)
 
 		var c := mittel.lerp(hell, clampf(stufe, 0.0, 1.0))
-		c = c.lerp(dunkel, spalt * 0.75)
+		c = c.lerp(dunkel, spalt * 0.5)
 		var g := (korn[i] * _B - 0.5) * 0.05
 		farbe[j] = int(clampf(c.r + g, 0.0, 1.0) * 255.0)
 		farbe[j + 1] = int(clampf(c.g + g, 0.0, 1.0) * 255.0)
@@ -534,7 +556,7 @@ static func _baue_frostgestein() -> StandardMaterial3D:
 	_karten_setzen(m, hoehe, rau, ao, k, 2.4, 0.8)
 	m.uv1_triplanar = true
 	m.uv1_triplanar_sharpness = 1.8
-	m.uv1_scale = Vector3(0.28, 0.28, 0.28)
+	m.uv1_scale = Vector3(kachel, kachel, kachel)
 	return m
 
 

@@ -411,13 +411,29 @@ static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
 		var form := Transform3D(Basis.IDENTITY, mitte)
 		form.basis = Basis(Vector3.UP, dreh + wuerfel.randf_range(-0.12, 0.12))
 		form.basis = form.basis.scaled(Vector3(tiefe, hoch, breite))
-		var topf := "koerper"
-		if mit_deck and k == lagen - 1:
-			topf = "deck"
-		elif ist_ader:
-			topf = "ader"
-		toepfe[topf].append(form)
+		toepfe["ader" if ist_ader else "koerper"].append(form)
 		y += hoch * wuerfel.randf_range(0.7, 0.92)   # Lagen überlappen sich
+
+	if not mit_deck:
+		return
+	# Die Deckschicht ist ein Saum auf der Krone, kein eigenes Stockwerk.
+	#
+	# Zuerst war sie die oberste Blocklage. Weil die Lagen sich zufällig
+	# aufaddieren, endeten die Säulen auf sehr verschiedenen Höhen – der
+	# Saum verteilte sich über die halbe Wand und die Wand sah aus wie
+	# Tarnstoff. Jetzt sitzt er auf der SOLL-Höhe der Wand, also auf einer
+	# Linie, und die Krone liest sich als Kante.
+	var kappe := lagen_hoehe * wuerfel.randf_range(0.20, 0.34)
+	var kappen_quer := abstand + block * 0.5 + block * 0.35 \
+			+ wuerfel.randf_range(-0.2, 0.3)
+	var kappen_mitte := punkt(kurve, s, seite * kappen_quer,
+			hoehe + wuerfel.randf_range(-0.5, 0.2))
+	var kappen_form := Transform3D(Basis.IDENTITY, kappen_mitte)
+	kappen_form.basis = Basis(Vector3.UP, dreh + wuerfel.randf_range(-0.12, 0.12))
+	kappen_form.basis = kappen_form.basis.scaled(Vector3(
+			block * 0.62 * wuerfel.randf_range(0.9, 1.3), kappe,
+			block * wuerfel.randf_range(0.75, 1.2)))
+	toepfe["deck"].append(kappen_form)
 
 
 ## Unsichtbare Leitwand am Rand der Schlucht.
