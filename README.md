@@ -30,7 +30,7 @@ geänderter Verlauf verschiebt also alles mit.
 
 | Strecke | Abschnitt | Inhalt |
 |---|---|---|
-| 0–42 m | Waldrand | Anlaufstrecke, erste Kisten, Sumpfkröten zum Draufspringen |
+| 0–42 m | Waldrand | Anlaufstrecke, erste Kisten, Sumpfkröten für den Drehschlag |
 | 42–100 m | Schlucht | Rechtskurve, Bach mit Lücken, Federkiste, Panzerkäfer |
 | 100–158 m | Stacheln | Linkskurve, Stachelfelder, Stelzenvögel, TNT-Kette |
 | 158–208 m | Baumkronen | Anstieg, schmaler Grat, Sprungfeder, Nitro |
@@ -43,9 +43,9 @@ Checkpoints. Wer neben den Pfad fällt, landet in der Absturzzone.
 
 | Gegner | Nur besiegbar durch |
 |---|---|
-| Sumpfkröte | Draufspringen |
+| Sumpfkröte | Drehschlag (der glitschige Rücken lässt Sprünge abrutschen) |
 | Stelzenvogel | Slide (der Kamm oben verhindert Draufspringen) |
-| Panzerkäfer | Spin-Attacke |
+| Panzerkäfer | Draufspringen (die Panzernaht hält kein Gewicht) |
 
 Der Bauchplatscher wirkt bei allen dreien.
 

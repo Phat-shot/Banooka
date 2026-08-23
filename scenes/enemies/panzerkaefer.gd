@@ -2,12 +2,14 @@ extends Gegner
 class_name Panzerkaefer
 ## Schwer gepanzerter Käfer.
 ##
-## NUR durch die Spin-Attacke (oder den Bauchplatscher) zu besiegen:
-## Sein Panzer ist zu hart zum Draufspringen und er ist zu flach, als
-## dass ein Slide ihn erwischen würde.
+## NUR durch Draufspringen (Angriff.FALLEN von oben) oder den
+## Bauchplatscher zu besiegen: Sein Panzer ist rundgeschliffen, Drehschlag
+## und Slide rutschen daran ab. Die Panzernaht auf dem Rücken hält
+## dagegen kein volles Gewicht aus.
 ##
 ## Bewegung: patrouilliert stur geradeaus und dreht an den Endpunkten
-## umständlich um. Beim Besiegen wird er weggeschleudert.
+## umständlich um. Beim Draufspringen bricht er zusammen und der Spieler
+## prallt ab.
 
 const DREH_DAUER := 0.55     ## So lange braucht er zum Umdrehen
 const SCHRITT_TEMPO := 5.0   ## Taktrate des Sechsbeinlaufs
@@ -21,10 +23,11 @@ var _fuehler: Array[Node3D] = []
 
 
 func _init() -> void:
-	# Nur der Spin knackt den Panzer.
-	besiegbar_durch = Angriff.SPIN | Angriff.SLAM
+	# Nur Gewicht von oben knackt die Panzernaht.
+	besiegbar_durch = Angriff.FALLEN | Angriff.SLAM
 	patrouille_weite = 5.0
 	tempo = 1.9
+	abprall_hoehe = 14.0
 
 
 # ---------------------------------------------------------- Optik
@@ -148,18 +151,14 @@ func _animiere() -> void:
 # ---------------------------------------------------------- Tod
 
 func _todesstart(_art: int) -> void:
-	# Der Spin schleudert ihn kräftig davon.
-	_wegflug = _weg_richtung() * 7.5 + Vector3.UP * 7.5
+	# Er wird an Ort und Stelle plattgetreten, nicht weggeschleudert.
+	_wegflug = Vector3.ZERO
 
 
 func _todesanimation(delta: float) -> void:
-	# Überschlägt sich und landet auf dem Rücken.
-	_wegflug.y += TODES_G * delta
-	global_position += _wegflug * delta
+	# Der Panzer bricht ein: breit und flach, die Beine zappeln noch.
 	if is_instance_valid(modell):
-		modell.rotation.x += delta * 11.0
-		modell.rotation.z += delta * 7.0
-		modell.scale = modell.scale.lerp(Vector3(0.7, 0.7, 0.7), minf(delta * 2.5, 1.0))
+		modell.scale = modell.scale.lerp(Vector3(1.35, 0.08, 1.25), minf(delta * 11.0, 1.0))
 	for bein in _beine:
 		if is_instance_valid(bein):
 			bein.rotation.x = sin(_zeit * 26.0) * 0.8

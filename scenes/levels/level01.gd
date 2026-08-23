@@ -328,11 +328,11 @@ func _kiste(art: Kiste.Art, strecke: float, seitlich: float,
 # =========================================================== Gegner
 
 func _gegner_setzen() -> void:
-	# ---------- Waldrand: Draufspringen lernen ----------
+	# ---------- Waldrand: Drehschlag lernen ----------
 	_gegner(SUMPFKROETE, 18.0, 0.0, 3.5, true)
 	_gegner(SUMPFKROETE, 39.0, 1.5, 3.0, true)
 
-	# ---------- Schlucht: Spin lernen ----------
+	# ---------- Schlucht: Draufspringen lernen ----------
 	_gegner(PANZERKAEFER, 52.0, 0.0, 2.5, true)
 	_gegner(PANZERKAEFER, 70.5, -1.0, 3.0, true)
 	_gegner(SUMPFKROETE, 88.0, 0.0, 3.0, true)
