@@ -116,7 +116,7 @@ python3 werkzeuge/web_server.py
 
 Der Server lauscht auf allen Netzwerkschnittstellen. Vom Handy im selben
 WLAN `http://<IP-des-Rechners>:8060/` aufrufen – dann erscheinen auch die
-virtuellen Touch-Buttons, die am Desktop ausgeblendet bleiben.
+virtuellen Touch-Tasten, die am Desktop ausgeblendet bleiben.
 
 ## Docker: im Browser spielen, ohne Godot
 
@@ -190,17 +190,41 @@ godot --headless --path . --export-debug "Android" build/banooka-debug.apk
 
 ## Steuerung
 
-| Aktion | Tastatur | Touch |
-|---|---|---|
-| Laufen | WASD / Pfeiltasten | Joystick links unten |
-| Sprung | Leertaste | Button JUMP |
-| Doppelsprung | Leertaste in der Luft | JUMP erneut tippen |
-| Spin-Attacke | J / Strg | Button SPIN |
-| Slide | Shift (in Bewegung) | Button SLIDE |
-| Slide-Jump | Shift, dann Leertaste | SLIDE, dann JUMP |
-| Bauchplatscher | Shift in der Luft | SLIDE in der Luft |
+| Aktion | Tastatur | Controller | Touch |
+|---|---|---|---|
+| Laufen | WASD / Pfeiltasten | linker Stick / Steuerkreuz | Joystick links unten |
+| Sprung | Leertaste | Kreuz ✕ | Taste ✕ |
+| Doppelsprung | Leertaste in der Luft | ✕ in der Luft | ✕ erneut tippen |
+| Spin-Attacke | J / Strg | Viereck □ | Taste □ |
+| Slide | Umschalt (in Bewegung) | Kreis ○ | Taste ○ |
+| Slide-Jump | Umschalt, dann Leertaste | ○, dann ✕ | ○, dann ✕ |
+| Bauchplatscher | Umschalt in der Luft | ○ in der Luft | ○ in der Luft |
+| Statustafel | Tab | Dreieck △ | Taste △ |
 
 Die Sprunghöhe ist variabel: Taste früh loslassen ergibt einen kurzen Sprung.
+
+Die Belegung folgt einem PlayStation-Controller; Godot kennt dieselben
+Tasten als A/B/X/Y, sodass auch ein Xbox- oder generisches Gamepad passt
+(dort liegt Sprung auf A, Slide auf B, Spin auf X, Status auf Y).
+
+### Touch-Steuerung
+
+Die vier Tasten liegen als Raute wie die Symboltasten eines Controllers –
+△ oben, □ links, ○ rechts, ✕ unten – und tragen dieselben Farben. Ihre
+Größe richtet sich nach der Bildschirmdichte: angepeilt sind rund 13 mm
+Durchmesser, damit sie auf dem Handy unter dem Daumen liegen und nicht
+nach Pixelmaß schrumpfen. Der Joystick zeigt einen blassen Ring an seiner
+Ruhestelle und springt beim Berühren unter den Finger.
+
+Die Steuerung erscheint nur auf Geräten mit Touchscreen und blendet sich
+aus, sobald jemand zum Controller greift; beim nächsten Antippen ist sie
+wieder da.
+
+### Statustafel
+
+△ (bzw. Tab) hält das Spiel an und zeigt eine Übersicht: wo man gerade
+ist, Früchte, Leben, Kisten, freigeschaltete Level und die vollständige
+Steuerung. Erneutes △, Abbrechen oder ein Tippen ins Bild schließt sie.
 
 ## Physikwerte
 
@@ -212,7 +236,7 @@ Alle Werte stammen 1:1 aus `plattformer-demo.html` und sind in
 
 ```
 autoload/GameState.gd      Früchte, Leben, Kisten-Zähler, Checkpoint
-autoload/InputHub.gd       Tastatur + Touch zu einem Eingabezustand gebündelt
+autoload/InputHub.gd       Tastatur, Gamepad und Touch zu einem Eingabezustand
 scenes/player/             Player.tscn, player.gd, beuteldachs.gd (Modell)
 scenes/camera/             CorridorCamera.tscn
 scenes/crates/             Kiste.tscn + kiste.gd (alle neun Arten)
@@ -222,8 +246,9 @@ scenes/hazards/            Wasser.tscn, Stacheln.tscn
 scenes/portals/            StartPortal.tscn, ZielPortal.tscn
 scenes/props/              Baum, Wurzel, Stein, Gras, Kleinzeug, Waldstreuer
 scenes/levels/             level_basis.gd, Level01.tscn, Testlevel.tscn
-scenes/ui/                 HUD.tscn, TouchControls.tscn
-scripts/                   angriff, farben, materialbibliothek, level_werkzeuge
+scenes/ui/                 HUD.tscn, TouchControls.tscn, statustafel.gd, Splash.tscn
+scripts/                   angriff, farben, materialbibliothek, level_werkzeuge,
+                           pad_symbole (Controller-Zeichen ✕ ○ □ △)
 shaders/                   wasser.gdshader
 werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Webserver
 assets/CREDITS.md          Quellen und Lizenzen

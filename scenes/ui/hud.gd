@@ -7,6 +7,10 @@ extends CanvasLayer
 @onready var _anzeige: Control = $Anzeige
 @onready var _tafel: Control = $Anzeige/Tafel
 @onready var _nachricht: Label = $Anzeige/Nachricht
+@onready var _touch: Control = $TouchControls
+
+## Übersicht über Spielstand und Steuerung, Dreieck △ bzw. Tab.
+var _status: Statustafel
 
 var _fruechte := 0
 var _leben := GameState.START_LEBEN
@@ -31,6 +35,14 @@ func _ready() -> void:
 
 	_tafel.draw.connect(_zeichne_tafel)
 	_nachricht.modulate.a = 0.0
+
+	_status = Statustafel.new()
+	_status.name = "Statustafel"
+	add_child(_status)
+	_status.visibility_changed.connect(_auf_status)
+	# Die Touch-Steuerung bleibt ganz oben: bei offener Statustafel steht
+	# dort nur noch das Dreieck, mit dem man sie wieder zumacht.
+	move_child(_touch, get_child_count() - 1)
 
 
 func _process(delta: float) -> void:
@@ -153,6 +165,13 @@ func _runde_rahmen(feld: Rect2, farbe: Color, radius: float, staerke: float) -> 
 
 
 # ------------------------------------------------------------- Signale
+
+## Solange die Statustafel offen ist, nimmt die Touch-Steuerung nur noch
+## die Statustaste an – sonst spränge die Figur durch die Tafel hindurch.
+func _auf_status() -> void:
+	_touch.set("gesperrt", _status.visible)
+	_anzeige.visible = not _status.visible
+
 
 func _auf_fruechte(anzahl: int) -> void:
 	_fruechte = anzahl

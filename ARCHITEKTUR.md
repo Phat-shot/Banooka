@@ -114,6 +114,48 @@ func leben_verlieren()
 func zeige_nachricht(text: String, dauer := 1.8)
 ```
 
+## Eingabe (`autoload/InputHub.gd`)
+
+Tastatur, Gamepad und Touch laufen an einer Stelle zusammen; der Spieler
+fragt nichts anderes ab.
+
+```gdscript
+func bewegung() -> Vector2          # kamerarelativ, x = seitlich, y = vor/zurueck
+func sprung_gedrueckt() -> bool
+func sprung_gehalten() -> bool      # variable Sprunghoehe
+func spin_gedrueckt() -> bool
+func slide_gedrueckt() -> bool
+func slide_gehalten() -> bool
+
+signal status_gewuenscht            # Statustafel auf/zu
+signal eingabeart_geaendert(art: Art)
+enum Art { TASTATUR, PAD, TOUCH }   # zuletzt benutzt, siehe `eingabeart`
+```
+
+Gamepad-Belegung (Input-Map in `project.godot`), benannt wie auf einem
+PlayStation-Controller:
+
+| Aktion | Taste | Godot |
+|---|---|---|
+| jump | Kreuz ✕ | `JOY_BUTTON_A` |
+| slide/slam | Kreis ○ | `JOY_BUTTON_B` |
+| spin | Viereck □ | `JOY_BUTTON_X` |
+| status | Dreieck △ | `JOY_BUTTON_Y` |
+| move | linker Stick, Steuerkreuz | `JOY_AXIS_LEFT_*`, `JOY_BUTTON_DPAD_*` |
+
+Die Touch-Steuerung (`scenes/ui/touch_controls.gd`) meldet ausschließlich
+über `touch_*()` hierher; ihre Tasten liegen als Raute wie die
+Symboltasten eines Controllers, ihre Größe folgt der Bildschirmdichte
+(`DisplayServer.screen_get_dpi()`, Ziel rund 13 mm Durchmesser). Zeichen
+und Farben liefert `scripts/pad_symbole.gd` (`class_name PadSymbole`) –
+eine Stelle für Touch-Tasten und Statustafel.
+
+Die Statustafel (`scenes/ui/statustafel.gd`, `class_name Statustafel`)
+erzeugt der HUD selbst; sie hält den Baum an (`get_tree().paused`) und
+sperrt so lange die Touch-Steuerung bis auf die Statustaste. Alles, was
+während der Pause bedienbar bleiben muss, läuft auf
+`PROCESS_MODE_ALWAYS` – InputHub, Touch-Steuerung und Tafel.
+
 ## Spielermodell (`scenes/player/beuteldachs.gd`, `class_name SpielerModell`)
 
 Der Controller kennt nur diese drei Methoden:
