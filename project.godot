@@ -23,6 +23,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://autoload/GameState.gd"
+Einstellungen="*res://autoload/Einstellungen.gd"
 InputHub="*res://autoload/InputHub.gd"
 Spielfluss="*res://autoload/Spielfluss.gd"
 Ladeschirm="*res://autoload/Ladeschirm.gd"

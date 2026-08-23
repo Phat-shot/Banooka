@@ -22,6 +22,12 @@ class_name SpielerModell
 ## Maße: Füße auf y = 0, Ohrenspitzen bei ca. 1.42 m, Breite ca. 0.75 m –
 ## passt damit in die Kollisionskapsel (Radius 0.38 / Höhe 1.3).
 ## Das Modell blickt in -Z.
+##
+## Wer in den Einstellungen eine eigene glTF-Figur hinterlegt, bekommt
+## diese statt des Beuteldachses: sie wird auf dieselbe Höhe eingepasst
+## und übernimmt die Schnittstelle unverändert. Da eine fremde Datei keine
+## Gliedmaßen mit bekannten Namen hat, bewegt `_animiere_eigenes()` sie nur
+## als Ganzes – Laufwippen, Slide-Stauchen, Spin-Drehung.
 
 const SPIN_DREHUNG := 30.0   ## Umdrehungsgeschwindigkeit beim Spin
 
@@ -39,6 +45,9 @@ var _lauf_phase := 0.0
 var _koerper: MeshInstance3D
 var _spin_ring: MeshInstance3D
 var _teile: Node3D
+
+## Gesetzt, wenn statt des Beuteldachses eine eigene Datei angezeigt wird.
+var _eigenes: Node3D = null
 
 # --- Bewegliche Teile ---
 var _kopf: Node3D
@@ -59,10 +68,40 @@ var _zuck_pause := 3.0       ## Zeit bis zum nächsten Ohrenzucken
 
 
 func _ready() -> void:
-	_baue()
+	if not _baue_eigenes():
+		_baue()
 
 
 # ---------------------------------------------------------------- Aufbau
+
+## Versucht, die in den Einstellungen gewählte eigene Figur zu laden.
+## Schlägt das fehl (keine gewählt, Datei weg, unlesbar), wird ganz normal
+## der Beuteldachs gebaut – ein kaputter Pfad darf nie zu einer unsichtbaren
+## Spielfigur führen.
+func _baue_eigenes() -> bool:
+	var pfad := Einstellungen.modell_pfad()
+	if pfad.is_empty():
+		return false
+	var figur := ModellLader.laden(pfad, Einstellungen.modell_groesse)
+	if figur == null:
+		return false
+
+	_teile = Node3D.new()
+	_teile.name = "Teile"
+	add_child(_teile)
+
+	# Die eingepasste Figur bekommt einen eigenen Halter: die Einpassung
+	# steckt in ihrer Verwandlung, der Halter bleibt bei Maßstab 1 und
+	# Ursprung auf Fußhöhe. Nur so drückt ein Stauchen die Figur zu Boden,
+	# statt sie in der Luft schrumpfen zu lassen.
+	var halter := Node3D.new()
+	halter.name = "EigeneFigur"
+	halter.add_child(figur)
+	_teile.add_child(halter)
+	_eigenes = halter
+	_baue_spin_ring()
+	return true
+
 
 ## Baut den kompletten Beuteldachs aus Primitiven auf.
 ##
@@ -117,7 +156,13 @@ func _baue() -> void:
 	_baue_beine(fell, dunkelfell)
 	_baue_schweif(fell, dunkelfell)
 
-	# --- Spin-Ring (Geschwister des Rumpfes, wird nicht mitgestaucht) ---
+	_baue_spin_ring()
+
+
+## Spin-Ring: Geschwister des Rumpfes, damit ihn der Slide-Stauch nicht
+## verzerrt. Auch eine eigene Figur bekommt ihn – sonst fehlte die einzige
+## Rückmeldung, dass der Drehschlag gerade wirkt.
+func _baue_spin_ring() -> void:
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.77
 	ring.outer_radius = 0.93
@@ -125,7 +170,12 @@ func _baue() -> void:
 	_spin_ring.name = "SpinRing"
 	_spin_ring.mesh = ring
 	_spin_ring.position.y = 0.6
-	_spin_ring.material_override = Materialbibliothek.transparent(Farben.SPIN_RING, 1.4).duplicate()
+	var ringstoff := Materialbibliothek.transparent(Farben.SPIN_RING, 1.4).duplicate()
+	# Unsichtbar starten: `aktualisiere()` blendet ihn beim Drehschlag ein.
+	# Ohne das stünde der Ring bis zum ersten Bild voll sichtbar um die Figur.
+	if ringstoff is StandardMaterial3D:
+		(ringstoff as StandardMaterial3D).albedo_color.a = 0.0
+	_spin_ring.material_override = ringstoff
 	_teile.add_child(_spin_ring)
 
 
@@ -357,6 +407,10 @@ func aktualisiere(delta: float, tempo: float, luft: bool, slide: float, spin: fl
 
 	# Laufzyklus (wird von abgeleiteten Modellen genutzt)
 	_lauf_phase += delta * tempo * 12.0
+
+	if is_instance_valid(_eigenes):
+		_animiere_eigenes(delta, tempo, luft, slide > 0.0)
+		return
 	_animiere(delta, tempo, luft, slide > 0.0, spin > 0.0)
 
 
@@ -369,6 +423,30 @@ func sichtbarkeit(sichtbar: bool) -> void:
 
 
 # ---------------------------------------------------------------- Animation
+
+## Bewegung einer fremden Figur. Ihre Gliedmaßen sind unbekannt, also wird
+## nur der ganze Körper bewegt: Laufwippen, gestreckt in der Luft, flach im
+## Slide, ruhiges Atmen im Stand. Der Halter sitzt auf Fußhöhe, ein
+## Stauchen drückt die Figur damit zu Boden statt in der Luft zu schrumpfen.
+func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool) -> void:
+	_zeit += delta
+	var ziel := Vector3.ONE
+	var wippen := 0.0
+	if slide:
+		ziel = Vector3(1.16, 0.5, 1.08)
+	elif luft:
+		ziel = Vector3(0.94, 1.09, 0.94)
+	elif tempo > 0.05:
+		wippen = absf(sin(_lauf_phase)) * 0.07 * tempo
+		var stoss := 1.0 - wippen * 0.4
+		ziel = Vector3(1.0 / stoss, stoss, 1.0 / stoss)
+	else:
+		var atem := sin(_zeit * 1.9) * 0.014
+		ziel = Vector3(1.0 - atem, 1.0 + atem, 1.0 - atem)
+
+	_eigenes.scale = _eigenes.scale.lerp(ziel, minf(delta * 16.0, 1.0))
+	_eigenes.position.y = lerpf(_eigenes.position.y, wippen, minf(delta * 16.0, 1.0))
+
 
 ## Bewegt alle Gliedmaßen passend zum Bewegungszustand.
 ## Die Zielwinkel werden pro Zustand gesetzt und anschließend weich

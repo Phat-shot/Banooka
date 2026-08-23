@@ -9,6 +9,7 @@ extends Node
 
 const SPLASH_SZENE := "res://scenes/ui/Splash.tscn"
 const HUB_SZENE := "res://scenes/hub/Hub.tscn"
+const OPTIONEN_SZENE := "res://scenes/ui/Optionen.tscn"
 
 const RAEUME := 5
 const LEVEL_JE_RAUM := 5
@@ -90,6 +91,11 @@ func raum_offen(raum: int) -> bool:
 func zum_splash() -> void:
 	aktuelles_level = 0
 	_wechseln(SPLASH_SZENE)
+
+
+func zu_optionen() -> void:
+	aktuelles_level = 0
+	_wechseln(OPTIONEN_SZENE)
 
 
 func zum_hub() -> void:

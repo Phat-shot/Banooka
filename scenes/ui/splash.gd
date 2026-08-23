@@ -234,6 +234,7 @@ func _blattmarke(auf: Control, mitte: Vector2, r: float) -> void:
 
 func _baue_menue() -> void:
 	_neuer_eintrag("Spielen", _starten)
+	_neuer_eintrag("Einstellungen", Spielfluss.zu_optionen)
 	_neuer_eintrag("Fortschritt zurücksetzen", _dialog_oeffnen)
 	# Im Browser gibt es kein Beenden – dort bleibt der Eintrag weg.
 	if not OS.has_feature("web"):

@@ -156,6 +156,32 @@ sperrt so lange die Touch-Steuerung bis auf die Statustaste. Alles, was
 während der Pause bedienbar bleiben muss, läuft auf
 `PROCESS_MODE_ALWAYS` – InputHub, Touch-Steuerung und Tafel.
 
+## Eigene Spielfigur (`autoload/Einstellungen.gd`, `scripts/modell_lader.gd`)
+
+```gdscript
+Einstellungen.modell_pfad() -> String      # "" = Beuteldachs
+Einstellungen.waehle_modell(dateiname: String)
+Einstellungen.setze_groesse(faktor: float) # 0.5 .. 2.0
+Einstellungen.uebernehmen(quelle: String) -> String   # "" = geklappt
+
+ModellLader.laden(pfad: String, groesse := 1.0) -> Node3D
+ModellLader.einpassen(knoten: Node3D, ziel_hoehe: float) -> bool
+```
+
+Nur glTF (`.glb`/`.gltf`): zur Laufzeit steht kein Importer bereit, alles
+andere ließe sich im fertigen Export nicht lesen. Eingepasst wird über die
+zusammengefasste Hülle aller Netze — auf `ZIEL_HOEHE` (1,42 m) skaliert,
+waagerecht mittig, Füße auf y = 0. Gerechnet wird über die Kette der
+Kindverwandlungen, **nicht** über `global_transform`: der frisch geladene
+Knoten hängt noch nicht im Baum. Kollisionsformen aus der Datei werden
+verworfen, maßgeblich ist die Kapsel in `Player.tscn`.
+
+`SpielerModell` lädt die Figur in `_baue_eigenes()` und behält seine
+Schnittstelle unverändert. Sie sitzt in einem Halter auf Fußhöhe, damit ein
+Stauchen sie zu Boden drückt statt in der Luft schrumpfen zu lassen; bewegt
+wird sie nur als Ganzes (`_animiere_eigenes()`), da ihre Gliedmaßen
+unbekannt sind. Fehlt oder klemmt die Datei, wird der Beuteldachs gebaut.
+
 ## Spielermodell (`scenes/player/beuteldachs.gd`, `class_name SpielerModell`)
 
 Der Controller kennt nur diese drei Methoden:

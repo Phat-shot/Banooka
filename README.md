@@ -220,6 +220,29 @@ Die Steuerung erscheint nur auf Geräten mit Touchscreen und blendet sich
 aus, sobald jemand zum Controller greift; beim nächsten Antippen ist sie
 wieder da.
 
+### Eigene Spielfigur
+
+Unter *Einstellungen* im Startmenü lässt sich statt des Beuteldachses eine
+eigene Figur einsetzen. Sie wird beim Start eingepasst: auf Spielergröße
+skaliert (1,42 m), waagerecht mittig gestellt und mit den Füßen auf den
+Boden gesetzt – egal, in welcher Einheit modelliert wurde. Ein Regler
+justiert die Größe zwischen 0,5× und 2×, eine Vorschau zeigt das Ergebnis.
+
+Nur **glTF** (`.glb`, `.gltf`) – andere Formate braucht Godot beim Bauen zu
+importieren und kann sie zur Laufzeit nicht lesen. Selbstenthaltendes
+`.glb` ist die sichere Wahl; bei `.gltf` liegen Textur- und Binärdateien
+daneben und müssen mitkopiert werden.
+
+Zwei Wege in den Ablageordner (der Pfad steht unten im Einstellungsbild):
+
+* *Datei wählen …* öffnet einen Dateidialog und kopiert die Datei hinein
+  (nicht im Browser – dort gibt es keinen Dateizugriff).
+* Die Datei von Hand nach `<Benutzerdaten>/modelle/` legen.
+
+Weil die Gliedmaßen einer fremden Datei unbekannt sind, wird sie nur als
+Ganzes bewegt: Laufwippen, gestreckt in der Luft, flach im Slide. Ist die
+Datei kaputt oder verschwunden, erscheint wieder der Beuteldachs.
+
 ### Statustafel
 
 △ (bzw. Tab) hält das Spiel an und zeigt eine Übersicht: wo man gerade
@@ -236,6 +259,7 @@ Alle Werte stammen 1:1 aus `plattformer-demo.html` und sind in
 
 ```
 autoload/GameState.gd      Früchte, Leben, Kisten-Zähler, Checkpoint
+autoload/Einstellungen.gd  eigene Spielfigur, bleibt über Sitzungen erhalten
 autoload/InputHub.gd       Tastatur, Gamepad und Touch zu einem Eingabezustand
 scenes/player/             Player.tscn, player.gd, beuteldachs.gd (Modell)
 scenes/camera/             CorridorCamera.tscn
@@ -246,9 +270,11 @@ scenes/hazards/            Wasser.tscn, Stacheln.tscn
 scenes/portals/            StartPortal.tscn, ZielPortal.tscn
 scenes/props/              Baum, Wurzel, Stein, Gras, Kleinzeug, Waldstreuer
 scenes/levels/             level_basis.gd, Level01.tscn, Testlevel.tscn
-scenes/ui/                 HUD.tscn, TouchControls.tscn, statustafel.gd, Splash.tscn
+scenes/ui/                 HUD.tscn, TouchControls.tscn, statustafel.gd,
+                           Splash.tscn, Optionen.tscn (Einstellungen)
 scripts/                   angriff, farben, materialbibliothek, level_werkzeuge,
-                           pad_symbole (Controller-Zeichen ✕ ○ □ △)
+                           pad_symbole (Controller-Zeichen ✕ ○ □ △),
+                           modell_lader (eigene glTF-Figur einpassen)
 shaders/                   wasser.gdshader
 werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Webserver
 assets/CREDITS.md          Quellen und Lizenzen
