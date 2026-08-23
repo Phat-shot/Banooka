@@ -19,16 +19,11 @@ class_name Gegner
 const TODES_G := -32.0
 ## Nach dieser Zeit verschwindet ein besiegter Gegner.
 const TODES_DAUER := 1.0
-## So viel Höhe muss zwischen "Spieler ist oben" und der Oberkante der
-## Trefferzone liegen, damit Draufspringen zuverlässig greift.
-##
-## Der Wert ist gemessen, nicht geschätzt: Ein fallender Spieler legt bei
-## 12,2 m/s rund 0,20 m je Physikschritt zurück. Die alte feste Schwelle
-## von 0,5 m ließ dem Panzerkäfer (Zone bis 0,75 m) genau 0,20 m Fenster –
-## in einem Falltest über 200 Sprünge traf nur die Hälfte, die andere
-## Hälfte kostete Leben. Mit 0,45 m ist das Fenster gut doppelt so groß
-## wie ein Simulationsschritt.
-const MINDESTFENSTER := 0.45
+## Wie weit unter dem Gegnerursprung der Spieler höchstens stehen darf,
+## damit ein Treffer noch als "von oben" zählt. Verhindert, dass jemand
+## von einem tieferen Sims aus mit dem Kopf in die Trefferzone ragt und
+## den Gegner damit besiegt.
+const UNTERKANTE_TOLERANZ := 0.2
 
 ## Bitmaske der Angriffsarten, die diesen Gegner besiegen (siehe Angriff).
 @export var besiegbar_durch: int = Angriff.SLAM
@@ -58,8 +53,6 @@ var _zeit := 0.0
 var _phase := 0.0
 var _tot_zeit := 0.0
 var _wegflug := Vector3.ZERO
-## Oberkante der Trefferzone über dem Gegnerursprung.
-var _zone_oberkante := 1.0
 
 
 func _ready() -> void:
@@ -78,7 +71,6 @@ func _ready() -> void:
 		trefferzone.monitoring = true
 		if not trefferzone.body_entered.is_connected(_auf_koerper):
 			trefferzone.body_entered.connect(_auf_koerper)
-		_zone_oberkante = _oberkante_messen()
 
 	_baue()
 
@@ -163,35 +155,29 @@ func _treffer(spieler: Spieler) -> void:
 		spieler.schaden_nehmen()
 
 
-## Steht der Spieler deutlich über dem Gegner?
+## Kommt der Spieler von oben?
 ##
-## Die Schwelle richtet sich nach der Höhe des Gegners, nicht nach einem
-## festen Maß: Bei einem flachen Gegner lag sie sonst so dicht unter der
-## Oberkante, dass zwischen "Überlappung beginnt" und "Spieler ist zu
-## tief" kein voller Physikschritt lag – Draufspringen wurde zur Lotterie.
-## Nach unten ist sie auf ein Drittel der Höhe begrenzt, damit man einen
-## Gegner nicht vom Boden aus anrempeln und dabei besiegen kann.
+## Entscheidend ist die Fallrichtung, nicht die Höhe. Zwei Anläufe über
+## eine Höhenschwelle sind daran gescheitert, dass `Area3D` Überlappungen
+## erst im nächsten Physikschritt meldet: Bei 18 m/s ist der Spieler dann
+## schon 0,30 m weiter, und ein flacher Gegner kann gar kein Fenster
+## bieten, das einen verlorenen Frame samt Messschritt überdeckt. Gemessen
+## wurde ein Fehlschlag bei spieler_y = 0,299 gegen eine Schwelle von
+## 0,300 – einen Millimeter daneben, nachdem das Bild davor mitten im
+## Fenster gelegen hatte.
+##
+## Dass der Spieler überhaupt fällt, steckt bereits in `Angriff.FALLEN`:
+## Das Bit setzt der Spieler nur, wenn er schneller als die Fallschwelle
+## sinkt, und behält es 0,25 s lang (`FALL_GEDAECHTNIS`) – eigens dafür,
+## dass `move_and_slide` beim Aufsetzen die Fallgeschwindigkeit sofort auf
+## null zieht. Hier bleibt damit nur noch zu prüfen, dass der Spieler
+## nicht von unten kommt.
+##
+## Preis dieser Regel: Wer im Fallen seitlich gegen einen Gegner stößt,
+## besiegt ihn. Das ist in Plattformern das übliche Verhalten und allemal
+## besser als ein Sprung, der in einem Viertel der Fälle Leben kostet.
 func _spieler_ist_oben(spieler: Node3D) -> bool:
-	var schwelle := maxf(_zone_oberkante - MINDESTFENSTER, _zone_oberkante * 0.3)
-	return spieler.global_position.y > global_position.y + schwelle
-
-
-## Liest die Oberkante der Trefferzone aus ihrer Kollisionsform.
-func _oberkante_messen() -> float:
-	var hoechste := 0.0
-	for kind in trefferzone.get_children():
-		var form := kind as CollisionShape3D
-		if form == null or form.shape == null:
-			continue
-		var halbe := 0.5
-		if form.shape is BoxShape3D:
-			halbe = (form.shape as BoxShape3D).size.y * 0.5
-		elif form.shape is SphereShape3D:
-			halbe = (form.shape as SphereShape3D).radius
-		elif form.shape is CapsuleShape3D:
-			halbe = (form.shape as CapsuleShape3D).height * 0.5
-		hoechste = maxf(hoechste, form.position.y + halbe)
-	return maxf(hoechste, 0.3)
+	return spieler.global_position.y > global_position.y - UNTERKANTE_TOLERANZ
 
 
 ## Der Gegner geht kaputt: Kollision aus, Früchte streuen, Todesanimation.
