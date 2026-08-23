@@ -14,6 +14,14 @@ class_name Fluechtling
 ## Ritt in Level 04, wo jede Berührung sofort abwirft: Hier soll die
 ## Bedrohung sichtbar näher kommen, statt schlagartig zuzuschlagen.
 
+## Tempo des Keilers in m/s. Ein eigener Wert und kein Anteil vom
+## Höchsttempo des Spielers: Als Anteil (0,86 × 20 = 17,2 m/s) lag er über
+## dem Anfangstempo des Spielers, der Rückstand schrumpfte also von der
+## ersten Sekunde an und war nach 3,8 s aufgebraucht – 22 Tode im
+## Ablauftest, ohne dass ein einziger Fehler nötig war. Er muss langsamer
+## laufen als der Spieler anfängt, sonst gibt es keine Flucht, nur ein
+## Ende mit Ansage.
+@export var keiler_tempo := 12.5
 ## Abstand des Keilers zum Spieler beim Start.
 @export var vorsprung := 16.0
 ## Kleinster Abstand, bevor er zupackt.
@@ -52,7 +60,7 @@ func _physics_process(delta: float) -> void:
 ## Der Keiler läuft mit festem Tempo; der Abstand wächst und schrumpft
 ## also mit dem Tempo des Spielers. Wer stehen bleibt, wird eingeholt.
 func _keiler_nachziehen(delta: float) -> void:
-	var unterschied := tempo - tempo_max * 0.86
+	var unterschied := tempo - keiler_tempo
 	abstand_keiler = clampf(abstand_keiler + unterschied * aufhol_faktor * delta,
 			0.0, hoechstabstand)
 
