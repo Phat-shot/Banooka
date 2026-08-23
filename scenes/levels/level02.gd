@@ -76,12 +76,18 @@ const STRECKE := [
 ## erprobt: 17 bis 24 m ergaben eine blaue Röhre ohne Himmel, 9 m
 ## verschwanden hinter dem Baumbestand. Diese Werte stehen über den
 ## Bäumen und lassen oben einen Streifen Himmel offen.
+## Die Höhen sind dreimal danebengegangen: 17 bis 24 m ergaben eine blaue
+## Röhre ohne Himmel, 9 m verschwanden hinter dem Baumbestand, und 13 bis
+## 18 m mit starker Ausstellung schlossen sich über dem Spieler zu einem
+## Flickenteppich aus Wandflächen. Diese Werte stehen fast senkrecht und
+## bleiben unter der Kameralinie: Die Wand führt den Blick nach vorn,
+## statt ihn zuzudecken.
 const WAENDE := [
-	{"von": -8.0, "bis": 60.0, "abstand": 6.5, "hoehe": 14.0},
-	{"von": 60.0, "bis": 96.0, "abstand": 5.5, "hoehe": 16.0},
-	{"von": 96.0, "bis": 154.0, "abstand": 4.5, "hoehe": 18.0},
-	{"von": 154.0, "bis": 206.0, "abstand": 6.0, "hoehe": 13.0},
-	{"von": 206.0, "bis": 244.0, "abstand": 8.0, "hoehe": 7.0},
+	{"von": -8.0, "bis": 60.0, "abstand": 6.5, "hoehe": 9.0},
+	{"von": 60.0, "bis": 96.0, "abstand": 5.5, "hoehe": 10.0},
+	{"von": 96.0, "bis": 154.0, "abstand": 4.5, "hoehe": 10.5},
+	{"von": 154.0, "bis": 206.0, "abstand": 6.0, "hoehe": 8.5},
+	{"von": 206.0, "bis": 244.0, "abstand": 8.0, "hoehe": 5.5},
 ]
 
 
@@ -151,8 +157,8 @@ func _verlauf_anlegen() -> void:
 func _waende_bauen() -> void:
 	var stoff := Materialbibliothek.eisfels()
 	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE, stoff, {
-		"schritt": 2.6, "neigung": 4.5, "zacken": 2.5,
-		"sockel": 30.0, "saat": 2802,
+		"schritt": 2.6, "neigung": 1.0, "zacken": 1.6,
+		"sockel": 30.0, "stufen": 4, "saat": 2802,
 	})
 	# Die Sichtwand ist ein Dreiecksnetz und taugt nicht als Begrenzung –
 	# an ihren Zacken bliebe man hängen. Dahinter läuft eine glatte
@@ -404,7 +410,7 @@ func _wald_bauen() -> void:
 		var s := randf_range(-6.0, M_ENDE + 6.0)
 		var wand := _wand_bei(s)
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var quer := seite * randf_range(wand["abstand"] - 1.9, wand["abstand"] - 0.3)
+		var quer := seite * randf_range(wand["abstand"] - 2.5, wand["abstand"] - 1.2)
 		var baum := BAUM.instantiate() as Baum
 		baum.art = Baum.Art.NADELBAUM
 		baum.hoehe = randf_range(3.5, 7.5)
@@ -454,7 +460,7 @@ func _wehen_bauen() -> void:
 		stein.kollision = false
 		stein.saat = 7000 + i
 		stein.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * randf_range(wand["abstand"] - 2.0, wand["abstand"] - 0.4),
+				seite * randf_range(wand["abstand"] - 2.4, wand["abstand"] - 1.1),
 				0.0)
 		deko.add_child(stein)
 	seed(wuerfel)

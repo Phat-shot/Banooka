@@ -324,9 +324,11 @@ static func eisfels() -> StandardMaterial3D:
 		m.albedo_texture = rauschtextur(6104, 0.035, Farben.EIS_TIEF.darkened(0.3),
 				Farben.EIS_HELL)
 		m.normal_enabled = true
-		m.normal_texture = normalmap(6104, 0.075, 3.0)
-		m.normal_scale = 1.5
-		m.uv1_scale = Vector3(1.0, 1.0, 1.0)
+		# Die Normalmap darf jetzt zurücktreten: Die Terrassen der Wand
+		# liefern die Form, ein starkes Relief obendrauf ergab nur Flimmern.
+		m.normal_texture = normalmap(6104, 0.03, 1.6)
+		m.normal_scale = 0.7
+		m.uv1_scale = Vector3(0.8, 0.8, 0.8)
 		m.roughness = 0.5
 		return m)
 

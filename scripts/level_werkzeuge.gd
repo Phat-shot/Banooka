@@ -281,13 +281,14 @@ static func kurve_aus_punkten(punkte: Array, glaettung: float = 0.45) -> Curve3D
 ##
 ## `abschnitte`: [{"von", "bis", "abstand", "hoehe"}] – `abstand` ist der
 ## seitliche Abstand von der Wegmitte, `hoehe` die Wandhöhe über dem Weg.
-## `optionen`: {"schritt", "neigung", "zacken", "saat", "sockel"}
+## `optionen`: {"schritt", "neigung", "zacken", "saat", "sockel", "stufen"}
 static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		material: Material, optionen: Dictionary = {}) -> Node3D:
 	var schritt: float = optionen.get("schritt", 3.0)
 	var neigung: float = optionen.get("neigung", 2.5)   ## wie weit sie oben ausstellt
 	var zacken: float = optionen.get("zacken", 3.5)     ## Höhenrauschen der Oberkante
 	var sockel: float = optionen.get("sockel", 6.0)     ## wie tief sie unter den Weg reicht
+	var stufen: int = optionen.get("stufen", 4)         ## Terrassen je Wand
 	var saat: int = optionen.get("saat", 1234)
 
 	var rauschen := FastNoiseLite.new()
@@ -309,36 +310,70 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
 			_wandflaeche(st, kurve, von, bis,
 					eintrag.get("abstand", 8.0), eintrag.get("hoehe", 14.0),
-					seite, schritt, neigung, zacken, sockel, rauschen)
+					seite, schritt, neigung, zacken, sockel, stufen, rauschen)
 			_flaeche(wurzel, st, material, "Wand")
 	return wurzel
 
 
 static func _wandflaeche(st: SurfaceTool, kurve: Curve3D, von: float, bis: float,
 		abstand: float, hoehe: float, seite: float, schritt: float,
-		neigung: float, zacken: float, sockel: float,
+		neigung: float, zacken: float, sockel: float, stufen: int,
 		rauschen: FastNoiseLite) -> void:
 	var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
 	var laenge := kurve.get_baked_length()
-	var vorher := {}
+	var vorher: Array = []
 	for i in anzahl + 1:
 		var s := lerpf(von, bis, float(i) / float(anzahl))
-		var mitte := kurve.sample_baked(clampf(s, 0.0, laenge))
-		var r := _rechts(kurve, s) * seite
-		# Die Oberkante wackelt, damit keine gerade Mauer entsteht.
-		var zack := rauschen.get_noise_2d(s * 0.6, seite * 40.0) * zacken
-		var quer := abstand + rauschen.get_noise_2d(s * 0.35, seite * 90.0) * 1.4
-		var q := {
-			"unten": mitte + r * quer + Vector3.DOWN * sockel,
-			"fuss": mitte + r * quer,
-			"oben": mitte + r * (quer + neigung) + Vector3.UP * (hoehe + zack),
-			"n": -r,
-		}
+		var jetzt := _wandprofil(kurve, s, abstand, hoehe, seite, neigung,
+				zacken, sockel, stufen, rauschen, laenge)
 		if not vorher.is_empty():
-			# Zur Wegmitte hin sichtbar – die Rückseite sieht nie jemand.
-			_quad(st, vorher["unten"], vorher["oben"], q["unten"], q["oben"],
-					vorher["n"])
-		vorher = q
+			for k in jetzt.size() - 1:
+				var a0: Vector3 = vorher[k]
+				var a1: Vector3 = vorher[k + 1]
+				var b0: Vector3 = jetzt[k]
+				var b1: Vector3 = jetzt[k + 1]
+				# Senkrechte Flächen zeigen zur Wegmitte, Simse nach oben.
+				var hoch := absf(a1.y - a0.y)
+				var quer_weit := (a1 - a0)
+				quer_weit.y = 0.0
+				var n := Vector3.UP if quer_weit.length() > hoch \
+						else -_rechts(kurve, s) * seite
+				_quad(st, a0, a1, b0, b1, n)
+		vorher = jetzt
+
+
+## Querschnitt der Wand an einer Stelle, von unten nach oben.
+##
+## Eine glatte Fläche mit Rauschtextur reichte nicht: Sie flimmerte aus
+## jeder Entfernung und hatte keine Form. Die Wand ist deshalb terrassiert
+## – je Stufe eine senkrechte Fläche und ein waagerechtes Sims. Damit trägt
+## die Geometrie das Bild und die Textur muss es nicht allein tun.
+static func _wandprofil(kurve: Curve3D, s: float, abstand: float, hoehe: float,
+		seite: float, neigung: float, zacken: float, sockel: float,
+		stufen: int, rauschen: FastNoiseLite, laenge: float) -> Array:
+	var mitte := kurve.sample_baked(clampf(s, 0.0, laenge))
+	var r := _rechts(kurve, s) * seite
+	var quer := abstand + rauschen.get_noise_2d(s * 0.35, seite * 90.0) * 0.8
+
+	var punkte: Array = [
+		mitte + r * quer + Vector3.DOWN * sockel,
+		mitte + r * quer,
+	]
+	var letztes_quer := quer
+	for k in stufen:
+		var t := float(k + 1) / float(stufen)
+		# Die Oberkante wackelt, die Zwischenstufen weniger stark.
+		var zack := rauschen.get_noise_2d(s * 0.5, (seite * 40.0) + k * 17.0) \
+				* zacken * t
+		var y := hoehe * t + zack
+		var neues_quer := quer + neigung * t \
+				+ rauschen.get_noise_2d(s * 0.7, k * 31.0) * 0.5
+		neues_quer = maxf(neues_quer, letztes_quer)
+		# Senkrechte Fläche bis zur Stufenhöhe, dann das Sims nach außen.
+		punkte.append(mitte + r * letztes_quer + Vector3.UP * y)
+		punkte.append(mitte + r * neues_quer + Vector3.UP * y)
+		letztes_quer = neues_quer
+	return punkte
 
 
 ## Unsichtbare Leitwand am Rand der Schlucht.
