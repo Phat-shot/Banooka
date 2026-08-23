@@ -38,7 +38,7 @@ fog_height_density = 0.06
 adjustment_enabled = true
 adjustment_brightness = 1.0
 adjustment_contrast = 1.14
-adjustment_saturation = 1.3
+adjustment_saturation = 1.2
 
 [node name="Level02" type="Node3D"]
 script = ExtResource("1_level")
@@ -48,8 +48,8 @@ environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
-light_color = Color(1, 0.965, 0.898, 1)
-light_energy = 2.1
+light_color = Color(1, 1, 1, 1)
+light_energy = 1.9
 light_specular = 0.7
 shadow_enabled = true
 shadow_bias = 0.04

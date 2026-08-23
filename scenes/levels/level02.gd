@@ -377,10 +377,13 @@ func _feuer_bauen() -> void:
 			flamme.position.y = 2.0
 			gruppe.add_child(flamme)
 
+			# Klein halten: mit 3,2 auf 12 m überzog jede Schale den halben
+			# Weg mit einem lachsfarbenen Schleier – aus weißem Schnee
+			# wurde rosa Schnee. Als Wegmarke reicht ein enger Schein.
 			var licht := OmniLight3D.new()
 			licht.light_color = Farben.GLUT
-			licht.light_energy = 3.2
-			licht.omni_range = 12.0
+			licht.light_energy = 2.0
+			licht.omni_range = 7.5
 			licht.shadow_enabled = false
 			licht.position.y = 2.0
 			gruppe.add_child(licht)
@@ -399,18 +402,24 @@ func _boegen_bauen() -> void:
 				eis, 13, 0.0)
 
 
-## Verschneite Nadelbäume dicht an den Wänden. Sie standen vorher auf
-## "Simsen", die es nicht gab, und hingen sichtbar in der Luft – in der
-## Seitenansicht des 2D-Abschnitts war das nicht zu übersehen. Jetzt
-## stehen sie auf dem Schluchtboden bzw. auf der Schneebank davor.
+## Verschneite Nadelbäume dicht an den Wänden.
+##
+## Sie standen zuerst auf "Simsen", die es nicht gab. Danach hingen sie am
+## Wandabstand – aber `WAENDE` hält den Abstand je Abschnitt fest, während
+## die Wegbreite innerhalb eines Abschnitts wandert. Wo der Weg schmaler
+## war als die Wand, standen die Bäume wieder in der Luft. Jetzt richtet
+## sich der Platz nach dem Weg selbst (`rand_bei`), und wo es keinen Weg
+## gibt, wächst auch kein Baum.
 func _wald_bauen() -> void:
 	var wuerfel := randi()
 	seed(20802)
 	for i in 96:
-		var s := randf_range(-6.0, M_ENDE + 6.0)
-		var wand := _wand_bei(s)
+		var s := randf_range(0.5, M_ENDE - 0.5)
+		var rand := rand_bei(s, 0.4)
+		if rand < 2.2:
+			continue
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var quer := seite * randf_range(wand["abstand"] - 2.5, wand["abstand"] - 1.2)
+		var quer := seite * randf_range(rand - 1.5, rand - 0.2)
 		var baum := BAUM.instantiate() as Baum
 		baum.art = Baum.Art.NADELBAUM
 		baum.hoehe = randf_range(3.5, 7.5)

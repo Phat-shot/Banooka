@@ -290,13 +290,17 @@ static func algen() -> StandardMaterial3D:
 
 ## Schluchtwand aus altem Gletschereis.
 ##
-## Drei Lagen: ein Bruchnetz aus Zellrauschen (die hellen Adern zwischen
-## den Zellen sind die Risse), der Zellwert selbst für flächige Facetten
-## mit harten Kanten, und waagerechte Streifen für die Schichtung, die
-## Gletschereis über die Jahre bekommt.
+## Zwei Lagen: ein Bruchnetz aus Zellrauschen (die Adern zwischen den
+## Zellen sind die Risse) und der Zellwert selbst für flächige Facetten
+## mit harten Kanten. Die Facetten werden in Stufen gerastert statt weich
+## überblendet – genau das unterscheidet eine Eiswand von einer Wolke.
 ##
-## Die Facetten werden in Stufen gerastert statt weich überblendet – genau
-## das unterscheidet eine Eiswand von einer Wolke.
+## Der Wertebereich bleibt eng: die Vorlagen halten eine Felswand in einem
+## Farbwert und setzen nur die Risse dunkler ab. Ein Sprung von Navy nach
+## Weiß auf engem Raum sieht aus der Entfernung wieder wie Marmor aus,
+## egal wie hart die Kanten im Einzelnen sind. Aus demselben Grund läuft
+## die Kachel groß (uv1_scale klein): ein fünffach gekacheltes Muster
+## flimmert, ein einmal überzogenes liest sich als Fläche.
 static func eisfels() -> StandardMaterial3D:
 	return _hole("eisfels", func() -> StandardMaterial3D: return _baue_eisfels())
 
@@ -306,13 +310,13 @@ static func _baue_eisfels() -> StandardMaterial3D:
 	var bruch := _zellen(6104, 0.028, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 24.0)
 	var facette := _zellen(6104, 0.028, k, FastNoiseLite.RETURN_CELL_VALUE, 24.0)
 	var splitter := _zellen(6114, 0.075, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 10.0)
-	var schicht := _gestreckt(6124, 0.055, 3, k, 1, 14)
 	var fein := _fbm(6134, 0.22, 3, k)
 
-	var tief := Farben.EIS_TIEF.darkened(0.25)
+	# Enge Leiter: die Facetten laufen nur zwischen mittlerem und hellem
+	# Eis, das tiefe Blau bleibt den Rissen vorbehalten.
+	var tief := Farben.EIS_TIEF
 	var mittel := Farben.EIS
 	var hell := Farben.EIS_HELL
-	var weiss := Color(0.97, 0.99, 1.0)
 
 	var farbe := PackedByteArray(); farbe.resize(k * k * 3)
 	var hoehe := PackedByteArray(); hoehe.resize(k * k)
@@ -321,41 +325,42 @@ static func _baue_eisfels() -> StandardMaterial3D:
 
 	var j := 0
 	for i in k * k:
-		# Risse: schmale helle Adern. Die scharfe Kennlinie macht sie zu
-		# Linien statt zu Verläufen.
-		var riss := clampf(1.0 - bruch[i] * _B * 2.6, 0.0, 1.0)
-		var feiner_riss := clampf(1.0 - splitter[i] * _B * 3.4, 0.0, 1.0) * 0.6
+		# Risse: schmale dunkle Spalten. Der hohe Faktor macht sie schmal,
+		# die scharfe Kennlinie macht sie zu Linien statt zu Verläufen.
+		var riss := clampf(1.0 - bruch[i] * _B * 6.0, 0.0, 1.0)
+		var feiner_riss := clampf(1.0 - splitter[i] * _B * 7.0, 0.0, 1.0) * 0.45
 
 		# Facetten in vier Stufen – harte Kanten zwischen den Flächen
 		var stufe := floorf(facette[i] * _B * 4.0) / 3.0
-		var lage := schicht[i] * _B
 
-		var grund := tief.lerp(mittel, clampf(stufe, 0.0, 1.0))
-		grund = grund.lerp(hell, lage * 0.35)
-		var c := grund.lerp(weiss, maxf(riss, feiner_riss))
+		var grund := mittel.lerp(hell, clampf(stufe, 0.0, 1.0))
+		var c := grund.lerp(tief, maxf(riss, feiner_riss) * 0.85)
 		# Feines Korn nur leicht, sonst rauscht es wieder
-		var korn := (fein[i] * _B - 0.5) * 0.06
+		var korn := (fein[i] * _B - 0.5) * 0.04
 		farbe[j] = int(clampf(c.r + korn, 0.0, 1.0) * 255.0)
 		farbe[j + 1] = int(clampf(c.g + korn, 0.0, 1.0) * 255.0)
 		farbe[j + 2] = int(clampf(c.b + korn, 0.0, 1.0) * 255.0)
 		j += 3
 
 		# Risse liegen tief, Facetten stehen vor
-		var h := clampf(0.30 + stufe * 0.42 + lage * 0.16 - riss * 0.55, 0.0, 1.0)
+		var h := clampf(0.34 + stufe * 0.46 - riss * 0.6, 0.0, 1.0)
 		hoehe[i] = int(h * 255.0)
 		# Bruchkanten sind matt bereift, die Flächen blank
-		rau[i] = int(clampf(0.18 + riss * 0.62 + feiner_riss * 0.3, 0.0, 1.0) * 255.0)
+		rau[i] = int(clampf(0.24 + riss * 0.56 + feiner_riss * 0.3, 0.0, 1.0) * 255.0)
 		ao[i] = int(clampf(0.55 + 0.45 * h, 0.0, 1.0) * 255.0)
 
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = _farbtextur(farbe, k)
-	_karten_setzen(m, hoehe, rau, ao, k, 2.6, 1.1)
+	_karten_setzen(m, hoehe, rau, ao, k, 2.6, 0.75)
 	# Dreiachsige Projektion: Die Wand besteht aus Quadern in allen Lagen,
 	# eine flache UV-Zuordnung würde an den Seitenflächen ziehen.
 	m.uv1_triplanar = true
 	m.uv1_triplanar_sharpness = 2.0
-	m.uv1_scale = Vector3(0.5, 0.5, 0.5)
-	m.metallic_specular = 0.7
+	# Eine Kachel überzieht gut 3 m Wand. Größer gezogen (0,17) wurden die
+	# Bruchzellen aus der Nähe zu Flecken, kleiner (0,5) kachelte die Wand
+	# aus der Ferne sichtbar.
+	m.uv1_scale = Vector3(0.3, 0.3, 0.3)
+	m.metallic_specular = 0.5
 	return m
 
 
@@ -364,6 +369,11 @@ static func _baue_eisfels() -> StandardMaterial3D:
 ## Weich darf er sein – Schnee ist weich. Was fehlte, war die Windkante:
 ## eine Sprungstelle im Verlauf, an der die Düne abbricht. Ohne sie sieht
 ## eine Schneefläche aus wie Nebel von oben.
+##
+## Der Weg ist zugleich die hellste Fläche im Bild – daran erkennt man,
+## wo man laufen kann. Deshalb bleibt die Zeichnung flach: die Dünen
+## dürfen den Wert nur leicht bewegen, sonst wird aus dem Weg ein Muster
+## und die Kisten darauf verlieren ihre Kontur.
 static func schnee() -> StandardMaterial3D:
 	return _hole("schnee", func() -> StandardMaterial3D: return _baue_schnee())
 
@@ -393,8 +403,8 @@ static func _baue_schnee() -> StandardMaterial3D:
 		var kg := korn[i] * _B
 		var gross := flecken[i] * _B
 
-		var c := schatten.lerp(grund, clampf(0.35 + d * 0.5 + gross * 0.3, 0.0, 1.0))
-		c = c.lerp(hell, kante * 0.8 + kg * 0.12)
+		var c := schatten.lerp(grund, clampf(0.72 + d * 0.22 + gross * 0.12, 0.0, 1.0))
+		c = c.lerp(hell, kante * 0.30 + kg * 0.08)
 		farbe[j] = int(clampf(c.r, 0.0, 1.0) * 255.0)
 		farbe[j + 1] = int(clampf(c.g, 0.0, 1.0) * 255.0)
 		farbe[j + 2] = int(clampf(c.b, 0.0, 1.0) * 255.0)
@@ -408,10 +418,10 @@ static func _baue_schnee() -> StandardMaterial3D:
 
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = _farbtextur(farbe, k)
-	_karten_setzen(m, hoehe, rau, ao, k, 1.8, 0.9)
+	_karten_setzen(m, hoehe, rau, ao, k, 1.8, 0.55)
 	m.uv1_triplanar = true
 	m.uv1_triplanar_sharpness = 1.4
-	m.uv1_scale = Vector3(0.45, 0.45, 0.45)
+	m.uv1_scale = Vector3(0.22, 0.22, 0.22)
 	return m
 
 
@@ -444,9 +454,9 @@ static func _baue_firn() -> StandardMaterial3D:
 		var fuge := clampf(1.0 - fugen[i] * _B * 3.0, 0.0, 1.0)
 		var kg := korn[i] * _B
 
-		var c := dunkel.lerp(hell, clampf(scholle, 0.0, 1.0))
-		c = c.lerp(weiss, kg * 0.18)
-		c = c.lerp(dunkel.darkened(0.25), fuge * 0.8)
+		var c := dunkel.lerp(hell, clampf(0.45 + scholle * 0.55, 0.0, 1.0))
+		c = c.lerp(weiss, kg * 0.14)
+		c = c.lerp(dunkel, fuge * 0.55)
 		farbe[j] = int(clampf(c.r, 0.0, 1.0) * 255.0)
 		farbe[j + 1] = int(clampf(c.g, 0.0, 1.0) * 255.0)
 		farbe[j + 2] = int(clampf(c.b, 0.0, 1.0) * 255.0)
@@ -459,25 +469,70 @@ static func _baue_firn() -> StandardMaterial3D:
 
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = _farbtextur(farbe, k)
-	_karten_setzen(m, hoehe, rau, ao, k, 2.4, 1.0)
+	_karten_setzen(m, hoehe, rau, ao, k, 2.4, 0.7)
 	m.uv1_triplanar = true
 	m.uv1_triplanar_sharpness = 1.6
-	m.uv1_scale = Vector3(0.6, 0.6, 0.6)
+	m.uv1_scale = Vector3(0.3, 0.3, 0.3)
 	return m
 
 
 ## Frostfels für Vorsprünge und Blöcke – kühler als der Waldfels, damit er
 ## im Schnee nicht braun aussieht.
 static func frostfels() -> StandardMaterial3D:
-	return _hole("frostfels", func() -> StandardMaterial3D:
-		var m := StandardMaterial3D.new()
-		m.albedo_texture = rauschtextur(6105, 0.05, Farben.FROSTFELS.darkened(0.4),
-				Farben.FROSTFELS.lightened(0.3))
-		m.normal_enabled = true
-		m.normal_texture = normalmap(6105, 0.12, 2.2)
-		m.normal_scale = 1.0
-		m.roughness = 0.72
-		return m)
+	return _hole("frostfels", func() -> StandardMaterial3D: return _baue_frostfels())
+
+
+## Wie beim Eis: Zellrauschen statt Simplex, sonst wird der Fels wolkig.
+##
+## Der Ton liegt bewusst hell. Aus diesem Fels bestehen die Tritt- und
+## Sprungplatten; im Schatten der Schlucht sah der dunkle Entwurf aus wie
+## ein Loch im Boden – man springt nicht auf etwas, das aussieht wie ein
+## Abgrund. Obenauf liegt außerdem verwehter Schnee, was die Fläche
+## zusätzlich aufhellt.
+static func _baue_frostfels() -> StandardMaterial3D:
+	var k := 256
+	var block := _zellen(6105, 0.055, k, FastNoiseLite.RETURN_CELL_VALUE, 16.0)
+	var fuge := _zellen(6105, 0.055, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 16.0)
+	var auflage := _fbm(6115, 0.045, 3, k)
+	var korn := _fbm(6125, 0.3, 2, k)
+
+	var dunkel := Farben.FROSTFELS.darkened(0.18)
+	var hell := Farben.FROSTFELS.lightened(0.42)
+	var schnee := Farben.SCHNEE
+
+	var farbe := PackedByteArray(); farbe.resize(k * k * 3)
+	var hoehe := PackedByteArray(); hoehe.resize(k * k)
+	var rau := PackedByteArray(); rau.resize(k * k)
+	var ao := PackedByteArray(); ao.resize(k * k)
+
+	var j := 0
+	for i in k * k:
+		var stufe := floorf(block[i] * _B * 4.0) / 3.0
+		var spalt := clampf(1.0 - fuge[i] * _B * 5.0, 0.0, 1.0)
+		# Schneeauflage in Flecken, nicht flächendeckend
+		var decke := clampf((auflage[i] * _B - 0.45) * 3.2, 0.0, 1.0) * (1.0 - spalt)
+
+		var c := dunkel.lerp(hell, clampf(stufe, 0.0, 1.0))
+		c = c.lerp(dunkel.darkened(0.3), spalt * 0.7)
+		c = c.lerp(schnee, decke * 0.8)
+		var g := (korn[i] * _B - 0.5) * 0.05
+		farbe[j] = int(clampf(c.r + g, 0.0, 1.0) * 255.0)
+		farbe[j + 1] = int(clampf(c.g + g, 0.0, 1.0) * 255.0)
+		farbe[j + 2] = int(clampf(c.b + g, 0.0, 1.0) * 255.0)
+		j += 3
+
+		var h := clampf(0.36 + stufe * 0.4 + decke * 0.1 - spalt * 0.55, 0.0, 1.0)
+		hoehe[i] = int(h * 255.0)
+		rau[i] = int(clampf(0.78 - decke * 0.1 + spalt * 0.2, 0.0, 1.0) * 255.0)
+		ao[i] = int(clampf(0.55 + 0.45 * h, 0.0, 1.0) * 255.0)
+
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _farbtextur(farbe, k)
+	_karten_setzen(m, hoehe, rau, ao, k, 2.2, 0.8)
+	m.uv1_triplanar = true
+	m.uv1_triplanar_sharpness = 1.8
+	m.uv1_scale = Vector3(0.4, 0.4, 0.4)
+	return m
 
 
 ## Leuchtender Kristall: durchscheinend und selbstleuchtend zugleich.
@@ -497,6 +552,10 @@ static func kristall(farbe: Color) -> StandardMaterial3D:
 ## Blankes Eis für die Schlitterstrecken: glatt, durchscheinend, mit
 ## feinen Rissen. Die Risse sind wichtig – ohne sie ist eine Eisfläche
 ## nicht von einer Pfütze zu unterscheiden.
+##
+## Der Grundton bleibt hell. Mit dem dunklen Eisblau lag die Platte im
+## Schatten der Schlucht so tief, dass sie sich wie ein Loch las – in
+## einem Plattformer die denkbar schlechteste Verwechslung.
 static func eis() -> StandardMaterial3D:
 	return _hole("eis", func() -> StandardMaterial3D:
 		var k := 256
@@ -507,8 +566,8 @@ static func eis() -> StandardMaterial3D:
 		var j := 0
 		for i in k * k:
 			var riss := clampf(1.0 - risse[i] * _B * 3.0, 0.0, 1.0)
-			var c := Farben.EIS_DUNKEL.lerp(Farben.EIS_HELL, tiefe[i] * _B)
-			c = c.lerp(Color(0.95, 0.99, 1.0), riss)
+			var c := Farben.EIS.lerp(Farben.EIS_HELL, tiefe[i] * _B)
+			c = c.lerp(Color(0.97, 1.0, 1.0), riss)
 			farbe[j] = int(clampf(c.r, 0.0, 1.0) * 255.0)
 			farbe[j + 1] = int(clampf(c.g, 0.0, 1.0) * 255.0)
 			farbe[j + 2] = int(clampf(c.b, 0.0, 1.0) * 255.0)
@@ -517,7 +576,7 @@ static func eis() -> StandardMaterial3D:
 
 		var m := StandardMaterial3D.new()
 		m.albedo_texture = _farbtextur(farbe, k)
-		m.albedo_color = Color(1, 1, 1, 0.88)
+		m.albedo_color = Color(1, 1, 1, 0.93)
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.normal_enabled = true
 		m.normal_texture = _normal_aus_hoehe(hoehe, k, 1.2)
