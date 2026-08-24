@@ -6,7 +6,8 @@ Charaktere oder Assets.
 
 ## Stand
 
-Level 01 ist spielbar. Hub und die Level 02–25 folgen.
+Der erste Abschnitt ist spielbar: Portalraum und die Level 01–05.
+Die Level 06–25 folgen.
 
 | Bereich | Status |
 |---|---|
@@ -20,7 +21,12 @@ Level 01 ist spielbar. Hub und die Level 02–25 folgen.
 | Wasser, Stacheln, Start-/Zielportal | fertig |
 | Wald-Props, prozedurale Texturen | fertig |
 | Level 01 "Wurzelschlucht" | fertig |
-| Hub und Level 02–25 | offen |
+| Level 02 "Frostgrat" (Schnee) | fertig |
+| Level 03 "Moorbrücken" (Sumpf) | fertig |
+| Level 04 "Katzensprung" (Ritt) | fertig |
+| Level 05 "Wettrennen" (Karts) | fertig |
+| Eigene Spielfigur in den Einstellungen | fertig |
+| Level 06–25 | offen |
 
 ## Level 01 – Wurzelschlucht
 
@@ -30,7 +36,7 @@ geänderter Verlauf verschiebt also alles mit.
 
 | Strecke | Abschnitt | Inhalt |
 |---|---|---|
-| 0–42 m | Waldrand | Anlaufstrecke, erste Kisten, Sumpfkröten zum Draufspringen |
+| 0–42 m | Waldrand | Anlaufstrecke, erste Kisten, Sumpfkröten für den Drehschlag |
 | 42–100 m | Schlucht | Rechtskurve, Bach mit Lücken, Federkiste, Panzerkäfer |
 | 100–158 m | Stacheln | Linkskurve, Stachelfelder, Stelzenvögel, TNT-Kette |
 | 158–208 m | Baumkronen | Anstieg, schmaler Grat, Sprungfeder, Nitro |
@@ -43,9 +49,9 @@ Checkpoints. Wer neben den Pfad fällt, landet in der Absturzzone.
 
 | Gegner | Nur besiegbar durch |
 |---|---|
-| Sumpfkröte | Draufspringen |
+| Sumpfkröte | Drehschlag (der glitschige Rücken lässt Sprünge abrutschen) |
 | Stelzenvogel | Slide (der Kamm oben verhindert Draufspringen) |
-| Panzerkäfer | Spin-Attacke |
+| Panzerkäfer | Draufspringen (die Panzernaht hält kein Gewicht) |
 
 Der Bauchplatscher wirkt bei allen dreien.
 
@@ -54,6 +60,47 @@ Der Bauchplatscher wirkt bei allen dreien.
 `NORMAL` (1 Frucht) · `FRUCHT_MEHRFACH` (5) · `LEBEN` · `FEDER` (10 Absprünge,
 je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (3 s Countdown) ·
 `NITRO` (explodiert bei Berührung) · `EISEN` (unzerbrechlich) · `CHECKPOINT`
+
+## Level 02 – Frostgrat
+
+Ein verschneiter Grat über 212 m, der um 14 m zum Gipfel ansteigt.
+Eisplatten in den Lücken, Eiszapfenfelder, tief darunter ein gefrorener
+See als Kulisse. 35 Kisten, 11 Gegner, drei Rastpunkte.
+
+## Level 03 – Moorbrücken
+
+Ein Bohlenweg durchs Moor, 212 m. Unter dem Weg liegt kein Abgrund,
+sondern tödliches Wasser – derselbe Fehltritt endet hier mit einem
+Platsch statt im Nichts. Schmale Stege, Wurzelinseln, Schilfgürtel.
+35 Kisten, 13 Gegner.
+
+## Level 04 – Katzensprung
+
+Ein Ritt-Level: Der Beuteldachs sitzt auf einer Wildkatze, die von selbst
+rennt und dabei von 11 auf 19 m/s beschleunigt. Gelenkt wird nur quer,
+gesprungen wie gewohnt; anhalten oder umkehren geht nicht. Steine und
+Stämme stehen abwechselnd links, rechts und in der Mitte – es bleibt
+immer genau eine Lücke, die Aufgabe ist, sie früh genug zu sehen.
+Kisten zerbrechen im Vorbeirennen. Vier Rastplätze auf 320 m.
+
+Die Lücken im Weg sind 5 m breit: ein Sprung trägt bei Anfangstempo
+7,1 m. Nach einem Sturz beginnt das Tempo wieder unten, eine breitere
+Lücke wäre dort zur Sackgasse geworden.
+
+## Level 05 – Wettrennen
+
+Drei Runden auf einem geschlossenen Rundkurs gegen vier Gegner-Karts.
+
+| Element | Wirkung |
+|---|---|
+| Schubfeld | sofortiger Schub, liegt auf der Ideallinie |
+| Schubkiste | sammelt eine Ladung, □ zündet sie (bis zu drei) |
+| Loch | wer nicht springt, dreht sich und verliert Zeit |
+
+Ein Rennen kennt keinen Tod: In ein Loch zu fallen kostet Zeit, kein
+Leben. Die Gegner fahren mit unterschiedlichem Können und einem
+Gummiband, das nur nach vorn zieht – ein Führender wird nicht gebremst,
+sonst wäre der eigene Vorsprung wertlos.
 
 ## Starten
 
@@ -116,7 +163,7 @@ python3 werkzeuge/web_server.py
 
 Der Server lauscht auf allen Netzwerkschnittstellen. Vom Handy im selben
 WLAN `http://<IP-des-Rechners>:8060/` aufrufen – dann erscheinen auch die
-virtuellen Touch-Buttons, die am Desktop ausgeblendet bleiben.
+virtuellen Touch-Tasten, die am Desktop ausgeblendet bleiben.
 
 ## Docker: im Browser spielen, ohne Godot
 
@@ -190,17 +237,64 @@ godot --headless --path . --export-debug "Android" build/banooka-debug.apk
 
 ## Steuerung
 
-| Aktion | Tastatur | Touch |
-|---|---|---|
-| Laufen | WASD / Pfeiltasten | Joystick links unten |
-| Sprung | Leertaste | Button JUMP |
-| Doppelsprung | Leertaste in der Luft | JUMP erneut tippen |
-| Spin-Attacke | J / Strg | Button SPIN |
-| Slide | Shift (in Bewegung) | Button SLIDE |
-| Slide-Jump | Shift, dann Leertaste | SLIDE, dann JUMP |
-| Bauchplatscher | Shift in der Luft | SLIDE in der Luft |
+| Aktion | Tastatur | Controller | Touch |
+|---|---|---|---|
+| Laufen | WASD / Pfeiltasten | linker Stick / Steuerkreuz | Joystick links unten |
+| Sprung | Leertaste | Kreuz ✕ | Taste ✕ |
+| Doppelsprung | Leertaste in der Luft | ✕ in der Luft | ✕ erneut tippen |
+| Spin-Attacke | J / Strg | Viereck □ | Taste □ |
+| Slide | Umschalt (in Bewegung) | Kreis ○ | Taste ○ |
+| Slide-Jump | Umschalt, dann Leertaste | ○, dann ✕ | ○, dann ✕ |
+| Bauchplatscher | Umschalt in der Luft | ○ in der Luft | ○ in der Luft |
+| Statustafel | Tab | Dreieck △ | Taste △ |
 
 Die Sprunghöhe ist variabel: Taste früh loslassen ergibt einen kurzen Sprung.
+
+Die Belegung folgt einem PlayStation-Controller; Godot kennt dieselben
+Tasten als A/B/X/Y, sodass auch ein Xbox- oder generisches Gamepad passt
+(dort liegt Sprung auf A, Slide auf B, Spin auf X, Status auf Y).
+
+### Touch-Steuerung
+
+Die vier Tasten liegen als Raute wie die Symboltasten eines Controllers –
+△ oben, □ links, ○ rechts, ✕ unten – und tragen dieselben Farben. Ihre
+Größe richtet sich nach der Bildschirmdichte: angepeilt sind rund 13 mm
+Durchmesser, damit sie auf dem Handy unter dem Daumen liegen und nicht
+nach Pixelmaß schrumpfen. Der Joystick zeigt einen blassen Ring an seiner
+Ruhestelle und springt beim Berühren unter den Finger.
+
+Die Steuerung erscheint nur auf Geräten mit Touchscreen und blendet sich
+aus, sobald jemand zum Controller greift; beim nächsten Antippen ist sie
+wieder da.
+
+### Eigene Spielfigur
+
+Unter *Einstellungen* im Startmenü lässt sich statt des Beuteldachses eine
+eigene Figur einsetzen. Sie wird beim Start eingepasst: auf Spielergröße
+skaliert (1,42 m), waagerecht mittig gestellt und mit den Füßen auf den
+Boden gesetzt – egal, in welcher Einheit modelliert wurde. Ein Regler
+justiert die Größe zwischen 0,5× und 2×, eine Vorschau zeigt das Ergebnis.
+
+Nur **glTF** (`.glb`, `.gltf`) – andere Formate braucht Godot beim Bauen zu
+importieren und kann sie zur Laufzeit nicht lesen. Selbstenthaltendes
+`.glb` ist die sichere Wahl; bei `.gltf` liegen Textur- und Binärdateien
+daneben und müssen mitkopiert werden.
+
+Zwei Wege in den Ablageordner (der Pfad steht unten im Einstellungsbild):
+
+* *Datei wählen …* öffnet einen Dateidialog und kopiert die Datei hinein
+  (nicht im Browser – dort gibt es keinen Dateizugriff).
+* Die Datei von Hand nach `<Benutzerdaten>/modelle/` legen.
+
+Weil die Gliedmaßen einer fremden Datei unbekannt sind, wird sie nur als
+Ganzes bewegt: Laufwippen, gestreckt in der Luft, flach im Slide. Ist die
+Datei kaputt oder verschwunden, erscheint wieder der Beuteldachs.
+
+### Statustafel
+
+△ (bzw. Tab) hält das Spiel an und zeigt eine Übersicht: wo man gerade
+ist, Früchte, Leben, Kisten, freigeschaltete Level und die vollständige
+Steuerung. Erneutes △, Abbrechen oder ein Tippen ins Bild schließt sie.
 
 ## Physikwerte
 
@@ -212,7 +306,8 @@ Alle Werte stammen 1:1 aus `plattformer-demo.html` und sind in
 
 ```
 autoload/GameState.gd      Früchte, Leben, Kisten-Zähler, Checkpoint
-autoload/InputHub.gd       Tastatur + Touch zu einem Eingabezustand gebündelt
+autoload/Einstellungen.gd  eigene Spielfigur, bleibt über Sitzungen erhalten
+autoload/InputHub.gd       Tastatur, Gamepad und Touch zu einem Eingabezustand
 scenes/player/             Player.tscn, player.gd, beuteldachs.gd (Modell)
 scenes/camera/             CorridorCamera.tscn
 scenes/crates/             Kiste.tscn + kiste.gd (alle neun Arten)
@@ -221,9 +316,15 @@ scenes/fruits/             Frucht.tscn
 scenes/hazards/            Wasser.tscn, Stacheln.tscn
 scenes/portals/            StartPortal.tscn, ZielPortal.tscn
 scenes/props/              Baum, Wurzel, Stein, Gras, Kleinzeug, Waldstreuer
-scenes/levels/             level_basis.gd, Level01.tscn, Testlevel.tscn
-scenes/ui/                 HUD.tscn, TouchControls.tscn
-scripts/                   angriff, farben, materialbibliothek, level_werkzeuge
+scenes/levels/             level_basis.gd, korridor_level.gd,
+                           Level01–Level05.tscn, Testlevel.tscn
+scenes/mounts/             katze.gd (Reittier, Level 04)
+scenes/vehicles/           kart.gd (Level 05)
+scenes/ui/                 HUD.tscn, TouchControls.tscn, statustafel.gd,
+                           Splash.tscn, Optionen.tscn (Einstellungen)
+scripts/                   angriff, farben, materialbibliothek, level_werkzeuge,
+                           pad_symbole (Controller-Zeichen ✕ ○ □ △),
+                           modell_lader (eigene glTF-Figur einpassen)
 shaders/                   wasser.gdshader
 werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Webserver
 assets/CREDITS.md          Quellen und Lizenzen

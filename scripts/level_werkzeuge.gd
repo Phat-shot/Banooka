@@ -267,3 +267,281 @@ static func kurve_aus_punkten(punkte: Array, glaettung: float = 0.45) -> Curve3D
 		var tangente := (nachher - vorher) * glaettung * 0.5
 		kurve.add_point(p, -tangente, tangente)
 	return kurve
+
+
+# ------------------------------------------------------------- Schlucht
+
+## Zwei Wände links und rechts des Weges, die mit ihm mitlaufen.
+##
+## Aus Blöcken, nicht aus einer gesweepten Fläche. Der erste Entwurf zog
+## ein Dreiecksband entlang der Kurve und terrassierte es; sobald der
+## Rücksprung je Stufe schwankte, kippte die Normale einzelner Vierecke,
+## deren Rückseiten wurden weggeschnitten und übrig blieben schwebende
+## Splitter. Ein Quader hat seine Normalen dagegen von Haus aus richtig,
+## es gibt keine Nähte und keine Ausrichtungsfrage.
+##
+## Je Seite ein Knoten "WandLinks" bzw. "WandRechts" mit bis zu drei
+## MultiMeshes darin – das sind je Level einige tausend Blöcke, aber nur
+## wenige Zeichenaufrufe. Nach Seiten getrennt sind sie, damit die
+## Seitenansicht des 2D-Abschnitts die nahe Wand ausblenden kann: Sonst
+## stünde sie zwischen Kamera und Spieler und das halbe Bild wäre zu.
+##
+## Die drei Lagen tragen die Farbe der Schlucht:
+##   Koerper  der Grundfels – in den Vorlagen ist er WARM, auch im Schnee.
+##            Eine Schlucht ganz aus Eis wird monochrom und flach.
+##   Adern    Bänder aus einem zweiten Material, die in Wellen über die
+##            Länge laufen (bei uns das Gletschereis). Sie liegen als
+##            zusammenhängende Bänder, nicht als Sprenkel – gesprenkelt
+##            sähe die Wand aus wie Tarnstoff.
+##   Deck     die oberste Blocklage, meist Schnee oder Bewuchs. In den
+##            Vorlagen liegt der Schnee OBEN AUF dem Fels, er ist nicht
+##            der Fels.
+## `adermaterial` und `deckmaterial` sind freiwillig; ohne sie bleibt es
+## bei der einen Wand von früher.
+##
+## Die Wände tragen KEINE Kollision: Sie stehen außerhalb der begehbaren
+## Fläche. Zum Begrenzen dient `leitwand()`, die glatt ist und an der man
+## nicht hängen bleibt.
+##
+## `abschnitte`: [{"von", "bis", "abstand", "hoehe"}]
+## `optionen`: {"schritt", "lagen", "block", "saat", "sockel",
+##              "adermaterial", "deckmaterial", "aderdichte"}
+static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
+		material: Material, optionen: Dictionary = {}) -> Node3D:
+	var schritt: float = optionen.get("schritt", 3.0)
+	var lagen: int = optionen.get("lagen", 4)        ## Blocklagen übereinander
+	var block: float = optionen.get("block", 3.2)    ## Grundmaß eines Blocks
+	var sockel: float = optionen.get("sockel", 6.0)  ## wie tief die unterste Lage reicht
+	var saat: int = optionen.get("saat", 1234)
+	var adermaterial: Material = optionen.get("adermaterial", null)
+	var deckmaterial: Material = optionen.get("deckmaterial", null)
+	## Schwelle der Bandwelle: kleiner = mehr Adern.
+	var aderdichte: float = optionen.get("aderdichte", 0.35)
+
+	var wuerfel := RandomNumberGenerator.new()
+	wuerfel.seed = saat
+
+	var wurzel := Node3D.new()
+	wurzel.name = "Schluchtwand"
+	elternteil.add_child(wurzel)
+
+	# Je Seite drei Töpfe: Grundfels, Adern, Deckschicht.
+	var je_seite := {}
+	for seite: float in [-1.0, 1.0]:
+		je_seite[seite] = {
+			"koerper": [] as Array[Transform3D],
+			"ader": [] as Array[Transform3D],
+			"deck": [] as Array[Transform3D],
+		}
+
+	var phase := float(saat % 360) * 0.017
+	for eintrag in abschnitte:
+		var von: float = eintrag.get("von", 0.0)
+		var bis: float = eintrag.get("bis", 0.0)
+		if bis <= von:
+			continue
+		var abstand: float = eintrag.get("abstand", 8.0)
+		var hoehe: float = eintrag.get("hoehe", 12.0)
+		var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+		for i in anzahl:
+			var s := lerpf(von, bis, (float(i) + 0.5) / float(anzahl))
+			# Zwei Wellen mit unterschiedlicher Länge: das Band wandert
+			# unregelmäßig, wiederholt sich aber nicht sichtbar.
+			var welle := sin(s * 0.20 + phase) * 0.6 + sin(s * 0.083 + phase * 1.7) * 0.4
+			var ist_ader := adermaterial != null and welle > aderdichte
+			for seite: float in [-1.0, 1.0]:
+				_wandbloecke(je_seite[seite], kurve, s, abstand, hoehe, seite,
+						lagen, block, sockel, wuerfel, ist_ader,
+						deckmaterial != null)
+
+	var netz := BoxMesh.new()
+	netz.size = Vector3.ONE
+	for seite: float in [-1.0, 1.0]:
+		var wand := Node3D.new()
+		wand.name = "WandLinks" if seite < 0.0 else "WandRechts"
+		wurzel.add_child(wand)
+		var toepfe: Dictionary = je_seite[seite]
+		for teil: Array in [
+			["Koerper", toepfe["koerper"], material],
+			["Adern", toepfe["ader"], adermaterial],
+			["Deck", toepfe["deck"], deckmaterial],
+		]:
+			var stellen: Array[Transform3D] = teil[1]
+			if stellen.is_empty() or teil[2] == null:
+				continue
+			var haufen := MultiMesh.new()
+			haufen.transform_format = MultiMesh.TRANSFORM_3D
+			haufen.mesh = netz
+			haufen.instance_count = stellen.size()
+			for i in stellen.size():
+				haufen.set_instance_transform(i, stellen[i])
+
+			var anzeige := MultiMeshInstance3D.new()
+			anzeige.name = teil[0]
+			anzeige.multimesh = haufen
+			anzeige.material_override = teil[2]
+			wand.add_child(anzeige)
+	return wurzel
+
+
+## Eine Säule aus Blöcken an einer Stelle der Wand.
+##
+## Die Lagen springen nach oben leicht zurück und werden kleiner – das
+## ergibt die Terrassierung, ohne dass eine Fläche gebogen werden müsste.
+static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
+		abstand: float, hoehe: float, seite: float, lagen: int, block: float,
+		sockel: float, wuerfel: RandomNumberGenerator, ist_ader: bool = false,
+		mit_deck: bool = false) -> void:
+	var r := _rechts(kurve, s) * seite
+	var dreh := drehung(kurve, s)
+
+	# Unterste Lage reicht unter den Weg, damit unten keine Fuge klafft.
+	var lagen_hoehe := (hoehe + sockel) / float(lagen)
+	var y := -sockel
+	for k in lagen:
+		var t := float(k) / float(maxi(lagen - 1, 1))
+		var tiefe := block * lerpf(1.0, 0.55, t) * wuerfel.randf_range(0.8, 1.25)
+		var breite := block * wuerfel.randf_range(0.7, 1.15)
+		var hoch := lagen_hoehe * wuerfel.randf_range(0.9, 1.3)
+		# Nach oben etwas zurücktreten, aber nie über den Weg lehnen.
+		var quer := abstand + block * 0.5 + t * block * 0.35 \
+				+ wuerfel.randf_range(-0.25, 0.45)
+
+		var mitte := punkt(kurve, s, seite * quer, y + hoch * 0.5)
+		var form := Transform3D(Basis.IDENTITY, mitte)
+		form.basis = Basis(Vector3.UP, dreh + wuerfel.randf_range(-0.12, 0.12))
+		form.basis = form.basis.scaled(Vector3(tiefe, hoch, breite))
+		toepfe["ader" if ist_ader else "koerper"].append(form)
+		y += hoch * wuerfel.randf_range(0.7, 0.92)   # Lagen überlappen sich
+
+	if not mit_deck:
+		return
+	# Die Deckschicht ist ein Saum auf der Krone, kein eigenes Stockwerk.
+	#
+	# Zuerst war sie die oberste Blocklage. Weil die Lagen sich zufällig
+	# aufaddieren, endeten die Säulen auf sehr verschiedenen Höhen – der
+	# Saum verteilte sich über die halbe Wand und die Wand sah aus wie
+	# Tarnstoff. Jetzt sitzt er auf der SOLL-Höhe der Wand, also auf einer
+	# Linie, und die Krone liest sich als Kante.
+	var kappe := lagen_hoehe * wuerfel.randf_range(0.20, 0.34)
+	var kappen_quer := abstand + block * 0.5 + block * 0.35 \
+			+ wuerfel.randf_range(-0.2, 0.3)
+	var kappen_mitte := punkt(kurve, s, seite * kappen_quer,
+			hoehe + wuerfel.randf_range(-0.5, 0.2))
+	var kappen_form := Transform3D(Basis.IDENTITY, kappen_mitte)
+	kappen_form.basis = Basis(Vector3.UP, dreh + wuerfel.randf_range(-0.12, 0.12))
+	kappen_form.basis = kappen_form.basis.scaled(Vector3(
+			block * 0.62 * wuerfel.randf_range(0.9, 1.3), kappe,
+			block * wuerfel.randf_range(0.75, 1.2)))
+	toepfe["deck"].append(kappen_form)
+
+
+## Unsichtbare Leitwand am Rand der Schlucht.
+##
+## Ein Korridorlevel ist bisher ein Plateau: Wer seitlich hinunterläuft,
+## fällt. In einer Schlucht ist das falsch – dort begrenzen Wände, und
+## fallen kann man nur durch eine Spalte im Boden. Diese Wand übernimmt
+## das Begrenzen.
+##
+## Sie besteht aus einzelnen Kästen statt aus einem Dreiecksnetz: Ein
+## Trimesh über die zerklüftete Sichtwand wäre teuer und würde den Spieler
+## an jeder Zacke hängen lassen. Die Kästen stehen glatt und dicht an der
+## Wand, davon merkt man beim Anlaufen nichts.
+static func leitwand(elternteil: Node3D, kurve: Curve3D, von: float, bis: float,
+		abstand: float, hoehe: float = 4.0, schritt: float = 3.0) -> StaticBody3D:
+	var koerper := StaticBody3D.new()
+	koerper.name = "Leitwand"
+	koerper.collision_layer = 1
+	koerper.collision_mask = 0
+	elternteil.add_child(koerper)
+
+	var s := von
+	while s < bis:
+		var laenge := minf(schritt, bis - s)
+		var mitte_s := s + laenge * 0.5
+		for seite: float in [-1.0, 1.0]:
+			var form := CollisionShape3D.new()
+			var kasten := BoxShape3D.new()
+			# Etwas länger als der Schritt, damit zwischen zwei Kästen in
+			# einer Kurve keine Lücke aufgeht.
+			kasten.size = Vector3(1.0, hoehe, laenge + 0.8)
+			form.shape = kasten
+			form.position = punkt(kurve, mitte_s, seite * (abstand + 0.5), hoehe * 0.5)
+			form.rotation.y = drehung(kurve, mitte_s)
+			koerper.add_child(form)
+		s += laenge
+	return koerper
+
+
+## Waagerechtes Sims entlang beider Schluchtwände.
+##
+## Es schließt den klaffenden Zwischenraum zwischen Weg und Wand und gibt
+## den Bäumen und Steinen eine Standfläche – ohne es hingen sie sichtbar
+## in der Luft, was in der Seitenansicht des 2D-Abschnitts sofort auffiel.
+## Rein optisch, ohne Kollision: Der Spieler soll den Weg nehmen.
+##
+## `abschnitte`: [{"von", "bis", "innen", "aussen", "hoehe"}]
+static func sims(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
+		material: Material, schritt: float = 3.0) -> Node3D:
+	var wurzel := Node3D.new()
+	wurzel.name = "Simse"
+	elternteil.add_child(wurzel)
+
+	for eintrag in abschnitte:
+		var von: float = eintrag.get("von", 0.0)
+		var bis: float = eintrag.get("bis", 0.0)
+		if bis <= von:
+			continue
+		for seite: float in [-1.0, 1.0]:
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+			var innen: float = eintrag.get("innen", 6.0)
+			var aussen: float = eintrag.get("aussen", 12.0)
+			var hoehe: float = eintrag.get("hoehe", -2.0)
+			var vorher := {}
+			for i in anzahl + 1:
+				var s := lerpf(von, bis, float(i) / float(anzahl))
+				var q := {
+					"i": punkt(kurve, s, seite * innen, hoehe),
+					"a": punkt(kurve, s, seite * aussen, hoehe + 0.6),
+				}
+				if not vorher.is_empty():
+					_quad(st, vorher["i"], vorher["a"], q["i"], q["a"], Vector3.UP)
+				vorher = q
+			_flaeche(wurzel, st, material, "Sims")
+	return wurzel
+
+
+## Ein Torbogen quer über den Weg, aus einzelnen Blöcken gesetzt.
+##
+## Der erste Versuch nahm für die Breite `breite * 0.62`, für die Höhe aber
+## einen festen Radius und lief nur bis ±66°. Daraus wurde eine
+## abgeschnittene Ellipse aus freischwebenden Blöcken. Hier ist es ein
+## echter Halbkreis: gleicher Radius für beide Achsen, von Boden zu Boden.
+static func torbogen(elternteil: Node3D, kurve: Curve3D, strecke: float,
+		spannweite: float, material: Material, bloecke: int = 11,
+		fusshoehe: float = 0.0) -> Node3D:
+	var bogen := Node3D.new()
+	bogen.name = "Torbogen"
+	bogen.position = punkt(kurve, strecke, 0.0, fusshoehe)
+	bogen.rotation.y = drehung(kurve, strecke)
+	elternteil.add_child(bogen)
+
+	var radius := spannweite * 0.5
+	# Blockbreite so wählen, dass sich die Blöcke am Scheitel berühren.
+	var bogenlaenge := PI * radius
+	var block_laenge := bogenlaenge / float(bloecke) * 1.15
+	for i in bloecke:
+		var t := (float(i) + 0.5) / float(bloecke)
+		var winkel := lerpf(-PI * 0.5, PI * 0.5, t)
+		var block := MeshInstance3D.new()
+		var kasten := BoxMesh.new()
+		kasten.size = Vector3(radius * 0.26, block_laenge, radius * 0.34)
+		block.mesh = kasten
+		block.material_override = material
+		block.position = Vector3(sin(winkel) * radius, cos(winkel) * radius, 0.0)
+		# Der Block steht quer zum Radius, also um den Winkel gedreht.
+		block.rotation.z = -winkel
+		bogen.add_child(block)
+	return bogen

@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/enemies/frostmotte.gd" id="1_motte"]
+
+[sub_resource type="BoxShape3D" id="FormMotte"]
+size = Vector3(1.4, 1.0, 1.1)
+
+[node name="Frostmotte" type="Node3D" groups=["gegner"]]
+script = ExtResource("1_motte")
+
+[node name="Trefferzone" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Kollision" type="CollisionShape3D" parent="Trefferzone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+shape = SubResource("FormMotte")

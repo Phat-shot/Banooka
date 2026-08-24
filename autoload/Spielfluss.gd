@@ -4,24 +4,39 @@ extends Node
 ## Als Autoload unter dem Namen "Spielfluss" registriert.
 ##
 ## Der Portalraum besteht aus fünf Räumen mit je fünf Leveln (25 Level).
-## Gebaut ist bisher nur Level 01; alle übrigen Einträge sind leer und
-## erscheinen im Portalraum als verschlossene Tore.
+## Noch nicht gebaute Level haben einen leeren Eintrag in `LEVEL_SZENEN`
+## und erscheinen im Portalraum als verschlossene Tore.
+##
+## Gespeichert wird auf einen von vier Plätzen, und zwar immer beim
+## Betreten des Portalraums – nicht mitten im Level.
 
 const SPLASH_SZENE := "res://scenes/ui/Splash.tscn"
 const HUB_SZENE := "res://scenes/hub/Hub.tscn"
+const OPTIONEN_SZENE := "res://scenes/ui/Optionen.tscn"
 
 const RAEUME := 5
 const LEVEL_JE_RAUM := 5
 const LEVEL_GESAMT := RAEUME * LEVEL_JE_RAUM
 
-const SPEICHERPFAD := "user://spielstand.cfg"
+## Vier Speicherplätze. Gespeichert wird ausschließlich im Portalraum
+## (siehe `hub.gd`), nie mitten im Level – so ist immer klar, worauf ein
+## Spielstand zurückfällt.
+const SLOTS := 4
+const SLOT_MUSTER := "user://spielstand_%d.cfg"
+## Alte Einzeldatei aus der Zeit vor den Speicherplätzen; wird beim ersten
+## Start einmalig nach Platz 1 übernommen.
+const ALTPFAD := "user://spielstand.cfg"
 
 ## Szenenpfade der Level, Index 0 = Level 01.
 ## Leerer Eintrag = noch nicht gebaut.
 const LEVEL_SZENEN := [
 	"res://scenes/levels/Level01.tscn",
+	"res://scenes/levels/Level02.tscn",
+	"res://scenes/levels/Level03.tscn",
+	"res://scenes/levels/Level04.tscn",
+	"res://scenes/levels/Level05.tscn",
+	"res://scenes/levels/Level06.tscn",
 	"", "", "", "",
-	"", "", "", "", "",
 	"", "", "", "", "",
 	"", "", "", "", "",
 	"", "", "", "", "",
@@ -44,10 +59,14 @@ var freigeschaltet := 1
 var geschafft := {}
 ## Gerade gespieltes Level (0 = keins).
 var aktuelles_level := 0
+## Gewählter Speicherplatz (1..SLOTS); 0 = noch keiner gewählt.
+var aktueller_slot := 0
+## Gesammelte Früchte über den ganzen Spielstand hinweg.
+var fruechte_gesamt := 0
 
 
 func _ready() -> void:
-	laden()
+	_altstand_uebernehmen()
 
 
 # ----------------------------------------------------------- Abfragen
@@ -60,8 +79,32 @@ func level_gebaut(nummer: int) -> bool:
 
 
 ## Darf der Spieler dieses Level betreten?
+##
+## Innerhalb eines Raums ist jedes gebaute Level offen – die Reihenfolge
+## darin bleibt dem Spieler überlassen. Der nächste Raum öffnet erst,
+## wenn der vorige abgeschlossen ist. Im Debugmodus ist alles offen.
 func level_offen(nummer: int) -> bool:
-	return level_gebaut(nummer) and nummer <= freigeschaltet
+	if not level_gebaut(nummer):
+		return false
+	return raum_offen(raum_von_level(nummer))
+
+
+## Ist dieser Raum betretbar? Raum 1 immer, jeder weitere erst, wenn der
+## vorige abgeschlossen ist.
+func raum_offen(raum: int) -> bool:
+	if raum <= 1 or GameState.debug:
+		return true
+	return raum_abgeschlossen(raum - 1)
+
+
+## Sind alle gebauten Level dieses Raums geschafft?
+## Ein Raum ohne gebaute Level gilt als abgeschlossen – sonst hinge der
+## Fortschritt an Leveln, die es noch gar nicht gibt.
+func raum_abgeschlossen(raum: int) -> bool:
+	for nummer in level_im_raum(raum):
+		if level_gebaut(nummer) and not geschafft.has(nummer):
+			return false
+	return true
 
 
 ## Raum (1-basiert), in dem dieses Level liegt.
@@ -77,19 +120,16 @@ func level_im_raum(raum: int) -> Array[int]:
 	return liste
 
 
-## Ist mindestens ein Level dieses Raums freigeschaltet?
-func raum_offen(raum: int) -> bool:
-	for nummer in level_im_raum(raum):
-		if level_offen(nummer):
-			return true
-	return false
-
-
 # ----------------------------------------------------------- Wechseln
 
 func zum_splash() -> void:
 	aktuelles_level = 0
 	_wechseln(SPLASH_SZENE)
+
+
+func zu_optionen() -> void:
+	aktuelles_level = 0
+	_wechseln(OPTIONEN_SZENE)
 
 
 func zum_hub() -> void:
@@ -109,15 +149,20 @@ func zum_level(nummer: int) -> bool:
 
 
 ## Wird vom Zielportal aufgerufen, wenn ein Level geschafft ist.
-func level_abschliessen(alle_kisten: bool) -> void:
+##
+## Beide Edelsteine sind dauerhaft: Wer sie einmal geholt hat, behält sie
+## auch nach einem schlechteren Durchlauf.
+func level_abschliessen(alle_kisten: bool, ohne_tod: bool = false) -> void:
 	if aktuelles_level < 1:
 		return
 	var eintrag: Dictionary = geschafft.get(aktuelles_level, {})
 	eintrag["kisten"] = bool(eintrag.get("kisten", false)) or alle_kisten
+	eintrag["ohne_tod"] = bool(eintrag.get("ohne_tod", false)) or ohne_tod
 	eintrag["fruechte"] = maxi(int(eintrag.get("fruechte", 0)), GameState.fruechte)
 	geschafft[aktuelles_level] = eintrag
 	freigeschaltet = maxi(freigeschaltet, mini(aktuelles_level + 1, LEVEL_GESAMT))
-	speichern()
+	fruechte_gesamt += GameState.fruechte
+	# Geschrieben wird nicht hier, sondern beim Betreten des Portalraums.
 	fortschritt_geaendert.emit()
 
 
@@ -128,6 +173,9 @@ func _wechseln(pfad: String, ladetitel: String = "") -> void:
 	if pfad.is_empty() or not ResourceLoader.exists(pfad):
 		push_warning("Szene fehlt: %s" % pfad)
 		return
+	# Touch-Zustand aufräumen, sonst nimmt die neue Szene den Daumen vom
+	# Portal-Eingang als dauerhaften Steuerbefehl mit.
+	InputHub.zuruecksetzen()
 	if ladetitel.is_empty():
 		get_tree().change_scene_to_file.call_deferred(pfad)
 		return
@@ -146,24 +194,114 @@ func _wechseln_mit_ladeschirm(pfad: String, titel: String) -> void:
 
 # ----------------------------------------------------------- Spielstand
 
+func slot_pfad(slot: int) -> String:
+	return SLOT_MUSTER % slot
+
+
+## Kopfdaten eines Speicherplatzes, ohne ihn zu laden.
+## Rückgabe: {"belegt": bool, "freigeschaltet": int, "geschafft": int,
+##            "fruechte": int, "raum": String}
+func slot_daten(slot: int) -> Dictionary:
+	var leer := {"belegt": false, "freigeschaltet": 1, "geschafft": 0,
+			"fruechte": 0, "raum": RAUM_NAMEN[0]}
+	if slot < 1 or slot > SLOTS:
+		return leer
+	var datei := ConfigFile.new()
+	if datei.load(slot_pfad(slot)) != OK:
+		return leer
+	var frei := int(datei.get_value("fortschritt", "freigeschaltet", 1))
+	var fertig: Dictionary = datei.get_value("fortschritt", "geschafft", {})
+	var raum := raum_von_level(clampi(frei, 1, LEVEL_GESAMT))
+	return {
+		"belegt": true,
+		"freigeschaltet": frei,
+		"geschafft": fertig.size(),
+		"fruechte": int(datei.get_value("fortschritt", "fruechte", 0)),
+		"raum": RAUM_NAMEN[clampi(raum - 1, 0, RAUM_NAMEN.size() - 1)],
+	}
+
+
+## Weitesten Stand über alle Plätze hinweg – für die Fortschrittszeile
+## im Startbildschirm, wo noch kein Platz gewählt ist.
+## Rückgabe: {"freigeschaltet": int, "geschafft": Dictionary}
+func bester_stand() -> Dictionary:
+	var frei := 1
+	var fertig := {}
+	for slot in range(1, SLOTS + 1):
+		var datei := ConfigFile.new()
+		if datei.load(slot_pfad(slot)) != OK:
+			continue
+		frei = maxi(frei, int(datei.get_value("fortschritt", "freigeschaltet", 1)))
+		var liste: Dictionary = datei.get_value("fortschritt", "geschafft", {})
+		for nummer in liste:
+			fertig[nummer] = true
+	return {"freigeschaltet": frei, "geschafft": fertig}
+
+
+## Beginnt auf diesem Platz ein frisches Spiel und geht in den Portalraum.
+func neues_spiel(slot: int) -> void:
+	aktueller_slot = clampi(slot, 1, SLOTS)
+	freigeschaltet = 1
+	geschafft = {}
+	fruechte_gesamt = 0
+	GameState.neu_beginnen()
+	speichern()
+	fortschritt_geaendert.emit()
+	zum_hub()
+
+
+## Lädt diesen Platz und geht in den Portalraum. Falsch, wenn er leer ist.
+func spiel_laden(slot: int) -> bool:
+	if slot < 1 or slot > SLOTS:
+		return false
+	var datei := ConfigFile.new()
+	if datei.load(slot_pfad(slot)) != OK:
+		return false
+	aktueller_slot = slot
+	freigeschaltet = int(datei.get_value("fortschritt", "freigeschaltet", 1))
+	geschafft = datei.get_value("fortschritt", "geschafft", {})
+	fruechte_gesamt = int(datei.get_value("fortschritt", "fruechte", 0))
+	GameState.neu_beginnen()
+	fortschritt_geaendert.emit()
+	zum_hub()
+	return true
+
+
+## Schreibt den laufenden Fortschritt auf den gewählten Platz.
+## Wird vom Portalraum bei jedem Betreten aufgerufen.
 func speichern() -> void:
+	if aktueller_slot < 1:
+		return
 	var datei := ConfigFile.new()
 	datei.set_value("fortschritt", "freigeschaltet", freigeschaltet)
 	datei.set_value("fortschritt", "geschafft", geschafft)
-	datei.save(SPEICHERPFAD)
+	datei.set_value("fortschritt", "fruechte", fruechte_gesamt)
+	datei.save(slot_pfad(aktueller_slot))
 
 
-func laden() -> void:
-	var datei := ConfigFile.new()
-	if datei.load(SPEICHERPFAD) != OK:
+## Löscht einen Speicherplatz.
+func slot_loeschen(slot: int) -> void:
+	if slot < 1 or slot > SLOTS:
 		return
-	freigeschaltet = int(datei.get_value("fortschritt", "freigeschaltet", 1))
-	geschafft = datei.get_value("fortschritt", "geschafft", {})
-
-
-## Setzt den gesamten Fortschritt zurück.
-func zuruecksetzen() -> void:
-	freigeschaltet = 1
-	geschafft = {}
-	speichern()
+	DirAccess.remove_absolute(slot_pfad(slot))
+	if aktueller_slot == slot:
+		aktueller_slot = 0
+		freigeschaltet = 1
+		geschafft = {}
+		fruechte_gesamt = 0
 	fortschritt_geaendert.emit()
+
+
+## Übernimmt einen Spielstand aus der Zeit vor den Speicherplätzen.
+func _altstand_uebernehmen() -> void:
+	if not FileAccess.file_exists(ALTPFAD):
+		return
+	if FileAccess.file_exists(slot_pfad(1)):
+		DirAccess.remove_absolute(ALTPFAD)
+		return
+	var datei := ConfigFile.new()
+	if datei.load(ALTPFAD) != OK:
+		return
+	datei.set_value("fortschritt", "fruechte", 0)
+	datei.save(slot_pfad(1))
+	DirAccess.remove_absolute(ALTPFAD)

@@ -21,6 +21,7 @@ enum Art {
 	NITRO,            ## explodiert bei jeder Berührung
 	EISEN,            ## unzerbrechlich, reine Plattform
 	CHECKPOINT,       ## setzt den Respawn-Punkt
+	SCHUTZ,           ## gibt eine Schutzladung (bis zu drei stapelbar)
 }
 
 # --- Kennwerte ---
@@ -98,6 +99,8 @@ const FASE := 0.016         ## Kantenfase
 const BLECH := 0.095        ## halbe Kantenlänge eines Eckblechs
 const BLECH_ECKE := 0.335   ## Sitz der Eckbleche auf der Fläche
 const FELD_BREIT := 0.245   ## halbe Breite des eingelassenen Feldes
+const ZEICHEN_Z := 0.016    ## Zeichen stehen so weit vor der Brettfläche
+const ZEICHEN_TIEFE := 0.024
 const FELD_TIEF := 0.395    ## Vorderkante des eingelassenen Feldes
 const UV_HOLZ := 2.5        ## Texturwiederholung auf dem Holz
 const UV_METALL := 7.0      ## Texturwiederholung auf Metall (feines Korn)
@@ -237,7 +240,7 @@ func _baue_beschlaege(st: SurfaceTool) -> void:
 func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool) -> void:
 	match art:
 		Art.FRUCHT_MEHRFACH:
-			_auf_seiten(func(tf: Transform3D) -> void: _sym_fruechte(akzent, tf))
+			_beschriften("?", 0.44, Color(0.16, 0.10, 0.03))
 		Art.LEBEN:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_leben(akzent, tf))
 		Art.FEDER:
@@ -246,15 +249,20 @@ func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool)
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_sprung(akzent, tf))
 			_sym_sprungteller(metall, akzent)
 		Art.TNT:
-			_sym_zuendschnur(akzent, rahmen)
+			_beschriften("TNT", 0.20, Color(1.0, 0.97, 0.90))
+			_sym_zuendschnur(rahmen, metall)
 		Art.NITRO:
-			_auf_seiten(func(tf: Transform3D) -> void: _sym_nitro(akzent, tf))
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_totenkopf(akzent, rahmen, tf))
+			# Totenkopf oben, Schriftzug darunter – wie in den Vorlagen.
+			_beschriften("NITRO", 0.105, Color(1.0, 0.98, 0.92), -0.095)
 			_sym_ventil(akzent, metall)
 		Art.EISEN:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_eisen(akzent, tf))
 		Art.CHECKPOINT:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_checkpoint(akzent, rahmen, tf))
 			_sym_fahne(akzent, rahmen)
+		Art.SCHUTZ:
+			_auf_seiten(func(tf: Transform3D) -> void: _sym_schutz(akzent, tf))
 		_:
 			pass
 
@@ -267,17 +275,74 @@ func _auf_seiten(bau: Callable) -> void:
 				seite[0] * BRETT_AUSSEN))
 
 
-## Drei Früchte als Relief im eingelassenen Feld.
-func _sym_fruechte(st: SurfaceTool, tf: Transform3D) -> void:
-	var stellen: Array = [[-0.150, 0.095, 0.055], [0.0, 0.115, 0.075],
-			[0.150, 0.095, 0.055]]
-	for s in stellen:
-		Kistengeometrie.kuppel(st, Vector3.ZERO, s[1], s[2], 10, 3, UV_METALL,
-				tf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5),
-				Vector3(s[0], 0.0, -0.022)))
+## Totenkopf auf der Nitrokiste, zusätzlich zum Schriftzug.
+##
+## Schädel und Kiefer im hellen Akzent, Augenhöhlen und Nase dunkel
+## darüber. Die Augen nehmen ein knappes Drittel der Schädelbreite ein –
+## kleiner blieb aus Spielentfernung nur ein weißer Fleck übrig.
+func _sym_totenkopf(akzent: SurfaceTool, rahmen: SurfaceTool,
+		tf: Transform3D) -> void:
+	var vorn := ZEICHEN_Z + ZEICHEN_TIEFE * 0.5 + 0.004
+	Kistengeometrie.quader(akzent, Vector3(0.0, 0.128, ZEICHEN_Z),
+			Vector3(0.160, 0.110, ZEICHEN_TIEFE), 0.036, UV_METALL, tf)
+	Kistengeometrie.quader(akzent, Vector3(0.0, 0.048, ZEICHEN_Z),
+			Vector3(0.078, 0.058, ZEICHEN_TIEFE), 0.018, UV_METALL, tf)
+	for vz: float in [-1.0, 1.0]:
+		Kistengeometrie.quader(rahmen, Vector3(vz * 0.038, 0.136, vorn),
+				Vector3(0.052, 0.052, 0.016), 0.016, UV_METALL, tf)
+	Kistengeometrie.quader(rahmen, Vector3(0.0, 0.092, vorn),
+			Vector3(0.024, 0.028, 0.016), 0.006, UV_METALL, tf)
+	for vz: float in [-1.0, 1.0]:
+		Kistengeometrie.quader(rahmen, Vector3(vz * 0.019, 0.048, vorn),
+				Vector3(0.011, 0.058, 0.016), 0.004, UV_METALL, tf)
+
+
+## Aufschrift auf allen vier Seiten.
+##
+## Zuerst waren "?" und "TNT" als Relief aus Balken gebaut. Bei
+## Kistengröße lief das nicht: Ein Strich, der dick genug ist, um eine
+## Kante zu werfen, ist zugleich so dick, dass die Lücken im Zeichen
+## zulaufen – aus dem Fragezeichen wurde ein Klumpen. Eine echte Schrift
+## löst genau das, ist aus jeder Entfernung eindeutig und entspricht den
+## Vorlagen, die ihre Kisten ebenfalls beschriften.
+func _beschriften(text: String, hoehe: float, farbe: Color,
+		versatz_y: float = 0.0) -> void:
+	for seite in SEITEN:
+		var schild := Label3D.new()
+		schild.text = text
+		schild.font_size = 128
+		schild.pixel_size = hoehe / 128.0
+		schild.modulate = farbe
+		schild.outline_size = 22
+		schild.outline_modulate = Color(0.04, 0.03, 0.02, 0.85)
+		schild.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		schild.double_sided = false
+		schild.shaded = true
+		schild.no_depth_test = false
+		# Etwas vor der Brettfläche, damit die Schrift nicht in den
+		# Brettern flimmert.
+		schild.position = seite[0] * (BRETT_AUSSEN + 0.012) \
+				+ Vector3.UP * versatz_y
+		add_child(schild)
+		schild.basis = Basis(seite[1], Vector3.UP, seite[0])
 
 
 ## Erhabenes Kreuz für die Lebenskiste.
+## Schutz: ein Wappenschild, aus vier nach unten schmaler werdenden Lagen
+## aufgebaut. Aus der Spielkamera reicht die Silhouette – ein feiner
+## gezeichnetes Wappen wäre bei dieser Größe nicht zu erkennen.
+func _sym_schutz(st: SurfaceTool, tf: Transform3D) -> void:
+	var lagen := [
+		{"y": 0.075, "b": 0.190, "h": 0.055},
+		{"y": 0.020, "b": 0.175, "h": 0.058},
+		{"y": -0.040, "b": 0.130, "h": 0.060},
+		{"y": -0.092, "b": 0.062, "h": 0.048},
+	]
+	for lage in lagen:
+		Kistengeometrie.quader(st, Vector3(0.0, lage["y"], 0.018),
+				Vector3(lage["b"], lage["h"], 0.022), 0.008, UV_METALL, tf)
+
+
 func _sym_leben(st: SurfaceTool, tf: Transform3D) -> void:
 	Kistengeometrie.quader(st, Vector3(0.0, 0.0, 0.018),
 			Vector3(0.055, 0.185, 0.022), 0.01, UV_METALL, tf)
@@ -310,20 +375,14 @@ func _sym_sprungteller(metall: SurfaceTool, akzent: SurfaceTool) -> void:
 	Kistengeometrie.zylinder(akzent, Vector3(0.0, 0.565, 0.0), 0.16, 0.13, 0.04, 12, UV_METALL)
 
 
-## Zündschnur auf der TNT-Kiste.
-func _sym_zuendschnur(akzent: SurfaceTool, rahmen: SurfaceTool) -> void:
-	Kistengeometrie.zylinder(rahmen, Vector3(0.0, 0.52, 0.0), 0.10, 0.09, 0.05, 10, UV_METALL)
+## Zündschnur auf der TNT-Kiste. Die Schnur ist dunkel (Rahmenmaterial),
+## damit der helle Akzent allein dem Schriftzug gehört.
+func _sym_zuendschnur(rahmen: SurfaceTool, metall: SurfaceTool) -> void:
+	Kistengeometrie.zylinder(metall, Vector3(0.0, 0.52, 0.0), 0.10, 0.09, 0.05, 10, UV_METALL)
 	var dreh := Transform3D(Basis(Vector3.FORWARD, 0.35), Vector3(0.0, 0.60, 0.0))
-	Kistengeometrie.zylinder(akzent, Vector3(0.0, 0.06, 0.0), 0.026, 0.02, 0.16, 8,
+	Kistengeometrie.zylinder(rahmen, Vector3(0.0, 0.06, 0.0), 0.026, 0.02, 0.16, 8,
 			UV_METALL, dreh)
-	Kistengeometrie.kuppel(akzent, Vector3(0.0, 0.14, 0.0), 0.05, 0.05, 10, 3, UV_METALL, dreh)
-
-
-## Warnkreuz im eingelassenen Feld der Nitrokiste.
-func _sym_nitro(st: SurfaceTool, tf: Transform3D) -> void:
-	for vz: float in [-1.0, 1.0]:
-		Kistengeometrie.schraeg_quader(st, Vector3(0.0, 0.0, -0.012),
-				Vector3(0.165, 0.034, 0.026), vz * PI * 0.25, 0.01, UV_METALL, tf)
+	Kistengeometrie.kuppel(rahmen, Vector3(0.0, 0.14, 0.0), 0.05, 0.05, 10, 3, UV_METALL, dreh)
 
 
 ## Ventilstutzen oben auf der Nitrokiste.
@@ -366,12 +425,16 @@ func _sym_fahne(akzent: SurfaceTool, rahmen: SurfaceTool) -> void:
 ## Farbe und Material des Bretterkorpus.
 func _material_fuer_art() -> StandardMaterial3D:
 	match art:
+		Art.FRUCHT_MEHRFACH:
+			return Materialbibliothek.kistenholz(Farben.KISTE_FRAGE)
 		Art.LEBEN:
 			return Materialbibliothek.kistenholz(Farben.KISTE_LEBEN)
 		Art.FEDER:
 			return Materialbibliothek.kistenholz(Farben.KISTE_FEDER)
 		Art.CHECKPOINT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_CHECKPOINT)
+		Art.SCHUTZ:
+			return Materialbibliothek.kistenholz(Farben.KISTE_SCHUTZ)
 		Art.TNT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_TNT)
 		Art.NITRO:
@@ -396,10 +459,14 @@ func _rahmen_material() -> StandardMaterial3D:
 	match art:
 		Art.EISEN, Art.SPRUNG:
 			return _mattes_metall(Farben.KISTE_EISEN.darkened(0.35))
+		Art.FRUCHT_MEHRFACH:
+			return Materialbibliothek.kistenholz(Farben.KISTE_FRAGE.darkened(0.55))
 		Art.LEBEN:
 			return Materialbibliothek.kistenholz(Farben.KISTE_LEBEN.darkened(0.48))
 		Art.CHECKPOINT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_CHECKPOINT.darkened(0.5))
+		Art.SCHUTZ:
+			return Materialbibliothek.kistenholz(Farben.KISTE_SCHUTZ.darkened(0.5))
 		Art.TNT:
 			return Materialbibliothek.kistenholz(Farben.KISTE_TNT.darkened(0.52))
 		Art.NITRO:
@@ -437,17 +504,23 @@ static func _mattes_metall(farbe: Color) -> StandardMaterial3D:
 func _akzent_material() -> StandardMaterial3D:
 	match art:
 		Art.FRUCHT_MEHRFACH:
-			return Materialbibliothek.leuchtend(Farben.FRUCHT, 0.35)
+			# Dunkel auf Gelb – die Vorlagen setzen das Fragezeichen als
+			# schwarzes Zeichen auf die helle Fläche, nicht umgekehrt.
+			return Materialbibliothek.einfarbig(Color(0.14, 0.09, 0.03), 0.55)
 		Art.LEBEN:
 			return Materialbibliothek.leuchtend(Color(0.96, 1.0, 0.94), 0.25)
 		Art.FEDER, Art.EISEN:
 			return _mattes_metall(Farben.FELS_HELL)
 		Art.SPRUNG:
 			return Materialbibliothek.leuchtend(Color(0.86, 0.95, 1.0), 0.5)
+		Art.SCHUTZ:
+			return Materialbibliothek.leuchtend(Color(0.82, 0.95, 1.0), 0.6)
 		Art.TNT:
-			return Materialbibliothek.einfarbig(Color(0.10, 0.08, 0.07), 0.6)
+			# Heller Schriftzug auf dem roten Korpus, wie in den Vorlagen.
+			return Materialbibliothek.einfarbig(Color(0.97, 0.94, 0.86), 0.55)
 		Art.NITRO:
-			return Materialbibliothek.einfarbig(Color(0.05, 0.09, 0.05), 0.5)
+			# Knochenweiß für den Totenkopf.
+			return Materialbibliothek.einfarbig(Color(0.94, 0.96, 0.90), 0.5)
 		Art.CHECKPOINT:
 			return Materialbibliothek.einfarbig(Color(0.96, 0.98, 0.94), 0.7)
 		_:
@@ -661,6 +734,9 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 			GameState.leben += 1
 			GameState.leben_geaendert.emit(GameState.leben)
 			GameState.zeige_nachricht("Extraleben!", 1.5)
+		Art.SCHUTZ:
+			GameState.kiste_zerbrochen()
+			GameState.schutz_aufnehmen()
 		Art.FRUCHT_MEHRFACH:
 			GameState.kiste_zerbrochen()
 			Frucht.streuen(get_parent(), global_position, FRUECHTE_MEHRFACH)

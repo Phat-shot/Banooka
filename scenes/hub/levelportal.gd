@@ -7,8 +7,14 @@ class_name Levelportal
 ##   VERSCHLOSSEN  – gebaut, aber noch nicht freigeschaltet: dunkel, mit Gitter
 ##   IN_ARBEIT     – Level noch nicht gebaut: mit Bauplane abgedeckt
 ##
-## Geschaffte Level bekommen einen goldenen Haken über dem Tor, bei allen
-## Kisten zusätzlich einen Edelstein.
+## Geschaffte Level leuchten: ein warmer Schein legt sich um das ganze
+## Tor. Der goldene Haken von früher war eine Marke neben der Zahl – man
+## musste hinsehen, um ihn zu bemerken. Der Schein wirkt schon aus dem
+## Augenwinkel und über den halben Raum hinweg.
+##
+## Darüber schweben bis zu zwei Edelsteine:
+##   blau  – alle Kisten zerbrochen
+##   rot   – Level ohne einen einzigen Tod geschafft
 ##
 ## `nummer` muss VOR `add_child()` gesetzt werden – `_ready()` baut daraus
 ## die gesamte Optik auf.
@@ -29,7 +35,10 @@ var zustand: Zustand = Zustand.IN_ARBEIT
 var _scheibe: MeshInstance3D = null
 var _scheibenmaterial: StandardMaterial3D = null
 var _licht: OmniLight3D = null
-var _edelstein: Node3D = null
+var _edelsteine: Array[Node3D] = []
+var _schein: OmniLight3D = null
+var _scheinring: MeshInstance3D = null
+var _scheinmaterial: StandardMaterial3D = null
 var _phase := 0.0
 var _ausgeloest := false
 
@@ -52,7 +61,8 @@ func _ready() -> void:
 	_baue_erfolg()
 	_baue_zone()
 
-	set_process(zustand == Zustand.OFFEN or _edelstein != null)
+	set_process(zustand == Zustand.OFFEN or not _edelsteine.is_empty()
+			or _schein != null)
 
 
 func _bestimme_zustand() -> Zustand:
@@ -248,52 +258,83 @@ func _baue_zahl() -> void:
 	add_child(zahl)
 
 
-## Haken für geschaffte Level, Edelstein für "alle Kisten".
+## Schein für geschaffte Level, Edelsteine für die beiden Kunststücke.
 func _baue_erfolg() -> void:
 	if not Spielfluss.geschafft.has(nummer):
 		return
 	var eintrag: Dictionary = Spielfluss.geschafft[nummer]
 
-	# --- goldener Haken neben der Zahl ---
-	var haken := Node3D.new()
-	haken.name = "Haken"
-	haken.position = Vector3(RADIUS + 0.45, MITTE_Y + RADIUS + 0.75, 0.0)
-	add_child(haken)
-	var gold := Materialbibliothek.leuchtend(Farben.KISTE_FEDER, 1.5)
-	var kurz := MeshInstance3D.new()
-	var kurz_mesh := BoxMesh.new()
-	kurz_mesh.size = Vector3(0.42, 0.14, 0.14)
-	kurz.mesh = kurz_mesh
-	kurz.material_override = gold
-	kurz.position = Vector3(-0.12, -0.1, 0.0)
-	kurz.rotation_degrees = Vector3(0.0, 0.0, -45.0)
-	haken.add_child(kurz)
-	var lang := MeshInstance3D.new()
-	var lang_mesh := BoxMesh.new()
-	lang_mesh.size = Vector3(0.75, 0.14, 0.14)
-	lang.mesh = lang_mesh
-	lang.material_override = gold
-	lang.position = Vector3(0.15, 0.06, 0.0)
-	lang.rotation_degrees = Vector3(0.0, 0.0, 52.0)
-	haken.add_child(lang)
+	_baue_schein()
 
-	# --- Edelstein, wenn alle Kisten zerbrochen wurden ---
-	if not bool(eintrag.get("kisten", false)):
-		return
-	_edelstein = Node3D.new()
-	_edelstein.name = "Edelstein"
-	_edelstein.position = Vector3(0.0, MITTE_Y + RADIUS + 1.85, 0.0)
-	add_child(_edelstein)
+	# --- Edelsteine über dem Tor ---
+	var steine: Array = []
+	if bool(eintrag.get("kisten", false)):
+		steine.append(Farben.EDELSTEIN_KISTEN)
+	if bool(eintrag.get("ohne_tod", false)):
+		steine.append(Farben.EDELSTEIN_OHNE_TOD)
+	for i in steine.size():
+		# Bei zwei Steinen rücken sie auseinander, bei einem steht er mittig.
+		var x := 0.0 if steine.size() == 1 else (float(i) - 0.5) * 0.86
+		_edelsteine.append(_baue_edelstein(steine[i], x))
+
+
+## Warmer Schein um das ganze Tor: ein Licht in der Toröffnung und ein
+## breiter, halbdurchsichtiger Ring hinter dem Rahmen.
+func _baue_schein() -> void:
+	_scheinring = MeshInstance3D.new()
+	_scheinring.name = "Schein"
+	var scheibe := TorusMesh.new()
+	scheibe.inner_radius = RADIUS + RING_DICKE * 0.2
+	scheibe.outer_radius = RADIUS + RING_DICKE * 4.6
+	scheibe.rings = 24
+	scheibe.ring_segments = 10
+	_scheinring.mesh = scheibe
+	_scheinring.position = Vector3(0.0, MITTE_Y, -0.04)
+	_scheinring.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+	_scheinring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Additiv und ungeschattet: Nur so liest sich der Ring als Licht und
+	# nicht als graue Scheibe. Ein gewöhnliches Leuchtmaterial wurde von
+	# der Raumbeleuchtung überlagert und blieb stumpf.
+	_scheinmaterial = StandardMaterial3D.new()
+	_scheinmaterial.albedo_color = Color(Farben.ERFOLG_SCHEIN.r,
+			Farben.ERFOLG_SCHEIN.g, Farben.ERFOLG_SCHEIN.b, 0.30)
+	_scheinmaterial.emission_enabled = true
+	_scheinmaterial.emission = Farben.ERFOLG_SCHEIN
+	_scheinmaterial.emission_energy_multiplier = 1.3
+	_scheinmaterial.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_scheinmaterial.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_scheinmaterial.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_scheinmaterial.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_scheinring.material_override = _scheinmaterial
+	add_child(_scheinring)
+
+	_schein = OmniLight3D.new()
+	_schein.name = "Scheinlicht"
+	_schein.light_color = Farben.ERFOLG_SCHEIN
+	_schein.light_energy = 1.6
+	_schein.omni_range = 5.5
+	_schein.shadow_enabled = false
+	_schein.position = Vector3(0.0, MITTE_Y, 0.2)
+	add_child(_schein)
+
+
+func _baue_edelstein(ton: Color, seitlich: float) -> Node3D:
+	var stein := Node3D.new()
+	stein.name = "Edelstein"
+	stein.position = Vector3(seitlich, MITTE_Y + RADIUS + 1.62, 0.0)
+	add_child(stein)
+
 	var kristall := MeshInstance3D.new()
-	var kristall_mesh := SphereMesh.new()
-	kristall_mesh.radius = 0.3
-	kristall_mesh.height = 0.86
-	kristall_mesh.radial_segments = 6
-	kristall_mesh.rings = 2
-	kristall.mesh = kristall_mesh
-	kristall.material_override = Materialbibliothek.leuchtend(Farben.PORTAL_ZIEL, 1.2)
+	var form := SphereMesh.new()
+	form.radius = 0.3
+	form.height = 0.86
+	form.radial_segments = 6
+	form.rings = 2
+	kristall.mesh = form
+	kristall.material_override = Materialbibliothek.leuchtend(ton, 1.4)
 	kristall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_edelstein.add_child(kristall)
+	stein.add_child(kristall)
+	return stein
 
 
 func _baue_zone() -> void:
@@ -326,9 +367,21 @@ func _process(delta: float) -> void:
 			_scheibenmaterial.albedo_color.a = 0.4 + puls * 0.22
 		if is_instance_valid(_licht):
 			_licht.light_energy = 1.1 + puls * 0.9
-	if is_instance_valid(_edelstein):
-		_edelstein.rotation.y += delta * 1.4
-		_edelstein.position.y = MITTE_Y + RADIUS + 1.85 + sin(_phase * 2.0) * 0.12
+	for i in _edelsteine.size():
+		var stein := _edelsteine[i]
+		if not is_instance_valid(stein):
+			continue
+		stein.rotation.y += delta * 1.4
+		# Gegenläufig versetzt schweben, damit zwei Steine nicht im
+		# Gleichschritt wippen.
+		stein.position.y = MITTE_Y + RADIUS + 1.62 \
+				+ sin(_phase * 1.7 + float(i) * 2.1) * 0.09
+	if _scheinmaterial != null:
+		var schwelle := 0.5 + 0.5 * sin(_phase * 1.6)
+		_scheinmaterial.emission_energy_multiplier = 1.1 + schwelle * 0.7
+		_scheinmaterial.albedo_color.a = 0.22 + schwelle * 0.14
+	if is_instance_valid(_schein):
+		_schein.light_energy = 1.2 + 0.6 * (0.5 + 0.5 * sin(_phase * 1.6))
 
 
 # ------------------------------------------------------------------ Betreten

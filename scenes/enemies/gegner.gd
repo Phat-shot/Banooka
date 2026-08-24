@@ -14,11 +14,30 @@ class_name Gegner
 ##
 ## Die Optik bauen die abgeleiteten Gegner in `_baue()` prozedural auf,
 ## die Fortbewegung läuft über `_bewegung()`. Beide sind hier leere Haken.
+##
+## ZEICHENSPRACHE – verbindlich für jeden neuen Gegner:
+## Wer nur eine Angriffsart zulässt, muss die anderen SICHTBAR abwehren.
+## Der Spieler soll nie ausprobieren müssen, was wirkt.
+##
+##   Drehschlag wirkt nicht  ->  Stacheln, Klingen oder Draht auf
+##                               Schlaghöhe (rund 0,4 bis 1,0 m)
+##   Draufspringen wirkt nicht -> Panzer, Zapfen oder Dornen OBEN;
+##                               oder der Gegner schwebt außer Reichweite
+##   Slide wirkt nicht       ->  nichts Angreifbares unten: flach am Boden
+##                               anliegend oder hoch über dem Boden
+##
+## Umgekehrt gilt: Die Stelle, an der es wirkt, bleibt frei und ist hell
+## abgesetzt – bei der Gletscherkrabbe etwa die leuchtende Panzernaht.
 
 ## Gravitation der Todesanimation.
 const TODES_G := -32.0
 ## Nach dieser Zeit verschwindet ein besiegter Gegner.
 const TODES_DAUER := 1.0
+## Wie weit unter dem Gegnerursprung der Spieler höchstens stehen darf,
+## damit ein Treffer noch als "von oben" zählt. Verhindert, dass jemand
+## von einem tieferen Sims aus mit dem Kopf in die Trefferzone ragt und
+## den Gegner damit besiegt.
+const UNTERKANTE_TOLERANZ := 0.2
 
 ## Bitmaske der Angriffsarten, die diesen Gegner besiegen (siehe Angriff).
 @export var besiegbar_durch: int = Angriff.SLAM
@@ -150,9 +169,29 @@ func _treffer(spieler: Spieler) -> void:
 		spieler.schaden_nehmen()
 
 
-## Steht der Spieler deutlich über dem Gegner?
+## Kommt der Spieler von oben?
+##
+## Entscheidend ist die Fallrichtung, nicht die Höhe. Zwei Anläufe über
+## eine Höhenschwelle sind daran gescheitert, dass `Area3D` Überlappungen
+## erst im nächsten Physikschritt meldet: Bei 18 m/s ist der Spieler dann
+## schon 0,30 m weiter, und ein flacher Gegner kann gar kein Fenster
+## bieten, das einen verlorenen Frame samt Messschritt überdeckt. Gemessen
+## wurde ein Fehlschlag bei spieler_y = 0,299 gegen eine Schwelle von
+## 0,300 – einen Millimeter daneben, nachdem das Bild davor mitten im
+## Fenster gelegen hatte.
+##
+## Dass der Spieler überhaupt fällt, steckt bereits in `Angriff.FALLEN`:
+## Das Bit setzt der Spieler nur, wenn er schneller als die Fallschwelle
+## sinkt, und behält es 0,25 s lang (`FALL_GEDAECHTNIS`) – eigens dafür,
+## dass `move_and_slide` beim Aufsetzen die Fallgeschwindigkeit sofort auf
+## null zieht. Hier bleibt damit nur noch zu prüfen, dass der Spieler
+## nicht von unten kommt.
+##
+## Preis dieser Regel: Wer im Fallen seitlich gegen einen Gegner stößt,
+## besiegt ihn. Das ist in Plattformern das übliche Verhalten und allemal
+## besser als ein Sprung, der in einem Viertel der Fälle Leben kostet.
 func _spieler_ist_oben(spieler: Node3D) -> bool:
-	return spieler.global_position.y > global_position.y + 0.5
+	return spieler.global_position.y > global_position.y - UNTERKANTE_TOLERANZ
 
 
 ## Der Gegner geht kaputt: Kollision aus, Früchte streuen, Todesanimation.

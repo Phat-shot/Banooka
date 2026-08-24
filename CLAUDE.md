@@ -35,6 +35,15 @@ Regeln:
 - Bauchplatscher zerbricht bei Landung Kisten im Radius 2 m (Schockwelle).
 - Kisten zerbrechen durch: Spin, Bauchplatscher, Draufspringen mit Fallgeschwindigkeit.
 
+## Stand der Level
+01 Wurzelschlucht (Wald) · 02 Frostgrat (Schnee) · 03 Moorbrücken (Sumpf) ·
+04 Katzensprung (Ritt auf der Wildkatze) · 05 Wettrennen (Karts, drei Runden).
+06–25 offen.
+
+Die Level 04 und 05 laufen nicht über `move_and_slide`, sondern kleben auf
+der Levelkurve (`Reiter`, `Rennfahrer` – beide erben von `Spieler`, weil
+Kisten und Gegner `koerper is Spieler` prüfen).
+
 ## Spielsysteme
 - **Kisten:** normal (gibt Frucht), Checkpoint (setzt Respawn), später: TNT-artig (Timer), Bounce, Eisen (unzerbrechlich)
 - **Sammeln:** Früchte (100 ⇒ Extraleben), Kisten-Zähler pro Level (alle ⇒ Edelstein-Äquivalent)
@@ -62,9 +71,14 @@ res://
 6. Deutsch für Kommentare und UI-Texte.
 
 ## Steuerung (Input-Map)
-| Aktion | Tastatur | Touch |
-|---|---|---|
-| move | WASD/Pfeile | Joystick links |
-| jump | Leertaste | Button JUMP (2× tippen = Doppelsprung) |
-| spin | J / Strg | Button SPIN |
-| slide/slam | Shift | Button SLIDE (in der Luft = Bauchplatscher) |
+| Aktion | Tastatur | Controller (PlayStation) | Touch |
+|---|---|---|---|
+| move | WASD/Pfeile | linker Stick / Steuerkreuz | Joystick links |
+| jump | Leertaste | Kreuz ✕ (JOY_BUTTON_A) | Taste ✕ (2× tippen = Doppelsprung) |
+| spin | J / Strg | Viereck □ (JOY_BUTTON_X) | Taste □ |
+| slide/slam | Shift | Kreis ○ (JOY_BUTTON_B) | Taste ○ (in der Luft = Bauchplatscher) |
+| status | Tab | Dreieck △ (JOY_BUTTON_Y) | Taste △ |
+
+Die Touch-Tasten liegen als Raute wie die Symboltasten eines Controllers und
+tragen dieselben Farben; ihre Größe folgt der Bildschirmdichte (Ziel rund
+13 mm Durchmesser), nicht der Pixelzahl.

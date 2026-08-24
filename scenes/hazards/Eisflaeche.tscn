@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/hazards/eisflaeche.gd" id="1_eis"]
+
+[node name="Eisflaeche" type="Node3D"]
+script = ExtResource("1_eis")

@@ -7,6 +7,10 @@ extends CanvasLayer
 @onready var _anzeige: Control = $Anzeige
 @onready var _tafel: Control = $Anzeige/Tafel
 @onready var _nachricht: Label = $Anzeige/Nachricht
+@onready var _touch: Control = $TouchControls
+
+## Übersicht über Spielstand und Steuerung, Dreieck △ bzw. Tab.
+var _status: Statustafel
 
 var _fruechte := 0
 var _leben := GameState.START_LEBEN
@@ -32,6 +36,14 @@ func _ready() -> void:
 	_tafel.draw.connect(_zeichne_tafel)
 	_nachricht.modulate.a = 0.0
 
+	_status = Statustafel.new()
+	_status.name = "Statustafel"
+	add_child(_status)
+	_status.visibility_changed.connect(_auf_status)
+	# Die Touch-Steuerung bleibt ganz oben: bei offener Statustafel steht
+	# dort nur noch das Dreieck, mit dem man sie wieder zumacht.
+	move_child(_touch, get_child_count() - 1)
+
 
 func _process(delta: float) -> void:
 	if _nachricht_timer > 0.0:
@@ -54,7 +66,9 @@ func _zeichne_tafel() -> void:
 	# statt "0 / 0" anzuzeigen.
 	var zeigt_kisten := _kisten_gesamt > 0
 	var breite := 230.0
-	var hoehe := 104.0 if zeigt_kisten else 78.0
+	var hoehe := 78.0
+	if zeigt_kisten:
+		hoehe += 26.0
 
 	# Hintergrundtafel mit weicher Kante
 	_runde_flaeche(Rect2(0, 0, breite, hoehe), Color(0.04, 0.07, 0.06, 0.55), 14.0)
@@ -77,10 +91,14 @@ func _zeichne_tafel() -> void:
 		_text(schrift, Vector2(26 + 5 * 20 + 4, y + 5), "+%d" % (_leben - 5), 14,
 				Color(1, 0.5, 0.5, 0.9))
 
+	# Der Schutz steht nicht mehr hier: Er kreist als Maske um die Figur.
+	# Im Spiel schaut man auf die Figur, nicht in die Ecke – wer im Sprung
+	# getroffen wird, soll am Bild sehen, dass noch etwas abfängt.
+	y = 84.0
+
 	# --- Kisten ---
 	if not zeigt_kisten:
 		return
-	y = 86.0
 	_kisten_symbol(Vector2(26, y), 9.0)
 	var voll_text := _kisten >= _kisten_gesamt and _kisten_gesamt > 0
 	var farbe := Farben.KISTE_LEBEN.lightened(0.2) if voll_text else Color(0.88, 0.76, 0.55)
@@ -153,6 +171,13 @@ func _runde_rahmen(feld: Rect2, farbe: Color, radius: float, staerke: float) -> 
 
 
 # ------------------------------------------------------------- Signale
+
+## Solange die Statustafel offen ist, nimmt die Touch-Steuerung nur noch
+## die Statustaste an – sonst spränge die Figur durch die Tafel hindurch.
+func _auf_status() -> void:
+	_touch.set("gesperrt", _status.visible)
+	_anzeige.visible = not _status.visible
+
 
 func _auf_fruechte(anzahl: int) -> void:
 	_fruechte = anzahl

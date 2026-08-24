@@ -31,6 +31,9 @@ class_name Stacheln
 
 ## Rostige Stacheln statt blankem Metall.
 @export var rostig := true
+## Farbe der Zacken. Leer = Vorgabe nach `rostig`. In einem Schneelevel
+## sehen rostbraune Stacheln aus wie Lava; dort wird hier Eis gesetzt.
+@export var eigenfarbe: Color = Color(0, 0, 0, 0)
 
 ## Fahren die Stacheln im Takt ein und aus?
 @export var einfahrbar := false
@@ -40,6 +43,13 @@ class_name Stacheln
 
 ## Zeitversatz, damit mehrere Felder versetzt takten.
 @export_range(0.0, 10.0, 0.05) var versatz := 0.0
+
+
+## Zackenfarbe: eigene Farbe, sonst Rost bzw. blankes Eisen.
+func _farbe() -> Color:
+	if eigenfarbe.a > 0.0:
+		return eigenfarbe
+	return ROST if rostig else Farben.KISTE_EISEN
 
 const ROST := Color(0.46, 0.28, 0.17)
 ## Anteil des Takts, den das Ein- bzw. Ausfahren dauert.
@@ -85,7 +95,7 @@ func _baue_platte() -> void:
 	_platte.mesh = quader
 	_platte.position = Vector3(0.0, 0.06, 0.0)
 	_platte.material_override = Materialbibliothek.metall(
-			ROST.darkened(0.35) if rostig else Farben.FELS)
+			_farbe().darkened(0.35))
 
 
 ## Kegelfeld als MultiMesh – ein Zeichenaufruf für alle Stacheln.
@@ -127,8 +137,7 @@ func _baue_kegel() -> void:
 			i += 1
 
 	_feld.multimesh = mm
-	_feld.material_override = Materialbibliothek.metall(
-			ROST if rostig else Farben.KISTE_EISEN)
+	_feld.material_override = Materialbibliothek.metall(_farbe())
 	_feld.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 

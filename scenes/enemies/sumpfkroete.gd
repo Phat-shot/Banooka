@@ -2,12 +2,13 @@ extends Gegner
 class_name Sumpfkroete
 ## Breite, flache Sumpfkröte.
 ##
-## NUR durch Draufspringen (Angriff.FALLEN von oben) oder den
-## Bauchplatscher zu besiegen. Spin und Slide prallen an ihrem
-## glitschigen Rücken ab – wer sie so berührt, nimmt Schaden.
+## NUR durch den Drehschlag (Angriff.SPIN) oder den Bauchplatscher zu
+## besiegen. Ihr Rücken ist so glitschig, dass ein Sprung darauf abrutscht,
+## und flach genug, dass ein Slide unter ihr durchgeht – wer sie so
+## berührt, nimmt Schaden.
 ##
 ## Bewegung: kurze Hüpfer hin und her, dazwischen plustert sie ihren
-## Kehlsack auf. Beim Besiegen platzt sie platt und der Spieler prallt ab.
+## Kehlsack auf. Der Drehschlag schleudert sie davon.
 
 const HUPF_KRAFT := 6.4      ## Absprunggeschwindigkeit eines Hüpfers
 const HUPF_G := -20.0        ## Gravitation für den Hüpfbogen
@@ -28,11 +29,10 @@ var _augen: Array[MeshInstance3D] = []
 
 
 func _init() -> void:
-	# Nur von oben plattzumachen.
-	besiegbar_durch = Angriff.FALLEN | Angriff.SLAM
+	# Nur der Drehschlag erwischt sie.
+	besiegbar_durch = Angriff.SPIN | Angriff.SLAM
 	patrouille_weite = 4.0
 	tempo = 2.4
-	abprall_hoehe = 14.0
 
 
 func _ready() -> void:
@@ -202,13 +202,19 @@ func _animiere() -> void:
 # ---------------------------------------------------------- Tod
 
 func _todesstart(_art: int) -> void:
-	# Die Kröte fliegt nicht weg, sie platzt an Ort und Stelle.
-	_wegflug = Vector3.ZERO
+	# Der Drehschlag schleudert sie seitlich weg.
+	_wegflug = _weg_richtung() * 8.0 + Vector3.UP * 6.5
+	# Die Hüpfhöhe steckt im Modell, nicht in der Position; sie muss beim
+	# Wegflug auf null, sonst schwebte die Kröte um ihren Hüpfbogen zu hoch.
+	_hoehe = 0.0
+	_setze_hoehe(0.0)
 
 
 func _todesanimation(delta: float) -> void:
-	# Platzt zu einem flachen Fladen und sackt zu Boden.
+	# Überschlägt sich im Flug und wird dabei kleiner.
+	_wegflug.y += TODES_G * delta
+	global_position += _wegflug * delta
 	if is_instance_valid(modell):
-		modell.scale = modell.scale.lerp(Vector3(1.75, 0.05, 1.5), minf(delta * 12.0, 1.0))
-	_hoehe = maxf(_hoehe - delta * 9.0, 0.0)
-	_setze_hoehe(_hoehe)
+		modell.rotation.x += delta * 8.0
+		modell.rotation.z += delta * 12.0
+		modell.scale = modell.scale.lerp(Vector3(0.6, 0.6, 0.6), minf(delta * 3.0, 1.0))

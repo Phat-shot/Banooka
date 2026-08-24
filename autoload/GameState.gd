@@ -6,14 +6,37 @@ signal fruechte_geaendert(anzahl: int)
 signal leben_geaendert(anzahl: int)
 signal kisten_geaendert(zerbrochen: int, gesamt: int)
 signal nachricht(text: String, dauer: float)
+signal schutz_geaendert(anzahl: int)
+## Bittet das laufende Level, Kisten und Gegner auf den Stand des letzten
+## Checkpoints zurückzusetzen. `von_vorn` heißt: ganz auf Levelanfang.
+signal level_zuruecksetzen(von_vorn: bool)
+## Ein Checkpoint wurde gesetzt – das Level sichert hier seinen Stand.
+signal checkpoint_gesetzt
 
-const START_LEBEN := 3
+const START_LEBEN := 5
 const FRUECHTE_PRO_EXTRALEBEN := 100
+## So viele Schutzladungen lassen sich stapeln.
+const SCHUTZ_MAX := 3
 
 var fruechte := 0
 var leben := START_LEBEN
 var kisten_zerbrochen := 0
 var kisten_gesamt := 0
+## Läuft der aktuelle Versuch noch ohne einen einzigen Tod? Gibt am Ende
+## den zweiten Edelstein.
+var ohne_tod := true
+## Schutzladungen: Jede fängt einen Treffer ab. Stürze fängt sie NICHT ab –
+## die laufen an `schaden_nehmen()` vorbei und sollen es auch.
+var schutz := 0
+
+## Debugmodus (in den Einstellungen schaltbar): unendlich Leben, immer
+## Schutz, alle Räume offen. Gedacht zum Durchspielen und Prüfen von
+## Leveln, nicht als Spielweise.
+var debug := false:
+	set(an):
+		debug = an
+		leben_geaendert.emit(leben)
+		schutz_geaendert.emit(schutz_anzeige())
 
 ## Respawn-Punkt (letzte Checkpoint-Kiste) und Levelanfang.
 var checkpoint := Vector3.ZERO
@@ -26,6 +49,8 @@ func level_starten(start_position: Vector3, kisten_im_level: int = 0) -> void:
 	checkpoint = start_position
 	kisten_zerbrochen = 0
 	kisten_gesamt = kisten_im_level
+	ohne_tod = true
+	schutz_geaendert.emit(schutz)
 	fruechte_geaendert.emit(fruechte)
 	leben_geaendert.emit(leben)
 	kisten_geaendert.emit(kisten_zerbrochen, kisten_gesamt)
@@ -35,12 +60,48 @@ func level_starten(start_position: Vector3, kisten_im_level: int = 0) -> void:
 ## Wird vom Spielfluss beim Betreten eines Levels aufgerufen.
 func neu_beginnen() -> void:
 	leben = START_LEBEN
+	ohne_tod = true
 	fruechte = 0
 	kisten_zerbrochen = 0
 	kisten_gesamt = 0
+	# Der Schutz gilt je Levelversuch; über einen Neustart nimmt man ihn
+	# nicht mit, sonst sammelte man ihn im leichten Level für das schwere.
+	schutz = 0
+	schutz_geaendert.emit(schutz)
 	fruechte_geaendert.emit(fruechte)
 	leben_geaendert.emit(leben)
 	kisten_geaendert.emit(0, 0)
+
+
+## Angezeigter Schutz. Im Debugmodus immer voll.
+func schutz_anzeige() -> int:
+	return SCHUTZ_MAX if debug else schutz
+
+
+## Eine Schutzladung aufnehmen. Über `SCHUTZ_MAX` hinaus verfällt sie.
+func schutz_aufnehmen() -> void:
+	if debug:
+		return
+	if schutz >= SCHUTZ_MAX:
+		zeige_nachricht("Schutz bereits voll", 1.2)
+		return
+	schutz += 1
+	schutz_geaendert.emit(schutz)
+	zeige_nachricht("Schutz %d/%d" % [schutz, SCHUTZ_MAX], 1.4)
+
+
+## Verbraucht eine Ladung. Gibt true zurück, wenn eine da war – dann ist
+## der Treffer abgefangen.
+func schutz_verbrauchen() -> bool:
+	if debug:
+		zeige_nachricht("Schutz hält! (Debug)", 1.0)
+		return true
+	if schutz <= 0:
+		return false
+	schutz -= 1
+	schutz_geaendert.emit(schutz)
+	zeige_nachricht("Schutz hält!", 1.0)
+	return true
 
 
 func frucht_einsammeln(anzahl: int = 1) -> void:
@@ -62,13 +123,27 @@ func kiste_zerbrochen() -> void:
 
 func setze_checkpoint(pos: Vector3) -> void:
 	checkpoint = pos
+	# Ab hier gilt der aktuelle Stand: Was jetzt zerbrochen oder besiegt
+	# ist, bleibt es auch nach dem nächsten Tod.
+	checkpoint_gesetzt.emit()
 	zeige_nachricht("Checkpoint", 1.2)
 
 
 ## Ein Leben abziehen. Bei 0 Leben geht es am Levelanfang weiter.
+##
+## Beides – Tod wie Game Over – stellt das Level wieder her: Ohne das
+## stand man nach dem Respawn vor einer leergeräumten Strecke und konnte
+## die Kisten nicht mehr holen. Der Unterschied ist nur, wie weit zurück:
+## bis zum Checkpoint oder bis zum Levelanfang.
 func leben_verlieren() -> void:
+	ohne_tod = false
+	if debug:
+		zeige_nachricht("Autsch! (Debug: kein Leben ab)", 1.2)
+		level_zuruecksetzen.emit(false)
+		return
 	leben -= 1
-	if leben < 0:
+	var von_vorn := leben < 0
+	if von_vorn:
 		leben = START_LEBEN
 		fruechte = 0
 		checkpoint = level_start
@@ -77,6 +152,7 @@ func leben_verlieren() -> void:
 	else:
 		zeige_nachricht("Autsch!", 1.2)
 	leben_geaendert.emit(leben)
+	level_zuruecksetzen.emit(von_vorn)
 
 
 func zeige_nachricht(text: String, dauer: float = 1.8) -> void:
