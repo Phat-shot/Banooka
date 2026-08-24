@@ -42,6 +42,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Baukennung bestimmen
+        id: kennung
+        # Kurze, dateisystemtaugliche Kennung des Commits. Sie landet im
+        # Auslieferungspfad (/spiel/<Kennung>/), damit jeder Bau eigene
+        # Adressen bekommt und kein Browser einen alten Stand festhält.
+        run: echo "kurz=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Namen und Marken bestimmen
         id: marken
         uses: docker/metadata-action@v5
@@ -59,6 +66,8 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
+          build-args: |
+            BAU_KENNUNG=${{ steps.kennung.outputs.kurz }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.marken.outputs.tags }}
           labels: ${{ steps.marken.outputs.labels }}
@@ -78,12 +87,30 @@ jobs:
             fi
             sleep 1
           done
-          echo "--- Startseite ---"
-          curl -fsS -o /dev/null -w 'index.html: HTTP %{http_code}, %{content_type}\n' \
+          KENNUNG="${{ steps.kennung.outputs.kurz }}"
+          SPIEL="http://localhost:8080/spiel/$KENNUNG"
+
+          echo "--- Einstiegsseite ---"
+          curl -fsS -o startseite.html -w 'index.html: HTTP %{http_code}, %{content_type}\n' \
             http://localhost:8080/
-          echo "--- WebAssembly ---"
+          # Sie muss auf den Bau dieses Commits zeigen und darf nicht
+          # zwischengespeichert werden – sonst hängt der Browser am alten Stand.
+          grep -q "/spiel/$KENNUNG/index.html" startseite.html \
+            || { echo "FEHLER: Startseite zeigt nicht auf /spiel/$KENNUNG/"; cat startseite.html; exit 1; }
+          curl -fsSI http://localhost:8080/ | grep -qi 'cache-control: no-store' \
+            || { echo "FEHLER: Startseite wird zwischengespeichert"; exit 1; }
+
+          echo "--- Fassung ---"
+          curl -fsS http://localhost:8080/fassung.txt
+          curl -fsS http://localhost:8080/fassung.txt | grep -q "$KENNUNG" \
+            || { echo "FEHLER: /fassung.txt nennt nicht $KENNUNG"; exit 1; }
+
+          echo "--- Spieldaten ---"
           curl -fsS -o /dev/null -w 'index.wasm: HTTP %{http_code}, %{content_type}, %{size_download} Bytes\n' \
-            -H 'Accept-Encoding: gzip' http://localhost:8080/index.wasm
+            -H 'Accept-Encoding: gzip' "$SPIEL/index.wasm"
+          curl -fsS -o /dev/null -w 'index.pck:  HTTP %{http_code}, %{size_download} Bytes\n' \
+            -H 'Accept-Encoding: gzip' "$SPIEL/index.pck"
+
           echo "--- Header ---"
           curl -fsSI http://localhost:8080/ | grep -i cross-origin
           docker rm -f banooka-test

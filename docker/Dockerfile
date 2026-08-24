@@ -64,12 +64,40 @@ RUN find export/web -type f \( -name '*.wasm' -o -name '*.pck' -o -name '*.js' \
 # ------------------------------------------------------------- Ausliefern
 FROM nginx:1.27-alpine AS auslieferung
 
+# In jeder Stufe neu deklarieren – ARGs vor dem ersten FROM gelten sonst nicht.
+ARG BAU_KENNUNG=unbekannt
+
 LABEL org.opencontainers.image.title="Banooka" \
       org.opencontainers.image.description="3D-Korridor-Plattformer, im Browser spielbar" \
       org.opencontainers.image.source="https://github.com/Phat-shot/Banooka"
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=bauen /projekt/export/web/ /usr/share/nginx/html/
+
+# Die Spieldaten liegen unter einem Pfad, der die Baukennung enthält.
+#
+# Das ist der einzige Weg, der auch ALTE Browser-Zwischenspeicher heilt:
+# Frühere Abbilder haben index.pck und index.wasm mit "immutable" und einem
+# Jahr Haltbarkeit ausgeliefert. Solche Dateien fragt der Browser gar nicht
+# mehr nach – neue Kopfzeilen im neuen Abbild kann er also nie sehen, und
+# man bekommt nach einem Pull weiter den alten Stand. Ändert sich dagegen
+# die Adresse, muss er zwangsläufig neu laden.
+COPY --from=bauen /projekt/export/web/ /usr/share/nginx/html/spiel/${BAU_KENNUNG}/
+
+# Einstiegsseite: nur eine Weiterleitung auf den aktuellen Bau. Sie wird
+# mit "no-store" ausgeliefert, ist also immer frisch.
+RUN set -eu; \
+    ZIEL="/spiel/${BAU_KENNUNG}/index.html"; \
+    { \
+      echo '<!doctype html>'; \
+      echo '<meta charset="utf-8">'; \
+      echo '<title>Banooka</title>'; \
+      echo "<meta http-equiv=\"refresh\" content=\"0; url=$ZIEL\">"; \
+      echo "<script>location.replace('$ZIEL')</script>"; \
+      echo '<body style="background:#0d1a17;color:#e8e0cc;font-family:sans-serif">'; \
+      echo "<p>Banooka wird geladen … <a style=\"color:#f0a\" href=\"$ZIEL\">weiter</a></p>"; \
+    } > /usr/share/nginx/html/index.html; \
+    printf 'Banooka\nBau: %s\nPfad: /spiel/%s/\n' \
+        "${BAU_KENNUNG}" "${BAU_KENNUNG}" > /usr/share/nginx/html/fassung.txt
 
 EXPOSE 80
 

@@ -197,10 +197,37 @@ fertigen Dateien. Das WebAssembly wird beim Bauen vorkomprimiert und über
 `gzip_static` ausgeliefert – aus rund 34 MB werden etwa 9 MB über die
 Leitung. `/gesundheit` liefert einen Health-Check für Orchestrierung.
 
+### Auf den neuesten Stand kommen
+
+`docker compose up -d` allein benutzt weiter das Abbild, das schon lokal
+liegt. Deshalb steht in `docker-compose.yml` jetzt `pull_policy: always`;
+wer `docker run` benutzt, zieht vorher von Hand:
+
+```bash
+docker pull ghcr.io/phat-shot/banooka:latest
+```
+
+Welcher Stand tatsächlich ausgeliefert wird, steht unter
+<http://localhost:8080/fassung.txt> – die Kennung dort ist der kurze
+Commit-Hash. Stimmt sie nicht mit `git log -1 --format=%h` überein, läuft
+ein altes Abbild.
+
+**Warum die Spieldaten unter `/spiel/<Baukennung>/` liegen:** Der
+Godot-Web-Export schreibt bei jedem Bau dieselben Dateinamen
+(`index.pck`, `index.wasm`). Frühere Abbilder haben sie mit `immutable`
+und einem Jahr Haltbarkeit ausgeliefert – solche Dateien fragt der
+Browser gar nicht mehr nach, und man bekam nach einem Pull weiter das
+alte Spiel, im Extremfall eine Fassung ohne Startbildschirm. Ändert sich
+dagegen der Pfad bei jedem Bau, muss der Browser neu laden. Die
+Einstiegsseite unter `/` ist nur eine Weiterleitung dorthin und wird mit
+`no-store` ausgeliefert.
+
 Der Workflow `.github/workflows/docker.yml` baut das Abbild bei jedem
 Push nach `main`, veröffentlicht es in der GitHub Container Registry und
-startet es anschließend testweise, um Startseite, WebAssembly-MIME-Typ
-und Header zu prüfen.
+startet es anschließend testweise. Geprüft wird dabei auch, dass die
+Einstiegsseite auf den Bau *dieses* Commits zeigt und nicht
+zwischengespeichert wird – ein alter Stand fällt damit im Bau auf und
+nicht erst beim Spielen.
 
 ## Android: APK bauen
 
