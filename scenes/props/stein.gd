@@ -56,7 +56,35 @@ func _ready() -> void:
 	_rng = PropWerkzeug.zufall(saat)
 	collision_layer = 1
 	collision_mask = 0
-	_baue()
+	if not _setze_fertiges_modell():
+		_baue()
+
+
+## Setzt einen mitgelieferten Felsen und meldet, ob es geklappt hat.
+## Die Kollision bleibt eine grobe Kugel – ein Netz je Stein wäre für die
+## Menge, die in einem Level steht, zu teuer.
+func _setze_fertiges_modell() -> bool:
+	if not NaturAssets.aktiv():
+		return false
+	var auswahl := ["rock_smallFlatA", "rock_smallFlatB"] if flach \
+			else (["rock_largeA", "rock_largeB", "rock_largeC"] if groesse >= 1.2
+			else ["rock_smallA", "rock_smallB", "rock_smallC"])
+	var hoehe := groesse * (0.45 if flach else 0.9)
+	var modell := NaturAssets.waehle(auswahl, _rng, hoehe)
+	if modell == null:
+		return false
+	modell.name = "Modell"
+	modell.rotation.y = _rng.randf() * TAU
+	modell.position.y = -hoehe * eingegraben
+	add_child(modell)
+	if kollision:
+		var form := SphereShape3D.new()
+		form.radius = maxf(groesse * 0.45, 0.2)
+		_kollision.shape = form
+		_kollision.position = Vector3(0.0, form.radius * 0.7, 0.0)
+	else:
+		_kollision.queue_free()
+	return true
 
 
 func _baue() -> void:

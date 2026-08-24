@@ -47,6 +47,14 @@ func _ready() -> void:
 	objekte = _gruppe("Objekte")
 	deko = _gruppe("Deko")
 
+	# Die Figur steht beim Szenenwechsel schon in der Welt, der Boden
+	# entsteht aber erst über die nächsten Bilder. Ohne diese Sperre fällt
+	# sie während des Aufbaus ins Leere, reißt `TODESHOEHE` und kostet ein
+	# Leben, bevor das Level überhaupt zu sehen ist.
+	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
+	if _spieler != null:
+		_spieler.set_physics_process(false)
+
 	await _aufbauen()
 
 	if verlauf != null:
@@ -55,13 +63,19 @@ func _ready() -> void:
 		_pfad_knoten.curve = verlauf
 		add_child(_pfad_knoten)
 
-	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
+	if _spieler == null:
+		_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
 	_kamera_verbinden()
 	_spieler_setzen()
 	# Erst Spieler setzen, dann Kamera nachziehen – sonst steht der
 	# Spieler beim ersten Bild außerhalb des Sichtfelds.
 	if _kamera != null and _kamera.has_method("sofort_ausrichten"):
 		_kamera.call("sofort_ausrichten")
+	# Jetzt steht der Boden und die Figur an ihrem Platz: Physik wieder an.
+	if _spieler != null:
+		if _spieler is CharacterBody3D:
+			(_spieler as CharacterBody3D).velocity = Vector3.ZERO
+		_spieler.set_physics_process(true)
 	_portale_verbinden()
 	_kisten_zaehlen()
 	_bauplan_erfassen()

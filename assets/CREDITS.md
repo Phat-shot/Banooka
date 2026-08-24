@@ -7,8 +7,18 @@ Jede übernommene Datei wird hier mit Quelle und Lizenz eingetragen.
 | Datei | Quelle | Lizenz | Anmerkung |
 |---|---|---|---|
 | `icon.svg` | eigene Erstellung | CC0 | Projekt-Icon |
+| `assets/modelle/pruefling.glb` | eigene Erstellung (`werkzeuge/modelltest.gd`) | CC0 | Probefigur zum Prüfen des Modellwegs |
 
-**Derzeit werden keine fremden Asset-Dateien verwendet.** Sämtliche Modelle,
+## Eigene Figuren einbinden
+
+`.glb`-Dateien in `assets/modelle/` erscheinen im Spiel unter
+**Einstellungen → Figur** und stecken in jedem Export, auch in der APK.
+Anforderungen und Stolpersteine stehen in `assets/modelle/LIESMICH.md`;
+geprüft wird mit `bash werkzeuge/modelltest.sh`.
+
+## Bisheriger Stand
+
+**Es werden keine fremden Asset-Dateien verwendet.** Sämtliche Modelle,
 Texturen und Effekte entstehen zur Laufzeit im Code:
 
 - **Modelle** aus Godot-Primitiven (Kapsel, Kugel, Box, Zylinder, Kegel,

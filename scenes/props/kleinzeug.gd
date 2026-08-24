@@ -71,6 +71,34 @@ var _wind_z := 0.0
 var _teile: Node3D
 
 
+## Setzt ein mitgeliefertes Modell und meldet, ob es geklappt hat.
+## Kleinzeug steht nur herum, es hat weder Kollision noch bewegliche Teile –
+## der Wind wiegt den ganzen Knoten.
+func _setze_fertiges_modell() -> bool:
+	if not NaturAssets.aktiv():
+		return false
+	var auswahl: Array = []
+	match art:
+		Art.PILZ:
+			auswahl = ["mushroom_red", "mushroom_redGroup",
+					"mushroom_tan", "mushroom_tanGroup"]
+		Art.BUSCH:
+			auswahl = ["plant_bush", "plant_bushSmall", "plant_bushDetailed"]
+		Art.BLUME:
+			auswahl = ["flower_redA", "flower_yellowA", "flower_purpleA"]
+		_:
+			# plant_flat* sind flache Blattkarten – als Farn am Boden
+			# werden sie zu breiten Keilen. Deshalb nur Buschwerk.
+			auswahl = ["grass_leafs", "grass_leafsLarge", "plant_bushSmall"]
+	var modell := NaturAssets.waehle(auswahl, _rng, groesse)
+	if modell == null:
+		return false
+	modell.name = "Modell"
+	modell.rotation.y = _rng.randf() * TAU
+	_teile.add_child(modell)
+	return true
+
+
 func _ready() -> void:
 	# Gerüst besorgen – fehlt es (bei `Kleinzeug.new()`), wird es angelegt.
 	_teile = PropWerkzeug.kind(self, "Teile",
@@ -80,15 +108,16 @@ func _ready() -> void:
 	_rng = PropWerkzeug.zufall(saat)
 	_phase = _rng.randf() * TAU
 
-	match art:
-		Art.PILZ:
-			_baue_pilz()
-		Art.BUSCH:
-			_baue_busch()
-		Art.BLUME:
-			_baue_blume()
-		_:
-			_baue_farn()
+	if not _setze_fertiges_modell():
+		match art:
+			Art.PILZ:
+				_baue_pilz()
+			Art.BUSCH:
+				_baue_busch()
+			Art.BLUME:
+				_baue_blume()
+			_:
+				_baue_farn()
 
 	_teile.rotation.y = _rng.randf() * TAU
 	_wind_x = deg_to_rad(_rng.randf_range(2.0, 4.5))

@@ -193,7 +193,11 @@ func _vorschau_neu_bestuecken() -> void:
 		# Beuteldachs: baut sich selbst auf und ist damit der Maßstab.
 		geladen = SpielerModell.new()
 		if not pfad.is_empty():
-			_zeige_meldung("Datei nicht lesbar – zeige den Beuteldachs")
+			# Den echten Grund zeigen statt eines Sammelsatzes – sonst
+			# rät man, ob es an der Datei, am Format oder am Gerät liegt.
+			var grund := ModellLader.letzter_fehler
+			_zeige_meldung("%s – zeige den Beuteldachs"
+					% (grund if not grund.is_empty() else "Datei nicht lesbar"))
 	halter.add_child(geladen)
 	_vorschau.add_child(halter)
 	_vorschau_figur = halter
@@ -202,9 +206,7 @@ func _vorschau_neu_bestuecken() -> void:
 # ------------------------------------------------------------ Aktionen
 
 func _figur_name() -> String:
-	if Einstellungen.eigenes_modell.is_empty():
-		return "Beuteldachs (Standard)"
-	return Einstellungen.eigenes_modell
+	return Einstellungen.anzeigename(Einstellungen.eigenes_modell)
 
 
 ## Schaltet durch Standard und alle gefundenen Dateien.
@@ -212,7 +214,8 @@ func _figur_weiter(richtung: int = 1) -> void:
 	var liste := PackedStringArray([""])
 	liste.append_array(Einstellungen.modelle())
 	if liste.size() <= 1:
-		_zeige_meldung("Keine eigene Datei im Ablageordner gefunden")
+		_zeige_meldung("Keine weitere Figur gefunden – eine .glb nach "
+				+ "assets/modelle legen oder über 'Datei wählen' laden")
 		return
 	var jetzt := liste.find(Einstellungen.eigenes_modell)
 	if jetzt < 0:
@@ -233,6 +236,9 @@ func _groesse_weiter(richtung: int = 1) -> void:
 func _figur_loeschen() -> void:
 	var name := Einstellungen.eigenes_modell
 	if name.is_empty():
+		return
+	if not Einstellungen.loeschbar(name):
+		_zeige_meldung("Mitgelieferte Figuren lassen sich nicht löschen")
 		return
 	Einstellungen.entfernen(name)
 	_zeige_meldung("%s gelöscht" % name)

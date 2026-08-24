@@ -42,7 +42,10 @@ const START_R := 33.5          ## Startplatz des Spielers
 
 const WAND_HOEHE := 5.6
 const KRANZ_HOEHE := 0.5
-const TEILER_HOEHE := 3.0
+## Die Trennmauern zwischen den Räumen. Höher als der höchste erreichbare
+## Sprung (Slide-Sprung 2,8 m plus Doppelsprung 1,4 m = 4,2 m) – sonst
+## steht die Figur oben auf der Mauer statt davor.
+const TEILER_HOEHE := 4.6
 const TEILER_DICKE := 0.9
 const SPERRE_HOEHE := 4.2      ## Gitter vor einem gesperrten Raum
 
@@ -408,12 +411,20 @@ func _baue_sperre(index: int, grad: float) -> void:
 	_bogenriegel(sperre, grad, SPERRE_HOEHE - 0.12, 0.1, warnton)
 
 	# Schild mit dem Grund
+	# Der Schriftzug muss in den Sektor passen. Bei 96 pt und 0,012 m je
+	# Pixel war er rund 15 m breit – so breit wie der ganze Raum – und
+	# ragte beidseitig über die Trennmauern in die Nachbarräume.
+	# Jetzt: kleiner, mit fester Breite und Wortumbruch.
 	var schild := Label3D.new()
 	schild.text = "Erst %s abschließen" % Spielfluss.RAUM_NAMEN[maxi(index - 1, 0)]
-	schild.font_size = 96
-	schild.pixel_size = 0.012
+	schild.font_size = 64
+	schild.pixel_size = 0.010
+	# Nutzbare Sehnenbreite des Sektors, abzüglich Rand
+	schild.width = (2.0 * TOR_R * sin(deg_to_rad(SEKTOR_HALB)) - 2.0) / schild.pixel_size
+	schild.autowrap_mode = TextServer.AUTOWRAP_WORD
+	schild.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	schild.modulate = Farben.WARNUNG.lightened(0.35)
-	schild.outline_size = 26
+	schild.outline_size = 18
 	schild.outline_modulate = Color(0.05, 0.03, 0.02, 0.9)
 	schild.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	schild.double_sided = false
@@ -509,15 +520,19 @@ func _baue_torbogen(index: int, grad: float) -> void:
 			"groesse": 0.85, "brocken": 2, "bemoost": index == 0,
 			"saat": 101 + index * 2 + int(vorzeichen)})
 
+	# Höhe und Größe sind knapp bemessen: Die Verfolgerkamera steht 6,4 m
+	# über dem Spieler und schaut 31 Grad nach unten, ihr oberer Bildrand
+	# liegt damit fast waagerecht. Mit den früheren 96 pt auf 6,2 m Höhe
+	# ragte der Schriftzug oben aus dem Bild und war halb abgeschnitten.
 	var beschriftung := Label3D.new()
 	beschriftung.text = Spielfluss.RAUM_NAMEN[index]
-	beschriftung.font_size = 96
-	beschriftung.outline_size = 20
-	beschriftung.pixel_size = 0.0105
+	beschriftung.font_size = 76
+	beschriftung.outline_size = 18
+	beschriftung.pixel_size = 0.0095
 	beschriftung.double_sided = false
 	beschriftung.modulate = _akzent(index).lightened(0.35)
 	beschriftung.outline_modulate = Color(0.05, 0.04, 0.03, 0.92)
-	beschriftung.position = ort(grad, TOR_R, 6.2)
+	beschriftung.position = ort(grad, TOR_R, 5.95)
 	beschriftung.rotation.y = -deg_to_rad(grad)
 	_geometrie.add_child(beschriftung)
 	_beschriftungen.append(beschriftung)
@@ -534,7 +549,7 @@ func _baue_torbogen(index: int, grad: float) -> void:
 	stand.double_sided = false
 	stand.modulate = Color(0.95, 0.93, 0.86)
 	stand.outline_modulate = Color(0.05, 0.04, 0.03, 0.92)
-	stand.position = ort(grad, TOR_R, 5.3)
+	stand.position = ort(grad, TOR_R, 5.15)
 	stand.rotation.y = -deg_to_rad(grad)
 	_geometrie.add_child(stand)
 	_beschriftungen.append(stand)

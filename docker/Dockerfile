@@ -49,6 +49,12 @@ RUN mkdir -p export/web \
     && godot --headless --path . --export-release "Web" export/web/index.html 2>&1 | tail -20 \
     && test -f export/web/index.wasm
 
+# Kennung des ausgelieferten Standes, abrufbar unter /fassung.txt.
+# Damit lässt sich von außen prüfen, ob wirklich der neue Bau läuft.
+ARG BAU_KENNUNG=unbekannt
+RUN printf 'Banooka\nBau: %s\nGodot: %s\n' "$BAU_KENNUNG" "$GODOT_VERSION" \
+        > export/web/fassung.txt
+
 # Für gzip_static vorkomprimieren: das WebAssembly schrumpft dabei
 # von rund 34 MB auf etwa ein Viertel.
 RUN find export/web -type f \( -name '*.wasm' -o -name '*.pck' -o -name '*.js' \

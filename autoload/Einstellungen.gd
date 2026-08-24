@@ -2,12 +2,20 @@ extends Node
 ## Einstellungen, die über Sitzungen hinweg erhalten bleiben.
 ## Als Autoload unter dem Namen "Einstellungen" registriert.
 ##
-## Bisher nur das Spielermodell: Wer mag, legt eine eigene Figur als
-## glTF-Datei ab und spielt damit statt mit dem Beuteldachs. Die Datei
-## wird zur Laufzeit geladen (nicht beim Bauen importiert), deshalb kommen
-## nur Formate infrage, die Godot ohne Importschritt lesen kann – das sind
-## .glb und .gltf. Selbstenthaltendes .glb ist die sichere Wahl: bei .gltf
-## liegen Textur- und Binärdateien daneben und müssen mitkopiert werden.
+## Bisher nur das Spielermodell. Es gibt dafür zwei Wege, und der
+## Unterschied ist wichtig:
+##
+## 1. MITGELIEFERT (`res://assets/modelle`) – die Datei liegt im Projekt,
+##    wird beim Bauen importiert und steckt damit in jedem Export, auch in
+##    der APK und im Browser. Das ist der Weg für unsere eigenen Figuren.
+## 2. SELBST HINZUGELEGT (`user://modelle`) – der Spieler wählt zur
+##    Laufzeit eine Datei. Die wird ohne Importschritt gelesen, deshalb
+##    kommen nur .glb/.gltf infrage. Auf Android hängt dieser Weg an einer
+##    Speicher-Berechtigung und am Dateidialog des Geräts; wenn dort
+##    nichts ankommt, liegt es fast immer daran – nicht am Modell.
+##
+## Selbstenthaltendes .glb ist in beiden Fällen die sichere Wahl: bei
+## .gltf liegen Textur- und Binärdateien daneben und müssen mit.
 
 signal geaendert
 
@@ -15,13 +23,25 @@ signal geaendert
 ## also Neuinstallationen der Anwendung nicht, ist dafür aber auf jeder
 ## Plattform beschreibbar.
 const ORDNER := "user://modelle"
+## Ordner der mitgelieferten Figuren. Die landen über den normalen
+## Godot-Import im Export – für die APK der einzig verlässliche Weg.
+const MITGELIEFERT := "res://assets/modelle"
 const ENDUNGEN := ["glb", "gltf"]
 const SPEICHERPFAD := "user://einstellungen.cfg"
 
-## Dateiname im Modellordner. Leer = mitgelieferter Beuteldachs.
+## Kennung der gewählten Figur. Leer = Beuteldachs aus dem Code.
+## Mitgelieferte Figuren stehen mit vollem `res://`-Pfad drin, selbst
+## hinzugelegte mit blankem Dateinamen.
 var eigenes_modell := ""
 ## Feinjustierung der Figurengröße, 1.0 = auf Standardhöhe eingepasst.
 var modell_groesse := 1.0
+## Mitgelieferte Naturmodelle (Kenney, CC0) statt der prozeduralen Props.
+## Umschaltbar, damit sich beide Fassungen vergleichen lassen; der
+## prozedurale Aufbau bleibt in jedem Fall der Rückfall.
+var natur_assets := true:
+	set(an):
+		natur_assets = an
+		geaendert.emit()
 ## Debugmodus: unendlich Leben, immer Schutz, alle Räume offen.
 ## Bleibt über Sitzungen erhalten, damit man beim Prüfen eines Levels
 ## nicht jedes Mal neu einschaltet.
@@ -38,23 +58,58 @@ func _ready() -> void:
 	GameState.debug = debug
 
 
-## Absoluter Pfad des gewählten Modells, oder "" für den Beuteldachs.
+## Pfad des gewählten Modells, oder "" für den Beuteldachs.
+##
+## Für mitgelieferte Dateien wird `ResourceLoader.exists()` gefragt und
+## NICHT `FileAccess.file_exists()`: Im fertigen Export gibt es die .glb
+## als Datei nicht mehr, Godot hat sie beim Bauen zu einer importierten
+## Ressource umgeschrieben. Genau daran scheitert die Prüfung sonst – im
+## Editor läuft alles, in der APK ist die Figur plötzlich weg.
 func modell_pfad() -> String:
 	if eigenes_modell.is_empty():
 		return ""
+	if eigenes_modell.begins_with("res://"):
+		return eigenes_modell if ResourceLoader.exists(eigenes_modell) else ""
 	var pfad := ORDNER.path_join(eigenes_modell)
 	return pfad if FileAccess.file_exists(pfad) else ""
 
 
-## Alle Modelldateien im Ordner, alphabetisch.
+## Alle wählbaren Figuren: erst die mitgelieferten (voller res://-Pfad),
+## dann die selbst hinzugelegten (blanker Dateiname).
 func modelle() -> PackedStringArray:
 	var gefunden := PackedStringArray()
-	var ordner := DirAccess.open(ORDNER)
+	for name in _dateien_in(MITGELIEFERT):
+		gefunden.append(MITGELIEFERT.path_join(name))
+	gefunden.append_array(_dateien_in(ORDNER))
+	return gefunden
+
+
+## Anzeigename einer Kennung – ohne Ordner, damit die Zeile kurz bleibt.
+func anzeigename(kennung: String) -> String:
+	if kennung.is_empty():
+		return "Beuteldachs (Standard)"
+	if kennung.begins_with("res://"):
+		return "%s (mitgeliefert)" % kennung.get_file()
+	return kennung
+
+
+## Lässt sich diese Figur löschen? Mitgelieferte gehören zum Spiel.
+func loeschbar(kennung: String) -> bool:
+	return not kennung.is_empty() and not kennung.begins_with("res://")
+
+
+func _dateien_in(ordner_pfad: String) -> PackedStringArray:
+	var gefunden := PackedStringArray()
+	var ordner := DirAccess.open(ordner_pfad)
 	if ordner == null:
 		return gefunden
 	for name in ordner.get_files():
-		if ENDUNGEN.has(name.get_extension().to_lower()):
-			gefunden.append(name)
+		# Im Export heißen importierte Dateien ".glb.import"; der blanke
+		# Name steckt davor.
+		var sauber := name.trim_suffix(".import").trim_suffix(".remap")
+		if ENDUNGEN.has(sauber.get_extension().to_lower()) \
+				and not gefunden.has(sauber):
+			gefunden.append(sauber)
 	gefunden.sort()
 	return gefunden
 
@@ -114,6 +169,7 @@ func speichern() -> void:
 	datei.set_value("figur", "modell", eigenes_modell)
 	datei.set_value("figur", "groesse", modell_groesse)
 	datei.set_value("spiel", "debug", debug)
+	datei.set_value("spiel", "natur_assets", natur_assets)
 	datei.save(SPEICHERPFAD)
 
 
@@ -124,3 +180,4 @@ func laden() -> void:
 	eigenes_modell = String(datei.get_value("figur", "modell", ""))
 	modell_groesse = clampf(float(datei.get_value("figur", "groesse", 1.0)), 0.5, 2.0)
 	debug = bool(datei.get_value("spiel", "debug", false))
+	natur_assets = bool(datei.get_value("spiel", "natur_assets", true))

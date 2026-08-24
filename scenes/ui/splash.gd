@@ -71,6 +71,9 @@ var _tafel_hoehe := 0.0
 var _tafel_gesperrt: Array[bool] = []
 
 var _blockiert := false        ## während Einblendung und Szenenwechsel
+## Läuft gerade die Eröffnungs-Einblendung? Sie lässt sich abkürzen; der
+## Szenenwechsel am Ende dagegen nicht.
+var _einblendung: Tween = null
 
 var _titelschrift: FontVariation
 var _sperrschrift: FontVariation
@@ -563,6 +566,7 @@ func _einblenden() -> void:
 		e.modulate.a = 0.0
 
 	var ablauf := create_tween()
+	_einblendung = ablauf
 	ablauf.set_parallel(true)
 	ablauf.tween_property(_blende, "color:a", 0.0, 0.9)
 	ablauf.tween_property(_titel, "modulate:a", 1.0, 0.6).set_delay(0.25)
@@ -574,14 +578,41 @@ func _einblenden() -> void:
 				.set_delay(0.9 + i * 0.09)
 	ablauf.tween_property(_fortschritt, "modulate:a", 1.0, 0.5).set_delay(1.2)
 	ablauf.tween_property(_hinweis, "modulate:a", 1.0, 0.5).set_delay(1.4)
-	ablauf.chain().tween_callback(func() -> void: _blockiert = false)
+	ablauf.chain().tween_callback(func() -> void:
+		_blockiert = false
+		_einblendung = null)
+
+
+## Bricht die Eröffnungs-Einblendung ab und stellt den Endzustand sofort her.
+##
+## Ohne das schluckte der Startbildschirm die ersten rund zwei Sekunden
+## jede Eingabe: Wer gleich Enter drückt, bekam keinerlei Reaktion.
+func _einblendung_abkuerzen() -> bool:
+	if _einblendung == null:
+		return false
+	if is_instance_valid(_einblendung) and _einblendung.is_valid():
+		_einblendung.kill()
+	_einblendung = null
+	_blende.color.a = 0.0
+	_titel.modulate.a = 1.0
+	_titel.scale = Vector2.ONE
+	_untertitel.modulate.a = 1.0
+	_fortschritt.modulate.a = 1.0
+	_hinweis.modulate.a = 1.0
+	for e in _eintraege:
+		e.modulate.a = 1.0
+	_blockiert = false
+	return true
 
 
 # ------------------------------------------------------------- Eingabe
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _blockiert:
-		return
+		# Während der Eröffnung: Einblendung überspringen und den Druck
+		# ganz normal weiterbehandeln. Nur der Szenenwechsel bleibt dicht.
+		if not _einblendung_abkuerzen():
+			return
 	if event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
 		_schiebe(1)
 	elif event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):

@@ -86,18 +86,51 @@ func _ready() -> void:
 	_phase = _rng.randf() * TAU
 	hoehe = clampf(hoehe, 3.0, 14.0)
 
-	match art:
-		Art.NADELBAUM:
-			_baue_nadelbaum()
-		Art.TOTHOLZ:
-			_baue_totholz()
-		_:
-			_baue_laubbaum()
+	# Erst versuchen, ein mitgeliefertes Modell zu setzen; klappt das
+	# nicht (Schalter aus oder Datei fehlt), wird wie bisher gebaut.
+	if not _setze_fertiges_modell():
+		match art:
+			Art.NADELBAUM:
+				_baue_nadelbaum()
+			Art.TOTHOLZ:
+				_baue_totholz()
+			_:
+				_baue_laubbaum()
 
 	# Windstärke je Baum leicht unterschiedlich – so schwanken nicht alle gleich.
 	_wind_x = deg_to_rad(_rng.randf_range(1.0, 2.2))
 	_wind_z = deg_to_rad(_rng.randf_range(0.8, 1.8))
 	set_process(wind and _krone.get_child_count() > 0)
+
+
+## Setzt ein mitgeliefertes Baummodell und meldet, ob es geklappt hat.
+##
+## Die Kollision bleibt die eigene Zylinderform um den Stammfuß – die
+## Modelle bringen keine mit, und ein Netz als Kollision wäre für einen
+## Wald ohnehin zu teuer. Das Modell hängt unter der Krone, damit der
+## Wind es als Ganzes wiegt.
+func _setze_fertiges_modell() -> bool:
+	if not NaturAssets.aktiv():
+		return false
+	var auswahl: Array = []
+	match art:
+		Art.NADELBAUM:
+			auswahl = ["tree_pineRoundA", "tree_pineRoundB", "tree_cone"]
+		Art.TOTHOLZ:
+			# Für kahle Stämme gibt es kein passendes Modell – prozedural
+			# sieht der Splitterbruch besser aus als ein umgelegter Stamm.
+			return false
+		_:
+			auswahl = ["tree_default", "tree_detailed", "tree_oak",
+					"tree_fat", "tree_blocks"]
+	var modell := NaturAssets.waehle(auswahl, _rng, hoehe)
+	if modell == null:
+		return false
+	modell.name = "Modell"
+	modell.rotation.y = _rng.randf() * TAU
+	_krone.add_child(modell)
+	_setze_kollision(hoehe * 0.055 * staerke, hoehe * 0.6)
+	return true
 
 
 ## Gerüst besorgen. Fehlt es (weil der Baum per `Baum.new()` entstanden ist),

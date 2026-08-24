@@ -10,7 +10,12 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      args:
+        BAU_KENNUNG: "${BAU_KENNUNG:-lokal}"
     image: ghcr.io/phat-shot/banooka:latest
+    # Ohne das benutzt `docker compose up` weiter das Abbild, das schon
+    # lokal liegt – ein neu veröffentlichter Stand käme nie an.
+    pull_policy: always
     container_name: banooka
     ports:
       - "8080:80"

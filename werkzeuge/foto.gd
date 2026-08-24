@@ -12,12 +12,14 @@ extends Node
 ##   FOTO_MODUS    "verfolger" – Spielkamera, Spieler wird am Verlauf entlanggesetzt
 ##                 "seite"     – Blick quer auf den Weg
 ##                 "orbit"     – Kamera umkreist die Szene (für Räume und Menüs)
+##                 "nah"       – dicht an der Figur, für Modelle und Effekte
 ##   FOTO_STELLEN  verfolger/seite: Strecken in Metern, mit Komma getrennt
 ##                 orbit: Winkel in Grad
 ##   FOTO_WARTEN   Bilder, die vor jeder Aufnahme abgewartet werden
 ##                 (Vorgabe 24) – für Einblend-Animationen hochsetzen
 ##   FOTO_RADIUS   nur orbit: Abstand zur Mitte (Vorgabe 26)
 ##   FOTO_HOEHE    nur orbit: Höhe über der Mitte (Vorgabe 14)
+##   FOTO_ASSETS   0 = mitgelieferte Naturmodelle aus, prozedural bauen
 
 const STANDARD_STELLEN := "4,24,50,60,86,112,136,162,192,216,233"
 const STANDARD_WINKEL := "0,72,144,216,288"
@@ -29,6 +31,9 @@ var _verlauf: Variant = null
 
 
 func _ready() -> void:
+	# Zum Vergleichen: FOTO_ASSETS=0 zeigt die prozeduralen Props.
+	if OS.get_environment("FOTO_ASSETS") == "0":
+		Einstellungen.natur_assets = false
 	var pfad := OS.get_environment("FOTO_LEVEL")
 	if pfad.is_empty():
 		pfad = "res://scenes/levels/Level01.tscn"
@@ -40,6 +45,10 @@ func _ready() -> void:
 	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
 	if _spieler != null and "gesperrt" in _spieler:
 		_spieler.gesperrt = true
+	# Zum Prüfen der Schutzmasken: FOTO_SCHUTZ=3 gibt drei Ladungen.
+	if not OS.get_environment("FOTO_SCHUTZ").is_empty():
+		GameState.schutz = int(OS.get_environment("FOTO_SCHUTZ"))
+		GameState.schutz_geaendert.emit(GameState.schutz)
 	if _szene.has_method("get") and _szene is Node3D:
 		_verlauf = _szene.get("verlauf")
 
@@ -50,7 +59,7 @@ func _ready() -> void:
 	if _verlauf == null and modus != "orbit" and _szene is Node3D:
 		modus = "orbit"
 
-	if modus == "seite" or modus == "orbit":
+	if modus == "seite" or modus == "orbit" or modus == "nah":
 		_eigene_kamera()
 	else:
 		_kamera = _finde_kamera(_szene)
@@ -101,6 +110,11 @@ func _fotografiere(stellen: PackedStringArray, modus: String) -> void:
 			var mitte: Vector3 = LevelWerkzeuge.punkt(_verlauf, wert, 0.0, 0.0)
 			if _spieler != null:
 				_spieler.global_position = mitte + Vector3.UP * 1.0
+			if modus == "nah" and _kamera != null:
+				var vor: Vector3 = LevelWerkzeuge.richtung(_verlauf, wert)
+				_kamera.global_position = mitte + vor.cross(Vector3.UP) * 3.2 \
+						+ Vector3.UP * 2.0 + vor * 1.4
+				_kamera.look_at(mitte + Vector3.UP * 1.15, Vector3.UP)
 			if modus == "seite" and _kamera != null:
 				var quer: Vector3 = LevelWerkzeuge.richtung(_verlauf, wert).cross(Vector3.UP)
 				_kamera.global_position = mitte + quer * 34.0 + Vector3.UP * 8.0

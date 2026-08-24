@@ -2,9 +2,19 @@ extends RefCounted
 class_name ModellLader
 ## Lädt eigene Figuren zur Laufzeit und passt sie in die Spielerkapsel ein.
 ##
-## Zur Laufzeit steht der Godot-Importer nicht zur Verfügung – eine .tscn
-## oder .obj von außen wäre also nutzlos. glTF dagegen liest die Engine
-## über `GLTFDocument` auch im fertigen Export, deshalb nur .glb/.gltf.
+## Zwei Wege, je nachdem woher die Datei kommt:
+##
+## `res://…`  – mitgeliefert. Godot hat sie beim Bauen importiert; im
+##              Export existiert die .glb als Datei gar nicht mehr,
+##              sondern nur die importierte Ressource. Deshalb hier
+##              `load()` statt `GLTFDocument` – sonst ist die Figur im
+##              Editor da und in der APK weg.
+## sonst      – vom Spieler hinzugelegt, also nie importiert. Die liest
+##              `GLTFDocument` zur Laufzeit, weshalb nur .glb/.gltf gehen.
+##
+## Warum eine Datei abgelehnt wurde, steht danach in `letzter_fehler` und
+## wird im Einstellungsbild angezeigt – eine stumm verschwundene Figur ist
+## das Ärgerlichste, was hier passieren kann.
 ##
 ## Eingepasst wird über die zusammengefasste Hülle aller Netze: die Figur
 ## wird auf `ziel_hoehe` skaliert, waagerecht mittig gestellt und mit den
@@ -16,36 +26,100 @@ const ZIEL_HOEHE := 1.42
 ## Modelle ohne brauchbare Hülle (leer oder entartet) werden abgelehnt.
 const MIN_HOEHE := 0.001
 
+## glTF-Erweiterungen, die Godot beim Lesen zur Laufzeit nicht beherrscht.
+## Draco ist der häufigste Stolperstein: Viele Werkzeuge komprimieren beim
+## Ausgeben damit, und die Datei sieht völlig gesund aus.
+const UNGEEIGNETE_ERWEITERUNGEN := [
+	"KHR_draco_mesh_compression",
+	"EXT_meshopt_compression",
+	"KHR_texture_basisu",
+]
+
+## Grund, warum das letzte `laden()` fehlgeschlagen ist. Leer = alles gut.
+static var letzter_fehler := ""
+
 
 ## Lädt die Datei, passt sie ein und gibt den Knoten zurück – oder null,
 ## wenn sie fehlt, unlesbar ist oder nichts Sichtbares enthält. Der Grund
 ## steht dann als Warnung im Protokoll.
 static func laden(pfad: String, groesse: float = 1.0) -> Node3D:
-	if pfad.is_empty() or not FileAccess.file_exists(pfad):
+	letzter_fehler = ""
+	if pfad.is_empty():
+		return null
+	var knoten := _mitgeliefert(pfad) if pfad.begins_with("res://") \
+			else _zur_laufzeit(pfad)
+	if knoten == null:
+		if not letzter_fehler.is_empty():
+			push_warning("Eigenes Modell: %s (%s)" % [letzter_fehler, pfad])
+		return null
+
+	_kollisionen_entfernen(knoten)
+	if not einpassen(knoten, ZIEL_HOEHE * groesse):
+		knoten.queue_free()
+		letzter_fehler = "Modell enthält keine sichtbaren Netze"
+		push_warning("Eigenes Modell: %s (%s)" % [letzter_fehler, pfad])
+		return null
+	return knoten
+
+
+## Mitgelieferte Datei: über den normalen Ressourcenweg, damit sie auch
+## im Export gefunden wird.
+static func _mitgeliefert(pfad: String) -> Node3D:
+	if not ResourceLoader.exists(pfad):
+		letzter_fehler = "Nicht im Spiel enthalten (nicht importiert)"
+		return null
+	var mittel := load(pfad)
+	if mittel is PackedScene:
+		return (mittel as PackedScene).instantiate() as Node3D
+	if mittel is Mesh:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mittel
+		return mi
+	letzter_fehler = "Datei ist weder Szene noch Netz"
+	return null
+
+
+## Vom Spieler hinzugelegte Datei: zur Laufzeit über GLTFDocument.
+static func _zur_laufzeit(pfad: String) -> Node3D:
+	if not FileAccess.file_exists(pfad):
+		letzter_fehler = "Datei nicht gefunden"
+		return null
+	var hindernis := _unbrauchbare_erweiterung(pfad)
+	if not hindernis.is_empty():
+		letzter_fehler = "glTF-Erweiterung %s wird nicht unterstützt – " \
+				% hindernis + "ohne Komprimierung neu ausgeben"
 		return null
 	var papier := GLTFDocument.new()
 	var zustand := GLTFState.new()
 	# Nur die Optik wird gebraucht; Kollisionsformen aus der Datei würden
 	# mit der Spielerkapsel streiten.
 	if papier.append_from_file(pfad, zustand) != OK:
-		push_warning("Eigenes Modell nicht lesbar: %s" % pfad)
+		letzter_fehler = "Datei nicht lesbar oder beschädigt"
 		return null
 	var szene := papier.generate_scene(zustand)
-	if szene == null:
-		push_warning("Eigenes Modell ohne Szene: %s" % pfad)
-		return null
 	var knoten := szene as Node3D
 	if knoten == null:
-		szene.queue_free()
-		push_warning("Eigenes Modell ist keine 3D-Szene: %s" % pfad)
-		return null
-
-	_kollisionen_entfernen(knoten)
-	if not einpassen(knoten, ZIEL_HOEHE * groesse):
-		knoten.queue_free()
-		push_warning("Eigenes Modell hat keine sichtbare Ausdehnung: %s" % pfad)
+		if szene != null:
+			szene.queue_free()
+		letzter_fehler = "Datei enthält keine 3D-Szene"
 		return null
 	return knoten
+
+
+## Sucht im JSON-Teil der Datei nach Erweiterungen, die Godot zur Laufzeit
+## nicht lesen kann. Gibt den Namen der ersten gefundenen zurück.
+static func _unbrauchbare_erweiterung(pfad: String) -> String:
+	var datei := FileAccess.open(pfad, FileAccess.READ)
+	if datei == null:
+		return ""
+	# Der JSON-Kopf steht am Anfang; ein Blick auf die ersten 64 KB reicht.
+	var text := datei.get_buffer(mini(65536, datei.get_length())) \
+			.get_string_from_utf8()
+	datei.close()
+	for name in UNGEEIGNETE_ERWEITERUNGEN:
+		if text.find(name) >= 0:
+			return name
+	return ""
 
 
 ## Skaliert und verschiebt den Knoten so, dass er `ziel_hoehe` hoch ist,

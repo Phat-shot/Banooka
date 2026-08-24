@@ -19,12 +19,21 @@ const TEMPO := 1.5          ## Umdrehungen pro Sekunde × 2π
 const NICK := 0.22          ## Auf-und-ab-Schwingen
 const MASKENHOEHE := 0.42
 
+## Die Figur, an der die Masken hängen. Wird beim Eintreten gemerkt:
+## `get_parent_node_3d()` liefert bei einem `top_level`-Knoten immer null,
+## weil Godot dessen Elternverbindung im Transformbaum kappt. Genau daran
+## scheiterte das Mitziehen – die Masken blieben am Startpunkt stehen.
+var _traeger: Node3D
+
 var _masken: Array[Node3D] = []
 var _phase := 0.0
 var _anzahl := -1
 
 
 func _ready() -> void:
+	# Erst den Träger merken, dann abkoppeln – nach `top_level = true`
+	# ist die Elternverbindung im Transformbaum weg.
+	_traeger = get_parent() as Node3D
 	top_level = true          ## Position folgt, Drehung nicht
 	set_process(true)
 	GameState.schutz_geaendert.connect(_auf_schutz)
@@ -32,9 +41,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	var eltern := get_parent_node_3d()
-	if eltern != null:
-		global_position = eltern.global_position
+	if is_instance_valid(_traeger):
+		global_position = _traeger.global_position
+	else:
+		_traeger = get_parent() as Node3D
 	if _masken.is_empty():
 		return
 	_phase += delta * TEMPO
