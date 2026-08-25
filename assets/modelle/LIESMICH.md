@@ -34,6 +34,33 @@ Haken unter *Datei → Exportieren → glTF 2.0 → Komprimierung*; er muss
 aus sein. Das Spiel meldet diesen Fall inzwischen im Klartext, statt die
 Figur stumm verschwinden zu lassen.
 
+## Animationen: der Satz, den jede Figur mitbringen soll
+
+Bringt eine Figur ein Skelett mit, führt das Spiel sie über ihre Clips.
+Diese sechs Namen sind der Standard; sie werden ohne Rücksicht auf
+Groß- und Kleinschreibung erkannt, deutsche Entsprechungen ebenso.
+
+| Clip | Dauer | Schleife | Wann |
+|---|---|---|---|
+| `IdlePose` | 0,1 s | nein | Rückfall, wenn `Idle` fehlt |
+| `Idle` | 3 s | ja | steht still |
+| `WalkSlow` | 1,6 s | ja | Eingabe unter 35 % |
+| `Walk` | 1,0 s | ja | Eingabe 35–75 % |
+| `Run` | 0,6 s | ja | Eingabe über 75 % |
+| `Jump` | 1,15 s | **nein** | einmalig beim Abheben |
+
+Fehlt einer, greift der nächstbeste: Eine Figur mit nur `Walk` benutzt ihn
+auch zum Schlendern. Fehlt `Jump`, bleibt der letzte Bodenclip stehen und
+die eingebaute Ganzkörper-Stauchung zeigt den Sprung.
+
+Für Slide und Drehschlag gibt es bewusst keine Clips – dort übernimmt
+immer die Stauchung. Ein Gehzyklus im Slide sähe falsch aus, und die
+wenigsten Figuren bringen so etwas mit.
+
+Prüfen lässt sich das mit:
+
+    MODELLTEST_DATEI=meinmodell.glb bash werkzeuge/modelltest.sh
+
 ## Nach dem Hineinlegen
 
     godot --headless --path . --import

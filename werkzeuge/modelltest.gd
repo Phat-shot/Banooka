@@ -182,9 +182,54 @@ func _eine_datei_pruefen(name: String) -> void:
 		print("    ladbar:           ja, %d Netze, eingepasst auf %.2f × %.2f × %.2f m"
 				% [_netze(figur), huelle.size.x * figur.scale.x,
 				huelle.size.y * figur.scale.y, huelle.size.z * figur.scale.z])
+		_clips_pruefen(figur)
 		figur.queue_free()
 	print("  Auswählbar im Spiel unter Einstellungen -> Figur:")
 	print("    %s" % str(Einstellungen.modelle()))
+
+
+## Gleicht die Clips einer Figur gegen den Standard ab.
+## Der Satz steht in assets/modelle/LIESMICH.md.
+const SOLL_CLIPS := [
+	["idlepose", "Ruhepose", false],
+	["idle", "steht still", true],
+	["walkslow", "schlendert", true],
+	["walk", "geht", true],
+	["run", "rennt", true],
+	["jump", "springt", false],
+]
+
+
+func _clips_pruefen(figur: Node3D) -> void:
+	var spieler := ModellLader.spieler_von(figur)
+	if spieler == null:
+		print("    Animationen:      keine (die Figur wird nur als Ganzes bewegt)")
+		return
+	print("    Clips in der Datei: %s" % str(spieler.get_animation_list()))
+	var fehlend: Array[String] = []
+	for eintrag: Array in SOLL_CLIPS:
+		var wunsch := String(eintrag[0])
+		var treffer := ModellLader.clip_fuer(spieler, wunsch)
+		if treffer.is_empty():
+			fehlend.append(wunsch)
+			print("      %-10s FEHLT   (%s)" % [wunsch, eintrag[1]])
+			continue
+		var anim := spieler.get_animation(treffer)
+		var laeuft_endlos := anim.loop_mode != Animation.LOOP_NONE
+		var soll_endlos := bool(eintrag[2])
+		var hinweis := ""
+		if laeuft_endlos != soll_endlos:
+			# Kein Fehler: Das Spiel setzt die Schleife beim Laden selbst.
+			# Sauberer ist es trotzdem, sie gleich richtig auszugeben.
+			hinweis = "  (Schleife wird beim Laden auf %s gesetzt)" % (
+					"an" if soll_endlos else "aus")
+		print("      %-10s -> '%s'  %.2f s, %d Spuren%s"
+				% [wunsch, treffer, anim.length, anim.get_track_count(), hinweis])
+	if fehlend.is_empty():
+		print("    Alle sechs Standardclips vorhanden.")
+	else:
+		print("    %d von 6 fehlen – dafür greift die Ersatzbewegung."
+				% fehlend.size())
 
 
 func _netze(knoten: Node) -> int:

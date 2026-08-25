@@ -56,6 +56,8 @@ var _kurve_knoten: Path3D
 var _muss_springen := true
 ## Nachgezogene Höhe des Spielers über der Wegkurve.
 var _hoehe_versatz := 0.0
+## Geführte Stelle auf der Kurve. Siehe `_strecke_gefuehrt()`.
+var _strecke := -1.0
 
 
 func _ready() -> void:
@@ -71,6 +73,7 @@ func _ready() -> void:
 ## Wird beim Levelstart und nach dem Respawn aufgerufen.
 func sofort_ausrichten() -> void:
 	_muss_springen = true
+	_strecke = -1.0
 	_ziel_suchen()
 	if _ziel != null and is_instance_valid(_ziel):
 		_folgen(1.0)
@@ -92,6 +95,36 @@ func _process(delta: float) -> void:
 	_folgen(delta)
 
 
+## Führt die Stelle auf der Kurve, statt sie jedes Bild neu zu suchen.
+##
+## `get_closest_offset()` sucht den nächstgelegenen Punkt der Kurve zur
+## Spielerposition. Das ist wackelig, sobald der Spieler nicht auf der
+## Mittellinie steht: In einer Kurve liegt der nächste Punkt dann je nach
+## seitlichem Versatz mal weiter vorn, mal weiter hinten, und im Sprung
+## wandert er zusätzlich mit der Flugbahn. Der Wert kann dabei um mehrere
+## Meter springen – die Kamera dreht sich dann ruckartig, am auffälligsten
+## mitten im Sprung, wo der Spieler ohnehin nichts dagegen tun kann.
+##
+## Deshalb wird die Stelle geführt: Sie folgt der Messung, darf sich aber
+## nur mit begrenztem Tempo ändern. Ein großer Sprung im Messwert ist kein
+## echter Ortswechsel, sondern ein Umspringen der Suche – außer bei einem
+## Rundkurs, wo der Wert am Rundenende tatsächlich auf null zurückfällt.
+func _strecke_gefuehrt(gemessen: float, laenge: float, delta: float) -> float:
+	if _strecke < 0.0 or _muss_springen:
+		_strecke = gemessen
+		return _strecke
+	var unterschied := gemessen - _strecke
+	# Rundenwechsel: Der Messwert fällt um fast die ganze Länge zurück.
+	if laenge > 1.0 and absf(unterschied) > laenge * 0.5:
+		_strecke = gemessen
+		return _strecke
+	# Schneller als das Spiel selbst kann sich die Stelle nicht ändern:
+	# Lauftempo 8,5 m/s, Slide 13,5, Karts bis 20 – mit Reserve 26 m/s.
+	var hoechstens := 26.0 * delta
+	_strecke += clampf(unterschied, -hoechstens, hoechstens)
+	return _strecke
+
+
 func _folgen(delta: float) -> void:
 	# Interpoliert lesen: `global_position` liefert die Stellung des
 	# letzten Physikschritts, also eine Treppe mit 60 Stufen je Sekunde.
@@ -107,7 +140,8 @@ func _folgen(delta: float) -> void:
 		var kurve := _kurve_knoten.curve
 		var laenge := kurve.get_baked_length()
 		var lokal := _kurve_knoten.to_local(p)
-		var strecke := kurve.get_closest_offset(lokal)
+		var strecke := _strecke_gefuehrt(kurve.get_closest_offset(lokal),
+				laenge, delta)
 
 		var mitte := _kurve_knoten.to_global(kurve.sample_baked(strecke))
 		var versatz := p - mitte

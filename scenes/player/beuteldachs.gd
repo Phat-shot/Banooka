@@ -55,10 +55,16 @@ var _eigenes: Node3D = null
 ## AnimationPlayer der eigenen Figur, falls sie ein Skelett mitbringt.
 var _eigener_spieler: AnimationPlayer = null
 ## Zugeordnete Clips: leerer Name = die Figur hat dafür keinen.
+var _clip_pose := ""
 var _clip_ruhe := ""
+var _clip_schlendern := ""
 var _clip_gehen := ""
 var _clip_rennen := ""
+var _clip_sprung := ""
 var _clip_laeuft := ""
+## War die Figur im letzten Bild in der Luft? Der Sprungclip wird beim
+## Abheben EINMAL angestoßen, nicht jedes Bild neu.
+var _war_in_luft := false
 
 # --- Bewegliche Teile ---
 var _kopf: Node3D
@@ -117,23 +123,7 @@ func _baue_eigenes() -> bool:
 	# Clip, greift für diesen Zustand wieder die einfache Bewegung.
 	_eigener_spieler = ModellLader.spieler_von(figur)
 	if _eigener_spieler != null:
-		_clip_ruhe = ModellLader.clip_fuer(_eigener_spieler, "idle")
-		if _clip_ruhe.is_empty():
-			_clip_ruhe = ModellLader.clip_fuer(_eigener_spieler, "ruhe")
-		_clip_gehen = ModellLader.clip_fuer(_eigener_spieler, "walk")
-		if _clip_gehen.is_empty():
-			_clip_gehen = ModellLader.clip_fuer(_eigener_spieler, "geh")
-		_clip_rennen = ModellLader.clip_fuer(_eigener_spieler, "run")
-		if _clip_rennen.is_empty():
-			_clip_rennen = ModellLader.clip_fuer(_eigener_spieler, "renn")
-		# Alle drei sollen in sich geschlossen laufen; ohne das bleibt die
-		# Figur nach einem Durchlauf im letzten Bild stehen.
-		for clip in [_clip_ruhe, _clip_gehen, _clip_rennen]:
-			if clip.is_empty():
-				continue
-			var anim := _eigener_spieler.get_animation(clip)
-			if anim != null:
-				anim.loop_mode = Animation.LOOP_LINEAR
+		_clips_zuordnen()
 
 	_baue_spin_ring()
 	return true
@@ -490,6 +480,52 @@ func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool) -> v
 	_eigenes.position.y = lerpf(_eigenes.position.y, wippen, minf(delta * 16.0, 1.0))
 
 
+## Ordnet die Clips der Figur den Bewegungszuständen zu.
+##
+## Erwartet werden die sechs Namen, die unsere eigenen Figuren mitbringen
+## (siehe assets/modelle/LIESMICH.md): IdlePose, Idle, WalkSlow, Walk, Run,
+## Jump. Deutsche Namen werden ebenso erkannt, und fehlt einer, greift für
+## diesen Zustand der nächstbeste – eine Figur mit nur "Walk" läuft eben
+## auch im Schlendern damit.
+##
+## Reihenfolge beachten: "walkslow" wird VOR "walk" gesucht. `clip_fuer()`
+## prüft erst auf Gleichheit und dann auf Wortstamm; ohne diese Reihenfolge
+## bekäme ein Modell ohne eigenen "Walk" den langsamen Clip auch fürs
+## normale Gehen zugeteilt, ohne dass es auffiele.
+func _clips_zuordnen() -> void:
+	_clip_pose = _erster_clip(["idlepose", "ruhepose", "pose"])
+	_clip_ruhe = _erster_clip(["idle", "ruhe", "atmen"])
+	_clip_schlendern = _erster_clip(["walkslow", "schlendern", "gehen_langsam"])
+	_clip_gehen = _erster_clip(["walk", "gehen"])
+	_clip_rennen = _erster_clip(["run", "rennen", "sprint"])
+	_clip_sprung = _erster_clip(["jump", "sprung"])
+
+	# Die Zyklen laufen endlos, sonst bleibt die Figur nach einem
+	# Durchlauf im letzten Bild stehen. Ruhepose und Sprung dagegen NICHT:
+	# Die Pose ist ein einzelnes Bild, und ein Sprung, der sich wiederholt,
+	# sähe aus wie ein Hüpfen an Ort und Stelle.
+	for clip: String in [_clip_ruhe, _clip_schlendern, _clip_gehen, _clip_rennen]:
+		_schleife_setzen(clip, Animation.LOOP_LINEAR)
+	for clip: String in [_clip_pose, _clip_sprung]:
+		_schleife_setzen(clip, Animation.LOOP_NONE)
+
+
+func _erster_clip(wuensche: Array) -> String:
+	for wunsch: String in wuensche:
+		var treffer := ModellLader.clip_fuer(_eigener_spieler, wunsch)
+		if not treffer.is_empty():
+			return treffer
+	return ""
+
+
+func _schleife_setzen(clip: String, art: Animation.LoopMode) -> void:
+	if clip.is_empty():
+		return
+	var anim := _eigener_spieler.get_animation(clip)
+	if anim != null:
+		anim.loop_mode = art
+
+
 ## Wählt den passenden Clip und blendet weich hinüber.
 ##
 ## Für Sprung, Slide und Drehschlag bringt so eine Figur meist nichts mit;
@@ -498,16 +534,36 @@ func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool) -> v
 func _fuehre_clips(tempo: float, luft: bool, slide: bool) -> void:
 	if _eigener_spieler == null:
 		return
-	var wunsch := _clip_ruhe
-	if not (luft or slide):
-		if tempo > 0.62 and not _clip_rennen.is_empty():
+
+	# Abheben stößt den Sprungclip genau einmal an. Er läuft ohne Schleife
+	# durch; landet die Figur vorher, übernimmt der Bodenclip.
+	if luft and not _war_in_luft and not _clip_sprung.is_empty():
+		_war_in_luft = true
+		_clip_laeuft = _clip_sprung
+		_eigener_spieler.play(_clip_sprung, 0.08)
+		return
+	if luft:
+		_war_in_luft = true
+		# Ohne eigenen Sprungclip bleibt der letzte Bodenclip stehen; die
+		# Stauchung aus `_animiere_eigenes()` zeigt den Sprung dann.
+		return
+	_war_in_luft = false
+
+	var wunsch := _clip_ruhe if not _clip_ruhe.is_empty() else _clip_pose
+	if not slide:
+		if tempo > 0.75 and not _clip_rennen.is_empty():
 			wunsch = _clip_rennen
-		elif tempo > 0.05 and not _clip_gehen.is_empty():
+		elif tempo > 0.35 and not _clip_gehen.is_empty():
 			wunsch = _clip_gehen
+		elif tempo > 0.05:
+			# Beim Schlendern zur Not den normalen Gehclip nehmen.
+			wunsch = _clip_schlendern if not _clip_schlendern.is_empty() \
+					else _clip_gehen
 	if wunsch.is_empty() or wunsch == _clip_laeuft:
 		return
 	_clip_laeuft = wunsch
-	# Kurze Überblendung, damit der Wechsel Gehen/Rennen nicht springt.
+	# Kurze Überblendung, damit der Wechsel zwischen den Gangarten nicht
+	# springt. Aus dem Sprung heraus etwas länger, das federt die Landung.
 	_eigener_spieler.play(wunsch, 0.18)
 
 

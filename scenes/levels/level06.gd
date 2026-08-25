@@ -280,7 +280,9 @@ func _fahrer_aufstellen() -> void:
 	if spieler == null:
 		push_warning("Level 06 ohne Spielerkart – ist Rennfahrer.tscn in der Szene?")
 		return
-	_einrichten(spieler, -6.0, 0.0, 1.0)
+	# Der Spieler steht auf der Linie, das Feld davor. Startstrecken müssen
+	# hier nicht-negativ sein – siehe die Warnung in `_einrichten()`.
+	_einrichten(spieler, 0.0, 0.0, 1.0)
 	spieler.fahrername = "Banooka"
 	spieler.farbe = Farben.FELL
 	_fahrer.append(spieler)
@@ -295,7 +297,7 @@ func _fahrer_aufstellen() -> void:
 		# Zwei Reihen zu zwei Karts vor dem Spieler
 		var reihe := i / 2
 		var seite := -3.5 if i % 2 == 0 else 3.5
-		_einrichten(gegner, -2.0 + reihe * 4.0, seite, eintrag["koennen"])
+		_einrichten(gegner, 2.5 + reihe * 4.0, seite, eintrag["koennen"])
 		_fahrer.append(gegner)
 
 	_anzeige = RENNANZEIGE.instantiate() as Rennanzeige
@@ -306,13 +308,23 @@ func _fahrer_aufstellen() -> void:
 	spieler.rennen_beendet.connect(_auf_zieleinlauf)
 
 
+## Setzt einen Fahrer auf seinen Startplatz.
+##
+## `s` muss NICHT-NEGATIV sein. Vorher stand hier `fposmod(s, rundenlaenge)`
+## und der Spieler startete bei -6: Auf einem Rundkurs wurde daraus
+## `rundenlaenge - 6`, also fast eine volle Runde. Die Platzierung rechnet
+## über `runde * rundenlaenge + strecke` (rennfahrer.gd) – der Spieler stand
+## damit vom ersten Bild an auf Platz 1, obwohl er hinten stehen sollte.
 func _einrichten(f: Rennfahrer, s: float, quer: float, koennen: float) -> void:
 	f.verlauf = verlauf
 	f.rundenlaenge = _rundenlaenge
 	f.runden_ziel = RUNDEN
 	f.seiten_grenze = func(x: float) -> float: return rand_bei(x, 1.4)
 	f.boden_pruefer = func(x: float) -> bool: return breite_bei(x) > 0.0
-	f.strecke = fposmod(s, _rundenlaenge)
+	if s < 0.0:
+		push_warning("Startstrecke %.1f ist negativ – das ergibt auf einem "
+				% s + "Rundkurs fast eine ganze Runde Vorsprung.")
+	f.strecke = maxf(s, 0.0)
 	f._seitlich = quer
 	f._seitlich_ziel = quer
 	# Das Können skaliert das Wunschtempo der Fahrhilfe.
