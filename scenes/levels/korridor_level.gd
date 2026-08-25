@@ -111,10 +111,18 @@ func plattform(strecke: float, seitlich: float, hoehe: float,
 ## Es folgt dem Levelverlauf, dreht sich also mit dem Fluss mit. Die
 ## Rückfahrt ist Absicht und kein Zugeständnis: Wer den Absprung verpasst,
 ## wartet, statt neu anfangen zu müssen.
+## `farbe` mit Alpha 0 heißt: Standardanstrich des Bauteils.
+##
+## Die Farbe MUSS durch diese Hilfe gehen, nicht nachträglich gesetzt
+## werden: `Wasserplattform` baut ihre Optik in `_ready()`, und `_ready()`
+## läuft beim `add_child()` hier drin. Was danach kommt, wirkt nicht mehr.
+## Dasselbe gilt für jedes Prop, das sich selbst aufbaut.
 func floss(von: float, bis: float, seitlich: float, hoehe: float,
 		groesse: Vector2, fahrzeit: float, pause_a := 2.4,
-		pause_b := 2.4, phase := 0.0) -> Wasserplattform:
+		pause_b := 2.4, phase := 0.0,
+		farbe := Color(0, 0, 0, 0)) -> Wasserplattform:
 	var f := WASSERPLATTFORM.instantiate() as Wasserplattform
+	f.farbe = farbe
 	f.art = Wasserplattform.Art.FLOSS
 	f.groesse = groesse
 	f.verlauf = verlauf
@@ -134,8 +142,9 @@ func floss(von: float, bis: float, seitlich: float, hoehe: float,
 
 ## Seerosenblatt als Trittstein. Steht still und wippt nur.
 func seerose(strecke: float, seitlich: float, hoehe: float,
-		durchmesser := 2.4) -> Wasserplattform:
+		durchmesser := 2.4, farbe := Color(0, 0, 0, 0)) -> Wasserplattform:
 	var b := WASSERPLATTFORM.instantiate() as Wasserplattform
+	b.farbe = farbe
 	b.art = Wasserplattform.Art.SEEROSE
 	b.groesse = Vector2(durchmesser, durchmesser)
 	b.punkt_a = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
@@ -151,8 +160,10 @@ func seerose(strecke: float, seitlich: float, hoehe: float,
 ## sonst wäre die Stelle kein Rhythmus, sondern eine Wartezeit.
 func wehrbohle(strecke: float, seitlich: float, oben: float, unten: float,
 		phase: float, groesse := Vector2(3.4, 2.6),
-		oben_zeit := 2.3, unten_zeit := 0.9) -> Wasserplattform:
+		oben_zeit := 2.3, unten_zeit := 0.9,
+		farbe := Color(0, 0, 0, 0)) -> Wasserplattform:
 	var b := WASSERPLATTFORM.instantiate() as Wasserplattform
+	b.farbe = farbe
 	b.art = Wasserplattform.Art.BOHLE
 	b.groesse = groesse
 	b.punkt_a = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, oben)
@@ -397,8 +408,10 @@ func ausloeseplatte(strecke: float, seitlich := 0.0,
 ## Tor, das sich im Takt schließt. Es blockiert, es tötet nicht.
 func schliesstuer(strecke: float, seitlich := 0.0, breite := 3.6,
 		hoehe := 2.8, offen := 2.2, zu := 1.6,
-		phase := 0.0) -> Schliesstuer:
+		phase := 0.0, farbe := Color(0, 0, 0, 0)) -> Schliesstuer:
 	var t := SCHLIESSTUER.instantiate() as Schliesstuer
+	if farbe.a > 0.0:
+		t.farbe = farbe
 	t.breite = breite
 	t.hoehe = hoehe
 	t.offen_zeit = offen
@@ -420,7 +433,9 @@ func schliesstuer(strecke: float, seitlich := 0.0, breite := 3.6,
 func drehscheibe(strecke: float, seitlich: float, hoehe: float,
 		durchmesser := 3.6, tempo := 30.0, richtung := 1,
 		pausiert_bei := 0.0, pausenzeit := 0.0,
-		kippt := false) -> Drehplattform:
+		kippt := false, phase := 0.0, saeule := 1.6,
+		kipp_winkel := 12.0, steinfarbe := Color(0, 0, 0, 0),
+		markenfarbe := Color(0, 0, 0, 0)) -> Drehplattform:
 	var d := DREHPLATTFORM.instantiate() as Drehplattform
 	d.groesse = Vector2(durchmesser, durchmesser)
 	d.tempo = tempo
@@ -428,7 +443,21 @@ func drehscheibe(strecke: float, seitlich: float, hoehe: float,
 	d.pausiert_bei = pausiert_bei
 	d.pausenzeit = pausenzeit
 	d.kippt = kippt
-	d.ort = LevelWerkzeuge.punkt(verlauf, strecke, seitlich,
+	d.phase = phase
+	d.saeule = saeule
+	d.kipp_winkel = kipp_winkel
+	if steinfarbe.a > 0.0:
+		d.steinfarbe = steinfarbe
+	if markenfarbe.a > 0.0:
+		d.markenfarbe = markenfarbe
+	# `position`, NICHT `ort`: Die Scheibe ist ein `AnimatableBody3D` mit
+	# `sync_to_physics`. Ihr Platz muss beim Erzeugen im Physikserver
+	# stehen – wird sie am Nullpunkt eingehängt und erst danach gestellt,
+	# zieht der Server sie im ersten Bild dorthin zurück, und ein mit
+	# `aufsetzen()` aufgesetzter Gegner merkt sich genau diesen Nullpunkt
+	# als Patrouillenmitte. `_ready()` übernimmt `ort` aus `position`.
+	# Derselbe Fehler wie seinerzeit bei den Flößen.
+	d.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich,
 			hoehe - Drehplattform.DECK_STAERKE * 0.5)
 	objekte.add_child(d)
 	return d
@@ -534,9 +563,34 @@ func dunkelheit(reichweite := 7.0, restlicht := 0.06) -> Lichtkreis:
 	l.reichweite = reichweite
 	l.restlicht = restlicht
 	add_child(l)
+	_leuchtmarker_setzen()
+	# Nach einem Tod baut `LevelBasis` Kisten und Früchte aus dem Bauplan
+	# NEU auf. Die frischen Knoten wissen nichts von der Markierung –
+	# ohne dieses Nachziehen stünde ab dem ersten Tod ein stockdunkler
+	# Gang voller unsichtbarer Kisten. Gefunden beim Bau von Level 23.
+	if not GameState.level_zuruecksetzen.is_connected(_leuchtmarker_nachziehen):
+		GameState.level_zuruecksetzen.connect(_leuchtmarker_nachziehen)
+	return l
+
+
+## Markiert Kisten und Früchte. Mehrfaches Aufrufen kostet nichts:
+## `Leuchtmarker` setzt ein Merkzeichen und überspringt Markiertes.
+func _leuchtmarker_setzen() -> void:
 	var markiert := Leuchtmarker.markieren(self, ["kisten", "fruechte"], 1.4)
 	print("Dunkellevel: %d Marker leuchten selbst" % markiert)
-	return l
+
+
+## Wartet ein Bild ab, BEVOR neu markiert wird.
+##
+## `dunkelheit()` läuft als Bauschritt, also noch in `_aufbauen()` –
+## `LevelBasis` hängt sich erst danach an dasselbe Signal. Diese
+## Verbindung steht damit VOR dem Neuaufbau in der Reihe: Ohne das
+## abgewartete Bild markierte sie die alten Knoten ein zweites Mal und
+## die neuen gar nicht.
+func _leuchtmarker_nachziehen(_von_vorn: bool) -> void:
+	await get_tree().process_frame
+	if is_instance_valid(self) and is_inside_tree():
+		_leuchtmarker_setzen()
 
 
 ## Gitter unter der Decke, an dem sich die Figur entlanghangelt.
@@ -637,8 +691,13 @@ func kiste(art: Kiste.Art, strecke: float, seitlich: float,
 ## Setzt einen Gegner so, dass er beim Patrouillieren nicht vom Weg läuft:
 ## seitlicher Versatz und Weite werden auf die Wegbreite an dieser Stelle
 ## begrenzt, die Strecke von der Abbruchkante weggeschoben.
+## `hoehe` ist der Abstand über dem Weg – für einen Gegner, der auf einer
+## Plattform steht. Er MUSS hier durch: `Gegner` friert in `_ready()`
+## seine Startposition ein und hält die Patrouille auf deren Höhe fest,
+## nachträgliches Verschieben zieht ihn beim ersten Schritt wieder
+## herunter. Gemeldet aus Level 21, das sich dafür eine eigene Hilfe baute.
 func gegner(szene: PackedScene, strecke: float, seitlich: float,
-		weite: float, quer: bool) -> Gegner:
+		weite: float, quer: bool, hoehe := 0.05) -> Gegner:
 	var g := szene.instantiate() as Gegner
 	strecke = weg_von_der_kante(strecke, 2.5)
 	var rand := rand_bei(strecke)
@@ -658,7 +717,7 @@ func gegner(szene: PackedScene, strecke: float, seitlich: float,
 	g.patrouille_achse = richtung.cross(Vector3.UP).normalized() if quer else richtung
 	# Position VOR add_child setzen: die Gegner merken sich in _ready()
 	# ihre Startposition für die Patrouille.
-	g.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.05)
+	g.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
 	g.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(g)
 	return g
@@ -699,12 +758,22 @@ func wasser(strecke: float, flaeche: Vector2, hoehe: float,
 ## `farbe` mit Alpha 0 = Vorgabe des Stachelfelds (rostiges Eisen).
 ## Die Farbe muss VOR `add_child` stehen: Das Feld baut seine Zacken in
 ## `_ready()`, ein späteres Setzen käme zu spät und bliebe wirkungslos.
+## `takt` ist die Dauer eines vollen Aus- und Einfahrens; `versatz`
+## kleiner 0 heißt: aus der Strecke ableiten. Der abgeleitete Versatz ist
+## bequem, solange die Felder weit auseinanderstehen – für eine Welle aus
+## dicht gesetzten Feldern muss er von Hand kommen.
+##
+## Die Ableitung bleibt bei `fmod(strecke, 2.0)`, obwohl `fmod(strecke,
+## takt)` sauberer aussähe: Bestehende Level haben ihre Wellen auf diesen
+## Wert gelegt, ein anderer Teiler verschöbe sie stumm.
 func stacheln(strecke: float, seitlich: float, flaeche: Vector2,
-		einfahrbar: bool, farbe: Color = Color(0, 0, 0, 0)) -> Stacheln:
+		einfahrbar: bool, farbe: Color = Color(0, 0, 0, 0),
+		takt := 2.4, versatz := -1.0) -> Stacheln:
 	var st := STACHELN.instantiate() as Stacheln
 	st.flaeche = flaeche
 	st.einfahrbar = einfahrbar
-	st.versatz = fmod(strecke, 2.0)
+	st.takt = takt
+	st.versatz = fmod(strecke, 2.0) if versatz < 0.0 else versatz
 	if farbe.a > 0.0:
 		st.rostig = false
 		st.eigenfarbe = farbe
