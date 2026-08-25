@@ -1,0 +1,65 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/level22.gd" id="1_level"]
+[ext_resource type="PackedScene" path="res://scenes/player/Flieger.tscn" id="2_flieger"]
+[ext_resource type="PackedScene" path="res://scenes/camera/Flugkamera.tscn" id="3_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Himmel"]
+sky_top_color = Color(0.31, 0.35, 0.45, 1)
+sky_horizon_color = Color(0.73, 0.74, 0.79, 1)
+sky_curve = 0.35
+ground_bottom_color = Color(0.5, 0.53, 0.58, 1)
+ground_horizon_color = Color(0.73, 0.74, 0.79, 1)
+sun_angle_max = 60.0
+sun_curve = 0.6
+
+[sub_resource type="Sky" id="SkyRes"]
+sky_material = SubResource("Himmel")
+
+[sub_resource type="Environment" id="Umgebung"]
+background_mode = 2
+sky = SubResource("SkyRes")
+ambient_light_source = 2
+ambient_light_color = Color(0.72, 0.75, 0.8, 1)
+ambient_light_energy = 0.85
+tonemap_mode = 3
+tonemap_exposure = 1.02
+tonemap_white = 6.0
+fog_enabled = true
+fog_mode = 0
+fog_light_color = Color(0.69, 0.71, 0.77, 1)
+fog_light_energy = 1.0
+fog_density = 0.0045
+fog_aerial_perspective = 0.5
+fog_sky_affect = 0.35
+adjustment_enabled = true
+adjustment_brightness = 1.0
+adjustment_contrast = 1.12
+adjustment_saturation = 0.95
+
+[node name="Level22" type="Node3D"]
+script = ExtResource("1_level")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Umgebung")
+
+[node name="Sonne" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.7, 0, -0.71414, -0.42848, 0.8, -0.42, 0.57131, 0.6, 0.55999, 0, 60, 0)
+light_color = Color(1, 0.988, 0.961, 1)
+light_energy = 1.05
+light_specular = 0.25
+shadow_enabled = true
+shadow_bias = 0.06
+shadow_normal_bias = 2.0
+directional_shadow_mode = 1
+directional_shadow_max_distance = 60.0
+
+[node name="Flieger" parent="." instance=ExtResource("2_flieger")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 30, 48)
+panzerung = 5
+
+[node name="Flugkamera" parent="." instance=ExtResource("3_cam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 32.5, 55)
+
+[node name="HUD" parent="." instance=ExtResource("4_hud")]

@@ -1,0 +1,75 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/level15.gd" id="1_level"]
+[ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/camera/CorridorCamera.tscn" id="3_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Himmel"]
+sky_top_color = Color(0.13, 0.16, 0.29, 1)
+sky_horizon_color = Color(0.89, 0.48, 0.16, 1)
+sky_curve = 0.07
+ground_bottom_color = Color(0.07, 0.08, 0.07, 1)
+ground_horizon_color = Color(0.71, 0.38, 0.14, 1)
+ground_curve = 0.05
+sun_angle_max = 24.0
+sun_curve = 0.09
+
+[sub_resource type="Sky" id="SkyRes"]
+sky_material = SubResource("Himmel")
+
+[sub_resource type="Environment" id="Umgebung"]
+background_mode = 2
+sky = SubResource("SkyRes")
+ambient_light_source = 2
+ambient_light_color = Color(0.42, 0.4, 0.44, 1)
+ambient_light_energy = 0.72
+tonemap_mode = 3
+tonemap_exposure = 1.1
+tonemap_white = 6.0
+ssao_enabled = true
+ssao_radius = 1.6
+ssao_intensity = 2.0
+glow_enabled = true
+glow_intensity = 0.5
+glow_bloom = 0.12
+glow_hdr_threshold = 1.05
+fog_enabled = true
+fog_mode = 0
+fog_light_color = Color(0.72, 0.44, 0.2, 1)
+fog_light_energy = 0.85
+fog_density = 0.013
+fog_aerial_perspective = 0.6
+fog_sky_affect = 0.25
+fog_height = -6.0
+fog_height_density = 1.1
+adjustment_enabled = true
+adjustment_brightness = 1.0
+adjustment_contrast = 1.16
+adjustment_saturation = 1.28
+
+[node name="Level15" type="Node3D"]
+script = ExtResource("1_level")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Umgebung")
+
+[node name="Sonne" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.81915, 0, -0.57358, -0.17724, 0.95106, 0.25314, 0.54551, 0.30902, -0.77907, 0, 50, 0)
+light_color = Color(1, 0.66, 0.33, 1)
+light_energy = 1.6
+light_specular = 0.5
+shadow_enabled = true
+shadow_bias = 0.05
+shadow_normal_bias = 1.8
+directional_shadow_mode = 2
+directional_shadow_max_distance = 110.0
+directional_shadow_split_1 = 0.06
+directional_shadow_split_2 = 0.2
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 30)
+
+[node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
+
+[node name="HUD" parent="." instance=ExtResource("4_hud")]

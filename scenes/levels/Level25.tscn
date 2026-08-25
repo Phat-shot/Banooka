@@ -1,0 +1,67 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/level25.gd" id="1_level"]
+[ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/camera/CorridorCamera.tscn" id="3_cam"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Himmel"]
+sky_top_color = Color(0.16, 0.36, 0.72, 1)
+sky_horizon_color = Color(0.78, 0.79, 0.72, 1)
+sky_curve = 0.16
+ground_bottom_color = Color(0.55, 0.4, 0.26, 1)
+ground_horizon_color = Color(0.82, 0.7, 0.5, 1)
+sun_angle_max = 40.0
+sun_curve = 0.22
+
+[sub_resource type="Sky" id="SkyRes"]
+sky_material = SubResource("Himmel")
+
+[sub_resource type="Environment" id="Umgebung"]
+background_mode = 2
+sky = SubResource("SkyRes")
+ambient_light_source = 2
+ambient_light_color = Color(0.86, 0.78, 0.64, 1)
+ambient_light_energy = 1.1
+tonemap_mode = 3
+tonemap_exposure = 1.14
+tonemap_white = 6.0
+fog_enabled = true
+fog_mode = 0
+fog_light_color = Color(0.9, 0.8, 0.62, 1)
+fog_light_energy = 0.9
+fog_density = 0.009
+fog_aerial_perspective = 0.5
+fog_sky_affect = 0.15
+fog_height = 0.2
+fog_height_density = 0.5
+adjustment_enabled = true
+adjustment_brightness = 1.02
+adjustment_contrast = 1.06
+adjustment_saturation = 1.18
+
+[node name="Level25" type="Node3D"]
+script = ExtResource("1_level")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Umgebung")
+
+[node name="Sonne" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
+light_color = Color(1, 0.95, 0.82, 1)
+light_energy = 1.35
+light_specular = 0.35
+shadow_enabled = true
+shadow_bias = 0.04
+shadow_normal_bias = 1.5
+directional_shadow_mode = 2
+directional_shadow_max_distance = 85.0
+directional_shadow_split_1 = 0.08
+directional_shadow_split_2 = 0.22
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
+
+[node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
+
+[node name="HUD" parent="." instance=ExtResource("4_hud")]

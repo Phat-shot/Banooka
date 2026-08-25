@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/flugkamera.gd" id="1_flugkam"]
+
+[node name="Flugkamera" type="Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 7)
+fov = 68.0
+near = 0.2
+far = 900.0
+script = ExtResource("1_flugkam")
+versatz = Vector3(0, 2.5, 7)
+blick_vorlauf = 14.0
+roll_anteil = 0.85
