@@ -4,6 +4,10 @@ extends Node3D
 ## Zum Beurteilen fremder Assets, bevor sie ins Spiel wandern:
 ##   MODELLSCHAU=assets/modelle/gegner godot --path . res://werkzeuge/Modellschau.tscn
 ##
+## MODELLSCHAU_NUR=a,b   nur diese Modelle zeigen
+## MODELLSCHAU_VORNE=1   von vorn zeigen (Spielkonvention: Figur schaut -Z).
+##                       Wer dabei sein Gesicht zeigt, ist richtig gedreht.
+##
 ## Jedes Modell wird auf eine gemeinsame Höhe eingepasst, damit sich die
 ## Silhouetten vergleichen lassen, und mit seinem Namen beschriftet.
 
@@ -19,6 +23,15 @@ func _ready() -> void:
 
 	_licht()
 	var namen := _dateien(pfad)
+	var nur := OS.get_environment("MODELLSCHAU_NUR")
+	if not nur.is_empty():
+		var erlaubt := nur.split(",")
+		var gefiltert := PackedStringArray()
+		for n in namen:
+			for e in erlaubt:
+				if n.get_basename() == e.strip_edges():
+					gefiltert.append(n)
+		namen = gefiltert
 	print("Modellschau: %d Modelle aus %s" % [namen.size(), pfad])
 
 	var x := -(float(namen.size()) - 1.0) * ABSTAND * 0.5
@@ -48,9 +61,15 @@ func _ready() -> void:
 	_boden(float(namen.size()) * ABSTAND + 2.0)
 	var kamera := Camera3D.new()
 	kamera.fov = 45.0
-	kamera.position = Vector3(0.0, 1.5, float(namen.size()) * ABSTAND * 1.1 + 2.0)
-	kamera.look_at(Vector3(0.0, 0.7, 0.0), Vector3.UP)
+	# Abstand so, dass die Reihe das Bild füllt – vorher stand die Kamera
+	# viel zu weit weg und alles war briefmarkengroß.
+	var spanne := maxf(float(namen.size()) * ABSTAND, 2.0)
+	var weg := spanne * 0.62 + 1.8
+	var vorne := OS.get_environment("MODELLSCHAU_VORNE") == "1"
+	kamera.position = Vector3(0.0, 1.1, -weg if vorne else weg)
 	add_child(kamera)
+	# Erst einhängen, dann ausrichten: `look_at` braucht den Knoten im Baum.
+	kamera.look_at(Vector3(0.0, 0.7, 0.0), Vector3.UP)
 	kamera.current = true
 
 	for f in 30:

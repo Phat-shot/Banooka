@@ -48,7 +48,8 @@ func _ready() -> void:
 ## eingepasst stünde es zu tief über dem Boden – und dann fehlt die Lücke,
 ## durch die man rutschen soll.
 func fremdmodell() -> Dictionary:
-	return {"datei": "spinne", "groesse": 1.30, "nach_hoehe": true}
+	return {"datei": "spinne", "groesse": 1.30, "nach_hoehe": true,
+			"drehung": PI}
 
 
 # ---------------------------------------------------------- Optik

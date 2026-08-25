@@ -54,7 +54,9 @@ const AUGE_Y := 0.58
 ## Mitgeliefertes Modell für diesen Gegner.
 ## Laubfrosch von Quaternius – flach und breit wie die eigene Kröte.
 func fremdmodell() -> Dictionary:
-	return {"datei": "kroete", "groesse": 1.15}
+	# Das Modell blickt nach +Z, das Spiel erwartet −Z – ohne die halbe
+	# Drehung hüpft die Kröte rückwärts.
+	return {"datei": "kroete", "groesse": 1.15, "drehung": PI}
 
 
 func _baue() -> void:

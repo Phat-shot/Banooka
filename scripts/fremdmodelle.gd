@@ -43,12 +43,7 @@ static func nimm(bezeichnung: String, ziel_hoehe: float = 0.0) -> Node3D:
 	if not aktiv():
 		return null
 	var pfad := _pfad(bezeichnung)
-	if not _vorrat.has(pfad):
-		_vorrat[pfad] = load(pfad) if ResourceLoader.exists(pfad) else null
-	var szene: PackedScene = _vorrat[pfad]
-	if szene == null:
-		return null
-	var knoten := szene.instantiate() as Node3D
+	var knoten := _instanz(pfad)
 	if knoten == null:
 		return null
 	if ziel_hoehe > 0.0:
@@ -63,6 +58,10 @@ static func nimm(bezeichnung: String, ziel_hoehe: float = 0.0) -> Node3D:
 			if breite > 0.001 and breite * faktor > ziel_hoehe * 1.8:
 				faktor = ziel_hoehe * 1.8 / breite
 			knoten.scale = Vector3(faktor, faktor, faktor)
+			# Unterkante auf den Boden setzen. Ohne das hingen Bäume in der
+			# Luft oder steckten im Boden – je nachdem, wo der Ursprung der
+			# Datei liegt. Der ist bei fremden Modellen nicht verlässlich.
+			knoten.position.y = -_unterkante(pfad, knoten) * faktor
 	_beleuchtung_anpassen(knoten)
 	return knoten
 
@@ -73,21 +72,22 @@ static func nimm(bezeichnung: String, ziel_hoehe: float = 0.0) -> Node3D:
 ## Material einmal auf normale Beleuchtung umgestellt und danach
 ## wiederverwendet – ein Wald hat hunderte Instanzen, aber nur eine Handvoll
 ## verschiedener Materialien.
-static func _beleuchtung_anpassen(knoten: Node) -> void:
+static func _beleuchtung_anpassen(knoten: Node, farben: Dictionary = {}) -> void:
 	var netz := knoten as MeshInstance3D
 	if netz != null and netz.mesh != null:
 		for i in netz.mesh.get_surface_count():
 			var roh := netz.mesh.surface_get_material(i)
-			var fertig := _angepasst(roh)
+			var fertig := _angepasst(roh, farben)
 			if fertig != null:
 				netz.set_surface_override_material(i, fertig)
 	for kind in knoten.get_children():
-		_beleuchtung_anpassen(kind)
+		_beleuchtung_anpassen(kind, farben)
 
 
-static func _angepasst(roh: Material) -> Material:
+static func _angepasst(roh: Material, farben: Dictionary = {}) -> Material:
 	if roh == null:
 		return null
+	var wunschfarbe: Variant = farben.get(roh.resource_name)
 	# ACHTUNG: Als Schlüssel diente hier einmal `get_instance_id()`. Das war
 	# falsch – Godot vergibt die IDs freigegebener Objekte neu. Ein später
 	# geladenes Modell bekam dadurch die Materialien eines früheren, und
@@ -97,6 +97,10 @@ static func _angepasst(roh: Material) -> Material:
 	var schluessel: Variant = roh.resource_path
 	if String(schluessel).is_empty():
 		schluessel = roh
+	if wunschfarbe != null:
+		# Umgefärbte Fassungen brauchen einen eigenen Platz, sonst bekäme
+		# jedes andere Modell mit demselben Material die neue Farbe.
+		schluessel = "%s#%s" % [str(schluessel), Color(wunschfarbe).to_html()]
 	if _materialien.has(schluessel):
 		return _materialien[schluessel]["fertig"]
 	var standard := roh as StandardMaterial3D
@@ -109,6 +113,8 @@ static func _angepasst(roh: Material) -> Material:
 	neu_stoff.roughness = 0.92
 	neu_stoff.metallic = 0.0
 	neu_stoff.metallic_specular = 0.12
+	if wunschfarbe != null:
+		neu_stoff.albedo_color = wunschfarbe
 	_materialien[schluessel] = {"quelle": roh, "fertig": neu_stoff}
 	return neu_stoff
 
@@ -134,8 +140,17 @@ static func waehle(namen: Array, rng: RandomNumberGenerator,
 ## `nach_hoehe` bestimmt, worauf sich `ziel_groesse` bezieht. Vorgabe ist
 ## die größte Achse; für Gegner, unter denen man durchrutschen können muss,
 ## zählt dagegen die HÖHE – sonst duckt sich ein breites Tier zu flach.
+## `drehung` dreht das Modell um die Y-Achse. Das Spiel erwartet Figuren,
+## die nach −Z blicken; fremde Modelle schauen fast immer nach +Z und
+## laufen dann rückwärts durch die Gegend.
+##
+## `farben` färbt einzelne Materialien um, angesprochen über ihren Namen
+## aus der glTF-Datei (z. B. {"red": Color(...)}). CC0 erlaubt Änderungen –
+## so wird aus einem Marienkäfer ein Panzerkäfer, ohne die gute Form zu
+## verlieren.
 static func gegner(bezeichnung: String, ziel_groesse: float,
-		nach_hoehe: bool = false) -> Node3D:
+		nach_hoehe: bool = false, drehung: float = 0.0,
+		farben: Dictionary = {}) -> Node3D:
 	if not aktiv():
 		return null
 	var pfad := "%s/%s.glb" % [ORDNER_GEGNER, bezeichnung]
@@ -149,7 +164,8 @@ static func gegner(bezeichnung: String, ziel_groesse: float,
 		knoten.scale = Vector3(faktor, faktor, faktor)
 		# Füße auf den Boden: die Hülle liegt selten schon auf y = 0.
 		knoten.position.y = -_unterkante(pfad, knoten) * faktor
-	_beleuchtung_anpassen(knoten)
+	knoten.rotation.y = drehung
+	_beleuchtung_anpassen(knoten, farben)
 	return knoten
 
 

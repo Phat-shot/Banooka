@@ -25,7 +25,10 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.ends_with(".tscn"):
 			pfad = arg
-	print("Level: ", pfad)
+	if OS.get_environment("PRUEF_ASSETS") == "0":
+		Einstellungen.fremde_modelle = false
+	print("Level: ", pfad, "  fremde Modelle: ",
+			"an" if Einstellungen.fremde_modelle else "aus")
 	_level = load(pfad).instantiate()
 	add_child(_level)
 	# Der Aufbau läuft über mehrere Bilder (Ladebildschirm) – abwarten.
@@ -42,6 +45,7 @@ func _ready() -> void:
 	print("=== Level 01: geometrische Prüfung ===")
 	_pruefe_objekte("kisten", 0.5)
 	_pruefe_objekte("gegner", 0.0)
+	_pruefe_baeume()
 	_pruefe_gegner_patrouille()
 	await _pruefe_absturz()
 	print("=== %d Fehler, %d Warnungen ===" % [_fehler, _warnungen])
@@ -68,6 +72,88 @@ func _pruefe_objekte(gruppe: String, soll: float) -> void:
 			print("  steckt %.2f m im Boden: %s bei %s" % [-abstand, gruppe, str(n.global_position.snappedf(0.1))])
 			_warnungen += 1; schlecht += 1
 	print("  %s: %d geprüft, %d auffällig" % [gruppe, liste.size(), schlecht])
+
+## Prüft, ob Bäume wirklich auf dem Boden stehen.
+##
+## Anders als bei Kisten reicht der Knotenursprung hier nicht: Ein fremdes
+## Modell kann seinen Ursprung irgendwo im Geäst haben. Gemessen wird
+## deshalb die SICHTBARE Unterkante – die Hülle aller Netze in Weltmaßen.
+func _pruefe_baeume() -> void:
+	var baeume: Array[Node3D] = []
+	_sammle_baeume(_level, baeume)
+	var schlecht := 0
+	var ohne_boden := 0
+	var kulisse := 0
+	for baum in baeume:
+		# Deko-Bäume ohne Kollision stecken absichtlich in der Wandkrone
+		# oder stehen als Kulisse in der Schlucht – sie sollen gar nicht
+		# auf dem Boden stehen.
+		if not bool(baum.get("kollision")):
+			kulisse += 1
+			continue
+		# Der eigene Stamm darf den Bodenstrahl nicht abfangen.
+		var eigene: Array[RID] = []
+		for k in _alle_koerper(baum):
+			eigene.append(k)
+		var unten := _unterkante_welt(baum)
+		if unten == INF:
+			continue
+		var treffer := _boden_unter_ohne(baum.global_position, eigene)
+		if treffer.is_empty():
+			# Der Waldbestand neben dem Weg steht auf dem sichtbaren
+			# Waldboden, der keine Kollision trägt. Das ist Kulisse und
+			# kein Fehler – nur gezählt, nicht gemeldet.
+			ohne_boden += 1
+			continue
+		var abstand: float = unten - treffer["position"].y
+		if abstand > MAX_SCHWEBE:
+			print("  schwebt %.2f m: Baum bei Strecke %.0f m (unter %s, y=%.1f)"
+					% [abstand, _strecke(baum.global_position),
+					baum.get_parent().name, baum.global_position.y])
+			_warnungen += 1; schlecht += 1
+		elif abstand < -1.2:
+			print("  steckt %.2f m im Boden: Baum bei Strecke %.0f m"
+					% [-abstand, _strecke(baum.global_position)])
+			_warnungen += 1; schlecht += 1
+	print("  baeume: %d geprüft, %d auffällig (%d Kulisse in der Wand, %d auf dem Waldboden)"
+			% [baeume.size(), schlecht, kulisse, ohne_boden])
+
+
+func _sammle_baeume(wurzel: Node, hinein: Array[Node3D]) -> void:
+	for kind in wurzel.get_children():
+		if kind is Baum:
+			hinein.append(kind as Node3D)
+		else:
+			_sammle_baeume(kind, hinein)
+
+
+## Tiefster Punkt aller sichtbaren Netze in Weltmaßen.
+func _unterkante_welt(wurzel: Node) -> float:
+	var tiefster := INF
+	var netz := wurzel as MeshInstance3D
+	if netz != null and netz.mesh != null and netz.visible:
+		var kasten := netz.global_transform * netz.mesh.get_aabb()
+		tiefster = kasten.position.y
+	for kind in wurzel.get_children():
+		tiefster = minf(tiefster, _unterkante_welt(kind))
+	return tiefster
+
+
+func _alle_koerper(wurzel: Node) -> Array[RID]:
+	var liste: Array[RID] = []
+	if wurzel is CollisionObject3D:
+		liste.append((wurzel as CollisionObject3D).get_rid())
+	for kind in wurzel.get_children():
+		liste.append_array(_alle_koerper(kind))
+	return liste
+
+
+func _boden_unter_ohne(pos: Vector3, zusatz: Array[RID]) -> Dictionary:
+	var frage := PhysicsRayQueryParameters3D.create(
+			pos + Vector3.UP * 4.0, pos + Vector3.DOWN * 30.0)
+	frage.exclude = _ausschluss + zusatz
+	return _raum.intersect_ray(frage)
+
 
 func _pruefe_gegner_patrouille() -> void:
 	var schlecht := 0

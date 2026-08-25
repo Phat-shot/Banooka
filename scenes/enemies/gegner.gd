@@ -112,7 +112,8 @@ func _baue() -> void:
 
 ## Datei und Zielgröße eines mitgelieferten Modells für diesen Gegner,
 ## z. B. {"datei": "kroete", "groesse": 1.1}. Leer = nur die eigene Optik.
-## Mit {"nach_hoehe": true} zählt die Höhe statt der größten Achse.
+## Mit {"nach_hoehe": true} zählt die Höhe statt der größten Achse,
+## {"drehung": PI} dreht das Modell, {"farben": {...}} färbt Materialien um.
 func fremdmodell() -> Dictionary:
 	return {}
 
@@ -129,7 +130,9 @@ func _fremdmodell_setzen() -> void:
 		return
 	var figur := Fremdmodelle.gegner(String(angabe.get("datei", "")),
 			float(angabe.get("groesse", 1.0)),
-			bool(angabe.get("nach_hoehe", false)))
+			bool(angabe.get("nach_hoehe", false)),
+			float(angabe.get("drehung", 0.0)),
+			angabe.get("farben", {}) as Dictionary)
 	if figur == null:
 		return
 	for kind in modell.get_children():
