@@ -42,6 +42,17 @@ const EIS_GRIFF := 2.4
 ## bessere Fortbewegung und niemand liefe mehr aufrecht.
 const KRIECH_TEMPO := 3.0
 
+## Tempo beim Hangeln, längs des Gitters. Bewusst zwischen Krabbeln (3,0)
+## und Laufen (8,5): Hangeln soll zügig sein, aber nie die schnellere Wahl.
+const HANGEL_TEMPO := 3.6
+## Tempo quer dazu, entlang einer Sprosse. Langsamer, weil dabei die Griffe
+## gewechselt werden statt nachgefasst.
+const HANGEL_QUER := 2.0
+## Sperre nach dem Loslassen. Ohne sie hinge die Figur im nächsten Bild
+## wieder am selben Gitter – sie fällt ja mitten durch die Fangzone.
+## In 0,3 s fällt sie 1,7 m und ist damit aus der 0,6 m hohen Zone heraus.
+const HANGEL_SPERRE := 0.3
+
 signal spin_gestartet
 signal bauchplatscher_gelandet(pos: Vector3)
 signal gestorben
@@ -74,8 +85,14 @@ var gesperrt := false
 ## dieselbe Taste der Slide), und darüber hinaus so lange, wie über der
 ## Figur kein Platz zum Aufrichten ist.
 var kriechen := false
+## Gitter, an dem die Figur gerade hängt. `null` = sie hängt nicht.
+## Öffentlich, weil `haltung()` und Gegner es lesen sollen. Mehr Zustand
+## braucht es nicht: Hanghöhe, Richtung und Grenzen liegen alle im Prop.
+var hangelgitter: Hangelgitter = null
 
 var _slide_dir := Vector3.ZERO
+## Restsperre nach dem Loslassen, in Sekunden.
+var _hangel_sperre := 0.0
 var _blick_y := 0.0
 var _slide_hitbox_aktiv := false
 var _tempo := 0.0
@@ -103,8 +120,13 @@ func _physics_process(delta: float) -> void:
 	spinning = maxf(spinning - delta, 0.0)
 	sliding = maxf(sliding - delta, 0.0)
 	invuln = maxf(invuln - delta, 0.0)
+	_hangel_sperre = maxf(_hangel_sperre - delta, 0.0)
 
 	if gesperrt:
+		# Die Portalfahrt zieht die Figur vom Gitter. Ohne das fiele sie
+		# zwar herunter, `hangelgitter` bliebe aber gesetzt – und sie
+		# schnappte beim Entsperren wieder nach oben.
+		hangelgitter = null
 		velocity.x = 0.0
 		velocity.z = 0.0
 		velocity.y += G * delta
@@ -112,6 +134,20 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var am_boden := is_on_floor()
+
+	# --- Hangeln ---
+	# Steht vor allem anderen, weil Hangeln kein Zustand NEBEN Laufen,
+	# Slide und Sprung ist, sondern statt ihnen: Wer hängt, hat weder
+	# Boden noch Schwerkraft. Der Block endet mit `return` und überspringt
+	# damit bewusst Laufen, Slide, Krabbeln, Sprung, Jump-Cut, Spin,
+	# Schwerkraft und Landung. Was er NICHT überspringen darf – Hitbox und
+	# Absturzprüfung –, steht in `_hangeln()` noch einmal.
+	if hangelgitter == null and not am_boden and not slamming \
+			and sliding <= 0.0 and _hangel_sperre <= 0.0:
+		_einhaengen(Hangelgitter.naechstes(self))
+	if hangelgitter != null:
+		_hangeln(delta)
+		return
 
 	# --- Horizontale Bewegung ---
 	var eingabe := _kamerarelativ(InputHub.bewegung())
@@ -244,6 +280,8 @@ func _process(delta: float) -> void:
 ## Spin. Die Schienenfiguren überschreiben das – wer auf einer Wildkatze
 ## sitzt, soll nicht so tun, als liefe er.
 func haltung() -> String:
+	if hangelgitter != null:
+		return "hangeln"
 	return "krabbeln" if kriechen else ""
 
 
@@ -289,6 +327,17 @@ func setze_blickrichtung(winkel: float) -> void:
 		_modell.rotation.y = winkel
 
 
+## Löst die Figur vom Gitter und sperrt das sofortige Wiedereinhängen.
+##
+## Öffentlich, weil nicht nur die Steuerung sie braucht: Auch ein Treffer,
+## der Tod und die Portalfahrt müssen die Hände lösen können.
+func hangeln_beenden() -> void:
+	if hangelgitter == null:
+		return
+	hangelgitter = null
+	_hangel_sperre = HANGEL_SPERRE
+
+
 ## Schleudert den Spieler nach oben (Federkiste, Sprung auf einen Gegner).
 func abprallen(hoehe: float = ABPRALL_V) -> void:
 	velocity.y = hoehe
@@ -309,6 +358,10 @@ func abprallen(hoehe: float = ABPRALL_V) -> void:
 func schaden_nehmen() -> void:
 	if invuln > 0.0:
 		return
+	# Ein Treffer reißt die Hände vom Gitter. Ohne das hinge die Figur im
+	# Wirkbereich eines Deckengegners fest und verlöre dort in einer
+	# Sekunde alle drei Schutzladungen.
+	hangeln_beenden()
 	if GameState.schutz_verbrauchen():
 		invuln = INVULN_ZEIT
 		Klang.spiele("schaden")
@@ -329,6 +382,10 @@ func respawn() -> void:
 	spinning = 0.0
 	slamming = false
 	kriechen = false
+	hangelgitter = null
+	# Bewusst auf 0 statt auf HANGEL_SPERRE: Wer an einem Checkpoint unter
+	# einem Gitter erscheint, soll sofort wieder hinaufspringen dürfen.
+	_hangel_sperre = 0.0
 	can_djump = false
 	gesperrt = false
 	_kein_jump_cut = false
@@ -349,6 +406,93 @@ func respawn() -> void:
 
 
 # ---------------------------------------------------------- Intern
+
+## Hängt die Figur ein. `null` wird stillschweigend geschluckt, damit die
+## Fundstelle in `_physics_process` ohne zweite Abfrage auskommt.
+func _einhaengen(gitter: Hangelgitter) -> void:
+	if gitter == null:
+		return
+	hangelgitter = gitter
+	velocity = Vector3.ZERO
+	sliding = 0.0
+	slamming = false
+	# Auch aus dem Krabbeln heraus kommt man ans Gitter – über eine
+	# Federkiste zum Beispiel.
+	kriechen = false
+	can_djump = true
+	_kein_jump_cut = false
+	# Das Fall-Gedächtnis MUSS hier weg. Abgebaut wird es sonst nur im
+	# Schwerkraft-Block, und der läuft beim Hangeln nie: Die Figur zählte
+	# den Sprung, mit dem sie ans Gitter kam, für immer als Treffer von
+	# oben und zerbräche im Vorbeihangeln jede Kiste.
+	_fall_rest = 0.0
+	global_position = gitter.naechster_punkt(global_position)
+	reset_physics_interpolation()
+	Klang.spiele("landung", 1.3, 0.7)
+
+
+## Hangeln: ein vollständiger Ersatz für Laufen und Fallen.
+##
+## Zwei Wege führen heraus, und beide sind Entscheidungen, kein Unfall:
+## Springen (trägt weiter) und Loslassen (fällt senkrecht). Am Ende des
+## Gitters passiert dagegen NICHTS – die Figur bleibt hängen. Automatisch
+## loszulassen wäre ein Verrat: Ein Gitter hängt über einer Gasse, und wer
+## zu weit hangelt, stürbe, ohne etwas falsch gemacht zu haben.
+func _hangeln(delta: float) -> void:
+	var gitter := hangelgitter
+	if not is_instance_valid(gitter):
+		hangeln_beenden()
+		return
+
+	var eingabe := _kamerarelativ(InputHub.bewegung())
+
+	# Absprung: nach oben und in die Blickrichtung, Doppelsprung bleibt
+	# übrig. Das ist der Weg vom Gitter auf den nächsten Vorsprung.
+	if InputHub.sprung_gedrueckt():
+		hangeln_beenden()
+		velocity = Vector3(eingabe.x * RUN_SPEED * AIR_CTRL, JUMP_V,
+				eingabe.y * RUN_SPEED * AIR_CTRL)
+		can_djump = true
+		Klang.spiele("sprung")
+		return
+
+	# Loslassen: senkrecht fallen. Dieselbe Taste, die am Boden den Slide
+	# und in der Luft den Bauchplatscher macht – im ganzen Spiel ist sie
+	# die "nach unten"-Taste, hier auch.
+	if InputHub.slide_gedrueckt():
+		hangeln_beenden()
+		velocity = Vector3.ZERO
+		return
+
+	# Die Eingabe wird auf die beiden Gitterachsen zerlegt. So bleibt die
+	# Steuerung kamerarelativ, auch wenn das Gitter schräg zur Kamera
+	# hängt – und Rückwärtshangeln braucht keinen Sonderfall, weil die
+	# Zerlegung Vorzeichen kennt.
+	var wunsch := Vector3(eingabe.x, 0.0, eingabe.y)
+	var laengs := gitter.laengsachse()
+	var quer := gitter.querachse()
+	var zug := laengs * laengs.dot(wunsch) * HANGEL_TEMPO \
+			+ quer * quer.dot(wunsch) * HANGEL_QUER
+
+	velocity = Vector3(zug.x, 0.0, zug.z)
+	move_and_slide()
+	# Erst bewegen, dann zurück auf das Gitter setzen – in dieser
+	# Reihenfolge: `move_and_slide()` lässt Wände weiter blocken,
+	# `naechster_punkt()` hält danach nur Höhe und Grenzen. Umgekehrt wäre
+	# die Höhe um ein Bild verzögert und die Figur würde sichtbar sägen.
+	global_position = gitter.naechster_punkt(global_position)
+
+	if eingabe.length() > 0.1:
+		_blick_y = atan2(-eingabe.x, -eingabe.y)
+	_tempo = clampf(zug.length() / HANGEL_TEMPO, 0.0, 1.0)
+	# Beides läuft im übersprungenen Teil von `_physics_process` und muss
+	# deshalb hier stehen: Sonst bliebe die flache Slide-Kapsel stehen,
+	# wenn jemand aus einem Slide-Jump heraus ins Gitter greift, und ein
+	# Gitter über einem Abgrund fienge den Tod nicht ab.
+	_hitbox_aktualisieren()
+	if global_position.y < TODESHOEHE:
+		sterben()
+
 
 ## Entscheidet Bild für Bild, ob die Figur krabbelt.
 ##

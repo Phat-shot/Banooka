@@ -67,18 +67,22 @@ done
 # Zwei Dinge lassen sich nur in Bewegung prüfen: das Krabbeln (Halten statt
 # Umschalten, Zwang unter tiefen Decken, kein Knochen unter dem Boden) und
 # die Wasserplattformen (tragen sie den Spieler wirklich mit?).
-echo "--- 4/4 Krabbeln und bewegte Böden ---"
+echo "--- 4/4 Krabbeln, bewegte Böden, Hangeln ---"
 KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
 FLOSS="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Flosstest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$FLOSS" | grep -E "abgesetzt|Fahrt:|Sinken:|Abweichungen"
+HANGELN="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Hangeltest.tscn 2>&1 \
+	| grep -Ev "$RAUSCHEN")"
+echo "$HANGELN" | grep -E "springt|haengt|hangelt|laesst|faellt|laeuft darunter|Fall-Ged|Abweichungen"
 
 if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$LEVEL" | grep -qE "FEHLER" \
 		|| echo "$KRIECH" | grep -qE "FALSCH|IM BODEN" \
-		|| echo "$FLOSS" | grep -qE "steht nicht|blieb zurueck|haengt in der Luft"; then
+		|| echo "$FLOSS" | grep -qE "steht nicht|blieb zurueck|haengt in der Luft" \
+		|| echo "$HANGELN" | grep -qE "NEIN"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1
 fi

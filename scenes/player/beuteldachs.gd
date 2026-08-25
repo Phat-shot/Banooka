@@ -66,6 +66,7 @@ var _clip_spin := ""
 var _clip_sitzen := ""
 var _clip_reiten := ""
 var _clip_krabbeln := ""
+var _clip_hangeln := ""
 var _clip_laeuft := ""
 ## War die Figur im letzten Bild im Slide? Der Slideclip wird beim Ansetzen
 ## einmal angestoßen, nicht jedes Bild neu.
@@ -523,6 +524,8 @@ func _clips_zuordnen() -> void:
 	_clip_sitzen = _erster_clip(["sit", "sitzen"])
 	_clip_reiten = _erster_clip(["ride", "reiten"])
 	_clip_krabbeln = _erster_clip(["crawl", "krabbeln", "kriechen"])
+	# "hang" kollidiert mit keinem der elf bisherigen Namen.
+	_clip_hangeln = _erster_clip(["hang", "hangeln", "haengen"])
 
 	# Die Zyklen laufen endlos, sonst bleibt die Figur nach einem
 	# Durchlauf im letzten Bild stehen. Ruhepose und Sprung dagegen NICHT:
@@ -531,7 +534,8 @@ func _clips_zuordnen() -> void:
 	# Haltungen laufen endlos: Wer sitzt, sitzt weiter, und wer krabbelt,
 	# braucht einen Zyklus wie beim Gehen.
 	for clip: String in [_clip_ruhe, _clip_schlendern, _clip_gehen, _clip_rennen,
-			_clip_spin, _clip_sitzen, _clip_reiten, _clip_krabbeln]:
+			_clip_spin, _clip_sitzen, _clip_reiten, _clip_krabbeln,
+			_clip_hangeln]:
 		_schleife_setzen(clip, Animation.LOOP_LINEAR)
 	for clip: String in [_clip_pose, _clip_sprung, _clip_slide]:
 		_schleife_setzen(clip, Animation.LOOP_NONE)
@@ -588,6 +592,8 @@ func _clip_zu_haltung(haltung: String) -> String:
 			return _clip_reiten
 		"krabbeln":
 			return _clip_krabbeln
+		"hangeln":
+			return _clip_hangeln
 		_:
 			return ""
 

@@ -15,9 +15,10 @@ class_name Statustafel
 ## Leere Aktion = keine Symboltaste, dann steht der Controller-Text rechts.
 const LEGENDE := [
 	["", "Laufen", "WASD / Pfeile", "Stick / Steuerkreuz"],
-	["jump", "Springen (2× = Doppelsprung)", "Leertaste", ""],
+	["jump", "Springen (2× = Doppelsprung) · am Gitter abspringen",
+			"Leertaste", ""],
 	["spin", "Drehschlag", "J / Strg", ""],
-	["slide", "Slide · aus dem Stand gehalten = krabbeln · in der Luft Bauchplatscher",
+	["slide", "Slide · gehalten krabbeln · in der Luft Bauchplatscher · am Gitter loslassen",
 			"Umschalt", ""],
 	["status", "Diese Tafel", "Tab oder Esc", ""],
 ]
