@@ -20,7 +20,16 @@ extends Camera3D
 ## Abstand hinter dem Spieler.
 @export var abstand := 8.0
 ## Seitliche Bewegungen werden nur zu diesem Anteil mitgefahren.
-@export var seiten_faktor := 0.5
+##
+## 0.0 hieße: Die Kamera bleibt starr auf ihrer Schiene, die Figur wandert
+## quer durchs Bild – die klassische, sehr ruhige Lösung, bei der man die
+## Figur im engen Korridor aber leicht aus dem Blick verliert. 1.0 hieße:
+## Die Figur klebt in der Bildmitte, das Bild wirkt festgeschraubt.
+##
+## 0.85 hält sie praktisch mittig, lässt einem Ausweichschritt aber noch
+## sichtbares Spiel. Das Drehen in Kurven übernimmt ohnehin die Schiene:
+## Dort dreht sich die Welt um die Figur, nicht die Kamera um sie herum.
+@export var seiten_faktor := 0.85
 ## Blickpunkt vor dem Spieler.
 @export var blick_vorlauf := 4.0
 ## Glättung: kleinerer Wert = härteres Nachziehen.
