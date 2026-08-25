@@ -644,13 +644,17 @@ func _rankenwerk() -> void:
 		b.laubfarbe = toene[i % toene.size()]
 		b.kollision = false
 		b.wind = false
-		# Der Stamm steckt in der Wandkrone, nur die Krone schaut heraus.
-		# Beim ersten Versuch standen sie frei über der Kante; von unten sah
-		# man dann Baumkronen im Himmel schweben, weil die Wand die Stämme
-		# verdeckte.
+		# Die Bäume stehen HINTER der Kante auf der Wandkrone, mit dem Fuß
+		# knapp darunter – so wachsen sie sichtbar aus dem Rand heraus.
+		#
+		# Vorher saßen sie auf der Wandfläche selbst und wurden um die halbe
+		# Baumhöhe darunter versenkt, damit nur die Krone herausschaut. Das
+		# ging auf, solange der Stamm lang und kahl war. Fremde Modelle
+		# haben aber kurze Stämme und tief sitzende Kronen: Da hing der
+		# Stamm unter der Kante frei in der Luft über der Schlucht.
 		b.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * (wand["abstand"] + randf_range(-0.6, 0.9)),
-				wand["hoehe"] - b.hoehe * randf_range(0.45, 0.62))
+				seite * (wand["abstand"] + randf_range(0.9, 2.8)),
+				wand["hoehe"] - randf_range(0.1, 0.5))
 		deko.add_child(b)
 	seed(wuerfel)
 

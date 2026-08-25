@@ -62,6 +62,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Bauen und veröffentlichen
+        id: bau
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -79,7 +80,12 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
-          MARKE="$(echo '${{ steps.marken.outputs.tags }}' | head -n1)"
+          # Genau das eben gebaute Abbild prüfen, angesprochen über seinen
+          # Digest. Über die wandernde Marke ":main" ging das schief, sobald
+          # zwei Pushes dicht aufeinander folgten: Dann lag dort schon der
+          # nächste Bau, und der Test verglich mit dem falschen Stand.
+          MARKE="${{ env.REGISTRY }}/${{ github.repository }}@${{ steps.bau.outputs.digest }}"
+          echo "geprüft wird: $MARKE"
           docker run -d --name banooka-test -p 8080:80 "$MARKE"
           for i in $(seq 1 30); do
             if curl -fsS http://localhost:8080/gesundheit >/dev/null 2>&1; then

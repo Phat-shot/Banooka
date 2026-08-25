@@ -40,12 +40,12 @@ func _init() -> void:
 func fremdmodell() -> Dictionary:
 	# Die Form stimmt – ein gewölbter Panzer ist genau das, worauf man
 	# springt. Die Farbe stimmte nicht: Ein Marienkäfer ist kein Gegner,
-	# den man zertritt. Der Panzer wird deshalb in warmes Bronze umgefärbt,
-	# die schwarzen Flecken bleiben als Zeichnung stehen. CC0 erlaubt das;
+	# den man zertritt. Der Panzer wird deshalb dunkel umgefärbt, die
+	# schwarzen Flecken bleiben als Zeichnung stehen. CC0 erlaubt das;
 	# die Änderung ist in assets/CREDITS.md vermerkt.
 	return {
 		"datei": "kaefer", "groesse": 1.30, "drehung": PI,
-		"farben": {"red": Color(0.56, 0.31, 0.07)},
+		"farben": {"red": Color(0.19, 0.14, 0.10)},
 	}
 
 

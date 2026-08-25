@@ -18,6 +18,7 @@ func _ready() -> void:
 		get_tree().quit(0)
 		return
 	_mitgelieferte_pruefen()
+	_materialnamen("res://assets/modelle/gegner/kaefer.glb")
 
 	var ordner := Einstellungen.ORDNER
 	DirAccess.make_dir_recursive_absolute(ordner)
@@ -106,6 +107,31 @@ func _mitgelieferte_pruefen() -> void:
 				"" if figur != null else " (%s)" % ModellLader.letzter_fehler])
 		if figur != null:
 			figur.queue_free()
+
+
+## Zeigt, unter welchem Namen Godot die Materialien einer Datei führt.
+## Genau diese Namen brauchen die Umfärbungen in `fremdmodell()`.
+func _materialnamen(pfad: String) -> void:
+	if not ResourceLoader.exists(pfad):
+		print("  %s ist nicht importiert" % pfad)
+		return
+	var szene := (load(pfad) as PackedScene).instantiate()
+	print("  Materialien in %s:" % pfad.get_file())
+	_materialnamen_von(szene)
+	szene.queue_free()
+
+
+func _materialnamen_von(knoten: Node) -> void:
+	var netz := knoten as MeshInstance3D
+	if netz != null and netz.mesh != null:
+		for i in netz.mesh.get_surface_count():
+			var m := netz.mesh.surface_get_material(i)
+			if m != null:
+				print("    '%s'  Farbe=%s" % [m.resource_name,
+						str((m as StandardMaterial3D).albedo_color)
+						if m is StandardMaterial3D else "-"])
+	for kind in knoten.get_children():
+		_materialnamen_von(kind)
 
 
 func _netze(knoten: Node) -> int:
