@@ -723,17 +723,8 @@ func _dunkelheit_setzen() -> void:
 	dunkelheit(LICHTWEITE, 0.05)
 
 
-## Nach dem Tod baut `LevelBasis` Kisten und Gegner aus dem Bauplan neu
-## auf – als frische Knoten mit den geteilten Materialien der Bibliothek.
-## Ohne diese Auffrischung stünden ab dem ersten Tod stockdunkle Kisten
-## im Gang, und das Level wäre unspielbar.
-func _nach_aufbau() -> void:
-	GameState.level_zuruecksetzen.connect(_auf_neuaufbau)
-
-
-func _auf_neuaufbau(_von_vorn: bool) -> void:
-	_leuchten_auffrischen.call_deferred()
-
-
-func _leuchten_auffrischen() -> void:
-	Leuchtmarker.markieren(self, ["kisten", "fruechte"], 1.4)
+# Das Auffrischen der Leuchtmarker nach einem Tod stand hier einmal
+# lokal: `LevelBasis` baut Kisten und Früchte aus dem Bauplan neu auf, und
+# ohne Nachmarkieren stünden ab dem ersten Tod stockdunkle Kisten im Gang.
+# Das gilt für JEDES Dunkellevel, nicht nur für dieses – `dunkelheit()`
+# erledigt es inzwischen selbst.

@@ -69,7 +69,7 @@ done
 # Wasserplattformen (tragen sie den Spieler wirklich mit?), das Hangeln und
 # die Deckungsflecken (hält der Schwarm wirklich ab, oder leuchtet der
 # Fleck nur?). Eine Regel, die keine Prüfung hat, ist eine Behauptung.
-echo "--- 4/4 Krabbeln, bewegte Böden, Hangeln, Deckung ---"
+echo "--- 4/4 Krabbeln, bewegte Böden, Hangeln, Deckung, Dunkelheit ---"
 KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
@@ -82,13 +82,17 @@ echo "$HANGELN" | grep -E "springt|haengt|hangelt|laesst|faellt|laeuft darunter|
 DECKUNG="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Deckungstest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$DECKUNG" | grep -E "Fleck|drueber|Abweichungen"
+DUNKEL="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Dunkeltest.tscn 2>&1 \
+	| grep -Ev "$RAUSCHEN")"
+echo "$DUNKEL" | grep -E "markiert|zerschlagen|Abweichungen"
 
 if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$LEVEL" | grep -qE "FEHLER" \
 		|| echo "$KRIECH" | grep -qE "FALSCH|IM BODEN" \
 		|| echo "$FLOSS" | grep -qE "steht nicht|blieb zurueck|haengt in der Luft" \
 		|| echo "$HANGELN" | grep -qE "NEIN" \
-		|| echo "$DECKUNG" | grep -qE "FALSCH"; then
+		|| echo "$DECKUNG" | grep -qE "FALSCH" \
+		|| echo "$DUNKEL" | grep -qE "FALSCH"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1
 fi
