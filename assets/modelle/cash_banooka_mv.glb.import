@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://blpih3j0n0yp"
-path="res://.godot/imported/cash_banooka_mod.glb-72fa15923c3e9f38fcca0cea1bf4d45d.scn"
+uid="uid://b8yj5eewyhdnk"
+path="res://.godot/imported/cash_banooka_mv.glb-7dd31c2db21b9de8079c3b61dabdec3d.scn"
 
 [deps]
 
-source_file="res://assets/modelle/cash_banooka_mod.glb"
-dest_files=["res://.godot/imported/cash_banooka_mod.glb-72fa15923c3e9f38fcca0cea1bf4d45d.scn"]
+source_file="res://assets/modelle/cash_banooka_mv.glb"
+dest_files=["res://.godot/imported/cash_banooka_mv.glb-7dd31c2db21b9de8079c3b61dabdec3d.scn"]
 
 [params]
 

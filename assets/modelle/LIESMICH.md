@@ -48,14 +48,25 @@ Groß- und Kleinschreibung erkannt, deutsche Entsprechungen ebenso.
 | `Walk` | 1,0 s | ja | Eingabe 35–75 % |
 | `Run` | 0,6 s | ja | Eingabe über 75 % |
 | `Jump` | 1,15 s | **nein** | einmalig beim Abheben |
+| `Slide` | 0,9 s | **nein** | einmalig beim Ansetzen |
+| `Spin` | 0,4 s | ja | solange gedreht wird |
 
 Fehlt einer, greift der nächstbeste: Eine Figur mit nur `Walk` benutzt ihn
-auch zum Schlendern. Fehlt `Jump`, bleibt der letzte Bodenclip stehen und
-die eingebaute Ganzkörper-Stauchung zeigt den Sprung.
+auch zum Schlendern. Fehlt `Jump`, `Slide` oder `Spin`, bleibt der letzte
+Bodenclip stehen und die eingebaute Ganzkörper-Stauchung zeigt den Zustand.
 
-Für Slide und Drehschlag gibt es bewusst keine Clips – dort übernimmt
-immer die Stauchung. Ein Gehzyklus im Slide sähe falsch aus, und die
-wenigsten Figuren bringen so etwas mit.
+**Haltephasen.** `Jump` und `Slide` sind länger, als der Zustand im Spiel
+dauert. Der Sprung wird deshalb am Scheitel angehalten, solange die Figur
+fliegt, und der Slide in der Grätsche, solange gerutscht wird; beim
+Aufsetzen bzw. Aufstehen springt das Spiel in den Schlussteil des Clips.
+Die Marken sind Anteile der Cliplänge, keine festen Sekunden – eine Figur
+mit anders langen Clips passt also ebenfalls.
+
+**`Spin` dreht selbst.** Bringt eine Figur den Clip mit, dreht das Spiel
+den Knoten NICHT zusätzlich, sonst wirbelte sie doppelt so schnell. Der
+Wirkradius des Drehschlags bleibt bei 1,7 m (verbindlicher Physikwert aus
+CLAUDE.md) und ist damit größer als die Armspannweite – das ist Absicht,
+knapp danebengedreht soll trotzdem treffen.
 
 Prüfen lässt sich das mit:
 

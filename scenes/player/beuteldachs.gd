@@ -61,7 +61,12 @@ var _clip_schlendern := ""
 var _clip_gehen := ""
 var _clip_rennen := ""
 var _clip_sprung := ""
+var _clip_slide := ""
+var _clip_spin := ""
 var _clip_laeuft := ""
+## War die Figur im letzten Bild im Slide? Der Slideclip wird beim Ansetzen
+## einmal angestoßen, nicht jedes Bild neu.
+var _war_im_slide := false
 ## War die Figur im letzten Bild in der Luft? Der Sprungclip wird beim
 ## Abheben EINMAL angestoßen, nicht jedes Bild neu.
 var _war_in_luft := false
@@ -412,9 +417,18 @@ func _kegel(unten: float, oben: float, hoehe: float) -> CylinderMesh:
 ## Überträgt den Bewegungszustand.
 ## tempo: 0..1, luft: in der Luft, slide/spin: Restzeiten in Sekunden.
 func aktualisiere(delta: float, tempo: float, luft: bool, slide: float, spin: float) -> void:
-	# Blickrichtung bzw. Spin-Drehung
+	# Blickrichtung bzw. Spin-Drehung.
+	#
+	# Bringt die Figur einen eigenen Spinclip mit, dreht der bereits um
+	# volle 360°. Dann darf der Knoten NICHT zusätzlich gedreht werden,
+	# sonst wirbelt die Figur doppelt so schnell und die Blickrichtung
+	# stimmt hinterher nicht mehr.
+	var eigener_spin := spin > 0.0 and not _clip_spin.is_empty()
 	if spin > 0.0:
-		rotation.y += delta * SPIN_DREHUNG
+		if not eigener_spin:
+			rotation.y += delta * SPIN_DREHUNG
+		else:
+			rotation.y = _blick
 		_spin_alpha = 0.85
 	else:
 		rotation.y = _blick
@@ -435,7 +449,7 @@ func aktualisiere(delta: float, tempo: float, luft: bool, slide: float, spin: fl
 	_lauf_phase += delta * tempo * 12.0
 
 	if is_instance_valid(_eigenes):
-		_animiere_eigenes(delta, tempo, luft, slide > 0.0)
+		_animiere_eigenes(delta, tempo, luft, slide > 0.0, spin > 0.0)
 		return
 	_animiere(delta, tempo, luft, slide > 0.0, spin > 0.0)
 
@@ -454,9 +468,10 @@ func sichtbarkeit(sichtbar: bool) -> void:
 ## nur der ganze Körper bewegt: Laufwippen, gestreckt in der Luft, flach im
 ## Slide, ruhiges Atmen im Stand. Der Halter sitzt auf Fußhöhe, ein
 ## Stauchen drückt die Figur damit zu Boden statt in der Luft zu schrumpfen.
-func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool) -> void:
+func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool,
+		spin: bool) -> void:
 	_zeit += delta
-	_fuehre_clips(tempo, luft, slide)
+	_fuehre_clips(tempo, luft, slide, spin)
 	var ziel := Vector3.ONE
 	var wippen := 0.0
 	if slide:
@@ -499,14 +514,17 @@ func _clips_zuordnen() -> void:
 	_clip_gehen = _erster_clip(["walk", "gehen"])
 	_clip_rennen = _erster_clip(["run", "rennen", "sprint"])
 	_clip_sprung = _erster_clip(["jump", "sprung"])
+	_clip_slide = _erster_clip(["slide", "rutsch", "graetsche"])
+	_clip_spin = _erster_clip(["spin", "drehschlag", "dreh"])
 
 	# Die Zyklen laufen endlos, sonst bleibt die Figur nach einem
 	# Durchlauf im letzten Bild stehen. Ruhepose und Sprung dagegen NICHT:
 	# Die Pose ist ein einzelnes Bild, und ein Sprung, der sich wiederholt,
 	# sähe aus wie ein Hüpfen an Ort und Stelle.
-	for clip: String in [_clip_ruhe, _clip_schlendern, _clip_gehen, _clip_rennen]:
+	for clip: String in [_clip_ruhe, _clip_schlendern, _clip_gehen, _clip_rennen,
+			_clip_spin]:
 		_schleife_setzen(clip, Animation.LOOP_LINEAR)
-	for clip: String in [_clip_pose, _clip_sprung]:
+	for clip: String in [_clip_pose, _clip_sprung, _clip_slide]:
 		_schleife_setzen(clip, Animation.LOOP_NONE)
 
 
@@ -550,6 +568,36 @@ func _landeteil_anspielen() -> void:
 	_eigener_spieler.seek(anim.length * LANDUNG_ANTEIL, true)
 
 
+## Hält den Slideclip in der Grätsche, solange gerutscht wird.
+##
+## Der Clip dauert 0,9 s, ein Slide aber nur SLIDE_TIME = 0,42 s. Die
+## Haltephase liegt zwischen 0,2 und 0,55 s; dort wird angehalten, damit
+## ein Slide nie mitten im Aufstehen endet. Umgekehrt gilt: Wäre ein Slide
+## einmal länger, streckt sich die Grätsche statt durchzulaufen.
+const GRAETSCHE_ANTEIL := 0.61   ## ~0,55 s von 0,9 s: Ende der Haltephase
+const AUFSTEHEN_ANTEIL := 0.64   ## kurz danach beginnt das Aufrichten
+
+
+func _in_graetsche_halten() -> void:
+	if _clip_slide.is_empty() or _clip_laeuft != _clip_slide:
+		return
+	var anim := _eigener_spieler.get_animation(_clip_slide)
+	if anim == null:
+		return
+	var halten := anim.length * GRAETSCHE_ANTEIL
+	if _eigener_spieler.current_animation_position > halten:
+		_eigener_spieler.seek(halten, true)
+
+
+func _aufstehteil_anspielen() -> void:
+	if _clip_slide.is_empty() or _clip_laeuft != _clip_slide:
+		return
+	var anim := _eigener_spieler.get_animation(_clip_slide)
+	if anim == null:
+		return
+	_eigener_spieler.seek(anim.length * AUFSTEHEN_ANTEIL, true)
+
+
 func _erster_clip(wuensche: Array) -> String:
 	for wunsch: String in wuensche:
 		var treffer := ModellLader.clip_fuer(_eigener_spieler, wunsch)
@@ -571,9 +619,33 @@ func _schleife_setzen(clip: String, art: Animation.LoopMode) -> void:
 ## Für Sprung, Slide und Drehschlag bringt so eine Figur meist nichts mit;
 ## dort bleibt der Laufclip stehen und die Stauchung aus `_animiere_eigenes`
 ## übernimmt – lieber ein ruhiger Körper als ein Gehzyklus in der Luft.
-func _fuehre_clips(tempo: float, luft: bool, slide: bool) -> void:
+func _fuehre_clips(tempo: float, luft: bool, slide: bool, spin: bool) -> void:
 	if _eigener_spieler == null:
 		return
+
+	# Der Drehschlag steht vorn: Er kann am Boden UND in der Luft laufen –
+	# der Doppelsprung setzt ihn kurz mit –, und er ist die auffälligere
+	# Bewegung. Der Clip läuft in Schleife, solange gedreht wird.
+	if spin and not _clip_spin.is_empty():
+		_war_in_luft = luft
+		_war_im_slide = false
+		if _clip_laeuft != _clip_spin:
+			_clip_laeuft = _clip_spin
+			_eigener_spieler.play(_clip_spin, 0.06)
+		return
+
+	# Slide: einmal anstoßen, in der Grätsche halten, beim Aufstehen weiter.
+	if slide and not _clip_slide.is_empty():
+		if not _war_im_slide:
+			_war_im_slide = true
+			_clip_laeuft = _clip_slide
+			_eigener_spieler.play(_clip_slide, 0.06)
+		else:
+			_in_graetsche_halten()
+		return
+	if _war_im_slide:
+		_war_im_slide = false
+		_aufstehteil_anspielen()
 
 	if luft:
 		# Abheben stößt den Sprungclip genau einmal an.

@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://iwc5aqp6iwb7"
-path="res://.godot/imported/cash_banooka_mod_2.png-2ee0117355a5cafb39b06f3f8743ae52.ctex"
+uid="uid://bq6t6hlbpbydg"
+path="res://.godot/imported/cash_banooka_mv_0.png-dd7fb702c301c3e8c7ed479e528b84cf.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "a465b5827568fead172f2f45aeee0190"
+"md5": "e2d87259447ae56027964f6fa67e618b"
 }
 
 [deps]
 
-source_file="res://assets/modelle/cash_banooka_mod_2.png"
-dest_files=["res://.godot/imported/cash_banooka_mod_2.png-2ee0117355a5cafb39b06f3f8743ae52.ctex"]
+source_file="res://assets/modelle/cash_banooka_mv_0.png"
+dest_files=["res://.godot/imported/cash_banooka_mv_0.png-dd7fb702c301c3e8c7ed479e528b84cf.ctex"]
 
 [params]
 
