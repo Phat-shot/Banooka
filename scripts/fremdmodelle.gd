@@ -14,6 +14,26 @@ class_name Fremdmodelle
 ##
 ## Quelle und Lizenz stehen in `assets/CREDITS.md`.
 
+## Kenneys Palette auf unsere umgelegt, angesprochen über die
+## Materialnamen aus den glTF-Dateien.
+##
+## Das Nature Kit ist in Minzgrün und Pfirsichbraun gehalten. Zwischen
+## unserem warmen, dunklen Waldgrün lasen sich die Modelle deshalb wie
+## aufgeklebt – besonders die Rahmenbäume, die aus der Schlucht
+## emporwachsen und dabei groß im Bild stehen. Geometrie und Farbe sind
+## bei glTF getrennt, also lässt sich genau das ändern, was stört.
+##
+## Blüten und Pilze behalten ihre Farben: Die sollen auffallen.
+const PALETTE := {
+	"leafsGreen": Farben.LAUB,
+	"leafsDark": Farben.LAUB_DUNKEL,
+	"grass": Farben.LAUB_HELL,
+	"woodBark": Farben.RINDE,
+	"woodBarkDark": Farben.RINDE_DUNKEL,
+	"woodInner": Farben.RINDE_HELL,
+	"dirt": Farben.FELS_HELL,
+}
+
 const ORDNER := "res://assets/modelle/natur"
 const ORDNER_GEGNER := "res://assets/modelle/gegner"
 
@@ -88,6 +108,8 @@ static func _angepasst(roh: Material, farben: Dictionary = {}) -> Material:
 	if roh == null:
 		return null
 	var wunschfarbe: Variant = farben.get(roh.resource_name)
+	if wunschfarbe == null:
+		wunschfarbe = PALETTE.get(roh.resource_name)
 	# ACHTUNG: Als Schlüssel diente hier einmal `get_instance_id()`. Das war
 	# falsch – Godot vergibt die IDs freigegebener Objekte neu. Ein später
 	# geladenes Modell bekam dadurch die Materialien eines früheren, und
@@ -115,6 +137,7 @@ static func _angepasst(roh: Material, farben: Dictionary = {}) -> Material:
 	neu_stoff.metallic_specular = 0.12
 	if wunschfarbe != null:
 		neu_stoff.albedo_color = wunschfarbe
+	_struktur_geben(neu_stoff)
 	_materialien[schluessel] = {"quelle": roh, "fertig": neu_stoff}
 	return neu_stoff
 
@@ -185,6 +208,35 @@ static func _instanz(pfad: String) -> Node3D:
 	if szene == null:
 		return null
 	return szene.instantiate() as Node3D
+
+
+## Gibt einem flachen Material Oberfläche.
+##
+## Die fremden Modelle bringen nur eine einzige Grundfarbe je Material mit
+## und stehen deshalb als glatte Farbflächen zwischen unseren eigenen
+## Props, die alle eine Rauschtextur samt Normalmap tragen. Hier bekommen
+## sie dieselbe Behandlung: eine Textur aus zwei Tönen der eigenen Farbe,
+## dreiachsig projiziert (die Modelle haben keine brauchbaren UVs für
+## unsere Zwecke), dazu eine flache Normalmap für ein bisschen Relief.
+##
+## Die Saat kommt aus der Farbe. Dadurch bekommt jedes Material dieselbe
+## Struktur bei jedem Start, und zwei gleichfarbige Materialien teilen sie.
+static func _struktur_geben(stoff: StandardMaterial3D) -> void:
+	var farbe := stoff.albedo_color
+	# Sehr dunkle oder fast durchsichtige Flächen bleiben, wie sie sind –
+	# dort fällt Struktur nicht auf, kostet aber Speicher.
+	if farbe.a < 0.9 or farbe.get_luminance() < 0.04:
+		return
+	var saat := int(farbe.to_rgba32() & 0x7fffffff)
+	stoff.albedo_texture = Materialbibliothek.rauschtextur(saat, 0.055,
+			farbe.darkened(0.22), farbe.lightened(0.12))
+	# Die Farbe steckt jetzt in der Textur; sonst würde sie doppelt wirken.
+	stoff.albedo_color = Color.WHITE
+	stoff.normal_enabled = true
+	stoff.normal_texture = Materialbibliothek.normalmap(saat, 0.055, 1.4)
+	stoff.normal_scale = 0.6
+	stoff.uv1_triplanar = true
+	stoff.uv1_scale = Vector3(0.55, 0.55, 0.55)
 
 
 static func _pfad(bezeichnung: String) -> String:

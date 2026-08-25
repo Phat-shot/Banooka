@@ -23,11 +23,13 @@ class_name Fluechtling
 ## Ende mit Ansage.
 @export var keiler_tempo := 12.5
 ## Abstand des Keilers zum Spieler beim Start.
-@export var vorsprung := 16.0
+@export var vorsprung := 10.0
 ## Kleinster Abstand, bevor er zupackt.
 @export var todesabstand := 2.2
 ## Größter Abstand – weiter zurück fällt er nicht, sonst verschwindet er.
-@export var hoechstabstand := 26.0
+## Bewusst knapp: Bei 26 m war er die meiste Zeit nur ein Punkt am Horizont
+## und die Flucht fühlte sich nach nichts an. Er soll im Nacken sitzen.
+@export var hoechstabstand := 15.0
 ## Wie schnell sich der Rückstand des Keilers verändert, in Metern je
 ## Sekunde und Meter Tempounterschied.
 @export var aufhol_faktor := 1.0

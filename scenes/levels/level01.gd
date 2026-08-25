@@ -652,9 +652,12 @@ func _rankenwerk() -> void:
 		# ging auf, solange der Stamm lang und kahl war. Fremde Modelle
 		# haben aber kurze Stämme und tief sitzende Kronen: Da hing der
 		# Stamm unter der Kante frei in der Luft über der Schlucht.
+		# Deutlich hinter der Kante und mit dem Fuß auf Kronenhöhe: Standen
+		# sie dichter an der Wand, stachen die Kronen durch die Felswand ins
+		# Bild – große flache Flecken mitten auf dem Gestein.
 		b.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * (wand["abstand"] + randf_range(0.9, 2.8)),
-				wand["hoehe"] - randf_range(0.1, 0.5))
+				seite * (wand["abstand"] + randf_range(3.0, 7.5)),
+				wand["hoehe"] + randf_range(0.0, 0.4))
 		deko.add_child(b)
 	seed(wuerfel)
 
