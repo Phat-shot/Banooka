@@ -18,7 +18,7 @@ const LEGENDE := [
 	["jump", "Springen (2× = Doppelsprung)", "Leertaste", ""],
 	["spin", "Drehschlag", "J / Strg", ""],
 	["slide", "Slide · in der Luft Bauchplatscher", "Umschalt", ""],
-	["status", "Diese Tafel", "Tab", ""],
+	["status", "Diese Tafel", "Tab oder Esc", ""],
 ]
 
 const GOLD := Color(1.0, 0.78, 0.32)
@@ -69,6 +69,15 @@ func _exit_tree() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("status"):
 		umschalten()
+		get_viewport().set_input_as_handled()
+		return
+	# Escape öffnet ebenfalls. Im Browser ist Tab die unzuverlässigste
+	# Taste, die man wählen kann – dort schiebt sie den Fokus aus dem
+	# Spielfeld heraus, und dann kommt gar nichts mehr an. Escape ist der
+	# Griff, den jeder zuerst versucht, wenn er heraus will.
+	if not offen and (event.is_action_pressed("pause")
+			or event.is_action_pressed("ui_cancel")):
+		setzen(true)
 		get_viewport().set_input_as_handled()
 		return
 	if not offen:
@@ -170,9 +179,9 @@ func _zeichnen() -> void:
 	_zustand(schrift, Vector2(links, y + 40.0), breite * 0.4)
 	_steuerung(schrift, Vector2(rechts, y + 40.0), feld.end.x - 34.0 - rechts)
 
-	var fuss := "Dreieck, Tab oder Antippen schließt  ·  Spiel ist angehalten"
+	var fuss := "Dreieck, Tab, Esc oder Antippen schließt  ·  Spiel ist angehalten"
 	if _im_level():
-		fuss = "Enter verlässt das Level  ·  Dreieck oder Tab schließt"
+		fuss = "Enter verlässt das Level  ·  Dreieck, Tab oder Esc schließt"
 	_text_mittig(schrift, Vector2(feld.get_center().x, feld.end.y - 22.0),
 			fuss, 14, MATT)
 
