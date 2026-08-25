@@ -6,15 +6,22 @@ extends KorridorLevel
 ## nimmt dafür die Bauteile, die sie stellen können; kein Abschnitt
 ## wiederholt die Frage des vorigen.
 ##
-##     0 –  40  Vorplatz      weit und offen: laufen, springen, schlagen
-##    40 –  78  Taktgang      Taktflächen, Feuerspeier, Krabbelbalken
-##    78 – 116  Bruchstege    Platten, die wegbrechen, über totem Wasser
-##   116 – 158  Fahrrinne     Treibfloß, hängende Minen, Balken zum Krabbeln
-##   158 – 200  Maschinenhalle Bänder, Drehscheiben, Schieber, Tor
-##   200 – 240  Hangelgasse   Gitter über dem Wasser, Schwärme, Deckung
-##   240 – 274  Wehr          tauchende Bohlen, Rollbrocken, Blitzzaun
-##   274 – 324  Weites Moor   der zweite offene Bereich, dicht besetzt
-##   324 – 360  Anhöhe        trockener Abschluss
+##     0 –  40  Vorplatz      WALD · weit und offen: laufen, springen, schlagen
+##    40 –  78  Taktgang      WALD · Taktflächen, Feuerspeier, Krabbelbalken
+##    78 – 116  Bruchstege    MOOR · wegbrechende Platten, SEITENANSICHT
+##   116 – 158  Fahrrinne     MOOR · Treibfloß, hängende Minen, Krabbelbalken
+##   158 – 204  Maschinenhalle MOOR · Bänder, Drehscheiben, Tor
+##                             darüber eine ZWEITE EBENE zur BONUSRUNDE
+##   204 – 244  Hangelgasse   MOOR · Gitter über dem Wasser, Schwarm, Deckung
+##   244 – 274  Wehr          MOOR · tauchende Bohlen, Blitzzaun
+##   274 – 312  Gabelung      EIS  · zwei Wege: unten glatt, oben schmal
+##   312 – 344  Eisgrat       EIS  · schmaler Grat, SEITENANSICHT
+##   344 – 400  Weites Moor   WALD · der zweite offene Bereich, dicht besetzt
+##   400 – 430  Anhöhe        WALD · trockener Abschluss
+##
+## Drei Untergründe, drei Stimmungen: Waldboden am Anfang und Ende,
+## Bohlen über dem Moor in der Mitte, Firn und blankes Eis im Gebirgsstück.
+## Der Weg erzählt damit eine Reise, statt 430 m dieselbe Kachel zu zeigen.
 ##
 ## Warum ein Wasserwerk: Es rechtfertigt alles auf einmal. Wasser und
 ## Flöße, Wehre und Tore, Bänder und Drehscheiben, und die Blitzzäune sind
@@ -33,6 +40,7 @@ const STEIN := preload("res://scenes/props/Stein.tscn")
 const WURZEL := preload("res://scenes/props/Wurzel.tscn")
 const KLEINZEUG := preload("res://scenes/props/Kleinzeug.tscn")
 const GRASFELD := preload("res://scenes/props/Gras.tscn")
+const EISFLAECHE := preload("res://scenes/hazards/Eisflaeche.tscn")
 
 # Strecken-Marken
 const M_VORPLATZ := 0.0
@@ -40,11 +48,13 @@ const M_TAKTGANG := 40.0
 const M_BRUCHSTEGE := 78.0
 const M_FAHRRINNE := 116.0
 const M_HALLE := 158.0
-const M_HANGELGASSE := 200.0
-const M_WEHR := 240.0
-const M_MOOR := 274.0
-const M_ANHOEHE := 324.0
-const M_ENDE := 360.0
+const M_HANGELGASSE := 204.0
+const M_WEHR := 244.0
+const M_GABELUNG := 274.0
+const M_EISGRAT := 312.0
+const M_MOOR := 344.0
+const M_ANHOEHE := 400.0
+const M_ENDE := 430.0
 
 # Höhen
 const WASSER_HOEHE := -0.55
@@ -72,14 +82,37 @@ const STRECKE := [
 	{"von": 96.0, "bis": 102.0, "breite": 8.0},
 	{"von": 110.0, "bis": 118.0, "breite": 8.0},
 	# --- Fahrrinne: 118 bis 154 offenes Wasser, nur das Floß ---
-	{"von": 154.0, "bis": 200.0, "breite": 10.0},
+	{"von": 154.0, "bis": 204.0, "breite": 10.0},
 	# --- Hangelgasse: schmaler Steg, das Gitter trägt die Lücken ---
-	{"von": 200.0, "bis": 212.0, "breite": 7.0},
-	{"von": 226.0, "bis": 242.0, "breite": 7.5},
-	# --- Wehr: 242 bis 268 nur Bohlen ---
-	{"von": 268.0, "bis": 274.0, "breite": 9.0},
+	{"von": 204.0, "bis": 216.0, "breite": 7.0},
+	{"von": 230.0, "bis": 246.0, "breite": 7.5},
+	# --- Wehr: 246 bis 270 nur Bohlen ---
+	{"von": 270.0, "bis": 312.0, "breite": 13.0},
+	# --- Eisgrat: der schmalste Abschnitt des Levels ---
+	{"von": 312.0, "bis": 344.0, "breite": 5.5},
 	# --- Weites Moor und Anhöhe ---
-	{"von": 274.0, "bis": 360.0, "breite": 20.0, "breite_ende": 12.0},
+	{"von": 344.0, "bis": 430.0, "breite": 20.0, "breite_ende": 12.0},
+]
+
+## Welcher Untergrund wo liegt. Drei getrennte Aufrufe von
+## `LevelWerkzeuge.korridor()`, weil ein Aufruf nur EINEN Materialsatz
+## kennt – die Abschnittslisten müssen sich dafür nicht überschneiden.
+const BODEN_WALD := [
+	{"von": 0.0, "bis": 40.0, "breite": 18.0, "breite_ende": 11.0},
+	{"von": 40.0, "bis": 78.0, "breite": 8.0},
+	{"von": 344.0, "bis": 430.0, "breite": 20.0, "breite_ende": 12.0},
+]
+const BODEN_MOOR := [
+	{"von": 78.0, "bis": 84.0, "breite": 8.0},
+	{"von": 96.0, "bis": 102.0, "breite": 8.0},
+	{"von": 110.0, "bis": 118.0, "breite": 8.0},
+	{"von": 154.0, "bis": 204.0, "breite": 10.0},
+	{"von": 204.0, "bis": 216.0, "breite": 7.0},
+	{"von": 230.0, "bis": 246.0, "breite": 7.5},
+]
+const BODEN_EIS := [
+	{"von": 270.0, "bis": 312.0, "breite": 13.0},
+	{"von": 312.0, "bis": 344.0, "breite": 5.5},
 ]
 
 
@@ -109,6 +142,12 @@ func _bauschritte() -> Array:
 		{"text": "Maschinenhalle", "tun": _halle_bauen},
 		{"text": "Hangelgasse", "tun": _hangelgasse_bauen},
 		{"text": "Wehr", "tun": _wehr_bauen},
+		{"text": "Zweite Ebene", "tun": _obere_ebene_bauen},
+		{"text": "Bonusinsel", "tun": _bonusinsel_bauen},
+		{"text": "Gabelung im Eis", "tun": _gabelung_bauen},
+		{"text": "Eisgrat", "tun": _eisgrat_bauen},
+		{"text": "Seitenansichten", "tun": _kamerazonen_setzen},
+		{"text": "Stimmungen", "tun": _stimmungen_setzen},
 		{"text": "Sumpfwald", "tun": _wald_bauen},
 		{"text": "Schilf und Kleinzeug", "tun": _deko_bauen},
 		{"text": "Portale", "tun": _portale},
@@ -139,21 +178,41 @@ func _verlauf_anlegen() -> void:
 		Vector3(104, 0.4, 18),       # Hangelgasse
 		Vector3(84, 0.4, 32),
 		Vector3(60, 0.6, 38),        # Wehr
-		Vector3(34, 0.8, 36),
-		Vector3(12, 1.4, 26),        # Weites Moor
-		Vector3(-6, 2.6, 10),
-		Vector3(-16, 4.0, -10),      # Anhöhe
+		Vector3(34, 1.2, 40),        # Gabelung, es geht hinauf
+		Vector3(8, 2.6, 38),
+		Vector3(-16, 4.2, 30),       # Eisgrat, höchste Stelle
+		Vector3(-36, 4.6, 16),
+		Vector3(-50, 3.4, -4),       # zurück ins Moor
+		Vector3(-56, 2.0, -28),
+		Vector3(-52, 1.4, -52),      # Weites Moor
+		Vector3(-40, 1.8, -74),
+		Vector3(-22, 3.2, -90),      # Anhöhe
 	])
 
 
 # =========================================================== Grund
 
+## Drei Untergründe in drei Aufrufen. `korridor()` kennt je Aufruf nur
+## einen Materialsatz; drei disjunkte Abschnittslisten ergeben zusammen
+## denselben Weg, aber mit wechselndem Belag.
 func _boden_bauen() -> void:
-	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
+	var form := {"tiefe": 2.8, "schritt": 1.0,
+			"kante_hoehe": 0.24, "kante_breite": 0.7}
+	LevelWerkzeuge.korridor(geometrie, verlauf, BODEN_WALD, {
+		"oben": Materialbibliothek.waldweg(),
+		"kante": Materialbibliothek.moos(),
+		"klippe": Materialbibliothek.fels(),
+	}, form)
+	LevelWerkzeuge.korridor(geometrie, verlauf, BODEN_MOOR, {
 		"oben": Materialbibliothek.bohlen(),
 		"kante": Materialbibliothek.algen(),
 		"klippe": Materialbibliothek.moorboden(),
-	}, {"tiefe": 2.8, "schritt": 1.0, "kante_hoehe": 0.24, "kante_breite": 0.7})
+	}, form)
+	LevelWerkzeuge.korridor(geometrie, verlauf, BODEN_EIS, {
+		"oben": Materialbibliothek.firn(),
+		"kante": Materialbibliothek.eis(),
+		"klippe": Materialbibliothek.eisfels(),
+	}, form)
 	luecken_markieren(Farben.BOHLE.darkened(0.3))
 
 
@@ -269,7 +328,7 @@ func _halle_bauen() -> void:
 ## Unter dem ersten Gitter hängt ein Balken, über dem zweiten schwirrt ein
 ## Schwarm.
 func _hangelgasse_bauen() -> void:
-	hangelgitter(219.0, 0.0, GITTERHOEHE, 15.0, 2.2)
+	hangelgitter(223.0, 0.0, GITTERHOEHE, 15.0, 2.2)
 	# Der Balken zwingt zum Anziehen der Beine, während man hangelt – und
 	# das geht nur, wenn er genau in das Band zwischen baumelnden und
 	# angezogenen Beinen passt. Gerechnet:
@@ -279,34 +338,192 @@ func _hangelgasse_bauen() -> void:
 	# Die Zone muss also innerhalb 1,65 … 2,19 liegen. Mit Unterkante 1,70
 	# und Dicke 0,23 reicht sie bis 2,05 – 14 cm Luft zur angezogenen
 	# Kapsel. Ein Balken der üblichen Dicke 0,55 träfe beide.
-	stachelbalken(219.0, 0.0, 1.70, Vector2(5.0, 0.9), 0.23)
+	stachelbalken(223.0, 0.0, 1.70, Vector2(5.0, 0.9), 0.23)
 
-	hangelgitter(234.0, 0.0, GITTERHOEHE, 9.0, 2.2)
+	hangelgitter(238.0, 0.0, GITTERHOEHE, 9.0, 2.2)
 
 	# Deckungsflecken auf den festen Stücken davor und danach.
-	deckungsfleck(206.0, 1.6)
-	deckungsfleck(238.0, -1.6)
+	deckungsfleck(210.0, 1.6)
+	deckungsfleck(242.0, -1.6)
 
 
 ## 242–268 · Wehr. Bohlen, die versetzt untertauchen, ein Brocken, der die
 ## Rinne entlangrollt, und der letzte Rest der alten Elektrik.
 func _wehr_bauen() -> void:
-	var stellen := [244.0, 248.0, 252.0, 256.0, 260.0, 264.0, 267.0]
+	var stellen := [248.0, 252.0, 256.0, 260.0, 263.0, 266.0, 269.0]
 	var seiten := [0.0, -1.4, 1.2, -1.0, 1.4, -0.8, 0.0]
 	for i in stellen.size():
 		wehrbohle(stellen[i], seiten[i], BOHLE_OBEN, BOHLE_UNTEN,
 				float(i) * 0.15)
-	treibmine(250.0, 2.6, WASSER_HOEHE + 0.3, 1.4, 4.4, 0.25)
-	treibmine(262.0, -2.4, WASSER_HOEHE + 0.3, 1.2, 3.6, 0.5)
+	treibmine(254.0, 2.6, WASSER_HOEHE + 0.3, 1.4, 4.4, 0.25)
+	treibmine(265.0, -2.4, WASSER_HOEHE + 0.3, 1.2, 3.6, 0.5)
 
 	# Blitzzaun auf dem festen Stück dahinter: die Lücke wandert, mal muss
 	# man krabbeln, mal springen.
-	laserzaun(271.0, 6.0, true, 1.2)
+	laserzaun(273.0, 6.0, true, 1.2)
 
 	# Und ein Brocken, der das weite Moor hinunterrollt.
-	rollbrocken(280.0, 316.0, 0.0, 0.0, 1.2, 8.0, 3.0, 0.0)
-	rollbrocken(286.0, 316.0, 5.0, 0.0, 0.9, 6.5, 3.5, 0.45,
+	rollbrocken(350.0, 386.0, 0.0, 0.0, 1.2, 8.0, 3.0, 0.0)
+	rollbrocken(356.0, 386.0, 5.0, 0.0, 0.9, 6.5, 3.5, 0.45,
 			Rollhindernis.Art.FASS)
+
+
+## 158–204 · Zweite Ebene über der Maschinenhalle.
+##
+## Ein Steg, der über dem Hallenboden zurückläuft. Wer ihn nimmt, sieht
+## den Abschnitt, den er gerade gelaufen ist, von oben – das ist der
+## eigentliche Gewinn einer zweiten Ebene und der Grund, warum sie über
+## einem BEKANNTEN Stück liegt und nicht über neuem.
+##
+## Hinauf geht es über die Sprungfeder am Ende der Halle. Herunter kommt
+## man überall: Unter dem Steg liegt fester Hallenboden, ein Fehltritt
+## kostet also nur den Weg, nicht das Leben.
+func _obere_ebene_bauen() -> void:
+	var stein := Materialbibliothek.fels()
+	# Sprungfeder als Aufgang – sie steht schon in _kisten_setzen bei 202.
+	var hoehe := 6.4
+	var stellen := [198.0, 192.0, 186.0, 180.0, 174.0, 168.0]
+	for i in stellen.size():
+		var seitlich: float = -3.0 if i % 2 == 0 else 3.0
+		plattform(stellen[i], seitlich, hoehe + float(i) * 0.15,
+				Vector3(3.4, 0.5, 3.4), stein)
+		frucht(stellen[i], seitlich, hoehe + float(i) * 0.15 + 1.2)
+	# Der letzte Absatz ist breiter: von hier führt der Weg zur Bonusinsel.
+	plattform(163.0, 0.0, hoehe + 0.9, Vector3(6.0, 0.6, 5.0), stein)
+	kiste(Kiste.Art.NORMAL, 168.0, 3.0, hoehe + 1.3)
+	kiste(Kiste.Art.NORMAL, 174.0, -3.0, hoehe + 1.2)
+
+
+## Bonusrunde: eine Insel abseits, nur mit Kisten und ohne einen einzigen
+## Gegner.
+##
+## Sie hängt an der zweiten Ebene und ist damit doppelt versteckt – wer die
+## Sprungfeder übersieht, findet sie nie. Das ist der Sinn: Eine Bonusrunde
+## ist eine Belohnung fürs Hinsehen, keine Station auf dem Weg.
+##
+## Kein Abgrund darunter, keine Gefahr darauf. Wer herunterfällt, landet
+## auf dem Hallenboden und kann es noch einmal versuchen.
+func _bonusinsel_bauen() -> void:
+	var stein := Materialbibliothek.fels()
+	var hoehe := 7.3
+	var seitlich := -11.0
+	# Zwei Trittsteine als Brücke von der zweiten Ebene herüber.
+	plattform(160.0, -5.0, hoehe - 0.3, Vector3(2.6, 0.5, 2.6), stein)
+	plattform(159.0, -8.2, hoehe - 0.1, Vector3(2.6, 0.5, 2.6), stein)
+	# Die Insel selbst.
+	plattform(158.0, seitlich, hoehe, Vector3(9.0, 0.8, 9.0), stein)
+	var schild := Label3D.new()
+	schild.text = "Bonusrunde"
+	schild.font_size = 84
+	schild.pixel_size = 0.011
+	schild.modulate = Farben.KISTE_FRAGE
+	schild.outline_size = 22
+	schild.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	schild.position = LevelWerkzeuge.punkt(verlauf, 158.0, seitlich, hoehe + 3.4)
+	deko.add_child(schild)
+
+	# Acht Kisten in zwei Reihen, dazu eine Extraleben-Kiste in der Mitte.
+	for i in 4:
+		kiste(Kiste.Art.NORMAL, 155.0 + float(i) * 2.0, seitlich - 2.0,
+				hoehe + 0.9)
+		kiste(Kiste.Art.NORMAL, 155.0 + float(i) * 2.0, seitlich + 2.0,
+				hoehe + 0.9)
+	kiste(Kiste.Art.LEBEN, 158.0, seitlich, hoehe + 0.9)
+	fruechte_reihe(154.0, 162.0, 6, seitlich, hoehe + 1.6)
+
+
+## 274–312 · Gabelung im Eis. Zwei Wege, die wieder zusammenlaufen.
+##
+## Unten: der breite Firnweg – bequem, aber mit blankem Eis darauf, auf dem
+## nichts greift. Oben: eine Reihe schmaler Stege, auf denen der Griff
+## stimmt, dafür jeder Sprung sitzen muss.
+##
+## Beide sind gleich lang. Es geht nicht darum, welcher schneller ist,
+## sondern darum, welche Art von Schwierigkeit man lieber hat – erst das
+## macht eine Gabelung zu einer Entscheidung statt zu einer Abkürzung.
+func _gabelung_bauen() -> void:
+	var eisstoff := Materialbibliothek.eis()
+
+	# --- Unterer Weg: blankes Eis auf dem breiten Firn ---
+	for stelle in [280.0, 290.0, 300.0]:
+		var flaeche := EISFLAECHE.instantiate() as Eisflaeche
+		flaeche.flaeche = Vector2(9.0, 8.0)
+		flaeche.glaette = 0.9
+		flaeche.position = LevelWerkzeuge.punkt(verlauf, stelle, -2.5, 0.02)
+		flaeche.rotation.y = LevelWerkzeuge.drehung(verlauf, stelle)
+		objekte.add_child(flaeche)
+	# Auf dem Eis stehen Schiebeblöcke: Wer keinen Griff hat, wird
+	# geschoben – das ist die Pointe des unteren Weges.
+	schiebeblock(286.0, -2.5, 0.0, Vector3(1.8, 1.2, 1.8), 4.0, true, 1.6, 0.8)
+	schiebeblock(296.0, -2.5, 0.0, Vector3(1.8, 1.2, 1.8), 4.0, true, 1.6, 0.8,
+			0.5)
+
+	# --- Oberer Weg: schmale Stege am Rand ---
+	var stein := Materialbibliothek.frostgestein()
+	var stellen := [276.0, 281.0, 286.0, 291.0, 296.0, 301.0, 306.0]
+	for i in stellen.size():
+		plattform(stellen[i], 5.2, 1.6 + float(i) * 0.12,
+				Vector3(2.8, 0.5, 3.0), stein)
+	# Der Aufgang: eine Sprungfeder am Anfang der Gabelung.
+	kiste(Kiste.Art.SPRUNG, 274.0, 5.2)
+	# Belohnung für den oberen Weg – er ist der schwerere.
+	kiste(Kiste.Art.FRUCHT_MEHRFACH, 291.0, 5.2, 2.3)
+	kiste(Kiste.Art.SCHUTZ, 301.0, 5.2, 2.4)
+	fruechte_reihe(278.0, 306.0, 8, 5.2, 2.6)
+	fruechte_reihe(278.0, 306.0, 8, -2.5, 0.9)
+
+	# Beide Wege enden am selben Absatz.
+	plattform(310.0, 1.4, 0.6, Vector3(7.0, 0.6, 3.0), stein)
+
+
+## 312–344 · Eisgrat. Der schmalste Abschnitt, dafür ohne Abgrund
+## daneben – hier soll die Kamera die Schwierigkeit machen, nicht der Tod.
+func _eisgrat_bauen() -> void:
+	var eisstoff := Materialbibliothek.eis()
+	for stelle in [318.0, 330.0, 340.0]:
+		var flaeche := EISFLAECHE.instantiate() as Eisflaeche
+		flaeche.flaeche = Vector2(4.4, 7.0)
+		flaeche.glaette = 0.85
+		flaeche.position = LevelWerkzeuge.punkt(verlauf, stelle, 0.0, 0.02)
+		flaeche.rotation.y = LevelWerkzeuge.drehung(verlauf, stelle)
+		objekte.add_child(flaeche)
+	# Taktflächen auf dem Eis: rutschen und warten zugleich.
+	taktwelle(320.0, 334.0, 4, 0.0, Vector2(2.4, 2.4), 0.25)
+	feuerspeier(326.0, -2.6, 1.0, 0.0, 2.8, 0.0)
+	stachelbalken(338.0, 0.0, KRIECHHOEHE, Vector2(5.0, 1.0))
+	kiste(Kiste.Art.CHECKPOINT, 314.0, -1.6)
+	kiste(Kiste.Art.NORMAL, 324.0, 1.4)
+	kiste(Kiste.Art.NORMAL, 336.0, -1.4)
+	fruechte_reihe(314.0, 342.0, 10, 0.0)
+
+
+## Zwei Abschnitte laufen als Seitenansicht.
+##
+## Die Kamera schwenkt dafür weich hinüber (`seitenblick_folge` in
+## `corridor_camera.gd`) – vorher kippte sie in einem einzigen Bild und
+## das mitten im Sprung. Gewählt sind die beiden Abschnitte, in denen es
+## nur um Sprungweiten geht: Von der Seite ist eine Lücke abzuschätzen,
+## von hinten nicht.
+func _kamerazonen_setzen() -> void:
+	kamerazone(84.0, 116.0, -15.0, 3.2)
+	kamerazone(314.0, 342.0, 14.0, 3.0)
+
+
+## Licht und Nebel je Landschaft.
+##
+## Erst damit wird aus drei Bodenbelägen wirklich Wald, Moor und Gebirge.
+## Die Grundstimmung der Szene ist das Moor; Wald und Eis weichen davon ab
+## und blenden an ihren Rändern weich hinüber.
+func _stimmungen_setzen() -> void:
+	# Wald: wärmer, klarer, weniger Dunst als im Moor.
+	stimmung(0.0, 78.0, Color(0.62, 0.66, 0.48), 0.008, 1.0,
+			Color(0.62, 0.66, 0.52), 46.0)
+	# Eis: kalt, hell und diesig – im Gebirge steht der Dunst höher.
+	stimmung(270.0, 344.0, Color(0.80, 0.87, 0.94), 0.020, 1.25,
+			Color(0.72, 0.82, 0.92), 46.0)
+	# Rückkehr in den Wald für den Schlussteil.
+	stimmung(348.0, M_ENDE, Color(0.60, 0.65, 0.48), 0.009, 1.0,
+			Color(0.60, 0.65, 0.50), 52.0)
 
 
 # =========================================================== Portale
@@ -365,39 +582,42 @@ func _kisten_setzen() -> void:
 	kiste(Kiste.Art.NORMAL, 172.0, -2.6)
 	kiste(Kiste.Art.NITRO, 179.0, 0.0)
 	kiste(Kiste.Art.FRUCHT_MEHRFACH, 189.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 196.0, -2.8)
+	kiste(Kiste.Art.NORMAL, 200.0, -2.8)
+	# Aufgang zur zweiten Ebene. Bewusst am ENDE der Halle: Wer sie sieht,
+	# hat den Abschnitt schon gelaufen und weiß, was er von oben wiedersieht.
+	kiste(Kiste.Art.SPRUNG, 202.0, 0.0)
 
 	# ---------- Hangelgasse ----------
-	kiste(Kiste.Art.CHECKPOINT, 203.0, -2.0)
-	kiste(Kiste.Art.NORMAL, 209.0, 1.8)
-	kiste_auf_wasser(Kiste.Art.NORMAL, 219.0, 4.6)
-	kiste(Kiste.Art.NORMAL, 229.0, -1.8)
-	kiste(Kiste.Art.SCHUTZ, 240.0, 2.0)
+	kiste(Kiste.Art.CHECKPOINT, 207.0, -2.0)
+	kiste(Kiste.Art.NORMAL, 213.0, 1.8)
+	kiste_auf_wasser(Kiste.Art.NORMAL, 223.0, 4.6)
+	kiste(Kiste.Art.NORMAL, 233.0, -1.8)
+	kiste(Kiste.Art.SCHUTZ, 244.0, 2.0)
 
 	# ---------- Wehr ----------
-	kiste(Kiste.Art.NORMAL, 270.0, -2.4)
-	kiste(Kiste.Art.NORMAL, 272.0, 2.4)
+	kiste(Kiste.Art.NORMAL, 272.0, -2.4)
+	kiste(Kiste.Art.NORMAL, 275.0, 2.4)
 
 	# ---------- Weites Moor: hier ist Platz für Stapel ----------
-	kiste(Kiste.Art.CHECKPOINT, 277.0, -3.2)
-	kiste(Kiste.Art.EISEN, 284.0, -4.0)
-	kiste(Kiste.Art.NORMAL, 284.0, -4.0, 1.6)
-	kiste(Kiste.Art.NORMAL, 284.0, -4.0, 2.6)
-	kiste(Kiste.Art.NORMAL, 292.0, 4.5)
-	kiste(Kiste.Art.NORMAL, 292.0, 6.0)
-	kiste(Kiste.Art.TNT, 300.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 300.0, -2.0)
-	kiste(Kiste.Art.NORMAL, 300.0, 2.0)
-	kiste(Kiste.Art.FEDER, 308.0, -5.0)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 316.0, 3.0)
+	kiste(Kiste.Art.CHECKPOINT, 347.0, -3.2)
+	kiste(Kiste.Art.EISEN, 354.0, -4.0)
+	kiste(Kiste.Art.NORMAL, 354.0, -4.0, 1.6)
+	kiste(Kiste.Art.NORMAL, 354.0, -4.0, 2.6)
+	kiste(Kiste.Art.NORMAL, 362.0, 4.5)
+	kiste(Kiste.Art.NORMAL, 362.0, 6.0)
+	kiste(Kiste.Art.TNT, 370.0, 0.0)
+	kiste(Kiste.Art.NORMAL, 370.0, -2.0)
+	kiste(Kiste.Art.NORMAL, 370.0, 2.0)
+	kiste(Kiste.Art.FEDER, 378.0, -5.0)
+	kiste(Kiste.Art.FRUCHT_MEHRFACH, 386.0, 3.0)
 
 	# ---------- Anhöhe ----------
-	kiste(Kiste.Art.NORMAL, 330.0, -2.4)
-	kiste(Kiste.Art.NORMAL, 330.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 330.0, 2.4)
-	kiste(Kiste.Art.LEBEN, 340.0, 0.0)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 348.0, -2.0)
-	kiste(Kiste.Art.NORMAL, 353.0, 2.0)
+	kiste(Kiste.Art.NORMAL, 404.0, -2.4)
+	kiste(Kiste.Art.NORMAL, 404.0, 0.0)
+	kiste(Kiste.Art.NORMAL, 404.0, 2.4)
+	kiste(Kiste.Art.LEBEN, 412.0, 0.0)
+	kiste(Kiste.Art.FRUCHT_MEHRFACH, 420.0, -2.0)
+	kiste(Kiste.Art.NORMAL, 425.0, 2.0)
 
 
 # =========================================================== Gegner
@@ -429,22 +649,22 @@ func _gegner_setzen() -> void:
 	werfer(190.0, -4.0)
 
 	# ---------- Hangelgasse: der Schwarm gehört ans Gitter ----------
-	gegner(SUMPFKROETE, 205.0, -1.5, 2.0, true)
-	schwarm(232.0, 0.0, 11.0)
-	gegner(STELZENSPINNE, 239.0, 1.6, 2.5, true)
+	gegner(SUMPFKROETE, 209.0, -1.5, 2.0, true)
+	schwarm(236.0, 0.0, 11.0)
+	gegner(STELZENSPINNE, 243.0, 1.6, 2.5, true)
 
 	# ---------- Weites Moor: die dichteste Stelle des Levels ----------
-	gegner(PANZERKAEFER, 280.0, -3.0, 5.0, true)
-	gegner(SUMPFKROETE, 288.0, 2.5, 4.0, true)
-	werfer(295.0, 6.5)
-	schwarm(302.0, -3.0, 10.0)
-	gegner(STELZENSPINNE, 306.0, 3.0, 4.5, true)
-	gegner(PANZERKAEFER, 313.0, -4.0, 5.0, true)
-	gegner(SUMPFKROETE, 319.0, 0.0, 3.5, true)
+	gegner(PANZERKAEFER, 350.0, -3.0, 5.0, true)
+	gegner(SUMPFKROETE, 358.0, 2.5, 4.0, true)
+	werfer(365.0, 6.5)
+	schwarm(372.0, -3.0, 10.0)
+	gegner(STELZENSPINNE, 376.0, 3.0, 4.5, true)
+	gegner(PANZERKAEFER, 383.0, -4.0, 5.0, true)
+	gegner(SUMPFKROETE, 389.0, 0.0, 3.5, true)
 
 	# ---------- Anhöhe ----------
-	gegner(STELZENSPINNE, 334.0, 2.5, 3.5, true)
-	gegner(PANZERKAEFER, 345.0, -2.5, 3.5, true)
+	gegner(STELZENSPINNE, 404.0, 2.5, 3.5, true)
+	gegner(PANZERKAEFER, 415.0, -2.5, 3.5, true)
 
 
 # =========================================================== Früchte
@@ -460,14 +680,14 @@ func _fruechte_setzen() -> void:
 	fruechte_bogen(102.0, 110.0, 5, -1.4, 2.2)
 	fruechte_reihe(120.0, 150.0, 11, 0.0, DECK + 0.9)
 	fruechte_reihe(126.0, 146.0, 5, 3.6, DECK + 0.9)
-	fruechte_reihe(156.0, 198.0, 14, 0.0)
+	fruechte_reihe(156.0, 202.0, 14, 0.0)
 	# Unter den Gittern: die Spur zeigt den Weg über Kopf an.
-	fruechte_reihe(213.0, 226.0, 6, 0.0, 1.9)
-	fruechte_reihe(230.0, 238.0, 4, 0.0, 1.9)
-	fruechte_bogen(242.0, 268.0, 10, 0.0, 1.8)
-	fruechte_reihe(276.0, 322.0, 16, 0.0)
-	fruechte_reihe(288.0, 310.0, 7, 5.0)
-	fruechte_reihe(326.0, 356.0, 11, 0.0)
+	fruechte_reihe(217.0, 230.0, 6, 0.0, 1.9)
+	fruechte_reihe(234.0, 242.0, 4, 0.0, 1.9)
+	fruechte_bogen(246.0, 270.0, 10, 0.0, 1.8)
+	fruechte_reihe(346.0, 392.0, 16, 0.0)
+	fruechte_reihe(358.0, 380.0, 7, 5.0)
+	fruechte_reihe(396.0, 426.0, 11, 0.0)
 
 
 # =========================================================== Kulisse

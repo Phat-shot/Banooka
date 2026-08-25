@@ -48,6 +48,11 @@ extends Camera3D
 @export var seitenblick := 0.0
 ## Höhe der Kamera über dem Spieler in der Seitenansicht.
 @export var seitenblick_hoehe := 2.4
+## Wie schnell zwischen Verfolger- und Seitenansicht überblendet wird.
+## 1,6 heißt rund 0,6 s – länger als ein Sprung (0,64 s hin und zurück),
+## damit der Wechsel nicht mitten im Sprung als Ruck erscheint, und kurz
+## genug, dass niemand blind durch den halben Abschnitt läuft.
+@export var seitenblick_folge := 1.6
 
 var _ziel: Node3D
 var _kurve_knoten: Path3D
@@ -58,6 +63,10 @@ var _muss_springen := true
 var _hoehe_versatz := 0.0
 ## Geführte Stelle auf der Kurve. Siehe `_strecke_gefuehrt()`.
 var _strecke := -1.0
+## Wie weit die Seitenansicht gerade eingeblendet ist (0 = Verfolger,
+## 1 = ganz seitlich). Ohne diesen Zwischenwert war der Wechsel ein Sprung:
+## Ort UND Blickziel kippten in einem einzigen Bild auf die andere Seite.
+var _seiten_grad := 0.0
 
 
 func _ready() -> void:
@@ -155,34 +164,48 @@ func _folgen(delta: float) -> void:
 			_hoehe_versatz = lerpf(_hoehe_versatz, ziel_hoehe,
 					clampf(delta * hoehe_folge, 0.0, 1.0))
 
-		if absf(seitenblick) > 0.01:
-			# Seitenansicht: quer neben den Weg stellen und den Spieler
-			# anschauen. Die Kamera fährt mit, bleibt aber auf Höhe seiner
-			# Stelle auf der Kurve – dadurch scrollt das Bild flach mit.
-			var vor := _kurve_knoten.to_global(
-					kurve.sample_baked(clampf(strecke + 0.5, 0.0, laenge)))
-			var zurueck := _kurve_knoten.to_global(
-					kurve.sample_baked(clampf(strecke - 0.5, 0.0, laenge)))
-			var richtung := (vor - zurueck)
-			richtung.y = 0.0
-			richtung = richtung.normalized() if richtung.length() > 0.001 \
-					else Vector3.FORWARD
-			var rechts := richtung.cross(Vector3.UP).normalized()
-			wunsch = mitte + rechts * seitenblick \
-					+ Vector3.UP * (_hoehe_versatz + seitenblick_hoehe)
-			blickziel = Vector3(p.x, p.y + 0.9, p.z)
+		# Beide Ansichten werden IMMER gerechnet und dann überblendet.
+		# Ein `if` an dieser Stelle war der Fehler: Beim Betreten einer
+		# Kamerazone kippten Ort und Blickziel in einem einzigen Bild auf
+		# die andere Seite – mitten im Sprung sah das aus wie ein Ruck.
+		var ziel_grad := 1.0 if absf(seitenblick) > 0.01 else 0.0
+		if _muss_springen:
+			_seiten_grad = ziel_grad
 		else:
-			var kam_punkt := _kurve_knoten.to_global(
-					kurve.sample_baked(clampf(strecke - abstand, 0.0, laenge)))
-			wunsch = kam_punkt + Vector3.UP * (_hoehe_versatz + hoehe) \
-					+ versatz * seiten_faktor
+			_seiten_grad = move_toward(_seiten_grad, ziel_grad,
+					delta * seitenblick_folge)
+		# Weiche Kurve statt gerader Fahrt: Der Wechsel setzt sanft an und
+		# läuft sanft aus, sonst liest er sich trotz Dauer als Schub.
+		var mischung: float = smoothstep(0.0, 1.0, _seiten_grad)
 
-			blickziel = _kurve_knoten.to_global(
-					kurve.sample_baked(clampf(strecke + blick_vorlauf, 0.0, laenge)))
-			# Auch der Blickpunkt folgt der geglätteten Höhe, sonst kippte
-			# die Kamera bei jedem Sprung nach oben statt sich zu heben.
-			blickziel.y = mitte.y + _hoehe_versatz + 1.0
-			blickziel += versatz * seiten_faktor
+		var vor := _kurve_knoten.to_global(
+				kurve.sample_baked(clampf(strecke + 0.5, 0.0, laenge)))
+		var zurueck := _kurve_knoten.to_global(
+				kurve.sample_baked(clampf(strecke - 0.5, 0.0, laenge)))
+		var richtung := (vor - zurueck)
+		richtung.y = 0.0
+		richtung = richtung.normalized() if richtung.length() > 0.001 \
+				else Vector3.FORWARD
+		var rechts := richtung.cross(Vector3.UP).normalized()
+		# Seitenansicht: quer neben den Weg, auf Höhe der Stelle auf der
+		# Kurve – dadurch scrollt das Bild flach mit.
+		var wunsch_seite := mitte + rechts * seitenblick \
+				+ Vector3.UP * (_hoehe_versatz + seitenblick_hoehe)
+		var blick_seite := Vector3(p.x, p.y + 0.9, p.z)
+
+		var kam_punkt := _kurve_knoten.to_global(
+				kurve.sample_baked(clampf(strecke - abstand, 0.0, laenge)))
+		var wunsch_hinten := kam_punkt + Vector3.UP * (_hoehe_versatz + hoehe) \
+				+ versatz * seiten_faktor
+		var blick_hinten := _kurve_knoten.to_global(
+				kurve.sample_baked(clampf(strecke + blick_vorlauf, 0.0, laenge)))
+		# Auch der Blickpunkt folgt der geglätteten Höhe, sonst kippte
+		# die Kamera bei jedem Sprung nach oben statt sich zu heben.
+		blick_hinten.y = mitte.y + _hoehe_versatz + 1.0
+		blick_hinten += versatz * seiten_faktor
+
+		wunsch = wunsch_hinten.lerp(wunsch_seite, mischung)
+		blickziel = blick_hinten.lerp(blick_seite, mischung)
 	else:
 		# --- Gerader Korridor Richtung -Z (Verhalten der HTML-Demo) ---
 		wunsch = Vector3(p.x * seiten_faktor, p.y + hoehe, p.z + abstand)

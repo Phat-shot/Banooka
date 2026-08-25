@@ -38,6 +38,7 @@ const SCHIEBEBLOCK := preload("res://scenes/props/Schiebeblock.tscn")
 const HANGELGITTER := preload("res://scenes/props/Hangelgitter.tscn")
 const HORIZONT := preload("res://scenes/props/Horizont.tscn")
 const LICHTKREIS := preload("res://scenes/props/Lichtkreis.tscn")
+const STIMMUNGSZONE := preload("res://scenes/props/Stimmungszone.tscn")
 const TREIBMINE := preload("res://scenes/hazards/Treibmine.tscn")
 const WERFER := preload("res://scenes/enemies/Werfer.tscn")
 const SCHWARM := preload("res://scenes/enemies/Schwarm.tscn")
@@ -539,6 +540,34 @@ func hangelgitter(strecke: float, seitlich := 0.0, hoehe := 3.2,
 	g.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.0)
 	objekte.add_child(g)
 	return g
+
+
+## Ändert Licht und Nebel über einen Abschnitt hinweg.
+##
+## In Stücken wie `kamerazone()`, weil ein einzelner Kasten einem kurvigen
+## Weg nicht folgt. Alpha 0 bzw. ein negativer Wert heißt: Grundstimmung
+## des Levels behalten.
+func stimmung(von: float, bis: float, nebelfarbe := Color(0, 0, 0, 0),
+		nebeldichte := -1.0, umgebungslicht := -1.0,
+		umgebungsfarbe := Color(0, 0, 0, 0), breite := 40.0) -> void:
+	var schritt := 14.0
+	var s := von
+	while s < bis:
+		var laenge := minf(schritt, bis - s)
+		var z := STIMMUNGSZONE.instantiate() as Stimmungszone
+		z.nebelfarbe = nebelfarbe
+		z.nebeldichte = nebeldichte
+		z.umgebungslicht = umgebungslicht
+		z.umgebungsfarbe = umgebungsfarbe
+		var form := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(breite, 24.0, laenge)
+		form.shape = box
+		z.add_child(form)
+		z.position = LevelWerkzeuge.punkt(verlauf, s + laenge * 0.5, 0.0, 6.0)
+		z.rotation.y = LevelWerkzeuge.drehung(verlauf, s + laenge * 0.5)
+		geometrie.add_child(z)
+		s += laenge
 
 
 ## Ferne Hügelkette rings um das Level.
