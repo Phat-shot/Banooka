@@ -64,10 +64,12 @@ $TEIL"
 	echo "$TEIL" | grep -E "FEHLER|geprüft|Problem|Absturzzone|schwebt|steckt|==="
 done
 
-# Zwei Dinge lassen sich nur in Bewegung prüfen: das Krabbeln (Halten statt
-# Umschalten, Zwang unter tiefen Decken, kein Knochen unter dem Boden) und
-# die Wasserplattformen (tragen sie den Spieler wirklich mit?).
-echo "--- 4/4 Krabbeln, bewegte Böden, Hangeln ---"
+# Was nur in Bewegung zu prüfen ist: das Krabbeln (Halten statt Umschalten,
+# Zwang unter tiefen Decken, kein Knochen unter dem Boden), die
+# Wasserplattformen (tragen sie den Spieler wirklich mit?), das Hangeln und
+# die Deckungsflecken (hält der Schwarm wirklich ab, oder leuchtet der
+# Fleck nur?). Eine Regel, die keine Prüfung hat, ist eine Behauptung.
+echo "--- 4/4 Krabbeln, bewegte Böden, Hangeln, Deckung ---"
 KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
@@ -77,12 +79,16 @@ echo "$FLOSS" | grep -E "abgesetzt|Fahrt:|Sinken:|Abweichungen"
 HANGELN="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Hangeltest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$HANGELN" | grep -E "springt|haengt|hangelt|laesst|faellt|laeuft darunter|Fall-Ged|Abweichungen"
+DECKUNG="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Deckungstest.tscn 2>&1 \
+	| grep -Ev "$RAUSCHEN")"
+echo "$DECKUNG" | grep -E "Fleck|drueber|Abweichungen"
 
 if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$LEVEL" | grep -qE "FEHLER" \
 		|| echo "$KRIECH" | grep -qE "FALSCH|IM BODEN" \
 		|| echo "$FLOSS" | grep -qE "steht nicht|blieb zurueck|haengt in der Luft" \
-		|| echo "$HANGELN" | grep -qE "NEIN"; then
+		|| echo "$HANGELN" | grep -qE "NEIN" \
+		|| echo "$DECKUNG" | grep -qE "FALSCH"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1
 fi

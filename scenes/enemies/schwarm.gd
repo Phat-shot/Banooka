@@ -171,7 +171,7 @@ func _wolke_bewegen(delta: float) -> void:
 	var spieler := get_tree().get_first_node_in_group("spieler") as Node3D
 	var ziel := _start_position
 	_jagt = false
-	if spieler != null:
+	if spieler != null and not _in_deckung(spieler):
 		var d := spieler.global_position - global_position
 		d.y = 0.0
 		if d.length() <= reichweite:
@@ -192,6 +192,37 @@ func _wolke_bewegen(delta: float) -> void:
 	var y_ziel := ziel.y
 	var y_neu := move_toward(global_position.y, y_ziel, schritt * STEIG_FAKTOR)
 	global_position = Vector3(global_position.x, y_neu, global_position.z)
+
+
+## Liegt der Spieler geduckt in einem Deckungsfleck?
+##
+## Der Fleck weiß selbst, wer auf ihm steht und ob derjenige geduckt ist
+## (`Deckungsfleck.ist_in_deckung`); hier wird nur gefragt. Die Gruppe ist
+## in Leveln ohne Flecken leer, die Schleife kostet dort nichts.
+func _in_deckung(spieler: Node3D) -> bool:
+	for fleck in get_tree().get_nodes_in_group("deckungsflecken"):
+		var f := fleck as Deckungsfleck
+		if f != null and f.ist_in_deckung(spieler):
+			return true
+	return false
+
+
+## In Deckung zieht die Wolke wirkungslos hinweg.
+##
+## Ohne diese Ausnahme wäre der Fleck eine Lüge: Er leuchtet, der Schwarm
+## verliert das Ziel und schwebt heim – aber wer dabei unter ihm liegt,
+## bekäme trotzdem Schaden, sobald sich Trefferzone und Figur berühren.
+## Gefragt wird nicht "greift der Spieler an", sondern "greift er WIRKSAM
+## an": Wer eben in den Fleck gesprungen ist, trägt noch 0,25 s
+## Fall-Gedächtnis mit sich – gegen einen Schwarm nutzlos, aber genug, um
+## eine Abfrage auf `angriffe() == 0` zu überlisten und ihn ausgerechnet
+## beim Hineinwerfen sterben zu lassen. Der Drehschlag wirkt weiter.
+func _treffer(spieler: Spieler) -> void:
+	if not besiegt and spieler != null \
+			and (spieler.angriffe() & besiegbar_durch) == 0 \
+			and _in_deckung(spieler):
+		return
+	super(spieler)
 
 
 ## Die Einzeltiere auf ihren Achterbahnen um den Mittelpunkt.
