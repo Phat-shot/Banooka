@@ -24,6 +24,17 @@ const FRUCHT := preload("res://scenes/fruits/Frucht.tscn")
 const WASSER := preload("res://scenes/hazards/Wasser.tscn")
 const STACHELN := preload("res://scenes/hazards/Stacheln.tscn")
 const WASSERPLATTFORM := preload("res://scenes/props/Wasserplattform.tscn")
+const BRUCHPLATTE := preload("res://scenes/props/Bruchplatte.tscn")
+const TAKTFLAECHE := preload("res://scenes/hazards/Taktflaeche.tscn")
+const FEUERSPEIER := preload("res://scenes/hazards/Feuerspeier.tscn")
+const LASERZAUN := preload("res://scenes/hazards/Laserzaun.tscn")
+const ROLLHINDERNIS := preload("res://scenes/hazards/Rollhindernis.tscn")
+const AUSLOESEPLATTE := preload("res://scenes/props/Ausloeseplatte.tscn")
+const SCHLIESSTUER := preload("res://scenes/props/Schliesstuer.tscn")
+const DECKUNGSFLECK := preload("res://scenes/props/Deckungsfleck.tscn")
+const HANGELGITTER := preload("res://scenes/props/Hangelgitter.tscn")
+const HORIZONT := preload("res://scenes/props/Horizont.tscn")
+const LICHTKREIS := preload("res://scenes/props/Lichtkreis.tscn")
 const TREIBMINE := preload("res://scenes/hazards/Treibmine.tscn")
 const STARTPORTAL := preload("res://scenes/portals/StartPortal.tscn")
 const ZIELPORTAL := preload("res://scenes/portals/ZielPortal.tscn")
@@ -219,6 +230,230 @@ func stachelbalken(strecke: float, seitlich: float, unterkante: float,
 	st.rotation = Vector3(0.0, LevelWerkzeuge.drehung(verlauf, strecke), PI)
 	objekte.add_child(st)
 	return st
+
+
+# ------------------------------------------------------------- Taktgeber
+
+## Beim Durchsehen von fünfzehn Vorbildleveln (doku/level-vorbilder.md) fiel
+## auf: Zehn davon bauen ihre Schwierigkeit aus TAKT. Unsere Hindernisse
+## standen bis dahin still oder patrouillierten. Die folgenden Bauteile
+## schließen genau diese Lücke.
+##
+## Alle bauen ihre Optik in `_ready()` – jeder Wert muss deshalb VOR
+## `add_child()` gesetzt sein, sonst kommt er zu spät (wie bei `stacheln()`).
+
+## Plattform, die nach kurzer Frist wegbricht und wiederkommt.
+func bruchplatte(strecke: float, seitlich: float, hoehe: float,
+		groesse := Vector2(2.6, 2.6), warnzeit := 0.6) -> Bruchplatte:
+	var b := BRUCHPLATTE.instantiate() as Bruchplatte
+	b.groesse = groesse
+	b.warnzeit = warnzeit
+	b.drehung = LevelWerkzeuge.drehung(verlauf, strecke)
+	# Saat aus der Strecke: Dieselbe Stelle wackelt bei jedem Anlauf gleich,
+	# sonst wäre die Vorwarnung nicht erlernbar.
+	b.saat = int(strecke * 13.0) + 1
+	b.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	objekte.add_child(b)
+	return b
+
+
+## Reihe von Bruchplatten über eine Lücke.
+##
+## Der Regelfall – einzeln gesetzt driften die Abstände, und genau die sind
+## hier die Aufgabe: Wer zu lange überlegt, steht auf der Platte, die schon
+## fällt.
+func bruchplatten_reihe(von: float, bis: float, anzahl: int,
+		seitlich: float, hoehe: float,
+		groesse := Vector2(2.6, 2.6)) -> Array[Bruchplatte]:
+	var reihe: Array[Bruchplatte] = []
+	for i in anzahl:
+		var t := float(i) / maxf(float(anzahl - 1), 1.0)
+		reihe.append(bruchplatte(lerpf(von, bis, t), seitlich, hoehe, groesse))
+	return reihe
+
+
+## Fläche, die im Takt tödlich wird. `senkrecht` macht daraus eine Wand.
+func taktflaeche(strecke: float, seitlich: float, flaeche: Vector2,
+		phase := 0.0, senkrecht := false, hoehe := 0.02) -> Taktflaeche:
+	var t := TAKTFLAECHE.instantiate() as Taktflaeche
+	t.flaeche = flaeche
+	t.phase = phase
+	t.senkrecht = senkrecht
+	t.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	t.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(t)
+	return t
+
+
+## Folge von Taktflächen mit gleichmäßig versetzter Phase.
+##
+## Daraus entsteht die Welle, die vor dem Spieler herläuft – der eigentliche
+## Zweck des Bauteils. Eine Reihe gleichphasiger Flächen wäre nur eine
+## größere Fläche.
+func taktwelle(von: float, bis: float, anzahl: int, seitlich: float,
+		flaeche := Vector2(3.0, 3.0),
+		versatz_je_platte := 0.25) -> Array[Taktflaeche]:
+	var welle: Array[Taktflaeche] = []
+	for i in anzahl:
+		var t := float(i) / maxf(float(anzahl - 1), 1.0)
+		welle.append(taktflaeche(lerpf(von, bis, t), seitlich, flaeche,
+				fposmod(float(i) * versatz_je_platte, 1.0)))
+	return welle
+
+
+## Feuerstoß im Takt. `richtung` in Grad zusätzlich zur Wegrichtung;
+## 0 heißt: Flamme quer über den Weg.
+func feuerspeier(strecke: float, seitlich: float, hoehe: float,
+		richtung := 0.0, laenge := 3.0, phase := 0.0,
+		schwenkt := false) -> Feuerspeier:
+	var f := FEUERSPEIER.instantiate() as Feuerspeier
+	f.laenge = laenge
+	f.phase = phase
+	f.schwenkt = schwenkt
+	f.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	f.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke) + deg_to_rad(richtung)
+	objekte.add_child(f)
+	return f
+
+
+## Laserzaun quer über den Weg.
+##
+## `wandernd` ist die interessantere Betriebsart: Es fehlt immer nur EIN
+## Strahl, und die Lücke wandert – mal muss man krabbeln, mal springen.
+func laserzaun(strecke: float, breite := 4.0, wandernd := true,
+		takt := 1.2, phase := 0.0) -> Laserzaun:
+	var l := LASERZAUN.instantiate() as Laserzaun
+	l.breite = breite
+	l.art = Laserzaun.Art.WANDERND if wandernd else Laserzaun.Art.GLEICHZEITIG
+	l.takt = takt
+	l.phase = phase
+	l.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.0)
+	l.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(l)
+	return l
+
+
+## Rollender Brocken, der dem Weg folgt.
+func rollbrocken(von: float, bis: float, seitlich := 0.0, hoehe := 0.0,
+		radius := 1.1, tempo := 9.0, pause := 2.0, phase := 0.0,
+		art := Rollhindernis.Art.KUGEL) -> Rollhindernis:
+	var r := ROLLHINDERNIS.instantiate() as Rollhindernis
+	r.art = art
+	r.verlauf = verlauf
+	r.strecke_von = von
+	r.strecke_bis = bis
+	r.seitlich = seitlich
+	r.hoehe = hoehe
+	r.radius = radius
+	r.tempo = tempo
+	r.pause = pause
+	r.phase = phase
+	r.saat = int(von * 7.0) + 5
+	objekte.add_child(r)
+	return r
+
+
+## Bodenplatte, die beim Betreten etwas auslöst.
+##
+## `ziele` wird erst NACH `add_child` in Pfade übersetzt: `get_path_to()`
+## braucht beide Knoten im selben Baum.
+func ausloeseplatte(strecke: float, seitlich := 0.0,
+		flaeche := Vector2(2.4, 2.4), nachlauf := 0.6, einmalig := false,
+		ziele: Array[Node] = []) -> Ausloeseplatte:
+	var a := AUSLOESEPLATTE.instantiate() as Ausloeseplatte
+	a.flaeche = flaeche
+	a.nachlauf = nachlauf
+	a.einmalig = einmalig
+	a.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.02)
+	a.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(a)
+	var pfade: Array[NodePath] = []
+	for z in ziele:
+		if z != null and z.is_inside_tree():
+			pfade.append(a.get_path_to(z))
+	a.zielpfade = pfade
+	return a
+
+
+## Tor, das sich im Takt schließt. Es blockiert, es tötet nicht.
+func schliesstuer(strecke: float, seitlich := 0.0, breite := 3.6,
+		hoehe := 2.8, offen := 2.2, zu := 1.6,
+		phase := 0.0) -> Schliesstuer:
+	var t := SCHLIESSTUER.instantiate() as Schliesstuer
+	t.breite = breite
+	t.hoehe = hoehe
+	t.offen_zeit = offen
+	t.zu_zeit = zu
+	t.phase = phase
+	t.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.0)
+	t.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(t)
+	return t
+
+
+# ------------------------------------------------------- Deckung und Licht
+
+## Stelle, an der man geduckt sicher ist. Nutzt unser Krabbeln.
+func deckungsfleck(strecke: float, seitlich: float,
+		radius := 1.6) -> Deckungsfleck:
+	strecke = weg_von_der_kante(strecke, 2.0)
+	var grenze := rand_bei(strecke, radius)
+	var d := DECKUNGSFLECK.instantiate() as Deckungsfleck
+	d.radius = radius
+	d.position = LevelWerkzeuge.punkt(verlauf, strecke,
+			clampf(seitlich, -grenze, grenze), 0.02)
+	objekte.add_child(d)
+	return d
+
+
+## Macht aus dem Level ein Dunkellevel.
+##
+## MUSS nach allen `kiste()`- und `frucht()`-Aufrufen kommen: Der
+## Leuchtmarker geht den fertigen Baum durch und kann nur markieren, was
+## schon dasteht. Und es gilt die Regel aus dem Kopf von `Lichtkreis`:
+## keine Lücke breiter, als das Licht reicht, und keine Verzweigung.
+func dunkelheit(reichweite := 7.0, restlicht := 0.06) -> Lichtkreis:
+	var l := LICHTKREIS.instantiate() as Lichtkreis
+	l.reichweite = reichweite
+	l.restlicht = restlicht
+	add_child(l)
+	var markiert := Leuchtmarker.markieren(self, ["kisten", "fruechte"], 1.4)
+	print("Dunkellevel: %d Marker leuchten selbst" % markiert)
+	return l
+
+
+## Gitter unter der Decke, an dem sich die Figur entlanghangelt.
+func hangelgitter(strecke: float, seitlich := 0.0, hoehe := 3.2,
+		laenge := 8.0, breite := 2.0) -> Hangelgitter:
+	var g := HANGELGITTER.instantiate() as Hangelgitter
+	g.laenge = laenge
+	g.breite = breite
+	g.hoehe = hoehe
+	g.drehung = LevelWerkzeuge.drehung(verlauf, strecke)
+	g.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.0)
+	objekte.add_child(g)
+	return g
+
+
+## Ferne Hügelkette rings um das Level.
+##
+## Für jedes Level ohne Schluchtwände Pflicht: Sonst endet die Welt an einer
+## kerzengeraden Linie. Der Radius muss größer sein als der halbe
+## Levelverlauf, sonst steht die Kette dem Spieler am Ende vor der Nase.
+func horizont(radius: float, hoehe: float, farbe_nah: Color,
+		farbe_fern: Color, mit_boden := false,
+		fuss := -6.0) -> Horizont:
+	var h := HORIZONT.instantiate() as Horizont
+	h.radius = maxf(radius, ende() * 0.6)
+	h.hoehe = hoehe
+	h.zacken = clampi(int(radius / 4.5), 24, 96)
+	h.farbe_nah = farbe_nah
+	h.farbe_fern = farbe_fern
+	h.boden = mit_boden
+	h.fuss = fuss
+	h.position = LevelWerkzeuge.punkt(verlauf, ende() * 0.5, 0.0, 0.0)
+	deko.add_child(h)
+	return h
 
 
 ## Start- und Zielportal an den beiden Enden der Strecke.

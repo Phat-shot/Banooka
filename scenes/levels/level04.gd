@@ -83,6 +83,7 @@ func _bauschritte() -> Array:
 		{"text": "Früchte werden verteilt", "tun": _fruechte_setzen},
 		{"text": "Rastplätze", "tun": _checkpoints_setzen},
 		{"text": "Wald am Rand", "tun": _deko_bauen},
+		{"text": "Ferne Hügel", "tun": _horizont_bauen},
 		{"text": "Die Katze wird gesattelt", "tun": _reiter_einrichten},
 	]
 
@@ -127,6 +128,29 @@ func _grund_bauen() -> void:
 	mi.material_override = Materialbibliothek.fels()
 	mi.position = LevelWerkzeuge.punkt(verlauf, M_ENDE * 0.5, 0.0, SCHLUCHT_HOEHE)
 	geometrie.add_child(mi)
+
+
+## Ferne Hügelkette. Ohne sie endet die Bodenplatte sichtbar in der Luft,
+## und darunter liegt die einfarbige untere Hälfte des Himmel-Shaders bis
+## an einen kerzengeraden Horizont. Die Kette gibt dem Blick nach draußen
+## einen Abschluss; ihre Farben liegen dicht an der Nebelfarbe der Szene,
+## damit sie nicht die Aufmerksamkeit auf sich zieht.
+func _horizont_bauen() -> void:
+	var h := HORIZONT.instantiate() as Horizont
+	# Der Weg ist 320 m lang; von der Mitte aus liegen die Enden also 160 m
+	# entfernt. Ein Ring mit 165 m stünde dem Spieler am Levelende direkt
+	# vor der Nase – er muss deutlich weiter hinaus, und mit dem Radius
+	# wächst auch die nötige Höhe und Zackenzahl.
+	h.radius = 280.0
+	h.hoehe = 44.0
+	h.zacken = 64
+	h.farbe_nah = Color(0.42, 0.36, 0.27)
+	h.farbe_fern = Color(0.66, 0.60, 0.48)
+	h.boden = false          # die Schluchtgrund-Ebene gibt es hier schon
+	h.fuss = SCHLUCHT_HOEHE - 2.0
+	h.saat = 4041
+	h.position = LevelWerkzeuge.punkt(verlauf, M_ENDE * 0.5, 0.0, 0.0)
+	deko.add_child(h)
 
 
 func _absturz_spannen() -> void:

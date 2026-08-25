@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/enemies/werfer.gd" id="1_werfer"]
+
+[sub_resource type="BoxShape3D" id="FormWerfer"]
+size = Vector3(1.3, 1.6, 1.1)
+
+[node name="Werfer" type="Node3D" groups=["gegner"]]
+script = ExtResource("1_werfer")
+
+[node name="Trefferzone" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Kollision" type="CollisionShape3D" parent="Trefferzone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+shape = SubResource("FormWerfer")

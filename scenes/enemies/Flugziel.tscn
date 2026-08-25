@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/enemies/flugziel.gd" id="1_ziel"]
+
+[sub_resource type="SphereShape3D" id="FormZiel"]
+radius = 1.1
+
+[node name="Flugziel" type="Node3D"]
+script = ExtResource("1_ziel")
+
+[node name="Trefferzone" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Form" type="CollisionShape3D" parent="Trefferzone"]
+shape = SubResource("FormZiel")

@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/props/hangelgitter.gd" id="1_hangelgitter"]
+
+[sub_resource type="BoxShape3D" id="FormFangzone"]
+size = Vector3(2, 0.6, 8)
+
+[node name="Hangelgitter" type="Node3D"]
+script = ExtResource("1_hangelgitter")
+
+[node name="Fangzone" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="Kollision" type="CollisionShape3D" parent="Fangzone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.9, 0)
+shape = SubResource("FormFangzone")

@@ -76,6 +76,7 @@ func _bauschritte() -> Array:
 		{"text": "Schubfelder", "tun": _schubfelder_setzen},
 		{"text": "Schubkisten", "tun": _schubkisten_setzen},
 		{"text": "Wald am Rand", "tun": _deko_bauen},
+		{"text": "Ferne Hügel", "tun": _horizont_bauen},
 		{"text": "Die Karts rollen an", "tun": _fahrer_aufstellen},
 	]
 
@@ -240,6 +241,39 @@ func _auf_schubkiste(koerper: Node3D, zone: Area3D) -> void:
 
 
 # =========================================================== Kulisse
+
+## Ferne Hügelkette und ein Untergrund für die Wiese.
+##
+## Dieses Level hatte als einziges überhaupt keine Bodengeometrie neben der
+## Bahn: Das Grün ringsum war die untere Hälfte des Himmel-Shaders, und die
+## endete an einem kerzengeraden Horizont auf Augenhöhe. Deshalb hier mit
+## Bodenscheibe, anders als im Katzenrennen.
+func _horizont_bauen() -> void:
+	var h := HORIZONT.instantiate() as Horizont
+	h.radius = 190.0
+	h.hoehe = 24.0
+	h.zacken = 52
+	h.farbe_nah = Color(0.30, 0.40, 0.28)
+	h.farbe_fern = Color(0.55, 0.65, 0.62)
+	h.boden = true
+	h.boden_farbe = Color(0.31, 0.44, 0.24)
+	h.fuss = -3.0
+	h.saat = 4061
+	# Mitte des Rundkurses, nicht Streckenmitte: Der Kurs ist eine Schleife.
+	h.position = _kursmitte()
+	deko.add_child(h)
+
+
+## Schwerpunkt des Rundkurses. Der Horizont muss um den ganzen Kurs liegen,
+## nicht um einen Punkt darauf.
+func _kursmitte() -> Vector3:
+	var summe := Vector3.ZERO
+	var proben := 24
+	for i in proben:
+		summe += LevelWerkzeuge.punkt(verlauf,
+				_rundenlaenge * float(i) / float(proben), 0.0, 0.0)
+	return summe / float(proben)
+
 
 func _deko_bauen() -> void:
 	var wuerfel := randi()
