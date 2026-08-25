@@ -12,3 +12,13 @@ Thumbs.db
 
 # Claude Code (lokale Einstellungen)
 .claude/settings.local.json
+
+# Eigene Testfiguren, die NICHT mitgeliefert werden dürfen.
+#
+# `assets/modelle` landet über export_filter="all_resources" in jedem
+# Export – im öffentlichen Web-Abbild wie in der APK. Was dort liegt, wird
+# also veröffentlicht. CLAUDE.md verbietet fremde Marken und Charaktere
+# ausdrücklich; zum Ausprobieren gehört so eine Datei nach
+# `user://modelle` (Einstellungen -> Figur -> Datei wählen), von dort
+# kommt sie in keinen Build.
+/assets/modelle/crash_bandicoot*

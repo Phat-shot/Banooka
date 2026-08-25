@@ -17,6 +17,14 @@ func _ready() -> void:
 		_probe_ins_projekt()
 		get_tree().quit(0)
 		return
+	# Eine bestimmte Datei prüfen: MODELLTEST_DATEI=meinmodell.glb
+	# Gesucht wird in beiden Ordnern. Sagt im Klartext, ob und warum nicht.
+	var einzeln := OS.get_environment("MODELLTEST_DATEI")
+	if not einzeln.is_empty():
+		_eine_datei_pruefen(einzeln)
+		get_tree().quit(0)
+		return
+
 	_mitgelieferte_pruefen()
 	_materialnamen("res://assets/modelle/gegner/kaefer.glb")
 
@@ -132,6 +140,36 @@ func _materialnamen_von(knoten: Node) -> void:
 						if m is StandardMaterial3D else "-"])
 	for kind in knoten.get_children():
 		_materialnamen_von(kind)
+
+
+## Prüft eine einzelne Datei in beiden Modellordnern und sagt, woran es
+## liegt, wenn sie nicht angezeigt wird.
+func _eine_datei_pruefen(name: String) -> void:
+	print("=== Prüfung: %s ===" % name)
+	var ordner_liste: Array[String] = [Einstellungen.MITGELIEFERT, Einstellungen.ORDNER]
+	for ordner in ordner_liste:
+		var pfad: String = ordner.path_join(name)
+		var da := FileAccess.file_exists(pfad)
+		var importiert := ResourceLoader.exists(pfad)
+		print("  %s" % ordner)
+		print("    Datei liegt dort: %s" % ("ja" if da else "nein"))
+		if not da:
+			continue
+		if ordner.begins_with("res://") and not importiert:
+			print("    importiert:       NEIN  <-- deshalb wird sie nicht angezeigt")
+			print("    Abhilfe:          godot --headless --path . --import")
+			continue
+		var figur := ModellLader.laden(pfad, 1.0)
+		if figur == null:
+			print("    ladbar:           NEIN  (%s)" % ModellLader.letzter_fehler)
+			continue
+		var huelle := ModellLader.huelle_von(figur)
+		print("    ladbar:           ja, %d Netze, eingepasst auf %.2f × %.2f × %.2f m"
+				% [_netze(figur), huelle.size.x * figur.scale.x,
+				huelle.size.y * figur.scale.y, huelle.size.z * figur.scale.z])
+		figur.queue_free()
+	print("  Auswählbar im Spiel unter Einstellungen -> Figur:")
+	print("    %s" % str(Einstellungen.modelle()))
 
 
 func _netze(knoten: Node) -> int:
