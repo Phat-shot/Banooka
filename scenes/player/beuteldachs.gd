@@ -25,9 +25,13 @@ class_name SpielerModell
 ##
 ## Wer in den Einstellungen eine eigene glTF-Figur hinterlegt, bekommt
 ## diese statt des Beuteldachses: sie wird auf dieselbe Höhe eingepasst
-## und übernimmt die Schnittstelle unverändert. Da eine fremde Datei keine
-## Gliedmaßen mit bekannten Namen hat, bewegt `_animiere_eigenes()` sie nur
-## als Ganzes – Laufwippen, Slide-Stauchen, Spin-Drehung.
+## und übernimmt die Schnittstelle unverändert.
+##
+## Bringt die Datei ein Skelett mit Clips mit (Idle/Walk/Run), führen wir
+## sie damit. Fehlt das, bewegt `_animiere_eigenes()` sie nur als Ganzes –
+## Laufwippen, Slide-Stauchen, Spin-Drehung. Beides greift ineinander:
+## Für Sprung und Slide hat kaum eine fremde Figur einen Clip, dort
+## übernimmt wieder die Stauchung.
 
 const SPIN_DREHUNG := 30.0   ## Umdrehungsgeschwindigkeit beim Spin
 
@@ -48,6 +52,13 @@ var _teile: Node3D
 
 ## Gesetzt, wenn statt des Beuteldachses eine eigene Datei angezeigt wird.
 var _eigenes: Node3D = null
+## AnimationPlayer der eigenen Figur, falls sie ein Skelett mitbringt.
+var _eigener_spieler: AnimationPlayer = null
+## Zugeordnete Clips: leerer Name = die Figur hat dafür keinen.
+var _clip_ruhe := ""
+var _clip_gehen := ""
+var _clip_rennen := ""
+var _clip_laeuft := ""
 
 # --- Bewegliche Teile ---
 var _kopf: Node3D
@@ -100,6 +111,30 @@ func _baue_eigenes() -> bool:
 	halter.add_child(figur)
 	_teile.add_child(halter)
 	_eigenes = halter
+
+	# Bringt die Figur ein Skelett samt Clips mit, führen wir sie damit –
+	# das schlägt jede Ganzkörper-Stauchung. Fehlt der Spieler oder ein
+	# Clip, greift für diesen Zustand wieder die einfache Bewegung.
+	_eigener_spieler = ModellLader.spieler_von(figur)
+	if _eigener_spieler != null:
+		_clip_ruhe = ModellLader.clip_fuer(_eigener_spieler, "idle")
+		if _clip_ruhe.is_empty():
+			_clip_ruhe = ModellLader.clip_fuer(_eigener_spieler, "ruhe")
+		_clip_gehen = ModellLader.clip_fuer(_eigener_spieler, "walk")
+		if _clip_gehen.is_empty():
+			_clip_gehen = ModellLader.clip_fuer(_eigener_spieler, "geh")
+		_clip_rennen = ModellLader.clip_fuer(_eigener_spieler, "run")
+		if _clip_rennen.is_empty():
+			_clip_rennen = ModellLader.clip_fuer(_eigener_spieler, "renn")
+		# Alle drei sollen in sich geschlossen laufen; ohne das bleibt die
+		# Figur nach einem Durchlauf im letzten Bild stehen.
+		for clip in [_clip_ruhe, _clip_gehen, _clip_rennen]:
+			if clip.is_empty():
+				continue
+			var anim := _eigener_spieler.get_animation(clip)
+			if anim != null:
+				anim.loop_mode = Animation.LOOP_LINEAR
+
 	_baue_spin_ring()
 	return true
 
@@ -431,6 +466,7 @@ func sichtbarkeit(sichtbar: bool) -> void:
 ## Stauchen drückt die Figur damit zu Boden statt in der Luft zu schrumpfen.
 func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool) -> void:
 	_zeit += delta
+	_fuehre_clips(tempo, luft, slide)
 	var ziel := Vector3.ONE
 	var wippen := 0.0
 	if slide:
@@ -445,8 +481,34 @@ func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool) -> v
 		var atem := sin(_zeit * 1.9) * 0.014
 		ziel = Vector3(1.0 - atem, 1.0 + atem, 1.0 - atem)
 
+	# Trägt die Figur eigene Clips, übernehmen die den Lauf. Die Stauchung
+	# bleibt dann aus, sonst kämen zwei Bewegungen übereinander.
+	if _eigener_spieler != null and not _clip_laeuft.is_empty():
+		ziel = Vector3.ONE
+		wippen = 0.0
 	_eigenes.scale = _eigenes.scale.lerp(ziel, minf(delta * 16.0, 1.0))
 	_eigenes.position.y = lerpf(_eigenes.position.y, wippen, minf(delta * 16.0, 1.0))
+
+
+## Wählt den passenden Clip und blendet weich hinüber.
+##
+## Für Sprung, Slide und Drehschlag bringt so eine Figur meist nichts mit;
+## dort bleibt der Laufclip stehen und die Stauchung aus `_animiere_eigenes`
+## übernimmt – lieber ein ruhiger Körper als ein Gehzyklus in der Luft.
+func _fuehre_clips(tempo: float, luft: bool, slide: bool) -> void:
+	if _eigener_spieler == null:
+		return
+	var wunsch := _clip_ruhe
+	if not (luft or slide):
+		if tempo > 0.62 and not _clip_rennen.is_empty():
+			wunsch = _clip_rennen
+		elif tempo > 0.05 and not _clip_gehen.is_empty():
+			wunsch = _clip_gehen
+	if wunsch.is_empty() or wunsch == _clip_laeuft:
+		return
+	_clip_laeuft = wunsch
+	# Kurze Überblendung, damit der Wechsel Gehen/Rennen nicht springt.
+	_eigener_spieler.play(wunsch, 0.18)
 
 
 ## Bewegt alle Gliedmaßen passend zum Bewegungszustand.

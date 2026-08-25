@@ -179,6 +179,41 @@ static func _huelle(knoten: Node, bis_hier: Transform3D, bisher: AABB,
 	return bisher
 
 
+## Sucht den AnimationPlayer einer geladenen Figur.
+##
+## Sowohl der Import (res://) als auch `GLTFDocument` zur Laufzeit legen die
+## Clips einer Datei in einem AnimationPlayer ab. Wer eine Figur mit
+## Skelett mitbringt, erwartet zu Recht, dass sie sich bewegt – bisher lag
+## der Spieler ungenutzt im Baum, und die Figur wurde nur als Ganzes
+## gestaucht.
+static func spieler_von(wurzel: Node) -> AnimationPlayer:
+	if wurzel is AnimationPlayer:
+		return wurzel as AnimationPlayer
+	for kind in wurzel.get_children():
+		var treffer := spieler_von(kind)
+		if treffer != null:
+			return treffer
+	return null
+
+
+## Sucht unter den vorhandenen Clips den, der am besten zu `wunsch` passt.
+##
+## Die Namen sind nicht genormt: Aus Blender kommt gern "Armature|Walk",
+## aus anderen Werkzeugen "walk_cycle" oder "WALK". Deshalb wird ohne
+## Rücksicht auf Groß- und Kleinschreibung nach dem Wortstamm gesucht.
+static func clip_fuer(spieler: AnimationPlayer, wunsch: String) -> String:
+	if spieler == null:
+		return ""
+	var gesucht := wunsch.to_lower()
+	for name in spieler.get_animation_list():
+		if String(name).to_lower() == gesucht:
+			return name
+	for name in spieler.get_animation_list():
+		if String(name).to_lower().contains(gesucht):
+			return name
+	return ""
+
+
 ## Kollisionsformen aus der Datei werfen wir weg – die Spielerkapsel in
 ## Player.tscn ist maßgeblich, zwei Formen würden sich gegenseitig stören.
 ## Beim Treffer wird der ganze Ast entfernt und nicht weiter abgestiegen,
