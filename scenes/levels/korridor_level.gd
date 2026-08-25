@@ -32,10 +32,15 @@ const ROLLHINDERNIS := preload("res://scenes/hazards/Rollhindernis.tscn")
 const AUSLOESEPLATTE := preload("res://scenes/props/Ausloeseplatte.tscn")
 const SCHLIESSTUER := preload("res://scenes/props/Schliesstuer.tscn")
 const DECKUNGSFLECK := preload("res://scenes/props/Deckungsfleck.tscn")
+const DREHPLATTFORM := preload("res://scenes/props/Drehplattform.tscn")
+const FLIESSBAND := preload("res://scenes/props/Fliessband.tscn")
+const SCHIEBEBLOCK := preload("res://scenes/props/Schiebeblock.tscn")
 const HANGELGITTER := preload("res://scenes/props/Hangelgitter.tscn")
 const HORIZONT := preload("res://scenes/props/Horizont.tscn")
 const LICHTKREIS := preload("res://scenes/props/Lichtkreis.tscn")
 const TREIBMINE := preload("res://scenes/hazards/Treibmine.tscn")
+const WERFER := preload("res://scenes/enemies/Werfer.tscn")
+const SCHWARM := preload("res://scenes/enemies/Schwarm.tscn")
 const STARTPORTAL := preload("res://scenes/portals/StartPortal.tscn")
 const ZIELPORTAL := preload("res://scenes/portals/ZielPortal.tscn")
 
@@ -389,6 +394,104 @@ func schliesstuer(strecke: float, seitlich := 0.0, breite := 3.6,
 	t.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(t)
 	return t
+
+
+# ------------------------------------------------------- Bewegte Böden
+
+## Drehscheibe. `hoehe` ist die Trittfläche, nicht die Mitte des Körpers.
+##
+## Der Reiz des Vorbilds liegt darin, dass darauf oft ein Gegner steht:
+## `aufsetzen()` hängt ihn ein. Wichtig dabei – `Gegner` patrouilliert in
+## Weltkoordinaten, ein aufgesetzter braucht also `patrouille_weite = 0.0`.
+func drehscheibe(strecke: float, seitlich: float, hoehe: float,
+		durchmesser := 3.6, tempo := 30.0, richtung := 1,
+		pausiert_bei := 0.0, pausenzeit := 0.0,
+		kippt := false) -> Drehplattform:
+	var d := DREHPLATTFORM.instantiate() as Drehplattform
+	d.groesse = Vector2(durchmesser, durchmesser)
+	d.tempo = tempo
+	d.richtung = richtung
+	d.pausiert_bei = pausiert_bei
+	d.pausenzeit = pausenzeit
+	d.kippt = kippt
+	d.ort = LevelWerkzeuge.punkt(verlauf, strecke, seitlich,
+			hoehe - Drehplattform.DECK_STAERKE * 0.5)
+	objekte.add_child(d)
+	return d
+
+
+## Fließband über die Strecke `von`..`bis`. `hoehe` ist die Trittfläche.
+##
+## Es trägt den Spieler nicht dadurch, dass sich der Körper bewegt – das
+## war der erste Versuch und ging schief: Godot wertet die Bodengeschwindig-
+## keit in beide Richtungen aus, und der Rücksprung riss die Figur genau um
+## den gewonnenen Weg zurück. Das Band steht still und schiebt aktiv.
+func laufband(von: float, bis: float, seitlich: float, hoehe: float,
+		breite := 3.0, tempo := 2.5, richtung := 1) -> Fliessband:
+	var mitte := (von + bis) * 0.5
+	var f := FLIESSBAND.instantiate() as Fliessband
+	f.groesse = Vector2(breite, absf(bis - von))
+	f.tempo = tempo
+	f.richtung = richtung
+	f.drehung = LevelWerkzeuge.drehung(verlauf, mitte)
+	f.ort = LevelWerkzeuge.punkt(verlauf, mitte, seitlich, hoehe)
+	objekte.add_child(f)
+	return f
+
+
+## Block, der quer über den Weg fährt und schiebt.
+##
+## Zwischen Endstellung und nächster Wand gehört mindestens ein Meter Luft,
+## sonst ist der Block eine Sackgasse statt eines Hindernisses.
+func schiebeblock(strecke: float, seitlich: float, hoehe: float,
+		groesse := Vector3(1.6, 1.1, 1.6), weite := 3.0, quer := true,
+		fahrzeit := 1.4, pause := 1.0, phase := 0.0) -> Schiebeblock:
+	var b := SCHIEBEBLOCK.instantiate() as Schiebeblock
+	b.groesse = groesse
+	b.weite = weite
+	b.achse = Vector3.RIGHT if quer else Vector3.FORWARD
+	b.fahrzeit = fahrzeit
+	b.pause = pause
+	b.phase = phase
+	b.drehung = LevelWerkzeuge.drehung(verlauf, strecke)
+	b.ort = LevelWerkzeuge.punkt(verlauf, strecke, seitlich,
+			hoehe + groesse.y * 0.5)
+	objekte.add_child(b)
+	return b
+
+
+# ------------------------------------------------------- Gegner mit Eigenart
+
+## Werfer: steht fest und wirft im Bogen. Keine Patrouille.
+func werfer(strecke: float, seitlich: float,
+		art := Geschoss.Art.STAMM) -> Werfer:
+	strecke = weg_von_der_kante(strecke, 2.5)
+	var grenze := rand_bei(strecke)
+	var w := WERFER.instantiate() as Werfer
+	w.geschossart = art
+	w.patrouille_weite = 0.0
+	w.position = LevelWerkzeuge.punkt(verlauf, strecke,
+			clampf(seitlich, -grenze, grenze), 0.0)
+	w.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(w)
+	return w
+
+
+## Schwarm: verfolgt als Gruppe und fällt als Gruppe.
+##
+## Bewusst in die Wegmitte, nicht an den Rand: Beim Heimkehren hinge er
+## sonst über der Abbruchkante.
+func schwarm(strecke: float, seitlich := 0.0,
+		reichweite := 9.0) -> Schwarm:
+	strecke = weg_von_der_kante(strecke, 2.5)
+	var grenze := rand_bei(strecke, 2.0)
+	var s := SCHWARM.instantiate() as Schwarm
+	s.reichweite = reichweite
+	s.patrouille_weite = 0.0
+	s.position = LevelWerkzeuge.punkt(verlauf, strecke,
+			clampf(seitlich, -grenze, grenze), 0.0)
+	objekte.add_child(s)
+	return s
 
 
 # ------------------------------------------------------- Deckung und Licht
