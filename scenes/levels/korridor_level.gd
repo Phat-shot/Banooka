@@ -540,14 +540,24 @@ func schwarm(strecke: float, seitlich := 0.0,
 # ------------------------------------------------------- Deckung und Licht
 
 ## Stelle, an der man geduckt sicher ist. Nutzt unser Krabbeln.
+## `hoehe` ist der Abstand über dem Weg, `am_weg = false` hebt die
+## Begrenzung auf die Wegbreite auf.
+##
+## Ohne das ließe sich kein Fleck auf eine Insel neben dem Weg legen –
+## die Klemmung zöge ihn zurück auf den Weg, und der schönste Einfall des
+## Dschungellevels (Deckung suchen heißt: erst einmal hinüberspringen)
+## wäre nicht baubar. Gemeldet aus Level 18, das sich dafür eine eigene
+## Hilfe schrieb.
 func deckungsfleck(strecke: float, seitlich: float,
-		radius := 1.6) -> Deckungsfleck:
-	strecke = weg_von_der_kante(strecke, 2.0)
-	var grenze := rand_bei(strecke, radius)
+		radius := 1.6, hoehe := 0.02,
+		am_weg := true) -> Deckungsfleck:
 	var d := DECKUNGSFLECK.instantiate() as Deckungsfleck
 	d.radius = radius
-	d.position = LevelWerkzeuge.punkt(verlauf, strecke,
-			clampf(seitlich, -grenze, grenze), 0.02)
+	if am_weg:
+		strecke = weg_von_der_kante(strecke, 2.0)
+		var grenze := rand_bei(strecke, radius)
+		seitlich = clampf(seitlich, -grenze, grenze)
+	d.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
 	objekte.add_child(d)
 	return d
 

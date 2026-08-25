@@ -323,6 +323,21 @@ func treffer_nehmen(schaden: int = 1) -> void:
 ## Zurück an den Startpunkt mit voller Panzerung. Der Basis-Respawn setzt
 ## auf `GameState.checkpoint` und hantiert mit den Slide-Hitboxen – beides
 ## ergibt in der Luft nichts.
+## Setzt den Punkt, an den `respawn()` zurückführt.
+##
+## Nötig, weil `_ready()` den Startpunkt aus der Szenentransformation
+## nimmt – also bevor ein Level den Flieger irgendwohin stellen kann. Wer
+## ihn danach versetzt, fliegt ab dem ersten Tod wieder an der alten
+## Stelle los. Beim Bau von Level 22 aufgefallen; dort steht der
+## Startpunkt deshalb bisher in der Szene.
+func setze_start(ort: Vector3, gier := 0.0) -> void:
+	_start_ort = ort
+	_start_gier = gier
+	global_position = ort
+	_gier = gier
+	rotation = Vector3(0.0, gier, 0.0)
+
+
 func respawn() -> void:
 	global_position = _start_ort
 	_gier = _start_gier
