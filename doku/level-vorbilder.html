@@ -1,0 +1,1013 @@
+<title>Vorbildkartei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root {
+  --grund:        #ECEFE9;
+  --flaeche:      #F7F9F4;
+  --flaeche-tief: #E1E6DD;
+  --tinte:        #1B211A;
+  --tinte-leise:  #5C6A5A;
+  --linie:        #CBD3C7;
+  --linie-fein:   #DDE3D9;
+  --signal:       #B02E70;
+  --signal-grund: #F6E4EE;
+
+  --schrift-titel: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --schrift-text:  "Source Serif 4", Georgia, "Times New Roman", serif;
+  --schrift-daten: "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  --spalte: 66ch;
+  --rand: clamp(1.25rem, 4vw, 3.5rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --grund:        #141813;
+    --flaeche:      #1C221B;
+    --flaeche-tief: #232A21;
+    --tinte:        #E3E9DE;
+    --tinte-leise:  #94A190;
+    --linie:        #333D31;
+    --linie-fein:   #262E25;
+    --signal:       #E86FA8;
+    --signal-grund: #2E1A26;
+  }
+}
+
+:root[data-theme="dark"] {
+  --grund:        #141813;
+  --flaeche:      #1C221B;
+  --flaeche-tief: #232A21;
+  --tinte:        #E3E9DE;
+  --tinte-leise:  #94A190;
+  --linie:        #333D31;
+  --linie-fein:   #262E25;
+  --signal:       #E86FA8;
+  --signal-grund: #2E1A26;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--grund);
+  color: var(--tinte);
+  font-family: var(--schrift-text);
+  font-size: 17px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.rahmen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 var(--rand) 6rem;
+}
+
+@media (min-width: 1020px) {
+  .rahmen {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    column-gap: 3.5rem;
+  }
+  .kopf { grid-column: 1 / -1; }
+}
+
+/* ------------------------------------------------------------ Kopf */
+
+.kopf {
+  padding: clamp(3rem, 8vw, 5.5rem) 0 2.5rem;
+  border-bottom: 2px solid var(--tinte);
+}
+
+.kopf .marke {
+  font-family: var(--schrift-daten);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--signal);
+  margin: 0 0 1.1rem;
+}
+
+h1 {
+  font-family: var(--schrift-titel);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 6.5vw, 4rem);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  margin: 0 0 1.2rem;
+}
+
+.anriss {
+  max-width: var(--spalte);
+  font-size: 1.12rem;
+  color: var(--tinte-leise);
+  margin: 0;
+}
+
+.anriss strong { color: var(--tinte); font-weight: 600; }
+
+.hinweise {
+  display: grid;
+  gap: 1.4rem;
+  max-width: var(--spalte);
+  margin-top: 2.2rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--linie-fein);
+  font-size: 0.94rem;
+  color: var(--tinte-leise);
+}
+
+.hinweise b {
+  font-family: var(--schrift-titel);
+  font-weight: 600;
+  color: var(--tinte);
+  display: block;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.2rem;
+}
+
+/* ------------------------------------------------------------ Rail */
+
+.rail { display: none; }
+
+@media (min-width: 1020px) {
+  .rail {
+    display: block;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 2.6rem 0 3rem;
+    font-family: var(--schrift-titel);
+  }
+}
+
+.rail h2 {
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--tinte-leise);
+  font-weight: 600;
+  margin: 1.8rem 0 0.5rem;
+}
+.rail h2:first-child { margin-top: 0; }
+
+.rail a {
+  display: flex;
+  gap: 0.55rem;
+  align-items: baseline;
+  padding: 0.24rem 0;
+  color: var(--tinte);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+}
+.rail a:hover { color: var(--signal); }
+.rail a:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.rail a .nr {
+  font-family: var(--schrift-daten);
+  font-size: 0.74rem;
+  color: var(--tinte-leise);
+  min-width: 2.1rem;
+}
+
+/* ------------------------------------------------------------ Räume */
+
+.raum { padding-top: 3.5rem; }
+
+.raum-kopf {
+  max-width: var(--spalte);
+  margin-bottom: 2.5rem;
+}
+
+.raum-kopf .zahl {
+  font-family: var(--schrift-daten);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tinte-leise);
+}
+
+.raum-kopf h2 {
+  font-family: var(--schrift-titel);
+  font-weight: 800;
+  font-size: clamp(1.6rem, 3.6vw, 2.1rem);
+  letter-spacing: -0.02em;
+  margin: 0.35rem 0 0.8rem;
+  text-wrap: balance;
+}
+
+.raum-kopf p { margin: 0; color: var(--tinte-leise); }
+.raum-kopf strong { color: var(--tinte); font-weight: 600; }
+
+/* ------------------------------------------------------------ Level */
+
+.level {
+  padding: 2.6rem 0 2.2rem;
+  border-top: 1px solid var(--linie);
+}
+
+.level-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.9rem;
+  margin-bottom: 0.35rem;
+}
+
+.level-kopf .nr {
+  font-family: var(--schrift-daten);
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--signal);
+  letter-spacing: 0.04em;
+}
+
+.level-kopf h3 {
+  font-family: var(--schrift-titel);
+  font-weight: 800;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.vorbild {
+  font-family: var(--schrift-daten);
+  font-size: 0.76rem;
+  color: var(--tinte-leise);
+  margin: 0 0 1.5rem;
+}
+
+/* Farbband */
+
+.band {
+  margin: 0 0 1.6rem;
+  overflow-x: auto;
+}
+
+.band-streifen {
+  display: flex;
+  min-width: 34rem;
+  border: 1px solid var(--linie);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ton {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.ton .feld {
+  height: 3.6rem;
+  border-right: 1px solid rgba(0, 0, 0, 0.18);
+}
+.ton:last-child .feld { border-right: 0; }
+
+.ton .wert {
+  display: block;
+  font-family: var(--schrift-daten);
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  color: var(--tinte-leise);
+  padding: 0.35rem 0 0 0.3rem;
+  white-space: nowrap;
+}
+
+.ton.traegt .feld { height: 4.6rem; }
+.ton.traegt .wert { color: var(--tinte); font-weight: 600; }
+.ton.traegt .wert::before {
+  content: "▲ ";
+  color: var(--signal);
+}
+
+.band-bild {
+  font-family: var(--schrift-daten);
+  font-size: 0.68rem;
+  color: var(--tinte-leise);
+  margin: 0.5rem 0 0;
+  min-width: 34rem;
+}
+
+/* Textfelder */
+
+.felder {
+  display: grid;
+  gap: 1.35rem;
+  max-width: var(--spalte);
+}
+
+.feldblock > b {
+  display: block;
+  font-family: var(--schrift-titel);
+  font-weight: 600;
+  font-size: 0.74rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--tinte-leise);
+  margin-bottom: 0.28rem;
+}
+
+.feldblock p { margin: 0; }
+.feldblock p + p { margin-top: 0.6rem; }
+
+.feldblock.kern > b { color: var(--signal); }
+.feldblock.kern p { font-size: 1.06rem; }
+
+code, .wz {
+  font-family: var(--schrift-daten);
+  font-size: 0.86em;
+  background: var(--flaeche-tief);
+  padding: 0.08em 0.36em;
+  border-radius: 3px;
+}
+
+.wz { color: var(--signal); background: var(--signal-grund); font-weight: 600; }
+
+/* ------------------------------------------------------------ Tabellen */
+
+.werkzeuge { padding-top: 4rem; }
+
+.tabellenhuelle {
+  overflow-x: auto;
+  border: 1px solid var(--linie);
+  border-radius: 3px;
+  margin: 1.2rem 0 2.4rem;
+  background: var(--flaeche);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 34rem;
+  font-size: 0.92rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.62rem 0.9rem;
+  border-bottom: 1px solid var(--linie-fein);
+  vertical-align: top;
+}
+
+thead th {
+  font-family: var(--schrift-titel);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--tinte-leise);
+  background: var(--flaeche-tief);
+  border-bottom: 1px solid var(--linie);
+}
+
+tbody tr:last-child td { border-bottom: 0; }
+td.quelle { font-family: var(--schrift-daten); font-size: 0.78rem; color: var(--tinte-leise); white-space: nowrap; }
+
+h3.tabellentitel {
+  font-family: var(--schrift-titel);
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  margin: 2.2rem 0 0;
+}
+
+h3.tabellentitel + p { margin: 0.3rem 0 0; color: var(--tinte-leise); max-width: var(--spalte); }
+
+/* ------------------------------------------------------------ Befunde */
+
+.befunde { padding-top: 3.5rem; }
+
+.befund {
+  max-width: var(--spalte);
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--linie-fein);
+}
+.befund:first-of-type { border-top: 1px solid var(--linie); }
+
+.befund b {
+  font-family: var(--schrift-titel);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.warnung {
+  max-width: var(--spalte);
+  margin-top: 2.5rem;
+  padding: 1.4rem 1.5rem;
+  background: var(--signal-grund);
+  border-left: 3px solid var(--signal);
+  border-radius: 0 3px 3px 0;
+}
+
+.warnung b {
+  font-family: var(--schrift-titel);
+  font-weight: 600;
+  color: var(--signal);
+  display: block;
+  font-size: 0.76rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.warnung p { margin: 0; }
+
+.fuss {
+  max-width: var(--spalte);
+  margin-top: 4rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--linie-fein);
+  font-family: var(--schrift-daten);
+  font-size: 0.74rem;
+  color: var(--tinte-leise);
+  line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="rahmen">
+
+<header class="kopf">
+  <p class="marke">Banooka · Entwurfsunterlage · Raum 3 bis 5</p>
+  <h1>Vorbildkartei</h1>
+  <p class="anriss">Fünfzehn Level aus drei klassischen Korridor-Plattformern, auseinandergenommen nach dem, was wir davon brauchen: <strong>Mechanik, Leveldesign, Design.</strong> Nicht zum Nachbauen von Inhalten, sondern zum Herausziehen von Werkzeugen.</p>
+
+  <div class="hinweise">
+    <div>
+      <b>Wann ein Level für uns interessant ist</b>
+      Wenn es eine Frage stellt, die unsere bisherigen Level nicht stellen. Aus jeder solchen Frage wird ein Bauteil, das in jedem unserer Level einsetzbar ist. Erst danach entstehen eigene Level daraus.
+    </div>
+    <div>
+      <b>Was nicht übernommen wird</b>
+      Keine Namen, keine Figuren, keine Assets, keine Texturen, keine Musik. Die Arbeitstitel sind unsere eigenen. Auf dieser Seite stehen bewusst keine fremden Bildschirmfotos — nur Farben, die daraus gemessen wurden.
+    </div>
+    <div>
+      <b>Wie die Farbbänder zu lesen sind</b>
+      Je Level die sechs Leitfarben eines Referenzbildes, ermittelt über eine Farbreduktion auf sechs Töne. Die Vorlagen sind durchweg dunkler, als sie in Erinnerung sind — der wichtigere Wert ist deshalb der Kontrast. Die zwei Töne, die das Bild tragen, stehen erhöht und sind markiert.
+    </div>
+  </div>
+</header>
+
+<nav class="rail" aria-label="Level">
+  <h2>Raum 3</h2>
+  <a href="#l31"><span class="nr">3-1</span> Steinschlag</a>
+  <a href="#l32"><span class="nr">3-2</span> Kesselwerk</a>
+  <a href="#l33"><span class="nr">3-3</span> Pfahlfeste</a>
+  <a href="#l34"><span class="nr">3-4</span> Wolkensteg</a>
+  <a href="#l35"><span class="nr">3-5</span> Abendruinen</a>
+  <h2>Raum 4</h2>
+  <a href="#l41"><span class="nr">4-1</span> Kanalgrund</a>
+  <a href="#l42"><span class="nr">4-2</span> Frostritt</a>
+  <a href="#l43"><span class="nr">4-3</span> Schwarmpfad</a>
+  <a href="#l44"><span class="nr">4-4</span> Sturmruinen</a>
+  <a href="#l45"><span class="nr">4-5</span> Kolbengang</a>
+  <h2>Raum 5</h2>
+  <a href="#l51"><span class="nr">5-1</span> Sandgrab</a>
+  <a href="#l52"><span class="nr">5-2</span> Wolkenjagd</a>
+  <a href="#l53"><span class="nr">5-3</span> Funkenlicht</a>
+  <a href="#l54"><span class="nr">5-4</span> Neonhöhe</a>
+  <a href="#l55"><span class="nr">5-5</span> Dächergasse</a>
+  <h2>Danach</h2>
+  <a href="#werkzeuge"><span class="nr">→</span> Werkzeugliste</a>
+  <a href="#befunde"><span class="nr">→</span> Befunde</a>
+</nav>
+
+<main>
+
+<!-- ================================================== RAUM 3 -->
+<section class="raum" id="raum3">
+  <div class="raum-kopf">
+    <span class="zahl">Raum 3 · Vorbilder aus dem ersten Spiel</span>
+    <h2>Enge Korridore, harte Fallen, wenig Ausweichraum</h2>
+    <p>Der Spieler hat dort nur Laufen, Springen und den Drehschlag. Alles, was schwer ist, ist es durch <strong>Timing</strong>, nicht durch Bewegungsvielfalt. Für uns heißt das: Diese fünf liefern die Taktgeber.</p>
+  </div>
+
+  <article class="level" id="l31">
+    <div class="level-kopf"><span class="nr">3-1</span><h3>Steinschlag</h3></div>
+    <p class="vorbild">Vorbild: „Rolling Stones" · Dschungel</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#282007"></div><span class="wert">#282007</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#572D07"></div><span class="wert">#572D07</span></div>
+        <div class="ton"><div class="feld" style="background:#654F14"></div><span class="wert">#654F14</span></div>
+        <div class="ton"><div class="feld" style="background:#9B5F0F"></div><span class="wert">#9B5F0F</span></div>
+        <div class="ton"><div class="feld" style="background:#B98D26"></div><span class="wert">#B98D26</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#3A512D"></div><span class="wert">#3A512D</span></div>
+      </div>
+      <p class="band-bild">Erde und Holz tragen fast alles, das Grün liegt nur als Randband darum.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Rollende Steinkugeln laufen den Korridor entlang — teils entgegen, teils von hinten. Sie sind nicht besiegbar und nicht überspringbar; man weicht in Seitennischen aus oder läuft ihnen davon. Das dreht die Grundfrage um: nicht „wohin springe ich", sondern „wann darf ich überhaupt losgehen".</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Gerader Dschungelpfad, kaum Höhenunterschied. Der Weg ist rhythmisch von steinernen Torbögen unterbrochen; dazwischen liegen die Nischen. Die Kugel bestimmt den Takt, die Nischen sind die Pausen. Länge über Wiederholung mit steigender Frequenz.</p></div>
+      <div class="feldblock"><b>Design</b><p>Warm-kalt-Kontrast: sandbrauner Weg gegen türkisgrünen, geschnitzten Stein. Dunkelgrünes Blattwerk als Rahmen, orangebraune umgestürzte Stämme quer, rosa Blüten als einzige helle Tupfer.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Stinktiere (laufen quer über den Weg), Schildkröten, fleischfressende Pflanzen (stationär, schnappen im Takt).</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Zwei Takte gleichzeitig: der Fels und der quer laufende Gegner. Wer nur auf einen achtet, wird vom anderen erwischt.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick nach hinten über die Schulter auf eine Kugel, die den ganzen Gang ausfüllt.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Rollhindernis</span> (Kugel läuft die Levelkurve entlang, tötet bei Berührung, endet in einer Grube), <span class="wz">Nische</span> (Ausweichbucht als Korridor-Bauteil). <em>Vorhanden:</em> Gegner mit Querpatrouille.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l32">
+    <div class="level-kopf"><span class="nr">3-2</span><h3>Kesselwerk</h3></div>
+    <p class="vorbild">Vorbild: „Castle Machinery" · Burgmaschinerie</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#241B17"></div><span class="wert">#241B17</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#5B2515"></div><span class="wert">#5B2515</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#37454E"></div><span class="wert">#37454E</span></div>
+        <div class="ton"><div class="feld" style="background:#4D4A39"></div><span class="wert">#4D4A39</span></div>
+        <div class="ton"><div class="feld" style="background:#ABA786"></div><span class="wert">#ABA786</span></div>
+        <div class="ton"><div class="feld" style="background:#A14635"></div><span class="wert">#A14635</span></div>
+      </div>
+      <p class="band-bild">Stein kalt gegen Rost warm — die einzige Wärme im Bild kommt aus der Maschine.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Maschinen als Boden: Fließbänder, die den Spieler tragen oder zurückschieben, Aufzugsplattformen, Kolben und Zahnräder. Der Boden ist hier zum ersten Mal kein Verlass.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Innenraum über mehrere Ebenen. Der Weg führt genauso oft nach oben wie nach vorn; die Kamera muss dafür weiter weg. Enge Gänge wechseln mit hohen Hallen. Ein Geheimweg direkt am Start führt nach oben — dort liegen Extraleben statt Kisten.</p></div>
+      <div class="feldblock"><b>Design</b><p>Kaltes blaugraues Mauerwerk, rostroter Stahl, gelbe Seilzüge als Linienführung, ein orange glühender Ofen als einzige warme Lichtquelle. Punktbeleuchtung statt Sonne.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Roboterschildkröten, Holo-Projektoren (blenden Hindernisse ein und aus), Stachel-Untertassen (fliegen auf fester Bahn).</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Bewegte Böden über Abgründen. Ein verpasster Absprung ist nicht korrigierbar, weil der Boden weiterfährt.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Reihen kleiner Maschinen hinter Gittern — eine Kulisse, die arbeitet, ohne dass man sie berührt.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Fließband</span>, <span class="wz">Zahnrad</span> (drehendes Hindernis), <span class="wz">Feuerstoß</span>. <em>Vorhanden:</em> <code>Wasserplattform</code> deckt Aufzug und Kolben bereits ab.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l33">
+    <div class="level-kopf"><span class="nr">3-3</span><h3>Pfahlfeste</h3></div>
+    <p class="vorbild">Vorbild: „Native Fortress" · Eingeborenenfestung</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#221405"></div><span class="wert">#221405</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#572A08"></div><span class="wert">#572A08</span></div>
+        <div class="ton"><div class="feld" style="background:#935C1A"></div><span class="wert">#935C1A</span></div>
+        <div class="ton"><div class="feld" style="background:#6E4B18"></div><span class="wert">#6E4B18</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#B19045"></div><span class="wert">#B19045</span></div>
+        <div class="ton"><div class="feld" style="background:#9E3D05"></div><span class="wert">#9E3D05</span></div>
+      </div>
+      <p class="band-bild">Eine reine Holzpalette. Die Musterfarben sind zu kleinflächig für die Messung — bei uns bewusst zu setzen.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Senkrechter Aufstieg. Der Weg führt an einer Festungswand entlang nach oben, über schmale Holzstege und einzelne Plattformen. Dazu Fallen, die aus dem Boden schießen, und Werfer, die von oben stören.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Klettern statt Laufen. Die Strecke ist kurz, die Höhe groß. Fallen stehen dicht: Speersäule, Sprung, Fackel, Sprung. Kein Abschnitt ist länger als zwei Hindernisse — dafür folgen sie ohne Pause.</p></div>
+      <div class="feldblock"><b>Design</b><p>Warmes Holz in Braunstufen, überzogen mit gesättigten Stammesmustern in Rot, Türkis und Ocker. Sandiger Boden, große geschnitzte Tore als Wegmarken. Die Muster sind das ganze Design — die Formen selbst sind schlichte Kästen.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Schildkröten, fleischfressende Pflanzen, Affen (werfen von Podesten), Stachelsäulen, Fackeln, Speerträger.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Dichte. Und dass ein Fehler nicht nur Schaden ist, sondern Höhe kostet.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Das riesige geschnitzte Tor am Ende des Aufstiegs.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Werfer</span> (Wurfgeschoss im Bogen), <span class="wz">Feuerdüse quer</span>, <span class="wz">Aufstiegsverlauf</span>. <em>Vorhanden:</em> <code>Stacheln</code> mit <code>einfahrbar = true</code> ist bereits die Speersäule.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l34">
+    <div class="level-kopf"><span class="nr">3-4</span><h3>Wolkensteg</h3></div>
+    <p class="vorbild">Vorbild: „The High Road" · Seilbrücke über den Wolken</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton traegt"><div class="feld" style="background:#CED1D6"></div><span class="wert">#CED1D6</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#434036"></div><span class="wert">#434036</span></div>
+        <div class="ton"><div class="feld" style="background:#A3A0A3"></div><span class="wert">#A3A0A3</span></div>
+        <div class="ton"><div class="feld" style="background:#8A7557"></div><span class="wert">#8A7557</span></div>
+        <div class="ton"><div class="feld" style="background:#C1BBB4"></div><span class="wert">#C1BBB4</span></div>
+        <div class="ton"><div class="feld" style="background:#A79367"></div><span class="wert">#A79367</span></div>
+      </div>
+      <p class="band-bild">Der stärkste Kontrast der ganzen Reihe — und fast keine Farbe, nur Helligkeitsstufen.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Eine Brücke aus einzelnen Planken über dem Nichts, mit Lücken genau an der Sprungweite. Dazu Platten, die beim Betreten wegbrechen, rutschige Platten, und Gegner, die man als Absprunghilfe benutzt: Auf eine umgeworfene Schildkröte gesprungen trägt der Sprung weiter.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Das schmalste Level des Spiels — zwei Planken breit, kein Rand, keine Deckung. Rein linear. Die Schwierigkeit steckt allein in der Abfolge von Lücken; es gibt fast keine Gegner im üblichen Sinn.</p></div>
+      <div class="feldblock"><b>Design</b><p>Ein fast weißes Wolkenmeer gegen dunkle Pfosten und Seile, am Horizont dunkle Felszacken. Farbe gibt es kaum — Holzbraun, Seilbeige, sonst Helligkeitsstufen.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Fast nur Schildkröten, und die sind hier Werkzeug statt Feind.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Kein Fehler ist verzeihbar. Es gibt keinen Boden unter dem Boden.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die Seilbrücke, die im Weiß verschwindet.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Bruchplatte</span>, <span class="wz">Trampolingegner</span>, <span class="wz">Seilsteg</span>. <em>Vorhanden:</em> <code>Eisfläche</code> ist die rutschige Platte; <code>Gegner.abprall_hoehe</code> kennt die Absprunghöhe bereits.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l35">
+    <div class="level-kopf"><span class="nr">3-5</span><h3>Abendruinen</h3></div>
+    <p class="vorbild">Vorbild: „Sunset Vista" · Ruinen im Abendlicht</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#142218"></div><span class="wert">#142218</span></div>
+        <div class="ton"><div class="feld" style="background:#26471B"></div><span class="wert">#26471B</span></div>
+        <div class="ton"><div class="feld" style="background:#523114"></div><span class="wert">#523114</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#34494A"></div><span class="wert">#34494A</span></div>
+        <div class="ton"><div class="feld" style="background:#5C4C1A"></div><span class="wert">#5C4C1A</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#91531C"></div><span class="wert">#91531C</span></div>
+      </div>
+      <p class="band-bild">Komplementärkontrast: Stein kühl gegen Abendlicht warm.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Das Ausdauer-Level. Drei Stockwerke übereinander, mit Fallen, die alle etwas anderes verlangen: Platten, die im Takt heiß werden; Blöcke, die den Spieler seitlich von der Kante schieben; Fledermäuse, die Bögen fliegen.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Der Weg staffelt sich dreimal übereinander, statt nur vorwärts zu laufen. Dadurch sieht man von unten, wo man später oben entlangkommt — das ist die eigentliche Idee. Länge ist hier bewusst ein Mittel: Konzentration über Minuten statt über Sekunden.</p></div>
+      <div class="feldblock"><b>Design</b><p>Türkisgrüner Ruinenstein gegen einen warm orangefarbenen Abendhimmel. Dunkelgrüne Pflanzen wachsen aus den Fugen, drinnen brennen Fackeln.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Fledermäuse, Echsen, Feuerplatten, Schiebeblöcke.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Nicht eine einzelne Stelle, sondern die Summe. Wer achtzig Prozent schafft, fängt trotzdem von vorn an.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick von der obersten Ebene zurück über die Strecke, die man schon gelaufen ist.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schiebeblock</span>, <span class="wz">Taktfläche</span>, <span class="wz">Flugbahn-Gegner</span>, <span class="wz">Stockwerksverlauf</span>.</p></div>
+    </div>
+  </article>
+</section>
+
+<!-- ================================================== RAUM 4 -->
+<section class="raum" id="raum4">
+  <div class="raum-kopf">
+    <span class="zahl">Raum 4 · Vorbilder aus dem zweiten Spiel</span>
+    <h2>Der Spieler kann mehr, also darf das Level mehr verlangen</h2>
+    <p>Slide, Bauchplatscher und Krabbeln existieren — und werden gezielt erzwungen: Gegner, die nur per Slide fallen, Gänge, die nur geduckt passierbar sind. <strong>Das ist genau unsere Lage nach dem Krabbeln-Umbau.</strong></p>
+  </div>
+
+  <article class="level" id="l41">
+    <div class="level-kopf"><span class="nr">4-1</span><h3>Kanalgrund</h3></div>
+    <p class="vorbild">Vorbild: „The Eel Deal" · Kanalisation</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#0D1711"></div><span class="wert">#0D1711</span></div>
+        <div class="ton"><div class="feld" style="background:#573015"></div><span class="wert">#573015</span></div>
+        <div class="ton"><div class="feld" style="background:#624E29"></div><span class="wert">#624E29</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#1F4C3F"></div><span class="wert">#1F4C3F</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#93481B"></div><span class="wert">#93481B</span></div>
+        <div class="ton"><div class="feld" style="background:#BA9455"></div><span class="wert">#BA9455</span></div>
+      </div>
+      <p class="band-bild">Kanalgrün gegen Rost. Sehr dunkel — die Kisten sind die hellsten Flächen im Bild.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Der Boden ist zeitweise tödlich. In den Wasserrinnen takten Stromstöße; man wartet, statt zu rennen. Dazu rollende Giftfässer, die den Gang entlangkommen, und drehende Rotorblätter als bewegliche Wände.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Enge Gänge mit zwei Gabelungen. Eine davon sieht aus wie eine Sackgasse voller Nitro — und ist der Geheimweg. Das Level lehrt: Was offensichtlich falsch aussieht, ist manchmal der richtige Weg.</p></div>
+      <div class="feldblock"><b>Design</b><p>Olivbraune Rohre, teal-grüne Metallwände, giftgrünes Wasser, rostorange Kisten als einzige warme Signale. Runde Ventile und Messuhren als Wandschmuck — die Kulisse erzählt „Maschine", ohne dass sich etwas bewegt.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Ratten, Aale (takten Strom), Scrubber (Putzroboter auf Bahn), Fässer.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Warten. Das Level bestraft das Tempo, das alle anderen Level belohnen.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die grün leuchtende Rinne, die man nicht betreten darf.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Taktfläche</span> (wie 3-5, hier im Boden), <span class="wz">Rollfass</span>, <span class="wz">Rotorblatt</span>, <span class="wz">Verfolger</span>. <em>Vorhanden:</em> <code>Wasser</code> mit <code>toedlich = true</code>.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l42">
+    <div class="level-kopf"><span class="nr">4-2</span><h3>Frostritt</h3></div>
+    <p class="vorbild">Vorbild: „Bear It" · Ritt auf dem Eisbären</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton traegt"><div class="feld" style="background:#B0BDCA"></div><span class="wert">#B0BDCA</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#1A3752"></div><span class="wert">#1A3752</span></div>
+        <div class="ton"><div class="feld" style="background:#6F91B0"></div><span class="wert">#6F91B0</span></div>
+        <div class="ton"><div class="feld" style="background:#3A6694"></div><span class="wert">#3A6694</span></div>
+        <div class="ton"><div class="feld" style="background:#9EB6D0"></div><span class="wert">#9EB6D0</span></div>
+        <div class="ton"><div class="feld" style="background:#965127"></div><span class="wert">#965127</span></div>
+      </div>
+      <p class="band-bild">Eine reine Blaupalette mit genau einem warmen Ton — und der sitzt dort, wo etwas gefährlich ist.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Reittier. Vorwärts läuft es von allein, gelenkt wird nur quer. Dazu ein Turbo, der Tempo gegen Kontrolle tauscht — das ist der eigentliche Reiz: Der Spieler entscheidet laufend, wie viel Risiko er will.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Schienenlevel. Eine enge Schneerinne, Hindernisse auf drei gedachten Spuren, TNT-Kisten dazwischen. Kein Erkunden, reine Reaktion.</p></div>
+      <div class="feldblock"><b>Design</b><p>Strahlend weißer Schnee, blaugraue Eiswände, türkisblaue Eisformationen, dunkelblauer Nachthimmel mit Schneefall. Hölzerne Totems mit warmen Mustern sind die einzigen Farbtupfer.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Robben, Orcas (springen quer über die Bahn), Totempfähle, TNT.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Sichtweite. Hindernisse erscheinen spät.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick von hinten auf Reiter und Tier in der weißen Rinne.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Vorhanden:</em> <code>Reiter</code> (Level 04) kann das schon. <em>Neu:</em> <span class="wz">Spurhindernisse</span>, <span class="wz">Turbo mit Kontrollverlust</span>.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l43">
+    <div class="level-kopf"><span class="nr">4-3</span><h3>Schwarmpfad</h3></div>
+    <p class="vorbild">Vorbild: „Bee-Having" · Dschungel mit Bienenschwärmen</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#07180D"></div><span class="wert">#07180D</span></div>
+        <div class="ton"><div class="feld" style="background:#000101"></div><span class="wert">#000101</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#154D2A"></div><span class="wert">#154D2A</span></div>
+        <div class="ton"><div class="feld" style="background:#4B3A1F"></div><span class="wert">#4B3A1F</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#894113"></div><span class="wert">#894113</span></div>
+        <div class="ton"><div class="feld" style="background:#C0357A"></div><span class="wert">#C0357A ¹</span></div>
+      </div>
+      <p class="band-bild">¹ Das Magenta der Deckungsflecken ist zu kleinflächig für die Messung — hier von Hand ergänzt, weil es der Schlüssel des Levels ist.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Verfolgende Schwärme. Ein Schwarm ist kein einzelner Gegner, sondern eine Gruppe, die als Ganzes kommt — und mit einem einzigen gut gesetzten Schlag als Ganzes fällt. Dazu Bodenflecken, in die man sich kurz eingräbt und unangreifbar ist.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Dschungelpfad, auf dem Schwärme in Wellen kommen. Die Deckungsflecken liegen rhythmisch — das Level ist ein Wechsel aus Rennen und Ducken.</p></div>
+      <div class="feldblock"><b>Design</b><p>Rot-maroon gepflasterter Weg mit hellem Sandstreifen in der Mitte, große Baumstämme als Torbögen, sattes Grün, rote Pilze. Die magentafarbenen Erdflecken sind Signalfarbe — sie kommen sonst nirgends vor.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Bienenschwärme, grabende Gegner.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Man darf nicht stehenbleiben, muss aber genau zielen.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die magentafarbenen Flecken im roten Weg.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schwarm</span> (Gruppe, die zusammen verfolgt und zusammen fällt), <span class="wz">Deckungsfleck</span> — passt unmittelbar auf unser Krabbeln.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l44">
+    <div class="level-kopf"><span class="nr">4-4</span><h3>Sturmruinen</h3></div>
+    <p class="vorbild">Vorbild: „Ruination" · Ruinen im Gewitter</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#1E1511"></div><span class="wert">#1E1511</span></div>
+        <div class="ton"><div class="feld" style="background:#582511"></div><span class="wert">#582511</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#41364F"></div><span class="wert">#41364F</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#6E44B7"></div><span class="wert">#6E44B7</span></div>
+        <div class="ton"><div class="feld" style="background:#953720"></div><span class="wert">#953720</span></div>
+        <div class="ton"><div class="feld" style="background:#E0C4E2"></div><span class="wert">#E0C4E2</span></div>
+      </div>
+      <p class="band-bild">Sturmstein gegen Violett, dazwischen das Feuer. Das einzige Vorbild mit einem kalten Buntton als Leitfarbe.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Böden, die sich drehen und kippen. Rotierende Säulen als Plattformen, Platten, die beim Betreten kippen und fallen. Dazu Statuen, die im Takt Feuer speien, und Gorillas, die Stämme werfen.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Ruinenpfad mit großen Steinbauwerken, nachts im Gewitter. Die Drehplattformen stehen oft dort, wo auch ein Gegner steht — der Spieler muss zwei bewegte Dinge gleichzeitig lesen.</p></div>
+      <div class="feldblock"><b>Design</b><p>Nasses blaugraues Steinwerk, dunkler Gewitterhimmel, orangefarbenes Fackelfeuer, violette und magentafarbene Akzente. Blitze als kurze Vollbeleuchtung.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Possums (harmlos, aber im Weg), Affen, Echsen (<strong>nur per Slide</strong> zu besiegen — ihr Kragen schützt gegen Sprung und Drehschlag), Gorillas (Wurfgeschoss), Götzenköpfe (Feuerstoß, teils schwenkend).</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Gegner auf drehenden Plattformen.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blitz, der für einen Moment die ganze Ruine zeigt.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Drehplattform</span>, <span class="wz">Kippplattform</span>, <span class="wz">Feuerspeier</span>, <span class="wz">Werfer</span>. <em>Vorhanden:</em> <code>Gegner.besiegbar_durch</code> kann „nur Slide" bereits ausdrücken.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l45">
+    <div class="level-kopf"><span class="nr">4-5</span><h3>Kolbengang</h3></div>
+    <p class="vorbild">Vorbild: „Piston It Away" · Raumstation</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#1C100D"></div><span class="wert">#1C100D</span></div>
+        <div class="ton"><div class="feld" style="background:#512F11"></div><span class="wert">#512F11</span></div>
+        <div class="ton"><div class="feld" style="background:#6B4C20"></div><span class="wert">#6B4C20</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#4D5650"></div><span class="wert">#4D5650</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#926630"></div><span class="wert">#926630</span></div>
+        <div class="ton"><div class="feld" style="background:#A19279"></div><span class="wert">#A19279</span></div>
+      </div>
+      <p class="band-bild">Messing gegen Stahl. Das Grünleuchten der Bildschirme ist zu punktuell für die Messung — bei uns als Leuchtmaterial zu setzen.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Ein Hindernis, zwei Rollen. Riesige Kolben versperren den Gang — manche muss man passieren, während sie oben sind, auf andere muss man sich stellen und hochfahren lassen. Dazu Gegner, deren Haltung bestimmt, wie man sie besiegt: Arme unten = draufspringen, Arme oben = durchsliden.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Innenraumkorridor mit Rückwegen: Um alle Kisten zu bekommen, muss man den Weg zurücklaufen. Ein Todesweg zweigt ab — ohne Rettungsnetz, dafür mit dem besten Preis.</p></div>
+      <div class="feldblock"><b>Design</b><p>Warme sandfarbene Wandkacheln mit Ziernaht, Messing- und Kupferrohre, grün leuchtende Bildschirme mit Symbolen, graues Metall, orangefarbene Roboter.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Laufroboter (nur Slide), Tentakelroboter (haltungsabhängig), Schrumpfstrahlen (ausgelöst durch Bodenplatten), Schildträger (schieben).</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Man muss bei jedem Gegner erst lesen, in welchem Zustand er ist, bevor man reagiert.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Kolben, der wie ein Stempel aus der Decke kommt.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Auslöseplatte</span>, <span class="wz">Strahlfalle</span>, <span class="wz">Haltungsgegner</span>. <em>Vorhanden:</em> <code>Wasserplattform</code> senkrecht ist bereits der Kolben.</p></div>
+    </div>
+  </article>
+</section>
+
+<!-- ================================================== RAUM 5 -->
+<section class="raum" id="raum5">
+  <div class="raum-kopf">
+    <span class="zahl">Raum 5 · Vorbilder aus dem dritten Spiel</span>
+    <h2>Jedes Level bringt eine eigene Regel mit</h2>
+    <p>Nicht mehr nur neue Hindernisse, sondern neue Grundbedingungen — Dunkelheit, Fliegen, Hangeln. <strong>Der teuerste, aber auch der lohnendste Raum.</strong></p>
+  </div>
+
+  <article class="level" id="l51">
+    <div class="level-kopf"><span class="nr">5-1</span><h3>Sandgrab</h3></div>
+    <p class="vorbild">Vorbild: „Sphynxinator" · ägyptisches Grab</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton traegt"><div class="feld" style="background:#60200E"></div><span class="wert">#60200E</span></div>
+        <div class="ton"><div class="feld" style="background:#26120D"></div><span class="wert">#26120D</span></div>
+        <div class="ton"><div class="feld" style="background:#9B501A"></div><span class="wert">#9B501A</span></div>
+        <div class="ton"><div class="feld" style="background:#A03F16"></div><span class="wert">#A03F16</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#E68D36"></div><span class="wert">#E68D36</span></div>
+        <div class="ton"><div class="feld" style="background:#4E4827"></div><span class="wert">#4E4827</span></div>
+      </div>
+      <p class="band-bild">Durchweg warm. Das Fackellicht ist der Blickfang, das grüne Wegband der einzige kühle Ton.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Speerböden, die im Takt aus dem Boden schießen, und Türen, die sich schließen — ein Zeitfenster, durch das man hindurch muss. Gleich am Anfang eine Gabelung: Der rechte Weg ist leicht, der linke nur mit Slide-Sprung, Doppelsprung und Drehschlag hintereinander erreichbar.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Zwei Wege mit unterschiedlichem Anspruch, die am Ende wieder zusammenlaufen. Dazu ein Geheimnis, das nur findet, wer am Start rückwärts läuft.</p></div>
+      <div class="feldblock"><b>Design</b><p>Warmer ockerfarbener Sandstein, Wände voller bemalter Hieroglyphen in Rot, Türkis und Blau auf Tan. Sandiger Boden mit grün gefasstem Wegband, Fackelorange. Der Boden ist hell, die Wände sind Muster.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Mumien, Flammenwerfer hinter Deckung, Skorpione.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Die Türfenster sind kurz, und dahinter geht es sofort weiter.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Gang mit den bemalten Wänden und dem grünen Wegband.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schließtür</span>, <span class="wz">Wegverzweigung</span>, <span class="wz">Rückwärtsgeheimnis</span>. <em>Vorhanden:</em> <code>Stacheln</code> einfahrbar ist der Speerboden.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l52">
+    <div class="level-kopf"><span class="nr">5-2</span><h3>Wolkenjagd</h3></div>
+    <p class="vorbild">Vorbild: „Mad Bombers" · Doppeldecker</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#3D4E64"></div><span class="wert">#3D4E64</span></div>
+        <div class="ton"><div class="feld" style="background:#525869"></div><span class="wert">#525869</span></div>
+        <div class="ton"><div class="feld" style="background:#403B3C"></div><span class="wert">#403B3C</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#BCBDC9"></div><span class="wert">#BCBDC9</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#24252C"></div><span class="wert">#24252C</span></div>
+        <div class="ton"><div class="feld" style="background:#8C735F"></div><span class="wert">#8C735F</span></div>
+      </div>
+      <p class="band-bild">Alles Grau. Die Farbe steckt fast nur in den Zielen — der Hintergrund ist absichtlich fast einfarbig.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Fliegen und Schießen. Freie Bewegung im Luftraum statt Korridor, Trefferanzeige statt Leben, eine Zielvorgabe („fünf abschießen") statt eines Zielportals.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Kein Weg. Ein offener Raum über Schneebergen, in dem Ziele kreisen. Der Fortschritt ist ein Zähler.</p></div>
+      <div class="feldblock"><b>Design</b><p>Fahlgrauer Dunsthimmel, weiße Wolken und Schneeberge, ein braun-olivfarbener eigener Doppeldecker, rote Feindmaschinen, gelbe und weiße Ballons.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Feindflugzeuge in zwei Größen.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Zielen im Raum, während man selbst ausweicht.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der eigene Flügel am unteren Bildrand.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu und teuer:</em> <span class="wz">Flugmodus</span>, <span class="wz">Trefferanzeige</span>, <span class="wz">Zielzähler</span>. <strong>Der größte Brocken der fünfzehn</strong> — ein eigener Bewegungsmodus wie <code>Reiter</code> und <code>Rennfahrer</code>, aber ohne Kurve.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l53">
+    <div class="level-kopf"><span class="nr">5-3</span><h3>Funkenlicht</h3></div>
+    <p class="vorbild">Vorbild: „Bug Lite" · Grab bei Nacht</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton traegt"><div class="feld" style="background:#120F0C"></div><span class="wert">#120F0C</span></div>
+        <div class="ton"><div class="feld" style="background:#523019"></div><span class="wert">#523019</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#A05524"></div><span class="wert">#A05524</span></div>
+        <div class="ton"><div class="feld" style="background:#61492F"></div><span class="wert">#61492F</span></div>
+        <div class="ton"><div class="feld" style="background:#3F434A"></div><span class="wert">#3F434A</span></div>
+        <div class="ton"><div class="feld" style="background:#6685CA"></div><span class="wert">#6685CA</span></div>
+      </div>
+      <p class="band-bild">Das Schwarz füllt das Bild, das Ocker ist der Lichtkreis, das Blau der leuchtende Kristall.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Dunkelheit als Regel. Es gibt nur ein mitwanderndes Licht; man sieht wenige Meter weit. Gefahren erscheinen erst im Lichtkreis. Dazu Scheinwerferfelder, die beim Durchqueren Fallen auslösen.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Schmaler Grabgang, absichtlich ohne Verzweigung — Orientierung wäre im Dunkeln unfair. Die Länge einer Passage ist durch die Sichtweite begrenzt: Ein Sprung darf nie weiter gehen, als das Licht reicht.</p></div>
+      <div class="feldblock"><b>Design</b><p>Fast schwarz. Ein warmer Lichtkreis um die Figur, Kisten und Edelsteine leuchten von selbst, Wände nur angedeutet in Ocker. Die radikalste Gestaltung der fünfzehn: Fast alles ist nicht zu sehen.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Krokodile, Mumien, Schlangen — alle erst spät sichtbar.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Man kann nicht vorausplanen.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Lichtkreis im Schwarz.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Lichtkreis</span> (Umgebungslicht aus, mitgeführtes Licht an), <span class="wz">Leuchtmarker</span> (Kisten, Früchte und Kanten leuchten selbst), <span class="wz">Auslösefeld</span>.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l54">
+    <div class="level-kopf"><span class="nr">5-4</span><h3>Neonhöhe</h3></div>
+    <p class="vorbild">Vorbild: „Future Frenzy" · Zukunftsstadt</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton traegt"><div class="feld" style="background:#1B1424"></div><span class="wert">#1B1424</span></div>
+        <div class="ton"><div class="feld" style="background:#2E2C5B"></div><span class="wert">#2E2C5B</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#4E4E9A"></div><span class="wert">#4E4E9A</span></div>
+        <div class="ton"><div class="feld" style="background:#584049"></div><span class="wert">#584049</span></div>
+        <div class="ton"><div class="feld" style="background:#9E7E6A"></div><span class="wert">#9E7E6A</span></div>
+        <div class="ton"><div class="feld" style="background:#3A4AA9"></div><span class="wert">#3A4AA9</span></div>
+      </div>
+      <p class="band-bild">Tiefes Blau in drei Stufen. Die Neonfarben sind zu kleinflächig für die Messung — bei uns als Leuchtmaterial zu setzen.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Laserzäune, die im Takt an- und ausgehen — dieselbe Idee wie die Taktfläche, aber senkrecht und damit als Wand statt als Boden. Dazu schwebende Plattformen auf festen Bahnen hoch über der Stadt.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Hochhausdächer und Stege, senkrecht gestaffelt, mit viel Leere darunter. Die Stadt selbst ist Kulisse und Tiefenmesser zugleich.</p></div>
+      <div class="feldblock"><b>Design</b><p>Tiefblaue und violette Nacht, Neonstreifen in Cyan, Magenta und Grün, blau-weiße Glasfronten, mintgrüne Böden. Kalt, kontrastreich, alles glüht ein wenig — der Gegenentwurf zu jedem Naturlevel.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Stachelpanzer, fliegende Assistenten, Kugelroboter, Laserzäune.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Lasertakt und Absturzgefahr zugleich.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick nach unten in eine leuchtende Stadt.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Laserzaun</span>, <span class="wz">Neon-Materialsatz</span>. <em>Vorhanden:</em> <code>Wasserplattform</code> mit Kurve ist die Schwebeplattform.</p></div>
+    </div>
+  </article>
+
+  <article class="level" id="l55">
+    <div class="level-kopf"><span class="nr">5-5</span><h3>Dächergasse</h3></div>
+    <p class="vorbild">Vorbild: „Hang'em High" · arabische Dächer</p>
+    <div class="band">
+      <div class="band-streifen">
+        <div class="ton"><div class="feld" style="background:#CA6939"></div><span class="wert">#CA6939</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#E8AA5E"></div><span class="wert">#E8AA5E</span></div>
+        <div class="ton"><div class="feld" style="background:#572E1B"></div><span class="wert">#572E1B</span></div>
+        <div class="ton"><div class="feld" style="background:#A45932"></div><span class="wert">#A45932</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#3B6CBA"></div><span class="wert">#3B6CBA</span></div>
+        <div class="ton"><div class="feld" style="background:#A28A93"></div><span class="wert">#A28A93</span></div>
+      </div>
+      <p class="band-bild">Die farbigste Palette der fünfzehn: Sandwand gegen Himmel, dazu Terrakotta als Mitte.</p>
+    </div>
+    <div class="felder">
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Hangeln. Ein Gitter unter der Decke, an dem sich die Figur entlangzieht — eine neue Fortbewegungsart neben Laufen und Springen. Dazu fliegende Teppiche als Plattformen und Sprungteppiche als Trampoline.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Dächer einer Altstadt, viel Auf und Ab, Sprünge zwischen Teppichen. Ein Geheimweg führt über eine Treppe aus Nitro-Kisten, die hier ausnahmsweise nicht explodieren — dieselbe Idee wie die Sackgasse in 4-1: Das Level bricht seine eigene Regel und belohnt den, der es merkt.</p></div>
+      <div class="feldblock"><b>Design</b><p>Warme Terrakotta- und Sandwände, ornamentale Spitzbögen in Rot, Weiß und Türkis, helle Sandböden, blauer Himmel. Hell und freundlich — der Gegenpol zu 5-3.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Affen mit Töpfen, Skorpione an der Decke (treffen beim Hangeln!), Assistenten mit Krummsäbel, Teppichreiter.</p></div>
+      <div class="feldblock"><b>Was es schwer macht</b><p>Hangeln und Ausweichen gleichzeitig — man hat beim Hangeln kaum Handlungsmöglichkeiten.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die Figur, die unter einem Gitter hängt, während unten die Gasse durchläuft.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu und groß:</em> <span class="wz">Hangelgitter</span> — neuer Bewegungszustand mit eigener Hitbox und eigenen Clips. <em>Vorhanden:</em> <code>Kiste</code> als <code>FEDER</code>/<code>SPRUNG</code> ist das Trampolin, <code>Wasserplattform</code> der fliegende Teppich.</p></div>
+    </div>
+  </article>
+</section>
+
+<!-- ================================================== WERKZEUGE -->
+<section class="werkzeuge" id="werkzeuge">
+  <div class="raum-kopf">
+    <span class="zahl">Ableitung</span>
+    <h2>Werkzeugliste</h2>
+    <p>Zusammengefasst und entdoppelt. Die Reihenfolge ist ein Vorschlag: erst das, was in den meisten Leveln vorkommt und wenig kostet.</p>
+  </div>
+
+  <h3 class="tabellentitel">Schon vorhanden — nur einsetzen</h3>
+  <p>Neun der Vorbild-Mechaniken lassen sich mit Bauteilen abbilden, die im Projekt schon stehen.</p>
+  <div class="tabellenhuelle">
+    <table>
+      <thead><tr><th>Werkzeug</th><th>Deckt ab</th></tr></thead>
+      <tbody>
+        <tr><td><code>Wasserplattform</code></td><td>Aufzug (3-2), Kolben (4-5), Schwebeplattform (5-4), fliegender Teppich (5-5)</td></tr>
+        <tr><td><code>Stacheln</code> mit <code>einfahrbar</code></td><td>Speersäule (3-3), Speerboden (5-1)</td></tr>
+        <tr><td><code>Eisfläche</code></td><td>rutschige Platte (3-4)</td></tr>
+        <tr><td><code>Kiste</code> (FEDER / SPRUNG)</td><td>Sprungteppich (5-5)</td></tr>
+        <tr><td><code>Gegner.besiegbar_durch</code></td><td>„nur per Slide" (4-4), Grundlage des Haltungsgegners (4-5)</td></tr>
+        <tr><td><code>Gegner.abprall_hoehe</code></td><td>Trampolingegner (3-4)</td></tr>
+        <tr><td><code>Wasser</code> mit <code>toedlich</code></td><td>Kanalrinne (4-1)</td></tr>
+        <tr><td><code>Reiter</code></td><td>Reittier (4-2)</td></tr>
+        <tr><td><code>Treibmine</code></td><td>hängende und schwimmende Hindernisse</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="tabellentitel">Neu — kleine Bauteile, große Wirkung</h3>
+  <p>Jedes einzeln überschaubar, jedes in mehreren Vorbildern gebraucht.</p>
+  <div class="tabellenhuelle">
+    <table>
+      <thead><tr><th>Werkzeug</th><th class="quelle">Aus</th><th>Kurz</th></tr></thead>
+      <tbody>
+        <tr><td><span class="wz">Bruchplatte</span></td><td class="quelle">3-4, 4-4</td><td>trägt kurz, dann fällt sie; Vorwarnung durch Wackeln</td></tr>
+        <tr><td><span class="wz">Taktfläche</span></td><td class="quelle">3-5, 4-1</td><td>Fläche, die periodisch tödlich wird; Vorwarnung durch Farbe</td></tr>
+        <tr><td><span class="wz">Rollhindernis</span></td><td class="quelle">3-1, 4-1</td><td>Kugel oder Fass rollt die Kurve entlang</td></tr>
+        <tr><td><span class="wz">Drehplattform</span></td><td class="quelle">4-4</td><td>dreht sich um die Hochachse, nimmt den Spieler mit</td></tr>
+        <tr><td><span class="wz">Feuerspeier</span></td><td class="quelle">3-3, 3-5, 4-4, 5-1</td><td>gerichteter Stoß im Takt, wahlweise schwenkend</td></tr>
+        <tr><td><span class="wz">Werfer</span></td><td class="quelle">3-3, 4-4</td><td>Gegner mit Wurfgeschoss im Bogen</td></tr>
+        <tr><td><span class="wz">Auslöseplatte</span></td><td class="quelle">4-5, 5-3</td><td>Betreten löst etwas aus</td></tr>
+        <tr><td><span class="wz">Schließtür</span></td><td class="quelle">5-1</td><td>Zeitfenster im Weg</td></tr>
+        <tr><td><span class="wz">Laserzaun</span></td><td class="quelle">5-4</td><td>senkrechte Taktbarriere</td></tr>
+        <tr><td><span class="wz">Fließband</span></td><td class="quelle">3-2</td><td>Boden mit Eigengeschwindigkeit</td></tr>
+        <tr><td><span class="wz">Schiebeblock</span></td><td class="quelle">3-5</td><td>drückt den Spieler seitlich</td></tr>
+        <tr><td><span class="wz">Schwarm</span></td><td class="quelle">4-3</td><td>Gruppe, die zusammen verfolgt und zusammen fällt</td></tr>
+        <tr><td><span class="wz">Deckungsfleck</span></td><td class="quelle">4-3</td><td>geduckt unangreifbar — nutzt unser Krabbeln</td></tr>
+        <tr><td><span class="wz">Nische</span></td><td class="quelle">3-1</td><td>Ausweichbucht als Korridor-Bauteil</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="tabellentitel">Neu — Level-Eigenschaften statt Einzelteile</h3>
+  <p>Diese ändern nicht ein Objekt, sondern die Regeln eines ganzen Levels.</p>
+  <div class="tabellenhuelle">
+    <table>
+      <thead><tr><th>Werkzeug</th><th class="quelle">Aus</th><th>Kurz</th></tr></thead>
+      <tbody>
+        <tr><td><span class="wz">Lichtkreis</span> + <span class="wz">Leuchtmarker</span></td><td class="quelle">5-3</td><td>Dunkellevel: Licht wandert mit, Wichtiges leuchtet selbst</td></tr>
+        <tr><td><span class="wz">Stockwerksverlauf</span></td><td class="quelle">3-5, 3-3</td><td>mehrere Korridorlagen übereinander mit Sichtverbindung</td></tr>
+        <tr><td><span class="wz">Wegverzweigung</span></td><td class="quelle">5-1, 4-1</td><td>zwei Routen mit eigenem Anspruch, die zusammenlaufen</td></tr>
+        <tr><td><span class="wz">Spurhindernisse</span></td><td class="quelle">4-2</td><td>Hindernisse rhythmisch auf Spuren verteilen</td></tr>
+        <tr><td><span class="wz">Neon-Materialsatz</span></td><td class="quelle">5-4</td><td>Leuchtmaterialien und dunkle Grundtöne als Satz</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="tabellentitel">Neu — große Brocken, eigene Runde</h3>
+  <p>Diese zwei sind keine Bauteile, sondern Erweiterungen der Figur beziehungsweise ein eigener Spielmodus.</p>
+  <div class="tabellenhuelle">
+    <table>
+      <thead><tr><th>Werkzeug</th><th class="quelle">Aus</th><th>Warum teuer</th></tr></thead>
+      <tbody>
+        <tr><td><span class="wz">Hangelgitter</span></td><td class="quelle">5-5</td><td>neuer Bewegungszustand im Spieler: eigene Hitbox, eigener Clip, eigene Steuerung</td></tr>
+        <tr><td><span class="wz">Flugmodus</span></td><td class="quelle">5-2</td><td>eigener Controller ohne Levelkurve, Schusssystem, Trefferanzeige, Zielzähler</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================================================== BEFUNDE -->
+<section class="befunde" id="befunde">
+  <div class="raum-kopf">
+    <span class="zahl">Beim Durchsehen aufgefallen</span>
+    <h2>Drei Muster, die wertvoller sind als jedes Einzelteil</h2>
+  </div>
+
+  <div class="befund">
+    <b>Ein Hindernis mit zwei Rollen.</b>
+    <p>Der Kolben ist Wand <em>und</em> Aufzug; die Schildkröte ist Feind <em>und</em> Trampolin; die Nitro-Treppe ist Todesfalle <em>und</em> Geheimweg. Das kostet nichts extra und verdoppelt die Fragen, die ein Bauteil stellen kann.</p>
+  </div>
+
+  <div class="befund">
+    <b>Das Level bricht einmal seine eigene Regel</b>
+    <p>— und belohnt den, der es merkt. Die Sackgasse, die keine ist (4-1); die Nitro-Kisten, die nicht explodieren (5-5); der Rückweg am Start (5-1). Immer genau einmal pro Level, nie zweimal.</p>
+  </div>
+
+  <div class="befund">
+    <b>Die Signalfarbe kommt sonst nirgends vor.</b>
+    <p>Magenta im roten Dschungelweg (4-3), warmes Holz in der blauen Eisrinne (4-2), Orange im grauen Kanal (4-1). Gefahr und Belohnung sind an der Farbe zu erkennen, bevor man die Form erkennt. Das ist bei uns bisher nur bei den Kisten so.</p>
+  </div>
+
+  <div class="warnung">
+    <b>Warnung an uns selbst</b>
+    <p>Zehn der fünfzehn Level bauen ihre Schwierigkeit aus <strong>Takt</strong>. Wir haben derzeit fast keine Taktgeber — unsere Hindernisse stehen still oder patrouillieren. Die <span class="wz">Taktfläche</span>, der <span class="wz">Feuerspeier</span> und die <span class="wz">Bruchplatte</span> sind deshalb wichtiger als alles andere auf der Liste; mit diesen dreien allein ließe sich die Hälfte der Vorbilder sinngemäß bauen.</p>
+  </div>
+
+  <p class="fuss">
+    Quelle der Beschreibungen: Bandipedia (crashbandicoot.fandom.com), abgerufen am 25.&nbsp;August&nbsp;2026 über die MediaWiki-Schnittstelle.<br>
+    Farbwerte gemessen aus je einem Referenzbildschirmfoto, reduziert auf sechs Töne. Die Bilder selbst sind bewusst nicht Teil dieser Seite.<br>
+    Arbeitsstand im Projekt: <code>doku/level-vorbilder.md</code> — dort steht dieselbe Fassung als Textdatei.
+  </p>
+</section>
+
+</main>
+</div>
