@@ -50,6 +50,14 @@ Groß- und Kleinschreibung erkannt, deutsche Entsprechungen ebenso.
 | `Jump` | 1,15 s | **nein** | einmalig beim Abheben |
 | `Slide` | 0,9 s | **nein** | einmalig beim Ansetzen |
 | `Spin` | 0,4 s | ja | solange gedreht wird |
+| `Crawl` | 1,2 s | ja | krabbelt (Slide-Taste ohne Richtung) |
+| `Ride` | 0,8 s | ja | auf der Wildkatze (Level 04) |
+| `Sit` | 2,0 s | ja | im Kart (Level 06) |
+
+**Haltungen schlagen alles andere.** `Crawl`, `Ride` und `Sit` werden nicht
+aus Tempo und Zustand erraten, sondern vom Spielcode gesetzt: Wer im Kart
+sitzt, soll nicht zwischendurch einen Gehzyklus zeigen, nur weil sich die
+Figur über die Strecke bewegt.
 
 Fehlt einer, greift der nächstbeste: Eine Figur mit nur `Walk` benutzt ihn
 auch zum Schlendern. Fehlt `Jump`, `Slide` oder `Spin`, bleibt der letzte

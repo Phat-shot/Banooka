@@ -63,6 +63,9 @@ var _clip_rennen := ""
 var _clip_sprung := ""
 var _clip_slide := ""
 var _clip_spin := ""
+var _clip_sitzen := ""
+var _clip_reiten := ""
+var _clip_krabbeln := ""
 var _clip_laeuft := ""
 ## War die Figur im letzten Bild im Slide? Der Slideclip wird beim Ansetzen
 ## einmal angestoßen, nicht jedes Bild neu.
@@ -416,7 +419,8 @@ func _kegel(unten: float, oben: float, hoehe: float) -> CylinderMesh:
 
 ## Überträgt den Bewegungszustand.
 ## tempo: 0..1, luft: in der Luft, slide/spin: Restzeiten in Sekunden.
-func aktualisiere(delta: float, tempo: float, luft: bool, slide: float, spin: float) -> void:
+func aktualisiere(delta: float, tempo: float, luft: bool, slide: float,
+		spin: float, haltung: String = "") -> void:
 	# Blickrichtung bzw. Spin-Drehung.
 	#
 	# Bringt die Figur einen eigenen Spinclip mit, dreht der bereits um
@@ -449,7 +453,7 @@ func aktualisiere(delta: float, tempo: float, luft: bool, slide: float, spin: fl
 	_lauf_phase += delta * tempo * 12.0
 
 	if is_instance_valid(_eigenes):
-		_animiere_eigenes(delta, tempo, luft, slide > 0.0, spin > 0.0)
+		_animiere_eigenes(delta, tempo, luft, slide > 0.0, spin > 0.0, haltung)
 		return
 	_animiere(delta, tempo, luft, slide > 0.0, spin > 0.0)
 
@@ -469,9 +473,9 @@ func sichtbarkeit(sichtbar: bool) -> void:
 ## Slide, ruhiges Atmen im Stand. Der Halter sitzt auf Fußhöhe, ein
 ## Stauchen drückt die Figur damit zu Boden statt in der Luft zu schrumpfen.
 func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool,
-		spin: bool) -> void:
+		spin: bool, haltung: String) -> void:
 	_zeit += delta
-	_fuehre_clips(tempo, luft, slide, spin)
+	_fuehre_clips(tempo, luft, slide, spin, haltung)
 	var ziel := Vector3.ONE
 	var wippen := 0.0
 	if slide:
@@ -516,13 +520,18 @@ func _clips_zuordnen() -> void:
 	_clip_sprung = _erster_clip(["jump", "sprung"])
 	_clip_slide = _erster_clip(["slide", "rutsch", "graetsche"])
 	_clip_spin = _erster_clip(["spin", "drehschlag", "dreh"])
+	_clip_sitzen = _erster_clip(["sit", "sitzen"])
+	_clip_reiten = _erster_clip(["ride", "reiten"])
+	_clip_krabbeln = _erster_clip(["crawl", "krabbeln", "kriechen"])
 
 	# Die Zyklen laufen endlos, sonst bleibt die Figur nach einem
 	# Durchlauf im letzten Bild stehen. Ruhepose und Sprung dagegen NICHT:
 	# Die Pose ist ein einzelnes Bild, und ein Sprung, der sich wiederholt,
 	# sähe aus wie ein Hüpfen an Ort und Stelle.
+	# Haltungen laufen endlos: Wer sitzt, sitzt weiter, und wer krabbelt,
+	# braucht einen Zyklus wie beim Gehen.
 	for clip: String in [_clip_ruhe, _clip_schlendern, _clip_gehen, _clip_rennen,
-			_clip_spin]:
+			_clip_spin, _clip_sitzen, _clip_reiten, _clip_krabbeln]:
 		_schleife_setzen(clip, Animation.LOOP_LINEAR)
 	for clip: String in [_clip_pose, _clip_sprung, _clip_slide]:
 		_schleife_setzen(clip, Animation.LOOP_NONE)
@@ -566,6 +575,21 @@ func _landeteil_anspielen() -> void:
 	if anim == null:
 		return
 	_eigener_spieler.seek(anim.length * LANDUNG_ANTEIL, true)
+
+
+## Ordnet eine Haltung ihrem Clip zu. Leer, wenn keine gesetzt ist oder
+## die Figur den passenden Clip nicht mitbringt – dann entscheidet wie
+## bisher der Bewegungszustand.
+func _clip_zu_haltung(haltung: String) -> String:
+	match haltung:
+		"sitzen":
+			return _clip_sitzen
+		"reiten":
+			return _clip_reiten
+		"krabbeln":
+			return _clip_krabbeln
+		_:
+			return ""
 
 
 ## Hält den Slideclip in der Grätsche, solange gerutscht wird.
@@ -619,8 +643,22 @@ func _schleife_setzen(clip: String, art: Animation.LoopMode) -> void:
 ## Für Sprung, Slide und Drehschlag bringt so eine Figur meist nichts mit;
 ## dort bleibt der Laufclip stehen und die Stauchung aus `_animiere_eigenes`
 ## übernimmt – lieber ein ruhiger Körper als ein Gehzyklus in der Luft.
-func _fuehre_clips(tempo: float, luft: bool, slide: bool, spin: bool) -> void:
+func _fuehre_clips(tempo: float, luft: bool, slide: bool, spin: bool,
+		haltung: String) -> void:
 	if _eigener_spieler == null:
+		return
+
+	# Eine gesetzte Haltung schlägt alles andere: Wer auf der Wildkatze
+	# sitzt oder im Kart hockt, soll nicht zwischendurch einen Gehzyklus
+	# zeigen, nur weil sich die Figur über die Strecke bewegt. Beim
+	# Krabbeln gilt dasselbe – die Beine machen dort etwas anderes.
+	var haltungsclip := _clip_zu_haltung(haltung)
+	if not haltungsclip.is_empty():
+		_war_in_luft = luft
+		_war_im_slide = false
+		if _clip_laeuft != haltungsclip:
+			_clip_laeuft = haltungsclip
+			_eigener_spieler.play(haltungsclip, 0.15)
 		return
 
 	# Der Drehschlag steht vorn: Er kann am Boden UND in der Luft laufen –

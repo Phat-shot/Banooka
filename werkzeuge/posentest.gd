@@ -8,7 +8,7 @@ extends Node
 func _ready() -> void:
 	var datei := OS.get_environment("MODELLTEST_DATEI")
 	if datei.is_empty():
-		datei = "cash_banooka_mv.glb"
+		datei = "cash_banooka_rc.glb"
 	Einstellungen.waehle_modell(Einstellungen.MITGELIEFERT.path_join(datei))
 	var modell := SpielerModell.new()
 	add_child(modell)
@@ -18,7 +18,7 @@ func _ready() -> void:
 	if spieler == null:
 		print("FEHLER: Figur ohne AnimationPlayer"); get_tree().quit(1); return
 
-	# [Beschreibung, Tempo, in der Luft, Slide, Spin, Bilder]
+	# [Beschreibung, Tempo, in der Luft, Slide, Spin, Bilder, Haltung]
 	var ablauf := [
 		["steht still", 0.0, false, false, false, 6],
 		["schlendert", 0.20, false, false, false, 6],
@@ -35,13 +35,19 @@ func _ready() -> void:
 		["nach dem dreh", 0.3, false, false, false, 6],
 		["doppelsprung dreht", 0.5, true, false, true, 10],
 		["landet danach", 0.5, false, false, false, 6],
+		["krabbelt", 0.4, false, false, false, 8, "krabbeln"],
+		["krabbelt und springt", 0.4, true, false, false, 6, ""],
+		["sitzt im Kart", 0.9, false, false, false, 8, "sitzen"],
+		["reitet", 0.9, false, false, false, 8, "reiten"],
+		["wieder zu Fuss", 0.9, false, false, false, 6, ""],
 	]
 	print("=== Posenfolge: %s ===" % datei)
 	for schritt: Array in ablauf:
 		for i in int(schritt[5]):
 			modell.aktualisiere(1.0 / 60.0, float(schritt[1]),
 					bool(schritt[2]), 0.42 if bool(schritt[3]) else 0.0,
-					0.55 if bool(schritt[4]) else 0.0)
+					0.55 if bool(schritt[4]) else 0.0,
+					String(schritt[6]) if schritt.size() > 6 else "")
 			await get_tree().process_frame
 		print("  %-22s -> %-9s bei %.2f s"
 				% [schritt[0], spieler.current_animation,

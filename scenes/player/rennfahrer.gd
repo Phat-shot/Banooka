@@ -93,6 +93,11 @@ func _ready() -> void:
 		_kart.farbe = farbe
 
 
+## Im Kart wird gesessen.
+func haltung() -> String:
+	return "sitzen"
+
+
 ## Gesamtstrecke seit dem Start – daraus wird die Platzierung bestimmt.
 func gesamtstrecke() -> float:
 	return runde * rundenlaenge + strecke

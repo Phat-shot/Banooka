@@ -17,7 +17,8 @@ const LEGENDE := [
 	["", "Laufen", "WASD / Pfeile", "Stick / Steuerkreuz"],
 	["jump", "Springen (2× = Doppelsprung)", "Leertaste", ""],
 	["spin", "Drehschlag", "J / Strg", ""],
-	["slide", "Slide · in der Luft Bauchplatscher", "Umschalt", ""],
+	["slide", "Slide · ohne Richtung krabbeln · in der Luft Bauchplatscher",
+			"Umschalt", ""],
 	["status", "Diese Tafel", "Tab oder Esc", ""],
 ]
 

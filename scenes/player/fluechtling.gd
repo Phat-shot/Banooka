@@ -102,6 +102,13 @@ func respawn() -> void:
 	_taumel = 0.0
 
 
+## Die Flucht geht zu Fuß – hier wird nicht geritten. Ohne diese
+## Überschreibung erbte der Flüchtling die Reithaltung vom Reiter und
+## säße vor dem Keiler auf einem unsichtbaren Tier.
+func haltung() -> String:
+	return ""
+
+
 ## Im Taumeln lässt sich nicht lenken.
 func _lenken(delta: float) -> void:
 	if _taumel > 0.0:

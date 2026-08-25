@@ -37,6 +37,10 @@ const ABPRALL_V := 16.0      ## Standard-Absprunghöhe von Federkisten und Gegne
 ## Kleiner Wert = rutschiger. Die Physikwerte oben bleiben unangetastet:
 ## Eis ändert nicht das Lauftempo, nur wie schnell es erreicht wird.
 const EIS_GRIFF := 2.4
+## Tempo beim Krabbeln. Kein Wert aus der Demo, sondern neu: Krabbeln ist
+## langsamer als Gehen und soll sich zäh anfühlen, sonst wäre es die
+## bessere Fortbewegung und niemand liefe mehr aufrecht.
+const KRIECH_TEMPO := 3.0
 
 signal spin_gestartet
 signal bauchplatscher_gelandet(pos: Vector3)
@@ -59,6 +63,9 @@ var can_djump := false
 var invuln := 0.0
 ## Steuerung gesperrt (z. B. während einer Portal-Animation).
 var gesperrt := false
+## Krabbelt die Figur gerade? Wird mit der Slide-Taste OHNE Richtung an-
+## und ausgeschaltet – mit Richtung ist dieselbe Taste der Slide.
+var kriechen := false
 
 var _slide_dir := Vector3.ZERO
 var _blick_y := 0.0
@@ -108,8 +115,9 @@ func _physics_process(delta: float) -> void:
 		velocity.x = _slide_dir.x * SLIDE_SPEED
 		velocity.z = _slide_dir.z * SLIDE_SPEED
 	else:
-		var ziel_x := eingabe.x * RUN_SPEED * ctrl
-		var ziel_z := eingabe.y * RUN_SPEED * ctrl
+		var lauftempo := KRIECH_TEMPO if kriechen else RUN_SPEED
+		var ziel_x := eingabe.x * lauftempo * ctrl
+		var ziel_z := eingabe.y * lauftempo * ctrl
 		var glatt := glaette()
 		if am_boden and glatt > 0.0:
 			# Auf Eis greift nichts sofort: Die Figur nimmt Tempo träge auf
@@ -129,7 +137,15 @@ func _physics_process(delta: float) -> void:
 
 	# --- Slide bzw. Bauchplatscher ---
 	if InputHub.slide_gedrueckt():
-		if am_boden and staerke > 0.1 and sliding <= 0.0:
+		if kriechen:
+			# Im Krabbeln beendet dieselbe Taste es wieder.
+			kriechen = false
+		elif am_boden and staerke <= 0.1 and sliding <= 0.0:
+			# Ohne Richtung ist die Slide-Taste der Schalter fürs Krabbeln.
+			# Ein Slide aus dem Stand hätte keine Richtung und wäre nur ein
+			# Zucken auf der Stelle – die Taste war dort bisher wirkungslos.
+			kriechen = true
+		elif am_boden and staerke > 0.1 and sliding <= 0.0:
 			sliding = SLIDE_TIME
 			_slide_dir = Vector3(eingabe.x, 0.0, eingabe.y).normalized()
 			Klang.spiele("slide")
@@ -142,6 +158,9 @@ func _physics_process(delta: float) -> void:
 
 	# --- Sprung ---
 	if InputHub.sprung_gedrueckt():
+		# Wer springt, richtet sich auf – sonst hinge die Figur im
+		# Krabbeln in der Luft und käme mit der flachen Hitbox wieder auf.
+		kriechen = false
 		if am_boden:
 			# Sprung aus dem Slide heraus geht höher
 			var aus_slide := sliding > 0.0
@@ -208,11 +227,21 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	if is_instance_valid(_modell):
 		_modell.setze_blick(_blick_y)
-		_modell.aktualisiere(delta, _tempo, not is_on_floor(), sliding, spinning)
+		_modell.aktualisiere(delta, _tempo, not is_on_floor(), sliding, spinning,
+				haltung())
 		_modell.sichtbarkeit(invuln <= 0.0 or fmod(invuln, 0.2) > 0.1)
 
 
 # ---------------------------------------------------------- Schnittstelle
+
+## Haltung der Figur, die das Modell als Clip zeigt.
+##
+## Leer heißt: Das Modell entscheidet selbst aus Tempo, Luft, Slide und
+## Spin. Die Schienenfiguren überschreiben das – wer auf einer Wildkatze
+## sitzt, soll nicht so tun, als liefe er.
+func haltung() -> String:
+	return "krabbeln" if kriechen else ""
+
 
 ## Aktuell laufende Angriffsarten als Bitmaske (siehe scripts/angriff.gd).
 ## Gegner und Kisten fragen das ab, um zu entscheiden, ob sie getroffen sind.
@@ -295,6 +324,7 @@ func respawn() -> void:
 	sliding = 0.0
 	spinning = 0.0
 	slamming = false
+	kriechen = false
 	can_djump = false
 	gesperrt = false
 	_kein_jump_cut = false
@@ -318,7 +348,9 @@ func respawn() -> void:
 
 ## Schaltet zwischen normaler und halbierter Hitbox um.
 func _hitbox_aktualisieren() -> void:
-	var im_slide := sliding > 0.0
+	# Beim Krabbeln dieselbe flache Hitbox wie im Slide – nur so kommt man
+	# unter etwas hindurch, und genau dafür ist das Krabbeln da.
+	var im_slide := sliding > 0.0 or kriechen
 	if im_slide == _slide_hitbox_aktiv:
 		return
 	_slide_hitbox_aktiv = im_slide

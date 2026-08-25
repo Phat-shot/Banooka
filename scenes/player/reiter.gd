@@ -161,8 +161,13 @@ func _process(delta: float) -> void:
 	if figur == null:
 		return
 	figur.setze_blick(0.0)
-	figur.aktualisiere(delta, 0.25, _in_luft, 0.0, 0.0)
+	figur.aktualisiere(delta, 0.25, _in_luft, 0.0, 0.0, haltung())
 	figur.sichtbarkeit(invuln <= 0.0 or fmod(invuln, 0.2) > 0.1)
+
+
+## Auf der Wildkatze wird geritten, nicht gelaufen.
+func haltung() -> String:
+	return "reiten"
 
 
 func _grenze_bei(s: float) -> float:
