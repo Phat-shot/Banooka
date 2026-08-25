@@ -87,9 +87,10 @@ func _setze_fertiges_modell() -> bool:
 		Art.BLUME:
 			auswahl = ["flower_redA", "flower_yellowA", "flower_purpleA"]
 		_:
-			# plant_flat* sind flache Blattkarten – als Farn am Boden
-			# werden sie zu breiten Keilen. Deshalb nur Buschwerk.
-			auswahl = ["grass_leafs", "grass_leafsLarge", "plant_bushSmall"]
+			# Nur echtes Buschwerk. plant_flat* UND grass_leafs* sind
+			# gekreuzte Flächen ohne Tiefe; auf Farngröße gebracht standen
+			# sie als große türkise Blattkarten quer im Bild.
+			auswahl = ["plant_bushSmall", "plant_bush", "plant_bushDetailed"]
 	var modell := Fremdmodelle.waehle(auswahl, _rng, groesse)
 	if modell == null:
 		return false

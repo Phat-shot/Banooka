@@ -20,6 +20,10 @@ extends Node
 ##   FOTO_RADIUS   nur orbit: Abstand zur Mitte (Vorgabe 26)
 ##   FOTO_HOEHE    nur orbit: Höhe über der Mitte (Vorgabe 14)
 ##   FOTO_ASSETS   0 = mitgelieferte Naturmodelle aus, prozedural bauen
+##   FOTO_SEITLICH seitlicher Versatz der Figur vom Wegmittelpunkt in Metern
+##                 (nur verfolger/seite/nah) – zeigt, wie stark die Kamera
+##                 seitliche Bewegungen mitnimmt
+##   FOTO_SEITENFAKTOR  überschreibt `seiten_faktor` der Korridorkamera
 
 const STANDARD_STELLEN := "4,24,50,60,86,112,136,162,192,216,233"
 const STANDARD_WINKEL := "0,72,144,216,288"
@@ -55,8 +59,19 @@ func _ready() -> void:
 		await get_tree().process_frame
 
 	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
-	if _spieler != null and "gesperrt" in _spieler:
-		_spieler.gesperrt = true
+	if _spieler != null:
+		if "gesperrt" in _spieler:
+			_spieler.gesperrt = true
+		# Vollständig stilllegen. `gesperrt` allein reicht nicht: Die Figur
+		# fällt weiter und löst Gefahren aus. Beim Fotografieren wird sie an
+		# beliebige Stellen gesetzt – im Stachelfeld bei 106 m starb sie
+		# sofort und landete wieder am Checkpoint, sodass JEDES Bild die
+		# Startstelle zeigte, egal welche Strecke angefordert war.
+		_spieler.set_physics_process(false)
+		var koerper := _spieler as CollisionObject3D
+		if koerper != null:
+			koerper.collision_layer = 0
+			koerper.collision_mask = 0
 	# Zum Prüfen der Schutzmasken: FOTO_SCHUTZ=3 gibt drei Ladungen.
 	if not OS.get_environment("FOTO_SCHUTZ").is_empty():
 		GameState.schutz = int(OS.get_environment("FOTO_SCHUTZ"))
@@ -75,6 +90,10 @@ func _ready() -> void:
 		_eigene_kamera()
 	else:
 		_kamera = _finde_kamera(_szene)
+		if _kamera != null and "seiten_faktor" in _kamera \
+				and not OS.get_environment("FOTO_SEITENFAKTOR").is_empty():
+			_kamera.set("seiten_faktor",
+					float(OS.get_environment("FOTO_SEITENFAKTOR")))
 
 	var stellen := OS.get_environment("FOTO_STELLEN")
 	if stellen.is_empty():
@@ -119,7 +138,10 @@ func _fotografiere(stellen: PackedStringArray, modus: String) -> void:
 					sin(winkel) * radius, hoehe, cos(winkel) * radius)
 			_kamera.look_at(mitte + Vector3.UP * 1.5, Vector3.UP)
 		elif _verlauf != null:
-			var mitte: Vector3 = LevelWerkzeuge.punkt(_verlauf, wert, 0.0, 0.0)
+			var quer_versatz := 0.0
+			if not OS.get_environment("FOTO_SEITLICH").is_empty():
+				quer_versatz = float(OS.get_environment("FOTO_SEITLICH"))
+			var mitte: Vector3 = LevelWerkzeuge.punkt(_verlauf, wert, quer_versatz, 0.0)
 			if _spieler != null:
 				_spieler.global_position = mitte + Vector3.UP * 1.0
 				# Die Verfolgerkamera zieht dem versetzten Spieler nicht von
