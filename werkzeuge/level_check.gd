@@ -48,6 +48,10 @@ func _ready() -> void:
 	_pruefe_baeume()
 	_pruefe_gegner_patrouille()
 	await _pruefe_absturz()
+	if not _hat_verlauf():
+		print("  HINWEIS  kurvenloses Level: Boden-, Patrouillen- und")
+		print("           Sturzproben entfallen – sie messen alle gegen den")
+		print("           Levelverlauf, und den gibt es hier nicht.")
 	print("=== %d Fehler, %d Warnungen ===" % [_fehler, _warnungen])
 	get_tree().quit(1 if _fehler > 0 else 0)
 
@@ -188,6 +192,9 @@ func _pruefe_absturz() -> void:
 	# In Ritt- und Fluchtleveln klebt der Spieler auf der Kurve und setzt
 	# seine Position jedes Bild neu – er lässt sich gar nicht neben den Pfad
 	# fallen. Die Probe meldete dort sechs Fehler, wo keiner war.
+	if verlauf == null:
+		print("  Absturzzone: entfällt (kurvenloses Level)")
+		return
 	if spieler != null and "boden_pruefer" in spieler:
 		print("  Absturzzone: entfällt (Schienenlevel, kein Sturz möglich)")
 		return
@@ -228,9 +235,24 @@ func _pruefe_absturz() -> void:
 		GameState.leben = 3
 	print("  Absturzzone: %d von %d Stichproben fehlgeschlagen" % [misslungen, stellen.size()])
 
+## Hat dieses Level überhaupt einen Verlauf?
+##
+## Ein Flugniveau wie Level 22 hat keinen: kein Korridor, keine Kurve,
+## kein Boden. Alle Proben, die gegen den Verlauf messen, sind dort nicht
+## etwa bestanden oder durchgefallen – sie sind sinnlos. Der Prüfstand
+## meldete stattdessen sechs Stürze in ein Level, das aus nichts als Luft
+## besteht. Eine Prüfung, die aus Unzuständigkeit einen Fehler macht,
+## verdirbt jede Gesamtmeldung, in der sie steht.
+func _hat_verlauf() -> bool:
+	return _level.get("verlauf") != null
+
+
 ## Wandelt eine Weltposition in die Strecke auf dem Levelverlauf um.
+## Ohne Verlauf gibt es keine Strecke; -1 heißt "nicht anwendbar".
 func _strecke(pos: Vector3) -> float:
 	var verlauf = _level.get("verlauf")
+	if verlauf == null:
+		return -1.0
 	return verlauf.get_closest_offset(pos)
 
 
