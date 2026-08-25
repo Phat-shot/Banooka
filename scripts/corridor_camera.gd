@@ -59,6 +59,10 @@ var _hoehe_versatz := 0.0
 
 
 func _ready() -> void:
+	# Die Kamera wird selbst im Bildtakt gesetzt. Godot darf sie deshalb
+	# nicht zusätzlich interpolieren, sonst hinkt sie einen Physikschritt
+	# hinterher und alles fühlt sich schwammig an.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_ziel_suchen()
 	sofort_ausrichten()
 
@@ -89,7 +93,11 @@ func _process(delta: float) -> void:
 
 
 func _folgen(delta: float) -> void:
-	var p := _ziel.global_position
+	# Interpoliert lesen: `global_position` liefert die Stellung des
+	# letzten Physikschritts, also eine Treppe mit 60 Stufen je Sekunde.
+	# Die Kamera läuft im Bildtakt und würde diese Treppe sonst getreu
+	# nachfahren – genau das nimmt man als Ruckeln der Umgebung wahr.
+	var p := _ziel.get_global_transform_interpolated().origin
 	var wunsch: Vector3
 	var blickziel: Vector3
 

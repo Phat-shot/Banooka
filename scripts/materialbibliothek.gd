@@ -714,32 +714,67 @@ static func eis() -> StandardMaterial3D:
 
 # ---------------------------------------------------------------- Umgebung
 
-## Waldweg: warme, festgetretene Waldboden-Erde mit eingestreuten Steinen,
-## Kies und angedeuteten Trampelspuren. Bewusst hell und ockerfarben –
-## das Himmels-Ambiente zieht dunkle Erde sonst ins Graublaue.
+## Waldweg: warme, festgetretene Waldboden-Erde mit Trittspuren,
+## eingetretenen Steinchen und feuchten Senken.
+##
+## Der Weg ist die Fläche, die der Spieler am längsten ansieht – er
+## bekommt deshalb die feinste Zeichnung im Level. Zugleich ist er
+## Spielfläche: Löcher, Kanten und Kisten müssen sich davon abheben.
+## Darum liegt die Farbleiter eng und das Relief flach. Alles, was laut
+## wäre, gehört an die Wand, nicht unter die Füße.
+##
+## Bewusst hell und ockerfarben – das Himmels-Ambiente zieht dunkle Erde
+## sonst ins Graublaue.
 static func waldweg() -> StandardMaterial3D:
 	return _hole("waldweg", func() -> StandardMaterial3D: return _baue_waldweg())
 
 
+## Zur Laufrichtung der Spuren: Die Weg-Meshes tragen keine eigenen UVs,
+## die Textur wird über die Weltachsen projiziert (siehe
+## `LevelWerkzeuge._dreieck`). Eine einzige Streckrichtung liefe deshalb
+## in jeder Kurve quer über den Weg. Also entstehen zwei gestreckte
+## Rauschfelder – eines längs X, eines längs Z – die ein sehr grobes
+## Rauschen weich gegeneinander ausblendet. Die Spuren wechseln die
+## Richtung dadurch nur allmählich und über mehrere Meter – sie stehen
+## nirgends quer zum Weg und fallen als Muster nicht auf.
 static func _baue_waldweg() -> StandardMaterial3D:
-	var k := 256
+	# 384 Pixel statt 256, bei entsprechend größerer Kachel: die
+	# Punktdichte bleibt gleich, aber die Wiederholung liegt weiter
+	# auseinander. Mit 1,8 m Kachellänge war das Muster auf dem breiten
+	# Weg als Wiederholung zu erkennen.
+	var k := 384
 	var gross := _fbm(1101, 0.006, 4, k)
 	var mittel := _fbm(1102, 0.024, 4, k, 24.0)
 	var fein := _fbm(1103, 0.13, 3, k)
 	var korn := _fbm(1104, 0.44, 2, k)
+	# Trittspuren in beiden Weltachsen samt Maske, die zwischen ihnen wählt
+	var spur_z := _gestreckt(1107, 0.038, 2, k, 1, 8)
+	var spur_x := _gestreckt(1117, 0.038, 2, k, 8, 1)
+	# Feines Scharren in derselben Richtung – der Weg ist nicht poliert
+	var schliere_z := _gestreckt(1119, 0.17, 2, k, 1, 4)
+	var schliere_x := _gestreckt(1129, 0.17, 2, k, 4, 1)
+	var richtung := _fbm(1118, 0.007, 2, k, 30.0)
 	var stein_d := _zellen(1105, 0.042, k, FastNoiseLite.RETURN_DISTANCE, 6.0)
 	var stein_w := _zellen(1105, 0.042, k, FastNoiseLite.RETURN_CELL_VALUE, 6.0)
 	var kies_d := _zellen(1106, 0.135, k, FastNoiseLite.RETURN_DISTANCE)
 	var kies_w := _zellen(1106, 0.135, k, FastNoiseLite.RETURN_CELL_VALUE)
 	# steuert, wo überhaupt Kies liegt – sonst wirkt der Weg wie Mohnkuchen
 	var streuung := _fbm(1108, 0.013, 3, k, 16.0)
-	# Trampelspur: entlang der Levelachse gestreckte Aufhellung
-	var spur := _gestreckt(1107, 0.05, 3, k, 1, 6)
+	# Feuchte Senken: große, weich auslaufende Flecken
+	var feuchte := _fbm(1109, 0.009, 3, k, 30.0)
 
-	var d := Farben.WEG_DUNKEL
-	var h := Farben.WEG_HELL
-	var s0 := Farben.KIES
-	var s1 := Farben.KIES_HELL
+	# Engere Leiter als früher: der tiefste Ton bleibt deutlich über der
+	# reinen Schattenfarbe, sonst liest sich ein dunkler Fleck aus der
+	# Entfernung wie ein Loch im Weg.
+	var d := Farben.WEG_DUNKEL.lerp(Farben.WEG, 0.22)
+	var h := Farben.WEG.lerp(Farben.WEG_HELL, 0.92)
+	# Steine im Weg sind erdig, nicht bläulich – reiner Kiesgrau sah aus
+	# wie aufgeklebter Kaugummi.
+	var s0 := Farben.KIES.lerp(Farben.WEG_DUNKEL, 0.40)
+	var s1 := Farben.KIES_HELL.lerp(Farben.WEG, 0.25)
+	# Nasse Erde ist dunkel und satt, nicht grau – sonst sieht der feuchte
+	# Fleck aus wie Asche.
+	var nassfarbe := Farben.WEG_DUNKEL.darkened(0.34)
 
 	var farbe := PackedByteArray()
 	farbe.resize(k * k * 3)
@@ -756,50 +791,101 @@ static func _baue_waldweg() -> StandardMaterial3D:
 		var mi := mittel[i] * _B
 		var f := fein[i] * _B
 		var g := korn[i] * _B
-		var sp := spur[i] * _B
 
-		# Grundton der Erde – festgetreten in der Spur, lockerer daneben
-		var mix := 0.28 * t + 0.42 * mi + 0.18 * f + 0.12 * g
-		mix = clampf((mix - 0.23) * 1.95, 0.0, 1.0)
-		mix = clampf(mix * (0.82 + 0.34 * sp), 0.0, 1.0)
+		# Die Maske blendet weich über: hart umgeschaltet zerfiel die
+		# Fläche in rechteckige Felder, in denen die Spuren mal quer, mal
+		# längs lagen – das las sich als Flickenteppich.
+		var w := clampf((richtung[i] * _B - 0.5) * 2.2 + 0.5, 0.0, 1.0)
+		# Das feine Rauschen verzieht die Spur seitlich: schnurgerade
+		# Linien über zwei Meter lesen sich als Bretterfuge, nicht als Weg.
+		var sp := lerpf(spur_z[i] * _B, spur_x[i] * _B, w) + (f - 0.5) * 0.16
+		var kratz := lerpf(schliere_z[i] * _B, schliere_x[i] * _B, w) - 0.5
+
+		# Aus dem gestreckten Rauschen macht die Gratfunktion eine Bahn.
+		# Zwei Stufen: die breite, flache Mulde, in der der Weg überhaupt
+		# eingelaufen ist, und darin die schmale Rille, in der die Füße
+		# tatsächlich gehen. Eine Stufe allein liest sich als Schatten,
+		# zwei lesen sich als Spur.
+		var grat := 1.0 - absf(clampf(sp, 0.0, 1.0) * 2.0 - 1.0)
+		var rinne := smoothstep(0.20, 0.88, grat)
+		var rille := smoothstep(0.66, 0.99, grat)
+
+		# Grundton der Erde. In der Spur ist sie festgetreten: dunkler
+		# und glatter als der lockere Grund daneben.
+		var erde := clampf((0.20 * t + 0.44 * mi + 0.22 * f + 0.14 * g - 0.24)
+				* 1.85, 0.0, 1.0)
+		var mix := clampf(erde * (1.0 - 0.30 * rinne - 0.16 * rille) + 0.06
+				+ kratz * 0.07, 0.0, 1.0)
 
 		var cr := d.r + (h.r - d.r) * mix
 		var cg := d.g + (h.g - d.g) * mix
 		var cb := d.b + (h.b - d.b) * mix
-		var hh := 0.34 + 0.30 * mix + 0.24 * f + 0.12 * g
-		var ro := 0.95 - 0.09 * f
+		# Spuren und Scharren bleiben in der Farbe und gehen nicht ins
+		# Relief. In der Höhenkarte webten sich die beiden Streckrichtungen
+		# zu einem Flechtmuster – der Weg sah aus wie ein Korbboden. Die
+		# Mulde einer Trittspur ist ohnehin einen Meter breit und wenige
+		# Zentimeter tief; die trägt eine Normalmap nicht, das machen Farbe
+		# und Verdeckung. Die Höhe trägt nur Erdklumpen und Korn.
+		var hh := 0.42 + 0.15 * erde + 0.14 * f + 0.08 * g
+		var ro := 0.95 - 0.07 * f - 0.14 * rinne - 0.10 * rille
+		var saumschatten := 0.14 * rinne + 0.12 * rille
 		var dichte := clampf((streuung[i] * _B - 0.24) * 2.4, 0.0, 1.0)
 
-		# Grobe Steine im Weg
-		var sd := stein_d[i] * _B
-		if sd < 0.24:
-			var sw := stein_w[i] * _B
-			var sel := clampf((sw - 0.46) * 3.2, 0.0, 1.0) * dichte
-			var a := clampf((0.24 - sd) * 11.0, 0.0, 1.0) * sel
-			if a > 0.0:
-				var sn := 0.30 + 0.70 * sw
-				var kr := s0.r + (s1.r - s0.r) * sn
-				var kg := s0.g + (s1.g - s0.g) * sn
-				var kb := s0.b + (s1.b - s0.b) * sn
-				cr += (kr - cr) * a
-				cg += (kg - cg) * a
-				cb += (kb - cb) * a
-				hh += (0.42 + 0.26 * sw - hh) * a * 0.9
-				ro -= 0.26 * a
+		# Eingetretene Steine. Sie stehen kaum vor – was sie sichtbar
+		# macht, ist der Saum: die Erde ringsum ist hochgedrückt und liegt
+		# im Schatten. Ein Stein, der auf dem Weg klebt statt darin zu
+		# stecken, sieht aus wie ein Aufkleber.
+		var sd := stein_d[i] * _B + (f - 0.5) * 0.07   # ausgefranster Umriss
+		var sw := stein_w[i] * _B
+		var sel := clampf((sw - 0.44) * 3.0, 0.0, 1.0) * dichte
+		if sel > 0.0 and sd < 0.30:
+			# Der Zellwert bestimmt zugleich die Größe: gleich große
+			# Kiesel lesen sich als Muster, nicht als Streu.
+			var radius := 0.09 + 0.15 * sw
+			var koerper := smoothstep(radius, radius * 0.45, sd) * sel
+			var saum := maxf(smoothstep(radius * 1.9, radius, sd) - koerper,
+					0.0) * sel
+			if koerper > 0.0:
+				var sn := 0.25 + 0.75 * sw
+				cr += (s0.r + (s1.r - s0.r) * sn - cr) * koerper
+				cg += (s0.g + (s1.g - s0.g) * sn - cg) * koerper
+				cb += (s0.b + (s1.b - s0.b) * sn - cb) * koerper
+				hh += (0.56 + 0.10 * sw - hh) * koerper * 0.55
+				ro -= 0.26 * koerper
+			if saum > 0.0:
+				cr -= cr * 0.26 * saum
+				cg -= cg * 0.26 * saum
+				cb -= cb * 0.26 * saum
+				hh -= 0.10 * saum
+				saumschatten += 0.34 * saum
 
-		# Feiner Kies / Grus
+		# Feiner Grus zwischen den Steinen: nur ein Aufblitzen im Korn,
+		# keine eigene Form.
 		var gd := kies_d[i] * _B
 		if gd < 0.22:
 			var gw := kies_w[i] * _B
 			var sel2 := clampf((gw - 0.62) * 3.4, 0.0, 1.0) * dichte
-			var a2 := clampf((0.22 - gd) * 13.0, 0.0, 1.0) * sel2 * 0.7
+			var a2 := clampf((0.22 - gd) * 13.0, 0.0, 1.0) * sel2 * 0.6
 			if a2 > 0.0:
 				var kh := 0.46 + 0.36 * gw
 				cr += (Farben.KIES_HELL.r * kh + 0.10 - cr) * a2
 				cg += (Farben.KIES_HELL.g * kh + 0.09 - cg) * a2
 				cb += (Farben.KIES_HELL.b * kh + 0.07 - cb) * a2
-				hh += 0.22 * a2
-				ro -= 0.14 * a2
+				hh += 0.16 * a2
+				ro -= 0.12 * a2
+
+		# Feuchte Stellen: dunkler und glatter, mit weichem Rand. Sie
+		# sammeln sich in den Spuren, dort steht das Wasser. Der Glanz ist
+		# wichtiger als die Dunkelheit – ein zu dunkler Fleck auf der
+		# Spielfläche liest sich als Loch.
+		var nass := clampf((feuchte[i] * _B - 0.52) * 2.8, 0.0, 1.0)
+		nass *= 0.40 + 0.35 * rinne + 0.25 * rille
+		if nass > 0.0:
+			cr += (nassfarbe.r - cr) * nass * 0.55
+			cg += (nassfarbe.g - cg) * nass * 0.55
+			cb += (nassfarbe.b - cb) * nass * 0.55
+			ro -= 0.52 * nass
+			hh -= 0.05 * nass
 
 		farbe[j] = int(clampf(cr, 0.0, 1.0) * 255.0)
 		farbe[j + 1] = int(clampf(cg, 0.0, 1.0) * 255.0)
@@ -807,36 +893,57 @@ static func _baue_waldweg() -> StandardMaterial3D:
 		j += 3
 		hh = clampf(hh, 0.0, 1.0)
 		hoehe[i] = int(hh * 255.0)
-		rau[i] = int(clampf(ro, 0.2, 1.0) * 255.0)
-		ao[i] = int((0.70 + 0.30 * hh) * 255.0)
+		rau[i] = int(clampf(ro, 0.24, 1.0) * 255.0)
+		ao[i] = int(clampf(0.76 + 0.24 * hh - saumschatten, 0.0, 1.0) * 255.0)
 
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = _farbtextur(farbe, k)
-	_karten_setzen(m, hoehe, rau, ao, k, 2.4, 1.4)
+	# Ruhigeres Relief als früher (2,4 / 1,4): das kräftige Normalbild hat
+	# aus jedem Korn einen eigenen Schatten gemacht, und der Weg flimmerte
+	# in der Bewegung.
+	_karten_setzen(m, hoehe, rau, ao, k, 2.0, 1.05)
 	m.uv1_triplanar = true
 	m.uv1_triplanar_sharpness = 1.8
-	m.uv1_scale = Vector3(0.55, 0.55, 0.55)
+	# 384 Pixel auf rund 2,7 m Weg – etwa 7 mm je Bildpunkt.
+	m.uv1_scale = Vector3(0.37, 0.37, 0.37)
 	return m
 
 
-## Grasnarbe: satte Rasenfläche mit Halmstruktur, Büscheln und
-## Farbvariation von tiefgrün bis strohig.
+## Grasnarbe für die Wegkante: Halme in Büscheln, dazwischen Erde, die
+## durchscheint.
+##
+## Die Kante ist der Übergang vom Weg zum Rand – vorher lag dort ein
+## sattgrüner Streifen wie mit dem Lineal an die Erde gelegt. Zwei Dinge
+## nehmen die Härte heraus: kahle Erdflecken im Grün, an denen der Saum
+## ausfranst, und ein deutlich ruhigerer Grünton. Sattes Grün gehört ins
+## Blattwerk über dem Weg, nicht auf die Fläche direkt daneben, wo es mit
+## den Früchten und Kisten um Aufmerksamkeit streitet.
 static func gras() -> StandardMaterial3D:
 	return _hole("gras", func() -> StandardMaterial3D: return _baue_gras())
 
 
 static func _baue_gras() -> StandardMaterial3D:
-	var k := 256
+	var k := 320
 	var gross := _fbm(2201, 0.009, 3, k)
 	var klumpen := _zellen(2202, 0.045, k, FastNoiseLite.RETURN_CELL_VALUE, 20.0)
-	var halm_a := _gestreckt(2203, 0.13, 2, k, 1, 7)
-	var halm_b := _gestreckt(2204, 0.11, 2, k, 7, 1)
-	var fein := _fbm(2205, 0.30, 2, k)
+	# Halme in zwei Richtungen, dazwischen blendet ein grobes Rauschen
+	# über – wie beim Weg, und aus demselben Grund: die Fläche wird über
+	# die Weltachsen projiziert, eine feste Strichrichtung gäbe es nicht.
+	var halm_a := _gestreckt(2203, 0.22, 2, k, 1, 9)
+	var halm_b := _gestreckt(2204, 0.19, 2, k, 9, 1)
+	var richtung := _fbm(2207, 0.011, 2, k, 22.0)
+	var fein := _fbm(2205, 0.34, 2, k)
 	var trocken := _fbm(2206, 0.016, 3, k, 18.0)
+	var kahl := _fbm(2208, 0.021, 3, k, 26.0)
 
-	var d := Farben.GRAS_DUNKEL
-	var h := Farben.GRAS_HELL
+	# Gedämpfte Leiter: weder das tiefe Schattengrün noch das grelle
+	# Hellgrün werden ganz erreicht.
+	var d := Farben.GRAS_DUNKEL.lerp(Farben.GRAS, 0.30)
+	var h := Farben.GRAS.lerp(Farben.GRAS_HELL, 0.50)
 	var tr := Farben.GRAS_TROCKEN
+	# Erde unter der Narbe: derselbe Ton wie der Wegrand, damit der
+	# Übergang keine Farbgrenze ist.
+	var bo := Farben.ERDE.lerp(Farben.WEG_DUNKEL, 0.45)
 
 	var farbe := PackedByteArray()
 	farbe.resize(k * k * 3)
@@ -851,41 +958,152 @@ static func _baue_gras() -> StandardMaterial3D:
 	for i in k * k:
 		var t := gross[i] * _B
 		var kl := klumpen[i] * _B
-		var a := halm_a[i] * _B
-		var b := halm_b[i] * _B
 		var f := fein[i] * _B
 
-		# Halme: die stärkere der beiden Richtungen gibt den Strich vor
-		var halm := a if a > b else b
-		var mix := 0.30 * t + 0.34 * halm + 0.22 * kl + 0.14 * f
-		mix = clampf((mix - 0.26) * 2.05, 0.0, 1.0)
+		var w := clampf((richtung[i] * _B - 0.5) * 6.0 + 0.5, 0.0, 1.0)
+		var s := lerpf(halm_a[i] * _B, halm_b[i] * _B, w)
+		# Gratfunktion: aus weichem Rauschen werden einzelne Halme
+		var halm := 1.0 - absf(s * 2.0 - 1.0)
+		halm = halm * halm
+
+		var mix := 0.26 * t + 0.32 * halm + 0.24 * kl + 0.18 * f
+		mix = clampf((mix - 0.22) * 1.85, 0.0, 1.0)
 
 		var cr := d.r + (h.r - d.r) * mix
 		var cg := d.g + (h.g - d.g) * mix
 		var cb := d.b + (h.b - d.b) * mix
 
+		# Ein Hauch Stroh liegt überall im Gras – reines Grün wirkt gedruckt
+		cr += (tr.r - cr) * 0.12
+		cg += (tr.g - cg) * 0.12
+		cb += (tr.b - cb) * 0.12
+
 		# Strohige Flecken lockern das Einheitsgrün auf
-		var tk := clampf((trocken[i] * _B - 0.62) * 3.6, 0.0, 1.0) * 0.75
+		var tk := clampf((trocken[i] * _B - 0.60) * 3.4, 0.0, 1.0) * 0.55
 		if tk > 0.0:
 			cr += (tr.r - cr) * tk
 			cg += (tr.g - cg) * tk
 			cb += (tr.b - cb) * tk
 
-		var hh := clampf(0.20 + 0.52 * halm + 0.18 * kl + 0.16 * f, 0.0, 1.0)
+		# Kahle Stellen: zwischen den Büscheln steht die Erde offen.
+		var ka := clampf((kahl[i] * _B - 0.56) * 3.0, 0.0, 1.0) * (1.0 - 0.55 * halm)
+		var hh := 0.20 + 0.48 * halm + 0.18 * kl + 0.14 * f
+		if ka > 0.0:
+			cr += (bo.r - cr) * ka * 0.75
+			cg += (bo.g - cg) * ka * 0.75
+			cb += (bo.b - cb) * ka * 0.75
+			hh -= 0.16 * ka
+
 		farbe[j] = int(clampf(cr, 0.0, 1.0) * 255.0)
 		farbe[j + 1] = int(clampf(cg, 0.0, 1.0) * 255.0)
 		farbe[j + 2] = int(clampf(cb, 0.0, 1.0) * 255.0)
 		j += 3
+		hh = clampf(hh, 0.0, 1.0)
 		hoehe[i] = int(hh * 255.0)
-		rau[i] = int(clampf(0.98 - 0.14 * mix, 0.5, 1.0) * 255.0)
-		ao[i] = int((0.52 + 0.48 * hh) * 255.0)
+		rau[i] = int(clampf(0.98 - 0.12 * mix, 0.5, 1.0) * 255.0)
+		ao[i] = int((0.54 + 0.46 * hh) * 255.0)
 
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = _farbtextur(farbe, k)
-	_karten_setzen(m, hoehe, rau, ao, k, 2.0, 1.2)
+	_karten_setzen(m, hoehe, rau, ao, k, 2.2, 1.1)
 	m.uv1_triplanar = true
 	m.uv1_triplanar_sharpness = 1.6
 	m.uv1_scale = Vector3(0.7, 0.7, 0.7)
+	return m
+
+
+## Pfütze: stehendes Regenwasser auf dem Weg.
+##
+## Kein Wasserkörper, sondern eine Deckschicht. Gedacht ist sie so: Das
+## Level legt ein flaches Blatt (Quad oder sehr flacher Quader, ohne
+## Kollision) rund zwei Zentimeter über die Wegfläche; das Material
+## dunkelt den Weg darunter ab und legt einen Glanz darauf. Die Textur
+## bringt Grund und Durchsicht mit: Wo sie tief ist, deckt sie fast ganz,
+## zum flachen Rand hin scheint die Wegfarbe durch. Das Blatt darunter
+## darf deshalb ruhig eckig sein, die Pfütze wirkt trotzdem gewachsen.
+##
+## Der Glanz kommt allein von der Sonne: `gl_compatibility` kennt keine
+## Spiegelungssonden, eine glatte Fläche bliebe sonst schlicht dunkel.
+## Darum niedrige Rauheit und eine sehr flache Normalmap mit
+## Kräuselwellen, an denen sich das Licht bricht.
+##
+## Eine Pfütze ist Schmuck, keine Gefahr: keine Kollision, kein Schaden.
+## Wer Wasser als Hindernis braucht, nimmt `Wasser.tscn`.
+static func pfuetze() -> StandardMaterial3D:
+	return _hole("pfuetze", func() -> StandardMaterial3D: return _baue_pfuetze())
+
+
+static func _baue_pfuetze() -> StandardMaterial3D:
+	var k := 256
+	# Kräuselwellen, lang gezogen – vom Wind getrieben liegen sie in
+	# Bahnen, nicht als gleichmäßige Punkte.
+	var welle := _gestreckt(1301, 0.09, 3, k, 6, 1)
+	var welle_quer := _gestreckt(1302, 0.15, 2, k, 1, 5)
+	var kraus := _fbm(1303, 0.30, 3, k)
+	var tiefen := _fbm(1304, 0.014, 3, k, 26.0)
+	var schlick := _fbm(1306, 0.11, 2, k)
+
+	# Wo das Wasser tief steht, sieht man den Grund nicht mehr. Der
+	# Grund ist bewusst sehr dunkel: Was die Pfütze ausmacht, ist der
+	# Gegensatz zwischen dem dunklen Wasserkörper und dem hellen Glanz
+	# darauf. Ein mittelbrauner Grund ergibt nur einen matten Fleck.
+	var tief := Farben.WEG_DUNKEL.darkened(0.86)
+	var flach := Farben.WEG_DUNKEL.lerp(Farben.MOOR, 0.45).darkened(0.55)
+
+	# Vier Kanäle statt drei: Die Durchsicht gehört zur Textur, weil eine
+	# Pfütze am Rand ausläuft. Mit einem festen Alphawert für die ganze
+	# Fläche blieb das Blatt, auf dem sie liegt, als Rechteck erkennbar.
+	var farbe := PackedByteArray()
+	farbe.resize(k * k * 4)
+	var hoehe := PackedByteArray()
+	hoehe.resize(k * k)
+	var rau := PackedByteArray()
+	rau.resize(k * k)
+
+	var j := 0
+	for i in k * k:
+		var sl := schlick[i] * _B
+		var tiefe := clampf(tiefen[i] * _B * 1.3 - 0.12, 0.0, 1.0)
+		var c := flach.lerp(tief, tiefe)
+		# Schlick und Sand im flachen Rand hellen den Grund auf
+		var aufhellung := sl * 0.18 * (1.0 - tiefe)
+		farbe[j] = int(clampf(c.r + aufhellung, 0.0, 1.0) * 255.0)
+		farbe[j + 1] = int(clampf(c.g + aufhellung * 0.9, 0.0, 1.0) * 255.0)
+		farbe[j + 2] = int(clampf(c.b + aufhellung * 0.7, 0.0, 1.0) * 255.0)
+		# Nie ganz durchsichtig: sonst kann ein Level die Pfütze auf eine
+		# Stelle legen, an der gar nichts zu sehen ist.
+		farbe[j + 3] = int((0.52 + 0.44 * tiefe) * 255.0)
+		j += 4
+
+		var wl := welle[i] * _B * 0.58 + welle_quer[i] * _B * 0.42
+		var kr := kraus[i] * _B
+		hoehe[i] = int(clampf(0.46 + (wl - 0.5) * 0.7 + (kr - 0.5) * 0.22,
+				0.0, 1.0) * 255.0)
+		# Wellenrücken streuen das Licht, die Täler spiegeln – dieser
+		# Unterschied ist es, der die Fläche als Wasser lesbar macht.
+		# Nicht spiegelglatt: mit Rauheit unter 0,1 warf die Fläche das
+		# bläuliche Himmels-Ambiente als gleichmäßigen Schleier zurück und
+		# sah aus wie eine graue Plane.
+		rau[i] = int(clampf(0.13 + 0.24 * wl + 0.10 * kr, 0.0, 1.0) * 255.0)
+
+	var bild := Image.create_from_data(k, k, false, Image.FORMAT_RGBA8, farbe)
+	bild.generate_mipmaps()
+
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(bild)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.normal_enabled = true
+	m.normal_texture = _normal_aus_hoehe(hoehe, k, 1.1)
+	m.normal_scale = 0.55
+	m.roughness_texture = _grautextur(rau, k)
+	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	m.roughness = 1.0
+	m.metallic = 0.0
+	m.metallic_specular = 0.60
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.uv1_triplanar = true
+	m.uv1_triplanar_sharpness = 2.0
+	m.uv1_scale = Vector3(0.45, 0.45, 0.45)
 	return m
 
 

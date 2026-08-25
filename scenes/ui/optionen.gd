@@ -103,6 +103,7 @@ func _baue_menue() -> void:
 
 	_neuer_eintrag("Figur:  %s" % _figur_name(), _figur_weiter)
 	_neuer_eintrag("Größe:  %.2f ×" % Einstellungen.modell_groesse, _groesse_weiter)
+	_neuer_eintrag(_lautstaerke_text(), _lautstaerke_weiter)
 	if not Einstellungen.eigenes_modell.is_empty():
 		_neuer_eintrag("Blickrichtung:  %d°" % roundi(Einstellungen.modell_drehung),
 				_drehung_weiter)
@@ -232,6 +233,29 @@ func _figur_weiter(richtung: int = 1) -> void:
 ## sie hier zurecht.
 func _drehung_weiter(richtung: int = 1) -> void:
 	Einstellungen.drehe_weiter(90.0 * float(richtung))
+
+
+## Lautstärke in Zehnteln, ganz unten stumm. Ein Schieberegler wäre hier
+## fehl am Platz: Das Bild wird mit Pfeiltasten, Steuerkreuz und Fingertipp
+## bedient, und dafür ist ein Durchschalten in Stufen das Passende.
+func _lautstaerke_text() -> String:
+	if Klang.stumm or Klang.lautstaerke <= 0.001:
+		return "Lautstärke:  stumm"
+	return "Lautstärke:  %d %%" % roundi(Klang.lautstaerke * 100.0)
+
+
+func _lautstaerke_weiter(richtung: int = 1) -> void:
+	var stufe := roundi(Klang.lautstaerke * 10.0)
+	if Klang.stumm:
+		stufe = 0
+	stufe = posmod(stufe + richtung, 11)
+	Klang.stumm_schalten(stufe <= 0)
+	Klang.setze_lautstaerke(float(stufe) * 0.1)
+	# Gleich hörbar machen, sonst stellt man blind ein.
+	if stufe > 0:
+		Klang.spiele("frucht")
+	_baue_menue()
+	queue_redraw()
 
 
 func _groesse_weiter(richtung: int = 1) -> void:

@@ -132,24 +132,32 @@ func _physics_process(delta: float) -> void:
 		if am_boden and staerke > 0.1 and sliding <= 0.0:
 			sliding = SLIDE_TIME
 			_slide_dir = Vector3(eingabe.x, 0.0, eingabe.y).normalized()
+			Klang.spiele("slide")
 		elif not am_boden and not slamming:
 			slamming = true
 			velocity.y = SLAM_V
+			# Bewusst still: Bei SLAM_V dauert der Sturz oft nur ein paar
+			# Zehntelsekunden. Ein Zischen dazu würde noch dröhnen, wenn
+			# der Aufschlag längst zu hören ist.
 
 	# --- Sprung ---
 	if InputHub.sprung_gedrueckt():
 		if am_boden:
 			# Sprung aus dem Slide heraus geht höher
-			velocity.y = SLIDEJUMP_V if sliding > 0.0 else JUMP_V
+			var aus_slide := sliding > 0.0
+			velocity.y = SLIDEJUMP_V if aus_slide else JUMP_V
 			sliding = 0.0
 			can_djump = true
 			_kein_jump_cut = false
 			_fall_rest = 0.0
+			# Der Slide-Jump klingt eine Spur heller, weil er höher trägt.
+			Klang.spiele("sprung", 1.12 if aus_slide else 1.0)
 		elif can_djump and not slamming:
 			velocity.y = DJUMP_V
 			can_djump = false
 			spinning = maxf(spinning, DJUMP_SPIN_TIME)
 			_kein_jump_cut = false
+			Klang.spiele("doppelsprung")
 
 	# --- Variable Sprunghöhe: Taste losgelassen => kappen ---
 	# Abprallen von Feder-/Sprungkisten und Gegnern wird nicht gekappt.
@@ -162,6 +170,7 @@ func _physics_process(delta: float) -> void:
 		spinning = SPIN_TIME
 		_spin_geprueft = false
 		spin_gestartet.emit()
+		Klang.spiele("drehschlag")
 	if spinning > 0.0:
 		_spin_treffer()
 
@@ -180,6 +189,11 @@ func _physics_process(delta: float) -> void:
 
 	# --- Landung ---
 	if is_on_floor():
+		# `am_boden` stammt vom Anfang des Bildes, vor move_and_slide –
+		# der Vergleich trifft also genau den Moment des Aufsetzens und
+		# nicht jedes Bild, in dem die Figur schon steht.
+		if not am_boden:
+			Klang.spiele("aufschlag" if slamming else "landung")
 		can_djump = false
 		_kein_jump_cut = false
 		if slamming:
@@ -250,6 +264,7 @@ func abprallen(hoehe: float = ABPRALL_V) -> void:
 	can_djump = true
 	_kein_jump_cut = true
 	abgeprallt.emit()
+	Klang.spiele("abprall")
 
 
 ## Schaden nehmen. Während der Unverwundbarkeit wirkungslos.
@@ -263,12 +278,14 @@ func schaden_nehmen() -> void:
 		return
 	if GameState.schutz_verbrauchen():
 		invuln = INVULN_ZEIT
+		Klang.spiele("schaden")
 		return
 	sterben()
 
 
 func sterben() -> void:
 	gestorben.emit()
+	Klang.spiele("tod")
 	GameState.leben_verlieren()
 	respawn()
 
@@ -287,6 +304,10 @@ func respawn() -> void:
 	_kollision.set_deferred("disabled", false)
 	_kollision_slide.set_deferred("disabled", true)
 	global_position = GameState.checkpoint
+	# Nach einem Versetzen die Interpolation zurücksetzen, sonst zieht
+	# Godot eine Spur vom alten zum neuen Ort – bei einem Respawn quer
+	# durchs halbe Level.
+	reset_physics_interpolation()
 	# Kamera mitnehmen, sonst steht der Spieler kurz außerhalb des Bildes
 	var kamera := get_viewport().get_camera_3d()
 	if kamera != null and kamera.has_method("sofort_ausrichten"):

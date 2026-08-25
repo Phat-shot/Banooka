@@ -34,6 +34,7 @@ func _ready() -> void:
 	# Erst den Träger merken, dann abkoppeln – nach `top_level = true`
 	# ist die Elternverbindung im Transformbaum weg.
 	_traeger = get_parent() as Node3D
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	top_level = true          ## Position folgt, Drehung nicht
 	set_process(true)
 	GameState.schutz_geaendert.connect(_auf_schutz)
@@ -42,7 +43,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if is_instance_valid(_traeger):
-		global_position = _traeger.global_position
+		# Interpoliert lesen, sonst hüpfen die Masken im Physiktakt neben
+		# einer Figur her, die weich gezeichnet wird.
+		global_position = _traeger.get_global_transform_interpolated().origin
 	else:
 		_traeger = get_parent() as Node3D
 	if _masken.is_empty():

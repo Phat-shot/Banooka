@@ -156,6 +156,7 @@ func _spieler_setzen() -> void:
 		return
 	var start := LevelWerkzeuge.punkt(verlauf, start_strecke, 0.0, 0.6)
 	_spieler.global_position = start
+	_spieler.reset_physics_interpolation()
 	if _spieler.has_method("setze_blickrichtung"):
 		_spieler.call("setze_blickrichtung", LevelWerkzeuge.drehung(verlauf, start_strecke))
 	GameState.level_starten(start)

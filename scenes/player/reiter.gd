@@ -231,6 +231,10 @@ func respawn() -> void:
 	tempo = tempo_start
 	invuln = INVULN_ZEIT
 	_stellung_setzen()
+	# Nach einem Versetzen die Interpolation zurücksetzen, sonst zieht
+	# Godot eine Spur vom alten zum neuen Ort – bei einem Respawn quer
+	# durchs halbe Level.
+	reset_physics_interpolation()
 	# Kamera mitnehmen, sonst steht der Reiter kurz außerhalb des Bildes
 	var kamera := get_viewport().get_camera_3d()
 	if kamera != null and kamera.has_method("sofort_ausrichten"):

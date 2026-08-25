@@ -309,7 +309,7 @@ static func kurve_aus_punkten(punkte: Array, glaettung: float = 0.45) -> Curve3D
 static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		material: Material, optionen: Dictionary = {}) -> Node3D:
 	var schritt: float = optionen.get("schritt", 3.0)
-	var lagen: int = optionen.get("lagen", 4)        ## Blocklagen übereinander
+	var lagen: int = optionen.get("lagen", 4)        ## Blocklagen ÜBER dem Weg
 	var block: float = optionen.get("block", 3.2)    ## Grundmaß eines Blocks
 	var sockel: float = optionen.get("sockel", 6.0)  ## wie tief die unterste Lage reicht
 	var saat: int = optionen.get("saat", 1234)
@@ -325,19 +325,21 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 	wurzel.name = "Schluchtwand"
 	elternteil.add_child(wurzel)
 
-	# Je Seite drei Töpfe: Grundfels, Adern, Deckschicht.
+	# Je Seite vier Töpfe: Grundfels, Adern, Deckschicht, Geröll.
 	var je_seite := {}
 	for seite: float in [-1.0, 1.0]:
 		je_seite[seite] = {
 			"koerper": [] as Array[Transform3D],
 			"ader": [] as Array[Transform3D],
 			"deck": [] as Array[Transform3D],
+			"geroell": [] as Array[Transform3D],
 			# Je Block eine eigene Farbe. Ohne die trägt jeder Würfel
 			# dasselbe Muster in derselben Helligkeit, und eine Wand aus
 			# hundert gleichen Würfeln liest sich als Tapete.
 			"koerper_farbe": [] as Array[Color],
 			"ader_farbe": [] as Array[Color],
 			"deck_farbe": [] as Array[Color],
+			"geroell_farbe": [] as Array[Color],
 		}
 
 	var phase := float(saat % 360) * 0.017
@@ -356,12 +358,18 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 			var welle := sin(s * 0.20 + phase) * 0.6 + sin(s * 0.083 + phase * 1.7) * 0.4
 			var ist_ader := adermaterial != null and welle > aderdichte
 			for seite: float in [-1.0, 1.0]:
-				_wandbloecke(je_seite[seite], kurve, s, abstand, hoehe, seite,
-						lagen, block, sockel, wuerfel, ist_ader,
-						deckmaterial != null)
+				_wandbloecke(je_seite[seite], kurve, s, seite, wuerfel, {
+					"abstand": abstand, "hoehe": hoehe, "lagen": lagen,
+					"block": block, "sockel": sockel, "schritt": schritt,
+					"phase": phase, "ader": ist_ader,
+					"deck": deckmaterial != null,
+				})
 
 	var netz := BoxMesh.new()
 	netz.size = Vector3.ONE
+	# Ein Material nur einmal nachbauen: Grundfels und Geröll teilen sich
+	# denselben Stoff, zwei Fassungen kosteten nur zusätzliches Umschalten.
+	var stoffe := {}
 	for seite: float in [-1.0, 1.0]:
 		var wand := Node3D.new()
 		wand.name = "WandLinks" if seite < 0.0 else "WandRechts"
@@ -371,6 +379,7 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 			["Koerper", toepfe["koerper"], material, toepfe["koerper_farbe"]],
 			["Adern", toepfe["ader"], adermaterial, toepfe["ader_farbe"]],
 			["Deck", toepfe["deck"], deckmaterial, toepfe["deck_farbe"]],
+			["Geroell", toepfe["geroell"], material, toepfe["geroell_farbe"]],
 		]:
 			var stellen: Array[Transform3D] = teil[1]
 			if stellen.is_empty() or teil[2] == null:
@@ -389,17 +398,27 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 			var anzeige := MultiMeshInstance3D.new()
 			anzeige.name = teil[0]
 			anzeige.multimesh = haufen
-			# Eigene Fassung des Materials: Das gemeinsame aus der
-			# Materialbibliothek darf nicht verändert werden, es hängt an
-			# vielen anderen Stellen.
-			var stoff := (teil[2] as Material).duplicate() as BaseMaterial3D
-			if stoff != null:
-				stoff.vertex_color_use_as_albedo = true
-				anzeige.material_override = stoff
-			else:
-				anzeige.material_override = teil[2]
+			anzeige.material_override = _farbstoff(teil[2], stoffe)
 			wand.add_child(anzeige)
 	return wurzel
+
+
+## Eigene Fassung eines Materials, die die Blockfarben durchlässt.
+##
+## Das gemeinsame Material aus der Materialbibliothek darf nicht verändert
+## werden, es hängt an vielen anderen Stellen; deshalb eine Kopie. Das
+## Zwischenlager sorgt dafür, dass zwei Töpfe mit demselben Stoff auch
+## dieselbe Kopie bekommen.
+static func _farbstoff(material: Material, zwischenlager: Dictionary) -> Material:
+	if zwischenlager.has(material):
+		return zwischenlager[material]
+	var fertig: Material = material
+	var stoff := material.duplicate() as BaseMaterial3D
+	if stoff != null:
+		stoff.vertex_color_use_as_albedo = true
+		fertig = stoff
+	zwischenlager[material] = fertig
+	return fertig
 
 
 ## Farbe eines Wandblocks: dunkel am Schluchtgrund, hell an der Krone,
@@ -425,60 +444,263 @@ static func _wandfarbe(y: float, hoehe: float, sockel: float,
 	return Color(ton.r * helligkeit, ton.g * helligkeit, ton.b * helligkeit)
 
 
+## Langsame Welle über die Länge der Schlucht.
+##
+## Sie steuert, wie weit der Fels an einer Stelle vorspringt. Reiner Zufall
+## je Block ergibt eine gleichmäßig raue, aber eben doch gerade Wand; erst
+## eine Welle über zwanzig, dreißig Meter macht daraus Buchten und
+## Strebepfeiler. Die beiden Seiten laufen versetzt, sonst zöge sich die
+## Schlucht im Gleichtakt zusammen und wieder auseinander.
+static func _wandwelle(s: float, seite: float, phase: float) -> float:
+	var v := phase + (2.4 if seite > 0.0 else 0.0)
+	return sin(s * 0.11 + v) * 0.55 + sin(s * 0.29 + v * 1.7) * 0.30
+
+
+## Die Höhen, an denen die Blocklagen aneinanderstoßen – vom Fuß des
+## Sockels bis zur Krone.
+##
+## Über dem Weg liegen `lagen` Lagen, darunter `unter` gröbere: Der Sockel
+## ist meist doppelt so tief wie die Wand hoch, und mit derselben feinen
+## Teilung steckte die Hälfte aller Blöcke unsichtbar unter dem Weg.
+## Die Fugen werden gegeneinander versetzt, damit nicht alle Säulen auf
+## derselben Linie brechen.
+static func _lagengrenzen(krone: float, sockel: float, lagen: int, unter: int,
+		wuerfel: RandomNumberGenerator) -> Array[float]:
+	var grenzen: Array[float] = []
+	for k in unter:
+		grenzen.append(lerpf(-sockel, 0.0, float(k) / float(unter)))
+	for k in lagen + 1:
+		grenzen.append(lerpf(0.0, krone, float(k) / float(lagen)))
+	for k in range(1, grenzen.size() - 1):
+		var spanne := minf(grenzen[k] - grenzen[k - 1], grenzen[k + 1] - grenzen[k])
+		grenzen[k] += wuerfel.randf_range(-0.3, 0.3) * spanne
+	return grenzen
+
+
+## Ein einzelner, frei gedrehter Brocken.
+##
+## Gesetzt wird er über seine INNENKANTE, nicht über seine Mitte: Wie weit
+## ein gedrehter Kasten quer ausgreift, hängt von der Drehung ab. Wer
+## stattdessen die Mitte würfelt, hat den Brocken entweder im Weg stehen
+## oder unsichtbar im Fels versenkt. Also erst drehen, dann ausmessen,
+## dann setzen.
+static func _brocken(toepfe: Dictionary, topf: String, kurve: Curve3D, s: float,
+		seite: float, innen: float, y: float, groesse: Vector3, dreh: float,
+		streuung: float, wuerfel: RandomNumberGenerator, farbe: Color) -> void:
+	var basis := Basis.from_euler(Vector3(
+			wuerfel.randf_range(-streuung, streuung),
+			dreh + wuerfel.randf_range(-0.9, 0.9),
+			wuerfel.randf_range(-streuung, streuung))).scaled(groesse)
+	var quer := innen + _halbe_quer(basis, kurve, s, seite)
+	toepfe[topf].append(Transform3D(basis, punkt(kurve, s, seite * quer, y)))
+	toepfe[topf + "_farbe"].append(farbe)
+
+
+## Wie weit ein gedrehter Kasten von seiner Mitte aus quer zum Weg reicht:
+## die Projektion seiner drei skalierten Achsen auf die Querrichtung.
+static func _halbe_quer(basis: Basis, kurve: Curve3D, s: float,
+		seite: float) -> float:
+	var quer := _rechts(kurve, s) * seite
+	return 0.5 * (absf(basis.x.dot(quer)) + absf(basis.y.dot(quer))
+			+ absf(basis.z.dot(quer)))
+
+
 ## Eine Säule aus Blöcken an einer Stelle der Wand.
 ##
-## Die Lagen springen nach oben leicht zurück und werden kleiner – das
-## ergibt die Terrassierung, ohne dass eine Fläche gebogen werden müsste.
+## `bau`: {"abstand", "hoehe", "lagen", "block", "sockel", "schritt",
+##         "phase", "ader", "deck"}
+##
+## Die Lagen springen nach oben zurück und werden kleiner – das ergibt die
+## Terrassierung, ohne dass eine Fläche gebogen werden müsste. Am Fuß
+## bleibt die Wand dagegen dicht am Weg – dort ist nur eine Handbreit für
+## das Geröll ausgespart. Springt sie unten weiter zurück, klafft zwischen
+## Wegkante und Fels ein Graben.
+##
+## Nichts darf in den begehbaren Korridor ragen – die Wand hat keine
+## Kollision, ein Block über dem Weg stünde also mitten in der Figur.
+## Deshalb rechnet jeder Block seine Innenkante aus und wird von dort nach
+## außen gesetzt, statt seine Mitte zu würfeln. Einzige Ausnahme sind die
+## Überhänge, und die hängen so hoch, dass niemand an sie heranreicht.
 static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
-		abstand: float, hoehe: float, seite: float, lagen: int, block: float,
-		sockel: float, wuerfel: RandomNumberGenerator, ist_ader: bool = false,
-		mit_deck: bool = false) -> void:
-	var r := _rechts(kurve, s) * seite
+		seite: float, wuerfel: RandomNumberGenerator, bau: Dictionary) -> void:
+	var abstand: float = bau.get("abstand", 8.0)
+	var hoehe: float = bau.get("hoehe", 12.0)
+	var lagen: int = maxi(int(bau.get("lagen", 4)), 1)
+	var block: float = bau.get("block", 3.2)
+	var sockel: float = bau.get("sockel", 6.0)
+	var schritt: float = bau.get("schritt", 3.0)
+	var phase: float = bau.get("phase", 0.0)
+	var topf: String = "ader" if bau.get("ader", false) else "koerper"
 	var dreh := drehung(kurve, s)
 
-	# Unterste Lage reicht unter den Weg, damit unten keine Fuge klafft.
-	var lagen_hoehe := (hoehe + sockel) / float(lagen)
-	var y := -sockel
-	for k in lagen:
-		var t := float(k) / float(maxi(lagen - 1, 1))
-		var tiefe := block * lerpf(1.0, 0.55, t) * wuerfel.randf_range(0.8, 1.25)
-		var breite := block * wuerfel.randf_range(0.7, 1.15)
-		var hoch := lagen_hoehe * wuerfel.randf_range(0.9, 1.3)
-		# Nach oben etwas zurücktreten, aber nie über den Weg lehnen.
-		var quer := abstand + block * 0.5 + t * block * 0.35 \
-				+ wuerfel.randf_range(-0.25, 0.45)
+	# Die Krone wellt sich: eine langsame Welle über die Länge, dazu ein
+	# kleiner Ausschlag je Säule. Ohne Welle schneidet die Wand oben ab wie
+	# mit dem Lineal, mit reinem Zufall franst sie zur Hecke aus.
+	var krone := maxf(hoehe * (1.0 + _wandwelle(s * 1.6, seite, phase) * 0.08
+			+ wuerfel.randf_range(-0.05, 0.04)), 1.0)
+	var lagen_hoehe := krone / float(lagen)
+	var unter := maxi(int(ceil(sockel / maxf(lagen_hoehe * 1.7, 0.5))), 1)
+	var grenzen := _lagengrenzen(krone, sockel, lagen, unter, wuerfel)
+	var gesamt := grenzen.size() - 1
 
-		var mitte := punkt(kurve, s, seite * quer, y + hoch * 0.5)
+	# Ein Block je Säule darf über den Weg kragen. Nur weit über Kopfhöhe:
+	# Die Figur kommt im Doppelsprung knapp fünf Meter hoch, die Kamera
+	# schwebt in gut vier – tiefer hinge der Fels in einem von beiden.
+	var ueberhang := -1
+	if wuerfel.randf() < 0.22:
+		var moeglich: Array[int] = []
+		for k in gesamt:
+			if grenzen[k] >= 5.5:
+				moeglich.append(k)
+		if not moeglich.is_empty():
+			ueberhang = moeglich[wuerfel.randi_range(0, moeglich.size() - 1)]
+
+	var letzter_quer := abstand + block * 0.5
+	var letzte_tiefe := block
+	var letztes_oben := krone
+	for k in gesamt:
+		var unten := grenzen[k]
+		var oben := grenzen[k + 1]
+		var spanne := maxf(oben - unten, 0.2)
+		var mitte_y := (unten + oben) * 0.5
+		# Höher als die Lage tief ist: so greifen die Lagen ineinander und
+		# es klafft keine waagerechte Fuge durch die ganze Wand.
+		var hoch := spanne * wuerfel.randf_range(1.12, 1.45)
+		# Anteil an der sichtbaren Wandhöhe; unter dem Weg ist er 0.
+		var oberhalb := clampf(mitte_y / krone, 0.0, 1.0)
+		var tiefe := block * lerpf(1.25, 0.70, oberhalb) * wuerfel.randf_range(0.85, 1.30)
+		# Mindestens einen Schritt breit, sonst klafft zwischen zwei
+		# Säulen ein Schlitz und man sieht durch die Wand in den Himmel.
+		var breite := maxf(schritt + 0.8, block * wuerfel.randf_range(0.8, 1.35))
+		var kipp := wuerfel.randf_range(-0.06, 0.06)
+
+		# Vorsprung der Innenkante gegenüber dem Sollabstand. Am Fuß nur
+		# ein Hauch, nach oben immer mehr – daher der Faktor.
+		var vor := (_wandwelle(s, seite, phase) * 0.9
+				+ wuerfel.randf_range(-0.2, 0.7)) * lerpf(0.3, 1.0, oberhalb) \
+				+ oberhalb * block * 0.35
+		# So weit darf die Innenkante höchstens einwärts. Am Fuß bleibt
+		# ein Streifen frei, in den das Geröll gelegt wird: Läge der Fels
+		# dort so weit vorn wie erlaubt, steckten die Brocken in ihm und
+		# man sähe nur ihre Ecken.
+		var innerste := lerpf(0.30, -0.1, clampf(mitte_y / 3.0, 0.0, 1.0))
+		if k == ueberhang:
+			vor = -wuerfel.randf_range(0.45, 1.15)
+			innerste = vor
+			tiefe *= wuerfel.randf_range(1.35, 1.8)
+			# Der Kragen neigt sich, sonst sieht er aus wie ein Regalbrett.
+			kipp = wuerfel.randf_range(0.07, 0.17) * (1.0 if wuerfel.randf() < 0.5 else -1.0)
+		vor = maxf(vor, innerste)
+
+		# Beim Kippen wandert eine Ecke einwärts – das kommt auf den
+		# Abstand drauf, sonst stünde der Block doch im Weg.
+		var quer := abstand + vor + tiefe * 0.5 + absf(kipp) * hoch * 0.5
+		var mitte := punkt(kurve, s + wuerfel.randf_range(-0.35, 0.35),
+				seite * quer, mitte_y + wuerfel.randf_range(-0.12, 0.12))
 		var form := Transform3D(Basis.IDENTITY, mitte)
-		form.basis = Basis(Vector3.UP, dreh + wuerfel.randf_range(-0.12, 0.12))
+		form.basis = Basis.from_euler(Vector3(wuerfel.randf_range(-0.06, 0.06),
+				dreh + wuerfel.randf_range(-0.22, 0.22), kipp))
 		form.basis = form.basis.scaled(Vector3(tiefe, hoch, breite))
-		var topf := "ader" if ist_ader else "koerper"
 		toepfe[topf].append(form)
-		toepfe[topf + "_farbe"].append(
-				_wandfarbe(mitte.y, hoehe, sockel, wuerfel))
-		y += hoch * wuerfel.randf_range(0.7, 0.92)   # Lagen überlappen sich
+		toepfe[topf + "_farbe"].append(_wandfarbe(mitte.y, hoehe, sockel, wuerfel))
 
-	if not mit_deck:
+		# Gebrochene Kante: ein Splitter auf der Oberkante der Lage. Unter
+		# dem Weg lohnt er nicht, dort sieht ihn niemand.
+		if oben > -1.0 and wuerfel.randf() < 0.5:
+			_splitter(toepfe, topf, kurve, s, seite, dreh, oben,
+					quer - tiefe * 0.5, tiefe, breite, hoehe, sockel, wuerfel)
+
+		letzter_quer = quer
+		letzte_tiefe = tiefe
+		letztes_oben = mitte_y + hoch * 0.5
+
+	_geroell(toepfe, kurve, s, seite, dreh, abstand, hoehe, sockel, block,
+			schritt, wuerfel)
+
+	if not bau.get("deck", false):
 		return
 	# Die Deckschicht ist ein Saum auf der Krone, kein eigenes Stockwerk.
 	#
 	# Zuerst war sie die oberste Blocklage. Weil die Lagen sich zufällig
-	# aufaddieren, endeten die Säulen auf sehr verschiedenen Höhen – der
+	# aufaddierten, endeten die Säulen auf sehr verschiedenen Höhen – der
 	# Saum verteilte sich über die halbe Wand und die Wand sah aus wie
-	# Tarnstoff. Jetzt sitzt er auf der SOLL-Höhe der Wand, also auf einer
-	# Linie, und die Krone liest sich als Kante.
-	var kappe := lagen_hoehe * wuerfel.randf_range(0.20, 0.34)
-	var kappen_quer := abstand + block * 0.5 + block * 0.35 \
-			+ wuerfel.randf_range(-0.2, 0.3)
-	var kappen_mitte := punkt(kurve, s, seite * kappen_quer,
-			hoehe + wuerfel.randf_range(-0.5, 0.2))
+	# Tarnstoff. Jetzt sitzt er auf dem obersten Block, und weil die Krone
+	# einer Welle folgt statt dem Zufall, liest er sich als Kante.
+	var kappe := lagen_hoehe * wuerfel.randf_range(0.28, 0.5)
+	var kappen_tiefe := letzte_tiefe * wuerfel.randf_range(0.7, 1.0)
+	var kappen_quer := letzter_quer - letzte_tiefe * 0.5 + kappen_tiefe * 0.5 \
+			+ wuerfel.randf_range(0.1, 0.4)
+	var kappen_mitte := punkt(kurve, s + wuerfel.randf_range(-0.3, 0.3),
+			seite * kappen_quer,
+			letztes_oben - kappe * wuerfel.randf_range(0.2, 0.55))
 	var kappen_form := Transform3D(Basis.IDENTITY, kappen_mitte)
-	kappen_form.basis = Basis(Vector3.UP, dreh + wuerfel.randf_range(-0.12, 0.12))
-	kappen_form.basis = kappen_form.basis.scaled(Vector3(
-			block * 0.62 * wuerfel.randf_range(0.9, 1.3), kappe,
-			block * wuerfel.randf_range(0.75, 1.2)))
+	kappen_form.basis = Basis.from_euler(Vector3(wuerfel.randf_range(-0.07, 0.07),
+			dreh + wuerfel.randf_range(-0.2, 0.2), wuerfel.randf_range(-0.07, 0.07)))
+	kappen_form.basis = kappen_form.basis.scaled(Vector3(kappen_tiefe, kappe,
+			maxf(schritt + 0.8, block * wuerfel.randf_range(0.85, 1.3))))
 	toepfe["deck"].append(kappen_form)
 	toepfe["deck_farbe"].append(_wandfarbe(hoehe, hoehe, sockel, wuerfel))
+
+
+## Splitter auf der Oberkante einer Blocklage.
+##
+## Ein Stapel Quader hat lauter waagerechte Kanten in gleicher Höhe; die
+## Splitter zerbrechen diese Linie. Sie bleiben hinter der Innenkante des
+## Blocks, unter dem sie sitzen – der steht schon so weit einwärts, wie es
+## der Weg erlaubt.
+static func _splitter(toepfe: Dictionary, topf: String, kurve: Curve3D, s: float,
+		seite: float, dreh: float, kante_y: float, innenkante: float,
+		tiefe: float, breite: float, hoehe: float, sockel: float,
+		wuerfel: RandomNumberGenerator) -> void:
+	var mass := tiefe * wuerfel.randf_range(0.20, 0.46)
+	var groesse := Vector3(mass * wuerfel.randf_range(0.7, 1.4),
+			mass * wuerfel.randf_range(0.6, 1.3),
+			mass * wuerfel.randf_range(0.7, 1.5))
+	var laengs := s + wuerfel.randf_range(-breite * 0.45, breite * 0.45)
+	var y := kante_y + wuerfel.randf_range(-0.45, 0.25) * groesse.y
+	_brocken(toepfe, topf, kurve, laengs, seite,
+			innenkante + wuerfel.randf_range(0.0, tiefe * 0.5), y, groesse,
+			dreh, 0.55, wuerfel,
+			_wandfarbe(punkt(kurve, laengs, 0.0, y).y, hoehe, sockel, wuerfel))
+
+
+## Streu aus Brocken am Wandfuß.
+##
+## Ohne sie stößt die Wand in einer geraden Linie auf den Weg, und die Fuge
+## liest sich als Schnitt. Die Brocken liegen halb im Fels und halb davor,
+## unterschiedlich groß und frei gedreht; damit franst die Linie aus. Sie
+## kommen in einen eigenen Topf und kosten für die ganze Wand deshalb nur
+## einen einzigen zusätzlichen Zeichenaufruf.
+##
+## Weiter einwärts als der Wandfuß dürfen sie nicht: Die Wand hat keine
+## Kollision, ein Brocken auf dem Weg stünde in der Figur.
+static func _geroell(toepfe: Dictionary, kurve: Curve3D, s: float, seite: float,
+		dreh: float, abstand: float, hoehe: float, sockel: float, block: float,
+		schritt: float, wuerfel: RandomNumberGenerator) -> void:
+	for i in wuerfel.randi_range(3, 5):
+		var mass := block * wuerfel.randf_range(0.14, 0.34)
+		if wuerfel.randf() < 0.16:
+			mass *= wuerfel.randf_range(1.5, 2.2)   # gelegentlich ein Findling
+		var groesse := Vector3(mass * wuerfel.randf_range(0.8, 1.5),
+				mass * wuerfel.randf_range(0.55, 1.1),
+				mass * wuerfel.randf_range(0.8, 1.5))
+		var laengs := s + wuerfel.randf_range(-schritt * 0.5, schritt * 0.5)
+		# Dicht an der Sollkante bleiben: Der Wandfuß schwankt um sie
+		# herum, und was weiter nach außen rutscht, steckt im Fels und
+		# ist von der Strecke aus nie zu sehen.
+		var innen := abstand - 0.05 + wuerfel.randf_range(0.0, 0.15)
+		# Der Schutt türmt sich an der Wand auf, statt nur auf dem Grund
+		# zu liegen: Am Weg steht eine erhöhte Kante, und alles, was
+		# tiefer liegt als sie, verschwindet aus der Spielkamera hinter
+		# ihr. Erst was über die Kante ragt, bricht die Fuge auf.
+		var y := wuerfel.randf_range(-0.3, 1.2) + groesse.y * 0.3
+		# Um die Wandfarbe herum gestreut, nach beiden Seiten: Wären alle
+		# Brocken dunkler, verschwänden sie im ohnehin dunklen Wandfuß.
+		var ton := _wandfarbe(punkt(kurve, laengs, 0.0, y).y, hoehe, sockel, wuerfel)
+		var dunkel := wuerfel.randf_range(0.84, 1.08)
+		_brocken(toepfe, "geroell", kurve, laengs, seite, innen, y, groesse,
+				dreh, 1.2, wuerfel,
+				Color(ton.r * dunkel, ton.g * dunkel, ton.b * dunkel))
 
 
 ## Unsichtbare Leitwand am Rand der Schlucht.

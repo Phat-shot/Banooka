@@ -234,6 +234,7 @@ func besiegen(art: int = 0) -> void:
 		return
 	besiegt = true
 	_tot_zeit = TODES_DAUER
+	Klang.spiele("gegner")
 
 	if trefferzone != null:
 		trefferzone.set_deferred("monitoring", false)

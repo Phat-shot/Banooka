@@ -28,6 +28,9 @@ const STEIN := preload("res://scenes/props/Stein.tscn")
 const GRASFELD := preload("res://scenes/props/Gras.tscn")
 const KLEINZEUG := preload("res://scenes/props/Kleinzeug.tscn")
 const WALDSTREUER := preload("res://scenes/props/Waldstreuer.tscn")
+const STAUB := preload("res://scenes/props/Staub.tscn")
+const LAUBTREIBEN := preload("res://scenes/props/Laubtreiben.tscn")
+const VOEGEL := preload("res://scenes/props/Voegel.tscn")
 
 # Strecken-Marken der Abschnitte
 const M_WALDRAND := 0.0
@@ -76,6 +79,7 @@ func _bauschritte() -> Array:
 		{"text": "Kisten werden gestapelt", "tun": _kisten_setzen},
 		{"text": "Gegner beziehen Stellung", "tun": _gegner_setzen},
 		{"text": "Früchte werden verteilt", "tun": _fruechte_setzen},
+		{"text": "Staub, Laub und Vögel", "tun": _bewegung_setzen},
 	])
 	return schritte
 
@@ -188,6 +192,43 @@ func _boden_bauen() -> void:
 		"kante_hoehe": 0.45,
 		"kante_breite": 0.8,
 	})
+
+
+## Bewegung in der Kulisse.
+##
+## Ohne das wirkt die Schlucht wie ein Standbild: Der Wind wiegt zwar Gras
+## und Kronen, aber nichts bewegt sich DURCH das Bild. Staub in den
+## Lichtschächten, Laub, das in Böen über den Weg gerissen wird, und Vögel
+## weit über der Schlucht geben der Kulisse einen Puls. Alles läuft im
+## Vertex-Shader auf MultiMesh-Knoten – je Bild kostet es zwei Zuweisungen.
+func _bewegung_setzen() -> void:
+	for stelle: float in [18.0, 58.0, 96.0, 132.0, 178.0, 214.0]:
+		var staub := STAUB.instantiate() as Staubflug
+		staub.raum = Vector3(7.0, 12.0, 7.0)
+		staub.anzahl = 70
+		staub.saat = int(stelle)
+		staub.position = LevelWerkzeuge.punkt(verlauf, stelle, 0.0, -1.0)
+		deko.add_child(staub)
+
+	for stelle: float in [30.0, 84.0, 140.0, 196.0]:
+		var laub := LAUBTREIBEN.instantiate() as Laubtreiben
+		laub.flaeche = Vector2(_breite_bei(stelle) + 6.0, 12.0)
+		laub.anzahl = 34
+		laub.saat = int(stelle)
+		laub.position = LevelWerkzeuge.punkt(verlauf, stelle, 0.0, 0.2)
+		# Erst drehen, dann einhängen – die Windrichtung wird beim Aufbau
+		# gelesen. Nach der Drehung zeigt -Z den Korridor entlang.
+		laub.rotation.y = LevelWerkzeuge.drehung(verlauf, stelle)
+		deko.add_child(laub)
+
+	for stelle: float in [70.0, 190.0]:
+		var schwarm := VOEGEL.instantiate() as Vogelschwarm
+		schwarm.anzahl = 6
+		schwarm.radius = 40.0
+		schwarm.hoehe = 55.0
+		schwarm.saat = int(stelle)
+		schwarm.position = LevelWerkzeuge.punkt(verlauf, stelle, 0.0, 0.0)
+		deko.add_child(schwarm)
 
 
 ## Breite des Weges an dieser Stelle. 0.0 bedeutet: hier ist eine Lücke.

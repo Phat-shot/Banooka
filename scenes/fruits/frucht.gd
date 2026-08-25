@@ -93,6 +93,9 @@ func _einsammeln() -> void:
 	if _eingesammelt:
 		return
 	_eingesammelt = true
+	# Wer eine Reihe Früchte abräumt, hört eine Tonleiter statt zehnmal
+	# denselben Ton.
+	Klang.spiele_folge("frucht")
 	GameState.frucht_einsammeln(1)
 	queue_free()
 

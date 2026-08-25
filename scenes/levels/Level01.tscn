@@ -22,7 +22,7 @@ background_mode = 2
 sky = SubResource("SkyRes")
 ambient_light_source = 2
 ambient_light_color = Color(0.52, 0.58, 0.48, 1)
-ambient_light_energy = 0.75
+ambient_light_energy = 0.48
 tonemap_mode = 3
 tonemap_exposure = 1.05
 tonemap_white = 6.0
@@ -58,6 +58,18 @@ directional_shadow_mode = 2
 directional_shadow_max_distance = 90.0
 directional_shadow_split_1 = 0.08
 directional_shadow_split_2 = 0.22
+
+[node name="Himmelslicht" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.86603, 0.00000, -0.50000, -0.44147, 0.46947, 0.76466, 0.23474, 0.88295, -0.40657, 0, 30, 0)
+light_color = Color(0.62, 0.74, 0.95, 1)
+light_energy = 0.34
+light_specular = 0.0
+
+[node name="Bodenlicht" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.93969, 0.00000, -0.34202, 0.21057, 0.78801, 0.57853, 0.26952, -0.61566, 0.74049, 0, 2, 0)
+light_color = Color(0.86, 0.66, 0.42, 1)
+light_energy = 0.16
+light_specular = 0.0
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)

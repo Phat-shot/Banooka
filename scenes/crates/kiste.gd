@@ -725,6 +725,18 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 		return
 	_zerstoert = true
 
+	# Der Klang trägt die Belohnung mit: Der Dreiklang des Checkpoints und
+	# das helle Glöckchen von Leben und Schutz sollen sich hörbar vom
+	# gewöhnlichen Holzknacken abheben.
+	match art:
+		Art.CHECKPOINT:
+			Klang.spiele("checkpoint")
+		Art.LEBEN, Art.SCHUTZ:
+			Klang.spiele("kiste")
+			Klang.spiele("frucht", 1.35)
+		_:
+			Klang.spiele("kiste")
+
 	match art:
 		Art.CHECKPOINT:
 			# Zählt nicht im Kistenzähler, setzt dafür den Respawn-Punkt.
@@ -762,6 +774,7 @@ func _explodieren(wirkradius: float, ton: Color, trifft_spieler: bool) -> void:
 	var elternteil := get_parent()
 	var pos := global_position
 	GameState.kiste_zerbrochen()
+	Klang.spiele("explosion")
 	Explosion.erzeugen(elternteil, pos, wirkradius, ton)
 
 	# Nachbarkisten mitreißen
