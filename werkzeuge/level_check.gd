@@ -42,7 +42,7 @@ func _ready() -> void:
 		if k is CollisionObject3D:
 			_ausschluss.append((k as CollisionObject3D).get_rid())
 
-	print("=== Level 01: geometrische Prüfung ===")
+	print("=== %s: geometrische Prüfung ===" % pfad.get_file().get_basename())
 	_pruefe_objekte("kisten", 0.5)
 	_pruefe_objekte("gegner", 0.0)
 	_pruefe_baeume()
@@ -183,6 +183,12 @@ func _pruefe_absturz() -> void:
 	var stellen := [10.0, 45.0, 90.0, 135.0, 180.0, 225.0]
 	var misslungen := 0
 	for s: float in stellen:
+		# Erst den vorigen Tod ausklingen lassen. Sonst setzt die nächste
+		# Stichprobe den Spieler mitten in einen laufenden Respawn – der
+		# holt ihn zum Checkpoint zurück, er stirbt nicht, und die Probe
+		# meldet einen Fehler, den es nicht gibt.
+		for i in 40:
+			await get_tree().physics_frame
 		var vorher: int = GameState.leben
 		spieler.global_position = LevelWerkzeuge.punkt(verlauf, s, 26.0, 2.0)
 		spieler.set("velocity", Vector3.ZERO)
@@ -191,8 +197,22 @@ func _pruefe_absturz() -> void:
 			if GameState.leben < vorher:
 				break
 		if GameState.leben >= vorher:
-			print("  FEHLER  Sturz bei %.0f m wurde nicht abgefangen (y=%.1f)"
-					% [s, spieler.global_position.y])
+			# Ohne den Namen dessen, was den Sturz aufhält, ist die Meldung
+			# nur ein Rätsel. Also gleich mitliefern.
+			var halt := _boden_unter(spieler.global_position)
+			var worauf := "nichts"
+			if not halt.is_empty() and halt["collider"] != null:
+				var c: Node3D = halt["collider"]
+				worauf = "%s (%s) bei %s" % [c.name, c.get_class(),
+						str(c.global_position.snappedf(0.1))]
+			# Wo er liegen bleibt, ist die eigentliche Auskunft: Bei einem
+			# Verlauf, der eine Schleife macht, kann seitwärts sehr wohl
+			# wieder fester Weg liegen – dann ist die Probe kein Fehler,
+			# sondern nur schlecht gezielt.
+			print("  FEHLER  Sturz bei %.0f m nicht abgefangen: liegt bei %s "
+					% [s, str(spieler.global_position.snappedf(0.1))]
+					+ "(Strecke %.0f m) auf %s"
+					% [_strecke(spieler.global_position), worauf])
 			_fehler += 1; misslungen += 1
 		GameState.leben = 3
 	print("  Absturzzone: %d von %d Stichproben fehlgeschlagen" % [misslungen, stellen.size()])

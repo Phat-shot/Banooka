@@ -44,21 +44,41 @@ SZENEN="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/SzenenC
 	| grep -Ev "$RAUSCHEN")"
 echo "$SZENEN" | grep -E "ok:|FEHLER|SCRIPT ERROR|ERROR:|Szenen geprüft|Szenen-Check"
 
+# Jedes gebaute Level, nicht nur das erste. Mit sieben Leveln ist eine
+# Prüfung, die nur Level 01 ansieht, kaum noch eine Prüfung.
+# PRUEF_LEVEL=01,03 grenzt bei Bedarf ein.
 echo "--- 3/4 Level geometrisch prüfen ---"
-LEVEL="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/LevelCheck.tscn 2>&1 \
-	| grep -Ev "$RAUSCHEN")"
-echo "$LEVEL" | grep -E "FEHLER|geprüft|Problem|Absturzzone|schwebt|steckt|==="
+LEVEL=""
+NUMMERN="${PRUEF_LEVEL:-}"
+if [ -z "$NUMMERN" ]; then
+	NUMMERN="$(ls "$ZIEL"/scenes/levels/Level*.tscn 2>/dev/null \
+		| sed -E 's#.*/Level([0-9]+)\.tscn#\1#' | sort | tr '\n' ',')"
+fi
+for NR in ${NUMMERN//,/ }; do
+	SZENE="res://scenes/levels/Level${NR}.tscn"
+	[ -f "$ZIEL/scenes/levels/Level${NR}.tscn" ] || continue
+	TEIL="$(timeout 300 "$GODOT" --headless --path "$ZIEL" \
+		res://werkzeuge/LevelCheck.tscn -- "$SZENE" 2>&1 | grep -Ev "$RAUSCHEN")"
+	LEVEL="$LEVEL
+$TEIL"
+	echo "$TEIL" | grep -E "FEHLER|geprüft|Problem|Absturzzone|schwebt|steckt|==="
+done
 
-# Das Krabbeln lässt sich nur in Bewegung prüfen: Halten statt Umschalten,
-# Zwang unter tiefen Decken, und kein Knochen unter dem Boden.
-echo "--- 4/4 Krabbeln am Testaufbau ---"
+# Zwei Dinge lassen sich nur in Bewegung prüfen: das Krabbeln (Halten statt
+# Umschalten, Zwang unter tiefen Decken, kein Knochen unter dem Boden) und
+# die Wasserplattformen (tragen sie den Spieler wirklich mit?).
+echo "--- 4/4 Krabbeln und bewegte Böden ---"
 KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
+FLOSS="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Flosstest.tscn 2>&1 \
+	| grep -Ev "$RAUSCHEN")"
+echo "$FLOSS" | grep -E "abgesetzt|Fahrt:|Sinken:|Abweichungen"
 
 if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$LEVEL" | grep -qE "FEHLER" \
-		|| echo "$KRIECH" | grep -qE "FALSCH|IM BODEN"; then
+		|| echo "$KRIECH" | grep -qE "FALSCH|IM BODEN" \
+		|| echo "$FLOSS" | grep -qE "steht nicht|blieb zurueck|haengt in der Luft"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1
 fi

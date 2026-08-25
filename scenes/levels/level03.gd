@@ -1,21 +1,34 @@
 extends KorridorLevel
-## Level 03 – "Moorbrücken"
+## Level 03 – "Treibgut"
 ##
-## Ein Bohlenweg durch ein Moor. Anders als in Level 01 und 02 liegt unter
-## dem Weg kein Abgrund, sondern Wasser: Wer danebentritt, ertrinkt. Das
-## macht denselben Fehler sichtbarer – der Sturz endet nicht im Nichts,
-## sondern mit einem Platsch.
+## Ein Fluss durch die Nebelsümpfe. Anders als der Bohlenweg in Level 07
+## führt hier kein durchgehender Steg ans Ziel: Zwei lange Abschnitte
+## haben überhaupt keinen Boden, dort trägt ein Treibfloß den Spieler.
+##
+## Der Verlauf lebt vom Wechsel. Laufen, fahren, laufen, fahren – und
+## jeder Wechsel ändert, worauf man achten muss:
+##
+##   Zu Fuß  – wohin springe ich, und was steht mir im Weg?
+##   Auf dem Floß – der Weg läuft von allein, die Frage ist nur noch,
+##                  wie ich dem ausweiche, was auf mich zukommt.
+##
+## Das Floß nimmt der Figur die Steuerung NICHT ab: Sie läuft, springt,
+## dreht und krabbelt weiter wie sonst, nur eben auf einem Boden, der
+## sich bewegt. Deshalb braucht dieses Level keinen zweiten Controller
+## wie die Level 04 bis 06.
 ##
 ## Abschnitte (Strecke auf der Kurve):
-##     0 –  44  Ufer        – fester Torfboden, breite Anlaufstrecke
-##    44 –  98  Bohlenweg   – schmale Stege über offenem Wasser, Lücken
-##    98 – 146  Wurzelinseln– einzelne Inseln, dazwischen wird gesprungen
-##   146 – 184  Schilfgürtel– Schilf und Nebel, Stelzenvögel
-##   184 – 212  Anhöhe      – trockener Grund, Extraleben, Zielportal
+##     0 –  26  Anlegestelle  fester Torfgrund, alle Werkzeuge einmal geübt
+##    26 –  60  Trittpfähle   Seerosen und Pfahlinseln über offenem Wasser
+##    60 – 102  Treibfahrt I  kein Boden; Floß, hängende Minen, Stachelbalken
+##   102 – 124  Wehr          Bohlen, die im Takt untertauchen
+##   124 – 162  Schilfgasse   schmaler Steg, Gegner, Kisten seitlich im Wasser
+##   162 – 192  Treibfahrt II zweite Fahrt, enger und schneller
+##   192 – 218  Anhöhe        trockener Grund, Extraleben, Zielportal
 ##
-## Die Wasserfläche liegt knapp unter dem Weg (`WASSER_HOEHE`), die
-## Absturzzone noch darunter: Zuerst greift die tödliche Wasserfläche,
-## die Zone ist nur der Notnagel, falls jemand daran vorbeifällt.
+## Die Wasserfläche ist tödlich. Sie liegt dicht unter dem Weg, damit ein
+## Fehltritt sofort zu sehen ist; die Absturzzone darunter ist nur der
+## Notnagel für den Fall, dass jemand seitlich daran vorbeifällt.
 
 const SUMPFKROETE := preload("res://scenes/enemies/Sumpfkroete.tscn")
 const STELZENSPINNE := preload("res://scenes/enemies/Stelzenspinne.tscn")
@@ -26,35 +39,53 @@ const KLEINZEUG := preload("res://scenes/props/Kleinzeug.tscn")
 const GRASFELD := preload("res://scenes/props/Gras.tscn")
 
 # Strecken-Marken der Abschnitte
-const M_UFER := 0.0
-const M_BOHLEN := 44.0
-const M_INSELN := 98.0
-const M_SCHILF := 146.0
-const M_ANHOEHE := 184.0
-const M_ENDE := 212.0
+const M_ANLEGER := 0.0
+const M_PFAEHLE := 26.0
+const M_FAHRT1 := 60.0
+const M_WEHR := 102.0
+const M_SCHILF := 124.0
+const M_FAHRT2 := 162.0
+const M_ANHOEHE := 192.0
+const M_ENDE := 218.0
 
 # Höhen relativ zum Weg
-const WASSER_HOEHE := -1.1     ## Wasserspiegel knapp unter dem Steg
-const MOORGRUND := -3.2        ## sichtbarer Grund unter dem Wasser
-const ABSTURZ := -4.0          ## Notnagel unterhalb des Wassers
+const WASSER_HOEHE := -0.55    ## Wasserspiegel, dicht unter dem Steg
+const MOORGRUND := -2.6        ## sichtbarer Grund unter dem Wasser
+const ABSTURZ := -3.4          ## Notnagel unterhalb des Wassers
+
+## Mittelhöhe eines Floßdecks. Die Stämme liegen damit halb im Wasser,
+## und die Oberkante (`DECK`) endet knapp über dem Wasserspiegel.
+const FLOSS_HOEHE := -0.42
+## Höhe, auf der der Spieler auf einem Floß steht. Alles, was auf der
+## Fahrt über ihm hängt, wird von hier aus gemessen.
+const DECK := FLOSS_HOEHE + Wasserplattform.DECK_STAERKE * 0.5
+## Wehrbohlen oben und unten. Unten steht das Deck unter dem Wasser –
+## genau darin liegt die Drohung.
+const BOHLE_OBEN := -0.30
+const BOHLE_UNTEN := -1.45
+
+## Höhe, in der ein Stachelbalken das Gehen sperrt, das Krabbeln aber
+## nicht. Die aufrechte Kapsel ist 1,30 m hoch, die flache 0,76 m.
+const KRIECHHOEHE := 0.95
+
+const FLOSS_GROESSE := Vector2(4.6, 3.4)
 
 
 const STRECKE := [
-	# --- Ufer: fester Boden, eine erste Lücke ---
-	{"von": 0.0, "bis": 28.0, "breite": 11.0},
-	{"von": 32.0, "bis": 44.0, "breite": 10.0, "breite_ende": 8.0},
-	# --- Bohlenweg: schmal, drei Lücken über offenem Wasser ---
-	{"von": 44.0, "bis": 60.0, "breite": 6.0},
-	{"von": 65.0, "bis": 78.0, "breite": 5.5},
-	{"von": 83.0, "bis": 98.0, "breite": 6.0, "breite_ende": 8.0},
-	# --- Wurzelinseln: kurze Stücke mit weiten Sprüngen dazwischen ---
-	{"von": 98.0, "bis": 112.0, "breite": 9.0},
-	{"von": 118.0, "bis": 130.0, "breite": 8.0},
-	{"von": 136.0, "bis": 146.0, "breite": 9.0},
-	# --- Schilfgürtel: breiter, dafür voller Gegner ---
-	{"von": 146.0, "bis": 184.0, "breite": 10.0},
-	# --- Anhöhe: trockener Abschluss ---
-	{"von": 184.0, "bis": 212.0, "breite": 12.0},
+	# --- Anlegestelle: breiter Torfgrund zum Üben ---
+	{"von": 0.0, "bis": 26.0, "breite": 11.0, "breite_ende": 9.0},
+	# --- Trittpfähle: zwei Pfahlinseln, dazwischen offenes Wasser ---
+	{"von": 32.0, "bis": 39.0, "breite": 7.0},
+	{"von": 45.0, "bis": 52.0, "breite": 7.0},
+	# --- Anleger I: hier legt das erste Floß an ---
+	{"von": 55.0, "bis": 60.0, "breite": 8.0},
+	# --- 60 bis 96: Treibfahrt I, kein Boden ---
+	{"von": 96.0, "bis": 102.0, "breite": 8.0},
+	# --- 102 bis 124: Wehr, nur Bohlen ---
+	{"von": 124.0, "bis": 156.0, "breite": 6.5, "breite_ende": 7.5},
+	{"von": 156.0, "bis": 162.0, "breite": 8.0},
+	# --- 162 bis 192: Treibfahrt II, kein Boden ---
+	{"von": 192.0, "bis": 218.0, "breite": 11.0},
 ]
 
 
@@ -72,12 +103,15 @@ func absturz_hoehe() -> float:
 
 func _bauschritte() -> Array:
 	return [
-		{"text": "Moor wird vermessen", "tun": _verlauf_anlegen},
-		{"text": "Torfgrund", "tun": _grund_bauen},
-		{"text": "Stege werden gelegt", "tun": _boden_bauen},
+		{"text": "Fluss wird vermessen", "tun": _verlauf_anlegen},
+		{"text": "Moorgrund", "tun": _grund_bauen},
+		{"text": "Stege und Anleger", "tun": _boden_bauen},
 		{"text": "Wasser steigt", "tun": _wasser_fluten},
-		{"text": "Wurzelinseln", "tun": _plattformen_bauen},
 		{"text": "Absturzzone", "tun": _absturz_spannen},
+		{"text": "Seerosen treiben auf", "tun": _seerosen_setzen},
+		{"text": "Flöße werden losgemacht", "tun": _floesse_setzen},
+		{"text": "Wehr wird eingehängt", "tun": _wehr_bauen},
+		{"text": "Minen und Stachelbalken", "tun": _hindernisse_setzen},
 		{"text": "Sumpfwald", "tun": _wald_bauen},
 		{"text": "Schilf und Farne", "tun": _deko_bauen},
 		{"text": "Portale", "tun": _portale},
@@ -89,45 +123,46 @@ func _bauschritte() -> Array:
 
 # =========================================================== Verlauf
 
-## Der Weg schlängelt sich flach durchs Moor – kaum Höhenunterschied,
-## dafür zwei enge Kurven. Erst die Anhöhe am Ende steigt an.
+## Der Fluss macht eine große Schleife. Die beiden Fahrten liegen bewusst
+## in den Biegungen: Weil das Floß dem Verlauf folgt, dreht sich auf der
+## Fahrt das ganze Bild, und die Strecke wirkt länger, als sie ist.
 func _verlauf_anlegen() -> void:
 	verlauf = LevelWerkzeuge.kurve_aus_punkten([
-		Vector3(0, 0, 4),         # Startportal
-		Vector3(0, 0, -18),
-		Vector3(-5, 0, -36),      # Linkskurve ins Moor
-		Vector3(-16, 0, -50),
-		Vector3(-32, 0, -58),     # Bohlenweg
-		Vector3(-50, 0, -60),
-		Vector3(-66, 0, -70),     # Rechtskurve zu den Inseln
-		Vector3(-76, 0, -86),
-		Vector3(-78, 1, -106),
-		Vector3(-70, 1, -124),    # Schilfgürtel
-		Vector3(-56, 2, -136),
-		Vector3(-38, 4, -144),    # Anstieg zur Anhöhe
-		Vector3(-18, 5, -148),
+		Vector3(0, 0, 4),
+		Vector3(0, 0, -14),
+		Vector3(7, 0, -31),        # Rechtsbogen ins Moor
+		Vector3(21, -0.2, -42),
+		Vector3(39, -0.2, -45),    # Trittpfähle
+		Vector3(57, -0.2, -40),
+		Vector3(71, -0.2, -28),    # Treibfahrt I, weite Biegung
+		Vector3(79, -0.2, -12),
+		Vector3(78, 0.2, 6),       # Wehr
+		Vector3(69, 0.6, 21),
+		Vector3(54, 0.9, 30),      # Schilfgasse
+		Vector3(36, 1.1, 31),
+		Vector3(19, 1.8, 24),      # Treibfahrt II
+		Vector3(7, 3.0, 12),       # Anstieg zur Anhöhe
 	])
 
 
 # =========================================================== Boden
 
 func _boden_bauen() -> void:
-	# Ufer und Anhöhe sind Torf, der Mittelteil ist Bohlensteg. Der
-	# Korridor kennt nur ein Material je Fläche, deshalb liegt hier Holz
-	# als Wegdecke und der Torf bleibt der Kulisse unten überlassen.
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
-		"oben": Materialbibliothek.bohlen(),      # Bohlen als Wegdecke
-		"kante": Materialbibliothek.algen(),      # bewachsene Kante
-		"klippe": Materialbibliothek.moorboden(), # Torf unter dem Steg
-	}, {"tiefe": 3.0, "schritt": 1.0, "kante_hoehe": 0.26, "kante_breite": 0.6})
+		"oben": Materialbibliothek.bohlen(),
+		"kante": Materialbibliothek.algen(),
+		"klippe": Materialbibliothek.moorboden(),
+	}, {"tiefe": 2.4, "schritt": 1.0, "kante_hoehe": 0.24, "kante_breite": 0.6})
+	# Die Pfosten an den Lückenrändern sind hier mehr als Warnung: An den
+	# Anlegern lesen sie sich als Poller, an denen das Floß festmacht.
 	luecken_markieren(Farben.BOHLE.darkened(0.3))
 
 
-## Der Moorgrund unter dem Wasser. Nur Kulisse – begehbar ist er nicht,
-## das Wasser darüber ist tödlich.
+## Der Grund unter dem Wasser. Reine Kulisse – wer hineinfällt, ertrinkt
+## vorher.
 func _grund_bauen() -> void:
 	var flaeche := PlaneMesh.new()
-	flaeche.size = Vector2(240.0, 240.0)
+	flaeche.size = Vector2(260.0, 260.0)
 	var mi := MeshInstance3D.new()
 	mi.name = "Moorgrund"
 	mi.mesh = flaeche
@@ -136,51 +171,121 @@ func _grund_bauen() -> void:
 	geometrie.add_child(mi)
 
 
-## Wasserflächen längs des Weges. Sie in Stücken zu setzen statt als eine
-## große Platte ist nötig, weil der Weg zwei enge Kurven macht – eine
-## einzige Fläche würde an den Außenseiten weit über den Rand stehen.
+## Wasser längs des ganzen Laufs. In Stücken, weil eine einzige Platte
+## der Schleife nicht folgen könnte.
 func _wasser_fluten() -> void:
-	var schritt := 20.0
+	var schritt := 18.0
 	var s := 0.0
-	while s < M_ENDE:
-		# Auf der Anhöhe steht kein Wasser mehr.
-		if s < M_ANHOEHE - 6.0:
-			var w := wasser(s + schritt * 0.5, Vector2(46.0, schritt + 2.0),
-					WASSER_HOEHE)
-			w.tiefe = 2.0
-			w.toedlich = true
-			w.wellen_hoehe = 0.09
-			w.wellen_tempo = 0.55
+	while s < M_ANHOEHE - 4.0:
+		var w := wasser(s + schritt * 0.5, Vector2(52.0, schritt + 2.0),
+				WASSER_HOEHE)
+		w.tiefe = 2.0
+		w.toedlich = true
+		w.wellen_hoehe = 0.08
+		w.wellen_tempo = 0.6
+		# Trübes Standwasser statt klarem Blau, und kaum Schimmer. Erst
+		# damit heben sich Stege, Flöße und Blätter überhaupt vom Grund ab.
+		w.farbe_tief = Farben.TUEMPEL
+		w.farbe_hell = Farben.TUEMPEL_HELL
+		w.spiegelung = 0.18
 		s += schritt
 
 
 func _absturz_spannen() -> void:
-	absturzzonen(18.0, 60.0)
+	absturzzonen(18.0, 66.0)
 
 
-# =========================================================== Plattformen
+# =========================================================== Auf dem Wasser
 
-## Wurzelinseln und Trittstümpfe in den Lücken.
-func _plattformen_bauen() -> void:
-	var holz := Materialbibliothek.wurzel()
-	var algen := Materialbibliothek.algen()
+## Seerosen als Trittsteine in den Lücken, und ein paar als Beiwerk.
+##
+## In jeder Lücke der Trittpfähle liegt genau ein Blatt in der Mitte: Die
+## Lücke ist 6 m breit, ein Sprung trägt gut 5 m – ohne Blatt wäre sie
+## nicht zu schaffen, mit Blatt sind es zwei bequeme Sprünge.
+func _seerosen_setzen() -> void:
+	seerose(29.0, 0.0, FLOSS_HOEHE, 2.6)
+	seerose(42.0, -0.8, FLOSS_HOEHE, 2.6)
+	seerose(53.5, 0.9, FLOSS_HOEHE, 2.4)
 
-	# Ufer: eine breite Insel zum Üben
-	plattform(30.0, 0.0, -0.35, Vector3(3.4, 0.7, 3.2), algen)
+	# Am Wehr: feste Blätter zwischen den tauchenden Bohlen, damit die
+	# Stelle ein Rhythmus bleibt und kein reines Glücksspiel.
+	seerose(110.0, 2.6, FLOSS_HOEHE, 2.2)
+	seerose(117.0, -2.6, FLOSS_HOEHE, 2.2)
 
-	# Bohlenweg: schmale Stümpfe, jeweils leicht versetzt
-	plattform(62.5, -1.2, -0.1, Vector3(2.2, 0.8, 2.2), holz)
-	plattform(80.5, 1.2, -0.1, Vector3(2.2, 0.8, 2.2), holz)
+	# Beiwerk am Rand, rein fürs Bild.
+	for paar in [[36.0, 5.4], [48.0, -5.8], [108.0, -6.2], [131.0, 5.6],
+			[144.0, -5.4], [176.0, 6.4], [184.0, -6.0]]:
+		var blatt := seerose(paar[0], paar[1], WASSER_HOEHE + 0.06,
+				randf_range(1.6, 2.6))
+		blatt.farbe = Farben.ALGE.darkened(randf_range(0.0, 0.25))
 
-	# Wurzelinseln: zwei Stufen je Lücke, die zweite höher
-	plattform(114.0, -1.4, 0.3, Vector3(2.6, 0.8, 2.6), holz)
-	plattform(116.0, 1.4, 0.9, Vector3(2.4, 0.8, 2.4), holz)
-	plattform(132.0, 1.2, 0.4, Vector3(2.6, 0.8, 2.6), holz)
-	plattform(134.0, -1.2, 1.0, Vector3(2.4, 0.8, 2.4), holz)
 
-	# Schilfgürtel: erhöhter Umweg über zwei Wurzelteller
-	plattform(158.0, -3.4, 1.4, Vector3(3.6, 0.7, 4.2), algen)
-	plattform(166.0, -3.4, 2.4, Vector3(3.6, 0.7, 3.8), algen)
+## Die beiden Treibflöße.
+##
+## Beide fahren hin und zurück. Das ist Absicht: Wer den Absprung
+## verpasst, wartet ein paar Sekunden, statt den Abschnitt zu verlieren.
+func _floesse_setzen() -> void:
+	# Fahrt I: lang und ruhig – hier lernt man, dass sich der Boden bewegt.
+	floss(62.0, 94.0, 0.0, FLOSS_HOEHE, FLOSS_GROESSE, 13.0, 3.0, 3.0)
+	# Fahrt II: kürzer und schneller, dafür mit mehr im Weg.
+	floss(164.0, 190.0, 0.0, FLOSS_HOEHE, Vector2(4.0, 3.0), 9.0, 2.6, 2.6)
+
+	# Ein zweites, kleines Floß auf Fahrt I, gegenläufig gestartet: Es
+	# fährt zurück, während das große vorwärts fährt. Wer will, wechselt
+	# unterwegs hinüber und kommt an die Kisten am Rand.
+	var nebenfloss := floss(70.0, 88.0, 3.4, FLOSS_HOEHE,
+			Vector2(2.6, 2.4), 8.0, 1.4, 1.4)
+	nebenfloss.phase = 0.5
+
+
+## Das Wehr: sechs Bohlen, die versetzt untertauchen.
+##
+## Der Versatz ist der ganze Trick. Wären alle gleichzeitig oben, wäre es
+## ein Steg; wären sie zufällig, wäre es Glück. Versetzt ergibt sich eine
+## Welle, die vor dem Spieler herläuft – er muss ihr folgen.
+func _wehr_bauen() -> void:
+	var stellen := [104.0, 108.0, 112.0, 116.0, 120.0, 123.0]
+	var seiten := [0.0, -1.4, 1.2, -1.0, 1.4, 0.0]
+	for i in stellen.size():
+		wehrbohle(stellen[i], seiten[i], BOHLE_OBEN, BOHLE_UNTEN,
+				float(i) * 0.17)
+
+
+## Was auf den Fahrten im Weg hängt.
+##
+## Zwei Arten, und sie verlangen Verschiedenes:
+##   Stachelbalken – hängt quer über der ganzen Rinne. Nur Krabbeln hilft.
+##   Hängemine     – schwingt quer über das Deck. Zur Seite gehen hilft,
+##                   Krabbeln auch, denn sie hängt über Kopfhöhe.
+##
+## Vor der ersten Fahrt steht ein Übungsbalken auf festem Grund: Wer dort
+## stehen bleibt, kassiert einen Treffer und weiß Bescheid – auf der
+## Fahrt über dem Wasser wäre dieselbe Lehre teurer.
+func _hindernisse_setzen() -> void:
+	# Übung an Land
+	stachelbalken(21.0, 0.0, KRIECHHOEHE, Vector2(5.0, 1.0))
+
+	# --- Treibfahrt I ---
+	stachelbalken(72.0, 0.0, DECK + KRIECHHOEHE, Vector2(6.0, 1.1))
+	stachelbalken(86.0, 0.0, DECK + KRIECHHOEHE, Vector2(6.0, 1.1))
+	treibmine(67.0, 1.6, DECK + 0.75, 1.8, 3.4, 0.0, 3.2)
+	treibmine(78.0, -1.6, DECK + 0.75, 1.8, 3.0, 0.35, 3.2)
+	treibmine(82.0, 1.4, DECK + 0.75, 1.6, 2.6, 0.6, 3.2)
+	treibmine(91.0, 0.0, DECK + 0.75, 2.2, 3.8, 0.15, 3.2)
+
+	# --- Wehr: schwimmende Minen zwischen den Bohlen ---
+	treibmine(106.0, 2.2, WASSER_HOEHE + 0.3)
+	treibmine(114.0, -2.4, WASSER_HOEHE + 0.3, 1.4, 4.4, 0.25)
+	treibmine(121.0, 2.0, WASSER_HOEHE + 0.3, 1.2, 3.6, 0.5)
+
+	# --- Treibfahrt II: enger getaktet ---
+	stachelbalken(170.0, 0.0, DECK + KRIECHHOEHE, Vector2(5.4, 1.1))
+	stachelbalken(180.0, 0.0, DECK + KRIECHHOEHE, Vector2(5.4, 1.1))
+	stachelbalken(187.0, 0.0, DECK + KRIECHHOEHE, Vector2(5.4, 1.1))
+	treibmine(167.0, -1.3, DECK + 0.75, 1.5, 2.4, 0.0, 3.0)
+	treibmine(174.0, 1.3, DECK + 0.75, 1.5, 2.2, 0.4, 3.0)
+	treibmine(177.0, -1.3, DECK + 0.75, 1.5, 2.2, 0.8, 3.0)
+	treibmine(184.0, 0.0, DECK + 0.75, 1.9, 2.8, 0.2, 3.0)
 
 
 # =========================================================== Portale
@@ -191,173 +296,223 @@ func _portale() -> void:
 
 # =========================================================== Kisten
 
+## Eine Kiste auf einem Seerosenblatt im Wasser.
+##
+## Sie steht abseits des sicheren Weges – wer sie will, muss vom Floß
+## oder vom Steg herüberspringen und wieder zurück. Genau dafür sind die
+## Blätter da: Sie machen das Abseits erreichbar, ohne es zu verschenken.
+func kiste_auf_wasser(art: Kiste.Art, strecke: float,
+		seitlich: float) -> Kiste:
+	seerose(strecke, seitlich, FLOSS_HOEHE, 2.2)
+	return kiste(art, strecke, seitlich, DECK + 0.5)
+
+
 func _kisten_setzen() -> void:
-	# ---------- Ufer ----------
-	kiste(Kiste.Art.NORMAL, 7.0, -1.6)
-	kiste(Kiste.Art.NORMAL, 7.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 7.0, 1.6)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 13.0, 0.0)
-	kiste(Kiste.Art.SCHUTZ, 16.0, 2.2)
-	kiste(Kiste.Art.CHECKPOINT, 20.0, -2.4)
-	kiste(Kiste.Art.EISEN, 25.0, 1.6)
-	kiste(Kiste.Art.NORMAL, 25.0, 1.6, 1.6)
-	kiste(Kiste.Art.NORMAL, 38.0, 0.0)
+	# ---------- Anlegestelle: jedes Werkzeug einmal ----------
+	kiste(Kiste.Art.NORMAL, 6.0, -1.6)
+	kiste(Kiste.Art.NORMAL, 6.0, 0.0)
+	kiste(Kiste.Art.NORMAL, 6.0, 1.6)
+	kiste(Kiste.Art.FRUCHT_MEHRFACH, 11.0, 0.0)
+	kiste(Kiste.Art.CHECKPOINT, 15.0, -2.4)
+	kiste(Kiste.Art.EISEN, 18.0, 1.8)
+	kiste(Kiste.Art.NORMAL, 18.0, 1.8, 1.6)
+	kiste(Kiste.Art.SCHUTZ, 24.0, -1.4)
 
-	# ---------- Bohlenweg: eng, jede Kiste kostet Standfläche ----------
-	kiste(Kiste.Art.NORMAL, 48.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 52.0, -1.2)
-	kiste(Kiste.Art.FEDER, 57.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 68.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 72.0, 1.0)
-	kiste(Kiste.Art.CHECKPOINT, 86.0, -1.4)
-	kiste(Kiste.Art.NORMAL, 90.0, 0.0)
-	kiste(Kiste.Art.NITRO, 94.0, 1.6)
+	# ---------- Trittpfähle ----------
+	kiste(Kiste.Art.NORMAL, 34.0, 0.0)
+	kiste(Kiste.Art.NORMAL, 37.0, -1.4)
+	kiste_auf_wasser(Kiste.Art.FRUCHT_MEHRFACH, 41.0, 3.6)
+	kiste(Kiste.Art.FEDER, 47.0, 0.0)
+	kiste(Kiste.Art.NORMAL, 50.0, 1.4)
+	kiste(Kiste.Art.CHECKPOINT, 57.0, -2.0)
+	kiste(Kiste.Art.NORMAL, 58.5, 1.8)
 
-	# ---------- Wurzelinseln ----------
-	kiste(Kiste.Art.NORMAL, 102.0, -1.8)
-	kiste(Kiste.Art.NORMAL, 102.0, 1.8)
-	kiste(Kiste.Art.SPRUNG, 108.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 122.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 126.0, -1.6)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 140.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 143.0, 1.8)
+	# ---------- Treibfahrt I: alles seitlich der Rinne ----------
+	# Auf dem Floß selbst steht nichts – ein bewegter Boden voller Kisten
+	# nähme genau den Platz weg, den man zum Ausweichen braucht.
+	kiste_auf_wasser(Kiste.Art.NORMAL, 69.0, -4.2)
+	kiste_auf_wasser(Kiste.Art.NORMAL, 76.0, 4.4)
+	kiste_auf_wasser(Kiste.Art.SCHUTZ, 84.0, -4.4)
+	kiste_auf_wasser(Kiste.Art.NORMAL, 90.0, 4.2)
 
-	# ---------- Schilfgürtel: TNT hinter dem Schilf ----------
-	kiste(Kiste.Art.SCHUTZ, 142.0, 2.2)
-	kiste(Kiste.Art.CHECKPOINT, 149.0, -3.0)
-	kiste(Kiste.Art.TNT, 156.0, -1.0)
-	kiste(Kiste.Art.NORMAL, 156.0, 0.8)
-	kiste(Kiste.Art.NORMAL, 163.0, -0.6)
-	kiste(Kiste.Art.TNT, 172.0, 0.6)
-	kiste(Kiste.Art.NORMAL, 178.0, -2.2)
-	kiste(Kiste.Art.NORMAL, 180.0, 2.2)
+	# ---------- Anleger II ----------
+	kiste(Kiste.Art.CHECKPOINT, 98.0, -2.2)
+	kiste(Kiste.Art.NORMAL, 99.5, 0.0)
+	kiste(Kiste.Art.FRUCHT_MEHRFACH, 101.0, 2.0)
+
+	# ---------- Schilfgasse ----------
+	kiste(Kiste.Art.NORMAL, 127.0, 0.0)
+	kiste(Kiste.Art.NORMAL, 130.0, -1.4)
+	kiste(Kiste.Art.TNT, 134.0, 1.2)
+	kiste(Kiste.Art.NORMAL, 134.0, -1.2)
+	kiste(Kiste.Art.CHECKPOINT, 138.0, -1.8)
+	kiste_auf_wasser(Kiste.Art.NORMAL, 141.0, 5.2)
+	kiste(Kiste.Art.SPRUNG, 145.0, 0.0)
+	kiste(Kiste.Art.NORMAL, 149.0, 1.4)
+	kiste(Kiste.Art.TNT, 153.0, -1.0)
+	kiste(Kiste.Art.NORMAL, 158.0, 0.0)
+	kiste(Kiste.Art.SCHUTZ, 160.5, -2.0)
+
+	# ---------- Treibfahrt II ----------
+	kiste_auf_wasser(Kiste.Art.NORMAL, 172.0, -4.0)
+	kiste_auf_wasser(Kiste.Art.NORMAL, 179.0, 4.0)
+	# Zwei Nitro-Kisten dicht an der Rinne, jede auf ihrem Blatt. Das Floß
+	# ist 4,0 m breit, die Kisten stehen bei ±2,8 m: Die Durchfahrt ist
+	# frei, aber schmal. Wer hier hektisch ausweicht, weicht in eine hinein.
+	kiste_auf_wasser(Kiste.Art.NITRO, 188.0, -2.8)
+	kiste_auf_wasser(Kiste.Art.NITRO, 188.0, 2.8)
 
 	# ---------- Anhöhe ----------
-	kiste(Kiste.Art.NORMAL, 190.0, -2.0)
-	kiste(Kiste.Art.NORMAL, 190.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 190.0, 2.0)
-	kiste(Kiste.Art.LEBEN, 196.0, 0.0)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 201.0, -1.8)
+	kiste(Kiste.Art.NORMAL, 196.0, -2.0)
+	kiste(Kiste.Art.NORMAL, 196.0, 0.0)
+	kiste(Kiste.Art.NORMAL, 196.0, 2.0)
+	kiste(Kiste.Art.LEBEN, 202.0, 0.0)
+	kiste(Kiste.Art.FRUCHT_MEHRFACH, 207.0, -1.8)
+	kiste(Kiste.Art.NORMAL, 211.0, 1.6)
 
 
 # =========================================================== Gegner
 
+## Gegner stehen nur dort, wo fester Boden ist.
+##
+## Auf den Fahrten wäre ein patrouillierender Gegner unfair: Er stünde
+## still im Raum, während der Boden unter dem Spieler wegfährt – kein
+## Können, nur Pech. Dort übernehmen Minen und Balken.
 func _gegner_setzen() -> void:
-	# ---------- Ufer: Draufspringen auf festem Boden ----------
-	gegner(PANZERKAEFER, 16.0, 0.0, 3.5, true)
-	gegner(PANZERKAEFER, 40.0, -1.2, 2.5, true)
+	# ---------- Anlegestelle: Draufspringen auf sicherem Grund ----------
+	gegner(PANZERKAEFER, 10.0, 0.0, 3.5, true)
+	gegner(PANZERKAEFER, 23.0, -1.2, 2.5, true)
 
-	# ---------- Bohlenweg: Drehschlag auf schmalem Steg ----------
-	gegner(SUMPFKROETE, 50.0, 0.0, 2.0, true)
-	gegner(SUMPFKROETE, 74.0, 0.0, 2.0, true)
-	gegner(PANZERKAEFER, 92.0, 0.0, 2.5, true)
+	# ---------- Trittpfähle: Drehschlag auf engem Stand ----------
+	gegner(SUMPFKROETE, 35.0, 0.0, 2.0, true)
+	gegner(SUMPFKROETE, 48.0, 0.0, 2.0, true)
 
-	# ---------- Wurzelinseln ----------
-	gegner(SUMPFKROETE, 105.0, 0.0, 3.0, true)
-	gegner(SUMPFKROETE, 124.0, 0.0, 2.5, true)
-	gegner(PANZERKAEFER, 140.0, 0.0, 3.0, true)
+	# ---------- Anleger II ----------
+	gegner(PANZERKAEFER, 100.0, 0.0, 2.0, true)
 
-	# ---------- Schilfgürtel: Slide zwischen dem Schilf ----------
-	gegner(STELZENSPINNE, 152.0, -1.6, 3.0, true)
-	gegner(STELZENSPINNE, 160.0, 0.8, 3.5, true)
-	gegner(STELZENSPINNE, 170.0, -0.6, 3.0, true)
-	gegner(STELZENSPINNE, 179.0, 1.4, 3.0, true)
+	# ---------- Schilfgasse: die dichteste Stelle des Levels ----------
+	gegner(STELZENSPINNE, 129.0, -1.2, 2.6, true)
+	gegner(SUMPFKROETE, 136.0, 0.8, 2.4, true)
+	gegner(STELZENSPINNE, 143.0, -0.8, 2.8, true)
+	gegner(STELZENSPINNE, 151.0, 1.0, 2.6, true)
+	gegner(SUMPFKROETE, 159.0, 0.0, 2.2, true)
 
 	# ---------- Anhöhe ----------
-	gegner(SUMPFKROETE, 194.0, 2.0, 3.0, true)
+	gegner(SUMPFKROETE, 200.0, 2.0, 3.0, true)
+	gegner(PANZERKAEFER, 209.0, -1.6, 3.0, true)
 
 
 # =========================================================== Früchte
 
+## Früchte führen den Blick. Auf den Fahrten liegen sie tiefer als sonst,
+## weil der Spieler dort auf dem Floßdeck steht und nicht auf dem Weg.
 func _fruechte_setzen() -> void:
-	fruechte_reihe(4.0, 18.0, 7, 0.0)
-	fruechte_bogen(27.0, 33.0, 5, 0.0)
-	fruechte_reihe(46.0, 58.0, 6, 0.0)
-	fruechte_bogen(60.5, 64.5, 5, -1.0)
-	fruechte_reihe(67.0, 76.0, 5, 0.0)
-	fruechte_bogen(78.5, 82.5, 5, 1.0)
-	fruechte_reihe(85.0, 96.0, 5, -1.2)
-	fruechte_reihe(100.0, 110.0, 5, 0.0)
-	fruechte_bogen(112.5, 117.5, 5, 0.0, 3.0)
-	fruechte_reihe(120.0, 128.0, 5, 1.4)
-	fruechte_bogen(130.5, 135.5, 5, 0.0, 3.0)
-	fruechte_reihe(138.0, 144.0, 4, -1.4)
-	fruechte_reihe(148.0, 182.0, 12, -3.2)
-	fruechte_reihe(186.0, 206.0, 8, 0.0)
+	fruechte_reihe(4.0, 20.0, 8, 0.0)
+	fruechte_bogen(26.5, 31.5, 5, 0.0, 2.2)
+	fruechte_reihe(33.0, 38.0, 4, 0.0)
+	fruechte_bogen(39.5, 44.5, 5, -0.8, 2.2)
+	fruechte_reihe(46.0, 51.0, 4, 0.0)
+	fruechte_bogen(52.5, 54.5, 3, 0.9, 1.6)
+
+	# Fahrt I: eine Spur mittig, damit man beim Ausweichen nicht vergisst,
+	# wo die Rinne ist.
+	fruechte_reihe(63.0, 93.0, 12, 0.0, DECK + 0.9)
+	fruechte_reihe(70.0, 88.0, 5, 3.4, DECK + 0.9)
+
+	fruechte_reihe(97.0, 101.0, 3, 0.0)
+	# Wehr: die Früchte sitzen über den Bohlen und zeigen den Takt an.
+	fruechte_bogen(103.0, 124.0, 9, 0.0, 1.8)
+
+	fruechte_reihe(126.0, 154.0, 10, 0.0)
+	fruechte_reihe(157.0, 161.0, 3, 0.0)
+
+	fruechte_reihe(165.0, 189.0, 10, 0.0, DECK + 0.9)
+	fruechte_reihe(194.0, 214.0, 9, 0.0)
 
 
 # =========================================================== Kulisse
 
-## Sumpfwald: kahle Stämme im Wasser, dazwischen einzelne Laubkronen.
-## Die Bäume stehen im Wasser, nicht auf dem Steg – der Weg soll frei
-## bleiben, der Blick daneben dicht.
+## Sumpfwald: kahle Stämme im Wasser, dazwischen einzelne Kronen. Auf
+## Höhe der Fahrten stehen sie weiter draußen – die Rinne bleibt frei,
+## sonst nähmen sie auf der Fahrt die Sicht nach vorn.
 func _wald_bauen() -> void:
 	var wuerfel := randi()
-	seed(30301)
-	for i in 68:
+	seed(30311)
+	for i in 74:
 		var s := randf_range(-6.0, M_ENDE + 6.0)
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var quer := seite * randf_range(7.0, 26.0)
+		var frei := _fahrt_hier(s)
+		var quer := seite * randf_range(9.0 if frei else 7.0, 27.0)
 		var totholz := i % 3 == 0
 		var baum := BAUM.instantiate() as Baum
 		baum.art = Baum.Art.TOTHOLZ if totholz else Baum.Art.LAUBBAUM
-		baum.hoehe = randf_range(5.0, 11.0)
+		baum.hoehe = randf_range(5.0, 12.0)
 		baum.staerke = randf_range(0.6, 1.1)
-		baum.saat = 4000 + i
+		baum.saat = 4200 + i
 		baum.laubfarbe = Farben.LAUB_DUNKEL.lerp(Farben.ALGE, randf())
 		baum.kollision = false
-		# Auf der Anhöhe stehen sie auf trockenem Grund, sonst im Wasser.
 		var fuss := WASSER_HOEHE - 0.4 if s < M_ANHOEHE else -0.2
 		baum.position = LevelWerkzeuge.punkt(verlauf, s, quer, fuss)
 		deko.add_child(baum)
 	seed(wuerfel)
 
 
-## Schilf am Wegrand, Farne auf dem Ufer, Wurzeln über den Inseln.
+## Liegt diese Stelle in einem der beiden Fahrtabschnitte?
+func _fahrt_hier(strecke: float) -> bool:
+	return (strecke > M_FAHRT1 and strecke < M_WEHR) \
+			or (strecke > M_FAHRT2 and strecke < M_ANHOEHE)
+
+
+## Schilf am Ufer, Farne auf festem Grund, Wurzeln aus dem Wasser.
 func _deko_bauen() -> void:
 	var wuerfel := randi()
-	seed(30302)
+	seed(30312)
 
-	# Schilfhorste: Grasfelder in Schilffarbe, dicht am Wasser
-	for i in 46:
+	# Schilfhorste. Auf den Fahrten säumen sie die Rinne und machen sie
+	# überhaupt erst als Rinne lesbar – deshalb stehen sie dort weiter
+	# draußen und niedriger. Dicht am Floß nähmen sie die Sicht nach vorn,
+	# und genau die braucht man, um den Hindernissen auszuweichen.
+	for i in 58:
 		var s := randf_range(2.0, M_ANHOEHE)
 		var rand := rand_bei(s, 0.4)
-		if rand < 1.0:
-			continue
+		var frei := _fahrt_hier(s)
+		var abstand := rand + randf_range(0.6, 3.0) if rand >= 1.0 \
+				else randf_range(5.0, 8.5)
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
 		var horst := GRASFELD.instantiate() as Grasfeld
-		horst.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * (rand + randf_range(0.6, 3.0)), WASSER_HOEHE + 0.1)
-		horst.flaeche = Vector2(3.0, 3.0)
-		horst.halm_hoehe = randf_range(0.7, 1.25)   # Schilf steht hoch
+		horst.position = LevelWerkzeuge.punkt(verlauf, s, seite * abstand,
+				WASSER_HOEHE + 0.1)
+		horst.flaeche = Vector2(2.4, 2.4) if frei else Vector2(3.0, 3.0)
+		horst.halm_hoehe = randf_range(0.5, 0.85) if frei \
+				else randf_range(0.7, 1.3)
 		horst.farbe_unten = Farben.ALGE.darkened(0.35)
 		horst.farbe_oben = Farben.SCHILF
-		horst.saat = 5000 + i
+		horst.saat = 5200 + i
 		deko.add_child(horst)
 
-	# Farne und Pilze auf dem festen Grund am Anfang und Ende
-	for i in 26:
-		var s: float = randf_range(2.0, 42.0) if i % 2 == 0 \
+	# Farne und Pilze auf dem festen Grund
+	for i in 28:
+		var s: float = randf_range(2.0, 24.0) if i % 2 == 0 \
 				else randf_range(M_ANHOEHE, M_ENDE - 4.0)
 		var rand := rand_bei(s, 0.9)
 		if rand < 1.2:
 			continue
 		var kleinzeug := KLEINZEUG.instantiate() as Kleinzeug
 		kleinzeug.art = Kleinzeug.Art.PILZ if i % 3 == 0 else Kleinzeug.Art.FARN
-		kleinzeug.saat = 6000 + i
+		kleinzeug.saat = 6200 + i
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
 		kleinzeug.position = LevelWerkzeuge.punkt(verlauf, s, seite * rand, 0.0)
 		deko.add_child(kleinzeug)
 
 	# Wurzeln, die aus dem Wasser greifen
-	for i in 20:
-		var s := randf_range(M_BOHLEN, M_SCHILF)
+	for i in 24:
+		var s := randf_range(M_PFAEHLE, M_ANHOEHE)
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
 		var w := WURZEL.instantiate()
 		if "saat" in w:
-			w.set("saat", 8000 + i)
+			w.set("saat", 8200 + i)
 		w.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * randf_range(4.0, 12.0), WASSER_HOEHE - 0.2)
+				seite * randf_range(5.0, 13.0), WASSER_HOEHE - 0.2)
 		w.rotation.y = randf() * TAU
 		deko.add_child(w)
 	seed(wuerfel)

@@ -23,6 +23,8 @@ const KISTE := preload("res://scenes/crates/Kiste.tscn")
 const FRUCHT := preload("res://scenes/fruits/Frucht.tscn")
 const WASSER := preload("res://scenes/hazards/Wasser.tscn")
 const STACHELN := preload("res://scenes/hazards/Stacheln.tscn")
+const WASSERPLATTFORM := preload("res://scenes/props/Wasserplattform.tscn")
+const TREIBMINE := preload("res://scenes/hazards/Treibmine.tscn")
 const STARTPORTAL := preload("res://scenes/portals/StartPortal.tscn")
 const ZIELPORTAL := preload("res://scenes/portals/ZielPortal.tscn")
 
@@ -83,6 +85,140 @@ func plattform(strecke: float, seitlich: float, hoehe: float,
 	var pos := LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
 	return LevelWerkzeuge.plattform(geometrie, pos, groesse, material,
 			LevelWerkzeuge.drehung(verlauf, strecke))
+
+
+# ------------------------------------------------------- Auf dem Wasser
+
+## Treibfloß, das den Spieler von `von` nach `bis` trägt und zurückfährt.
+##
+## Es folgt dem Levelverlauf, dreht sich also mit dem Fluss mit. Die
+## Rückfahrt ist Absicht und kein Zugeständnis: Wer den Absprung verpasst,
+## wartet, statt neu anfangen zu müssen.
+func floss(von: float, bis: float, seitlich: float, hoehe: float,
+		groesse: Vector2, fahrzeit: float, pause_a := 2.4,
+		pause_b := 2.4, phase := 0.0) -> Wasserplattform:
+	var f := WASSERPLATTFORM.instantiate() as Wasserplattform
+	f.art = Wasserplattform.Art.FLOSS
+	f.groesse = groesse
+	f.verlauf = verlauf
+	f.strecke_a = von
+	f.strecke_b = bis
+	f.seitlich_a = seitlich
+	f.seitlich_b = seitlich
+	f.hoehe = hoehe
+	f.fahrzeit = fahrzeit
+	f.pause_a = pause_a
+	f.pause_b = pause_b
+	f.phase = phase
+	f.saat = int(von * 7.0) + 1
+	objekte.add_child(f)
+	return f
+
+
+## Seerosenblatt als Trittstein. Steht still und wippt nur.
+func seerose(strecke: float, seitlich: float, hoehe: float,
+		durchmesser := 2.4) -> Wasserplattform:
+	var b := WASSERPLATTFORM.instantiate() as Wasserplattform
+	b.art = Wasserplattform.Art.SEEROSE
+	b.groesse = Vector2(durchmesser, durchmesser)
+	b.punkt_a = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	b.punkt_b = b.punkt_a
+	b.drehung = LevelWerkzeuge.drehung(verlauf, strecke)
+	b.wippen = 0.04
+	b.phase = fmod(strecke, TAU)
+	objekte.add_child(b)
+	return b
+
+
+## Wehrbohle, die im Takt untertaucht. Oben steht sie lange, unten kurz –
+## sonst wäre die Stelle kein Rhythmus, sondern eine Wartezeit.
+func wehrbohle(strecke: float, seitlich: float, oben: float, unten: float,
+		phase: float, groesse := Vector2(3.4, 2.6),
+		oben_zeit := 2.3, unten_zeit := 0.9) -> Wasserplattform:
+	var b := WASSERPLATTFORM.instantiate() as Wasserplattform
+	b.art = Wasserplattform.Art.BOHLE
+	b.groesse = groesse
+	b.punkt_a = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, oben)
+	b.punkt_b = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, unten)
+	b.drehung = LevelWerkzeuge.drehung(verlauf, strecke)
+	b.fahrzeit = 0.75
+	b.pause_a = oben_zeit
+	b.pause_b = unten_zeit
+	b.phase = phase
+	b.wippen = 0.0
+	objekte.add_child(b)
+	return b
+
+
+## Treibmine: Hindernis auf dem Wasser, nicht zu besiegen.
+func treibmine(strecke: float, seitlich: float, hoehe: float,
+		pendel := 0.0, dauer := 4.0, phase := 0.0,
+		kette := 0.0, galgen_tiefe := 2.6) -> Treibmine:
+	var m := TREIBMINE.instantiate() as Treibmine
+	m.kette_hoehe = kette
+	m.pendel_weite = pendel
+	m.pendel_dauer = dauer
+	m.phase = phase
+	m.saat = int(strecke * 11.0) + 3
+	m.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	# Quer zum Fluss pendeln, nicht mit ihm – sonst führe die Mine dem
+	# Spieler davon, statt ihm den Weg zu verlegen.
+	var dreh := LevelWerkzeuge.drehung(verlauf, strecke)
+	m.pendel_achse = Vector3(cos(dreh), 0.0, -sin(dreh))
+	objekte.add_child(m)
+	if kette > 0.0:
+		_aufhaengung(strecke, seitlich, hoehe + kette, dreh,
+				kette + galgen_tiefe)
+	return m
+
+
+## Galgen aus Totholz, an dem eine Kette hängt: ein Querholz über der
+## Rinne und ein Pfahl, der es trägt.
+##
+## Ohne ihn endet die Kette in der Luft, und die Mine sieht aus, als
+## schwebe sie an einem Stock. Das Querholz sitzt genau am Aufhängepunkt,
+## den `Treibmine` beim Kippen der Kette festhält; der Pfahl steht daneben
+## und reicht bis unter die Wasserlinie.
+func _aufhaengung(strecke: float, seitlich: float, hoehe: float,
+		dreh: float, tiefe: float) -> void:
+	const QUER_LAENGE := 4.6
+	const PFAHL_VERSATZ := 1.9
+
+	var st := PropWerkzeug.bauer()
+	var quer := PropWerkzeug.stumpf(0.13, 0.17, QUER_LAENGE, 6, true)
+	# Liegend und eine Spur schief – gebaut sieht zu ordentlich aus.
+	PropWerkzeug.anfuegen(st, quer, Transform3D(
+			Basis(Vector3.FORWARD, PI * 0.5 + 0.06), Vector3.ZERO))
+	var pfahl := PropWerkzeug.stumpf(0.19, 0.15, tiefe, 6, true)
+	PropWerkzeug.anfuegen(st, pfahl, Transform3D(Basis(),
+			Vector3(PFAHL_VERSATZ, -tiefe * 0.5, 0.0)))
+
+	var knoten := PropWerkzeug.mesh_knoten("Aufhaengung",
+			PropWerkzeug.fertig(st), Materialbibliothek.rinde())
+	if knoten == null:
+		return
+	knoten.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	knoten.rotation.y = dreh
+	deko.add_child(knoten)
+
+
+## Stachelbalken, der über dem Weg hängt: aufrecht kommt man nicht
+## darunter durch, krabbelnd schon.
+##
+## `unterkante` ist die Höhe, unter der wieder Luft ist – gemessen vom
+## Boden, auf dem der Spieler steht. Die aufrechte Kapsel ist 1,30 m
+## hoch, die flache 0,76 m; alles dazwischen trennt Gehen von Krabbeln.
+func stachelbalken(strecke: float, seitlich: float, unterkante: float,
+		flaeche := Vector2(4.0, 1.1)) -> Stacheln:
+	var st := STACHELN.instantiate() as Stacheln
+	st.flaeche = flaeche
+	st.einfahrbar = false
+	st.stachel_hoehe = 0.55
+	st.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich,
+			unterkante + st.stachel_hoehe + 0.12)
+	st.rotation = Vector3(0.0, LevelWerkzeuge.drehung(verlauf, strecke), PI)
+	objekte.add_child(st)
+	return st
 
 
 ## Start- und Zielportal an den beiden Enden der Strecke.
@@ -213,8 +349,16 @@ func absturzzonen(schritt: float = 18.0, breite: float = 70.0) -> void:
 
 
 func _auf_absturz(koerper: Node3D) -> void:
-	if koerper.is_in_group("spieler") and koerper.has_method("sterben"):
-		koerper.call("sterben")
+	if not koerper.is_in_group("spieler") or not koerper.has_method("sterben"):
+		return
+	# Die Zonen überlappen einander mit Absicht, damit unter einem kurvigen
+	# Weg keine Lücke bleibt. Ohne diese Sperre zählt ein einziger Sturz
+	# aber so oft, wie er Zonen berührt – bei einer engen Schleife waren
+	# das drei Leben auf einmal. Nach dem ersten Tod ist der Spieler kurz
+	# unverwundbar; genau daran wird der zweite Auslöser erkannt.
+	if float(koerper.get("invuln")) > 0.0:
+		return
+	koerper.call("sterben")
 
 
 # ------------------------------------------------------------- Lücken

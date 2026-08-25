@@ -33,6 +33,17 @@ const SHADER_PFAD := "res://shaders/wasser.gdshader"
 ## Tempo der Wellenanimation.
 @export_range(0.1, 3.0, 0.05) var wellen_tempo := 1.0
 
+## Farbe des Wassers. Alpha 0 = Vorgabe aus der Palette (klares Blau).
+## Ein Moortümpel braucht andere Töne als ein Gebirgsbach, und ohne diese
+## beiden Regler sah bisher jedes Gewässer im Spiel gleich aus.
+@export var farbe_tief := Color(0, 0, 0, 0)
+@export var farbe_hell := Color(0, 0, 0, 0)
+
+## Stärke des hellen Schimmers an flachen Blickwinkeln. Bei trübem Wasser
+## gehört er heruntergedreht: Sonst legt sich ein weißer Schleier über die
+## ganze Fläche und der Sumpf leuchtet heller als der Himmel.
+@export_range(0.0, 1.0, 0.05) var spiegelung := 0.55
+
 ## Unterteilung des Gitters – je feiner, desto runder die Wellen.
 @export_range(8, 64, 1) var unterteilung := 32
 
@@ -88,9 +99,12 @@ func _aufbauen() -> void:
 func _wassermaterial() -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load(SHADER_PFAD) as Shader
-	m.set_shader_parameter("farbe_tief", Farben.WASSER)
-	m.set_shader_parameter("farbe_hell", Farben.WASSER_HELL)
-	m.set_shader_parameter("farbe_schaum", Farben.WASSER_HELL.lightened(0.6))
+	var tief := farbe_tief if farbe_tief.a > 0.0 else Farben.WASSER
+	var hell := farbe_hell if farbe_hell.a > 0.0 else Farben.WASSER_HELL
+	m.set_shader_parameter("farbe_tief", tief)
+	m.set_shader_parameter("farbe_hell", hell)
+	m.set_shader_parameter("farbe_schaum", hell.lightened(0.6))
+	m.set_shader_parameter("spiegelung", spiegelung)
 	m.set_shader_parameter("wellen_hoehe", wellen_hoehe)
 	m.set_shader_parameter("wellen_tempo", wellen_tempo)
 	# Graustufen-Rauschen aus der Materialbibliothek als Kräuselmuster.

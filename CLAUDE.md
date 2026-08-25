@@ -36,13 +36,19 @@ Regeln:
 - Kisten zerbrechen durch: Spin, Bauchplatscher, Draufspringen mit Fallgeschwindigkeit.
 
 ## Stand der Level
-01 Wurzelschlucht (Wald) · 02 Frostgrat (Schnee) · 03 Moorbrücken (Sumpf) ·
-04 Katzensprung (Ritt auf der Wildkatze) · 05 Wettrennen (Karts, drei Runden).
-06–25 offen.
+Raum 1 (Wurzelwald): 01 Wurzelschlucht (Wald) · 02 Frostgrat (Schnee) ·
+03 Treibgut (Sumpffluss mit Treibflößen) · 04 Katzensprung (Ritt auf der
+Wildkatze) · 05 Hauerjagd (Flucht vor dem Keiler).
+Raum 2 (Nebelsümpfe): 06 Wettrennen (Karts, drei Runden) ·
+07 Moorbrücken (Bohlenweg im Moor). 08–25 offen.
 
-Die Level 04 und 05 laufen nicht über `move_and_slide`, sondern kleben auf
-der Levelkurve (`Reiter`, `Rennfahrer` – beide erben von `Spieler`, weil
-Kisten und Gegner `koerper is Spieler` prüfen).
+Level 03 wechselt zwischen Laufen und Fahren: Zwei Abschnitte haben
+keinen Boden, dort trägt eine `Wasserplattform` (Treibfloß) den Spieler.
+Die Steuerung bleibt dabei die normale – anders als in 04 bis 06.
+
+Die Level 04, 05 und 06 laufen nicht über `move_and_slide`, sondern kleben
+auf der Levelkurve (`Reiter`, `Fluechtling`, `Rennfahrer` – alle erben von
+`Spieler`, weil Kisten und Gegner `koerper is Spieler` prüfen).
 
 ## Spielsysteme
 - **Kisten:** normal (gibt Frucht), Checkpoint (setzt Respawn), später: TNT-artig (Timer), Bounce, Eisen (unzerbrechlich)
