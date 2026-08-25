@@ -6,6 +6,10 @@ class_name Statustafel
 ## Statustaste der Touch-Steuerung auf- und zugeklappt und hält das Spiel
 ## dabei an. Der HUD erzeugt sie; wie überall im Projekt ist alles
 ## gezeichnet statt geladen.
+##
+## Sie ist zugleich der einzige Weg AUS einem Level heraus. Ohne den Knopf
+## "Level verlassen" saß man bis zum Zielportal fest – am Rechner konnte
+## man wenigstens das Fenster schließen, im Browser gab es gar nichts.
 
 ## Aufbau der Steuerungslegende: [Aktion, Klartext, Tastatur].
 ## Leere Aktion = keine Symboltaste, dann steht der Controller-Text rechts.
@@ -29,6 +33,7 @@ const SCHONFRIST := 0.35
 var offen := false
 
 var _auf_seit := 0.0
+var _verlassen: MenueEintrag
 
 
 func _ready() -> void:
@@ -39,8 +44,20 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 	draw.connect(_zeichnen)
-	resized.connect(queue_redraw)
+	resized.connect(func() -> void:
+		queue_redraw()
+		_knopf_ausrichten())
 	InputHub.status_gewuenscht.connect(umschalten)
+
+	_verlassen = MenueEintrag.new()
+	_verlassen.name = "LevelVerlassen"
+	_verlassen.beschriftung = "Level verlassen"
+	_verlassen.unterzeile = "zurück in den Portalraum"
+	_verlassen.schriftgroesse = 21
+	_verlassen.process_mode = Node.PROCESS_MODE_ALWAYS
+	_verlassen.angetippt.connect(_level_verlassen)
+	_verlassen.visible = false
+	add_child(_verlassen)
 
 
 func _exit_tree() -> void:
@@ -55,6 +72,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if not offen:
+		return
+	# Bestätigen verlässt das Level – aber nur, wenn man in einem ist.
+	if _im_level() and (event.is_action_pressed("ui_accept")
+			or event.is_action_pressed("jump")):
+		_level_verlassen()
+		get_viewport().set_input_as_handled()
 		return
 	# Offen schließt alles: Abbrechen, Pause oder ein Tippen ins Bild.
 	var zu := event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause")
@@ -79,7 +102,45 @@ func setzen(an: bool) -> void:
 	visible = an
 	_auf_seit = Time.get_ticks_msec() * 0.001
 	get_tree().paused = an
+	if is_instance_valid(_verlassen):
+		_verlassen.visible = an and _im_level()
+		_verlassen.setze_auswahl(true)
+	_knopf_ausrichten()
 	queue_redraw()
+
+
+func _im_level() -> bool:
+	return Spielfluss.aktuelles_level > 0
+
+
+## Verlässt das Level. Erst den Baum wieder anlaufen lassen, dann wechseln –
+## ein Szenenwechsel bei angehaltenem Baum lässt das neue Level nie fertig
+## aufbauen, weil sein Aufbau über mehrere Bilder läuft.
+func _level_verlassen() -> void:
+	if not _im_level():
+		return
+	setzen(false)
+	Spielfluss.zum_hub()
+
+
+func _knopf_ausrichten() -> void:
+	if not is_instance_valid(_verlassen) or not _verlassen.visible:
+		return
+	var feld := _tafelfeld()
+	_verlassen.size = Vector2(minf(feld.size.x - 68.0, 300.0), 56.0)
+	_verlassen.position = Vector2(feld.position.x + 34.0,
+			feld.end.y - 56.0 - 46.0)
+
+
+## Fläche der Tafel. Wird von Zeichnung UND Knopf benutzt, damit beide
+## nicht auseinanderlaufen.
+func _tafelfeld() -> Rect2:
+	var breite := minf(size.x * 0.9, 780.0)
+	var hoehe := 176.0 + LEGENDE.size() * 30.0
+	if _im_level():
+		hoehe += 74.0     # Platz für "Level verlassen"
+	hoehe = minf(size.y * 0.9, hoehe)
+	return Rect2((size - Vector2(breite, hoehe)) * 0.5, Vector2(breite, hoehe))
 
 
 # ------------------------------------------------------------- Zeichnen
@@ -92,10 +153,8 @@ func _zeichnen() -> void:
 	# Alles dahinter abdunkeln
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.03, 0.03, 0.72))
 
-	var breite := minf(size.x * 0.9, 780.0)
-	# Höhe folgt dem Inhalt: Kopf, Legendenzeilen, Fußzeile.
-	var hoehe := minf(size.y * 0.9, 176.0 + LEGENDE.size() * 30.0)
-	var feld := Rect2((size - Vector2(breite, hoehe)) * 0.5, Vector2(breite, hoehe))
+	var feld := _tafelfeld()
+	var breite := feld.size.x
 	_flaeche(feld, Color(0.05, 0.09, 0.08, 0.94), 18)
 	_rahmen(feld, Color(1, 1, 1, 0.16), 18, 2.0)
 
@@ -111,8 +170,11 @@ func _zeichnen() -> void:
 	_zustand(schrift, Vector2(links, y + 40.0), breite * 0.4)
 	_steuerung(schrift, Vector2(rechts, y + 40.0), feld.end.x - 34.0 - rechts)
 
+	var fuss := "Dreieck, Tab oder Antippen schließt  ·  Spiel ist angehalten"
+	if _im_level():
+		fuss = "Enter verlässt das Level  ·  Dreieck oder Tab schließt"
 	_text_mittig(schrift, Vector2(feld.get_center().x, feld.end.y - 22.0),
-			"Dreieck, Tab oder Antippen schließt  ·  Spiel ist angehalten", 14, MATT)
+			fuss, 14, MATT)
 
 
 ## Wo der Spieler gerade steckt.

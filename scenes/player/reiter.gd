@@ -222,7 +222,7 @@ func sterben() -> void:
 
 ## Zurück zum letzten Checkpoint auf der Strecke.
 func respawn() -> void:
-	strecke = _checkpoint
+	strecke = _sichere_strecke(_checkpoint)
 	_seitlich = 0.0
 	_seitlich_ziel = 0.0
 	_hoehe = 0.0
@@ -235,6 +235,30 @@ func respawn() -> void:
 	var kamera := get_viewport().get_camera_3d()
 	if kamera != null and kamera.has_method("sofort_ausrichten"):
 		kamera.call("sofort_ausrichten")
+
+
+## Sucht rückwärts eine Stelle mit festem Boden und etwas Anlauf davor.
+##
+## Ohne das kann ein Rastplatz, der zu dicht vor einer Lücke liegt, das
+## Spiel aufhängen: Man erscheint auf der Kante, läuft im nächsten Bild
+## hinein, stirbt und wird auf dieselbe Kante zurückgesetzt – eine
+## Todesschleife, die im Millisekundentakt zwischen "Autsch" und
+## "GAME OVER" wechselt. Die Stelle selbst zu prüfen genügt nicht; es
+## braucht auch Weg dahinter, sonst reicht die Zeit zum Springen nicht.
+func _sichere_strecke(wunsch: float) -> float:
+	const ANLAUF := 7.0      ## so viel fester Boden muss dahinter liegen
+	const SCHRITT := 1.0
+	const HOECHSTENS := 40.0 ## weiter zurück wird nicht gesucht
+	var s := maxf(wunsch, 0.0)
+	var zurueck := 0.0
+	while zurueck <= HOECHSTENS:
+		if _boden_da(s) and _boden_da(s + ANLAUF):
+			return s
+		s = maxf(s - SCHRITT, 0.0)
+		zurueck += SCHRITT
+		if s <= 0.0:
+			break
+	return maxf(wunsch, 0.0)
 
 
 ## Setzt den Rückkehrpunkt. Die Checkpoint-Kiste meldet über GameState eine

@@ -20,6 +20,7 @@ extends Node
 ##   FOTO_RADIUS   nur orbit: Abstand zur Mitte (Vorgabe 26)
 ##   FOTO_HOEHE    nur orbit: Höhe über der Mitte (Vorgabe 14)
 ##   FOTO_ASSETS   0 = mitgelieferte Naturmodelle aus, prozedural bauen
+##   FOTO_STATUS   1 = Statustafel aufgeklappt zeigen
 ##   FOTO_SEITLICH seitlicher Versatz der Figur vom Wegmittelpunkt in Metern
 ##                 (nur verfolger/seite/nah) – zeigt, wie stark die Kamera
 ##                 seitliche Bewegungen mitnimmt
@@ -41,6 +42,13 @@ func _ready() -> void:
 	var pfad := OS.get_environment("FOTO_LEVEL")
 	if pfad.is_empty():
 		pfad = "res://scenes/levels/Level01.tscn"
+	# Dem Spielfluss sagen, welches Level läuft. Sonst hält sich das Spiel
+	# für den Portalraum – die Statustafel zeigt dann den falschen Ort und
+	# blendet "Level verlassen" aus.
+	var nummer := pfad.get_file().get_basename().to_lower().trim_prefix("level")
+	if nummer.is_valid_int():
+		Spielfluss.aktuelles_level = int(nummer)
+
 	_szene = load(pfad).instantiate()
 	add_child(_szene)
 	await get_tree().process_frame
@@ -49,14 +57,31 @@ func _ready() -> void:
 	# vorher fotografiert, erwischt eine halbe Szene – und vor allem hängt
 	# die Verfolgerkamera dann noch nicht am Spieler, sodass JEDES Bild die
 	# Startstelle zeigt, egal welche Strecke angefordert wurde.
+	var fertig := [false]
 	if _szene.has_signal("aufbau_fertig"):
+		_szene.aufbau_fertig.connect(func() -> void: fertig[0] = true)
 		var wartebilder := 0
-		while not Ladeschirm.ist_sichtbar() and wartebilder < 10:
+		# Mit Zähler statt blankem `await`: Ist der Aufbau schon durch,
+		# bevor wir lauschen, wartete das Signal ewig – der Lauf hing dann
+		# bis zum Zeitablauf und lieferte kein einziges Bild.
+		while not fertig[0] and wartebilder < 900:
 			wartebilder += 1
 			await get_tree().process_frame
-		await _szene.aufbau_fertig
+		if not fertig[0]:
+			print("HINWEIS: Aufbau meldete sich nicht, es wird trotzdem fotografiert")
 	for f in 5:
 		await get_tree().process_frame
+
+	# Statustafel aufklappen, um sie im Bild zu prüfen. Sie hält den Baum
+	# an – deshalb erst nach dem Aufbau und mit PROCESS_MODE_ALWAYS am
+	# Fotoknoten, sonst käme dieses Skript nicht mehr weiter.
+	if OS.get_environment("FOTO_STATUS") == "1":
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		var tafel := _finde_statustafel(_szene)
+		if tafel == null:
+			print("HINWEIS: keine Statustafel gefunden")
+		else:
+			tafel.setzen(true)
 
 	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
 	if _spieler != null:
@@ -101,6 +126,16 @@ func _ready() -> void:
 	await _fotografiere(stellen.split(","), modus)
 	print("FERTIG")
 	get_tree().quit()
+
+
+func _finde_statustafel(wurzel: Node) -> Statustafel:
+	for kind in wurzel.get_children():
+		if kind is Statustafel:
+			return kind
+		var treffer := _finde_statustafel(kind)
+		if treffer != null:
+			return treffer
+	return null
 
 
 func _finde_kamera(wurzel: Node) -> Camera3D:

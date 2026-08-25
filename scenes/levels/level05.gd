@@ -250,7 +250,11 @@ func _fruechte_setzen() -> void:
 ## Rastplätze wie in Level 04: Der Fluchtläufer braucht eine Strecke als
 ## Rückkehrpunkt, keine Weltposition.
 func _checkpoints_setzen() -> void:
-	for s: float in [70.0, 150.0, 240.0, 320.0]:
+	# ACHTUNG: nicht dicht vor eine Lücke legen. Bei 70.0 begann genau an
+	# dieser Stelle die erste Spalte – nach dem Respawn stand man auf der
+	# Kante, lief im nächsten Bild hinein, starb und landete wieder auf
+	# derselben Kante. Das Spiel hing dann in einer Todesschleife fest.
+	for s: float in [60.0, 150.0, 240.0, 300.0]:
 		var zone := Area3D.new()
 		zone.collision_layer = 0
 		zone.collision_mask = 2
