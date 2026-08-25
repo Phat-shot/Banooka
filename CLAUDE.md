@@ -40,8 +40,18 @@ Raum 1 (Wurzelwald): 01 Wurzelschlucht (Wald) · 02 Frostgrat (Schnee) ·
 03 Treibgut (Sumpffluss mit Treibflößen) · 04 Katzensprung (Ritt auf der
 Wildkatze) · 05 Hauerjagd (Flucht vor dem Keiler).
 Raum 2 (Nebelsümpfe): 06 Wettrennen (Karts, drei Runden) ·
-07 Moorbrücken (Bohlenweg im Moor) · 10 Schleusenwerk (Tech-Demo:
-verfallenes Wasserwerk, zeigt jedes Bauteil einmal). 08, 09, 11–25 offen.
+07 Moorbrücken (Bohlenweg im Moor) · 10 Hebewerk (Tech-Demo: Hafen, führt
+senkrecht nach oben – 3D vorwärts, über Kisten hinauf, oben 2D in eine
+Richtung, weiter hoch, wieder 3D). 08 und 09 offen.
+Raum 3 (Steinfeste): 11 Steinschlag (rollende Brocken) · 12 Kesselwerk
+(Maschinenhalle) · 13 Pfahlfeste (Feste auf Pfählen) · 14 Wolkensteg
+(Weg in großer Höhe) · 15 Abendruinen (Ruinen im Abendlicht).
+Raum 4 (Rost und Ranken): 16 Kanalgrund (Kanal) · 17 Frostritt (Schiene) ·
+18 Schwarmpfad (Dschungel, Deckungsflecken) · 19 Sturmruinen (Drehscheiben
+im Sturm) · 20 Kolbengang (Kolben, Laserzäune).
+Raum 5 (Sand und Neon): 21 Sandgrab (Grabkammern, Gabelung) ·
+22 Wolkenjagd (Flugniveau, kein Korridor) · 23 Funkenlicht (Dunkellevel) ·
+24 Neonhöhe (Dächer bei Nacht) · 25 Dächergasse (Hangeln und Teppiche).
 
 Bauteile für neue Level stehen in `korridor_level.gd` bereit; welches
 Vorbild welches Bauteil hervorgebracht hat, steht in

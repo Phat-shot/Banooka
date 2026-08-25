@@ -39,18 +39,35 @@ const LEVEL_SZENEN := [
 	"res://scenes/levels/Level07.tscn",
 	"", "",
 	"res://scenes/levels/Level10.tscn",
-	"", "", "", "", "",
-	"", "", "", "", "",
-	"", "", "", "", "",
+	"res://scenes/levels/Level11.tscn",
+	"res://scenes/levels/Level12.tscn",
+	"res://scenes/levels/Level13.tscn",
+	"res://scenes/levels/Level14.tscn",
+	"res://scenes/levels/Level15.tscn",
+	"res://scenes/levels/Level16.tscn",
+	"res://scenes/levels/Level17.tscn",
+	"res://scenes/levels/Level18.tscn",
+	"res://scenes/levels/Level19.tscn",
+	"res://scenes/levels/Level20.tscn",
+	"res://scenes/levels/Level21.tscn",
+	"res://scenes/levels/Level22.tscn",
+	"res://scenes/levels/Level23.tscn",
+	"res://scenes/levels/Level24.tscn",
+	"res://scenes/levels/Level25.tscn",
 ]
 
 ## Namen der fünf Abschnitte (ein Raum je Abschnitt).
+##
+## Die Namen der Räume 3 bis 5 stammten aus der Zeit, als deren Inhalt
+## noch offen war, und beschrieben ihn nicht mehr: In "Frostkronen" lagen
+## am Ende ein Kanal, ein Dschungel und eine Maschinenhalle. Ein Raumname
+## soll sagen, was hinter der Tür steht.
 const RAUM_NAMEN := [
 	"Wurzelwald",
 	"Nebelsümpfe",
-	"Felsenschlucht",
-	"Frostkronen",
-	"Glutkessel",
+	"Steinfeste",
+	"Rost und Ranken",
+	"Sand und Neon",
 ]
 
 signal fortschritt_geaendert
