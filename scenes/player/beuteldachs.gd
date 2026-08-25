@@ -501,11 +501,11 @@ func _animiere_eigenes(delta: float, tempo: float, luft: bool, slide: bool,
 
 ## Ordnet die Clips der Figur den Bewegungszuständen zu.
 ##
-## Erwartet werden die sechs Namen, die unsere eigenen Figuren mitbringen
+## Erwartet werden die elf Namen, die unsere eigenen Figuren mitbringen
 ## (siehe assets/modelle/LIESMICH.md): IdlePose, Idle, WalkSlow, Walk, Run,
-## Jump. Deutsche Namen werden ebenso erkannt, und fehlt einer, greift für
-## diesen Zustand der nächstbeste – eine Figur mit nur "Walk" läuft eben
-## auch im Schlendern damit.
+## Jump, Slide, Spin, Crawl, Ride, Sit. Deutsche Namen werden ebenso
+## erkannt, und fehlt einer, greift für diesen Zustand der nächstbeste –
+## eine Figur mit nur "Walk" läuft eben auch im Schlendern damit.
 ##
 ## Reihenfolge beachten: "walkslow" wird VOR "walk" gesucht. `clip_fuer()`
 ## prüft erst auf Gleichheit und dann auf Wortstamm; ohne diese Reihenfolge

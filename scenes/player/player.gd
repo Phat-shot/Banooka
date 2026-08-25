@@ -51,6 +51,12 @@ signal abgeprallt
 @onready var _kollision_slide: CollisionShape3D = $KollisionSlide
 @onready var _modell: SpielerModell = $Modell
 
+## Kapsel für die Frage „ist oben Platz?". Eine Spur schmaler und kürzer als
+## die echte, sonst meldete sie den Boden unter den eigenen Füßen und die
+## Wand neben der Schulter als Decke und die Figur käme nie wieder hoch.
+const STEHRAND := 0.03
+var _stehform: CapsuleShape3D
+
 ## Restlaufzeit des Slides in Sekunden (> 0 = Slide aktiv).
 var sliding := 0.0
 ## Restlaufzeit der Spin-Attacke in Sekunden (> 0 = Spin aktiv).
@@ -63,8 +69,10 @@ var can_djump := false
 var invuln := 0.0
 ## Steuerung gesperrt (z. B. während einer Portal-Animation).
 var gesperrt := false
-## Krabbelt die Figur gerade? Wird mit der Slide-Taste OHNE Richtung an-
-## und ausgeschaltet – mit Richtung ist dieselbe Taste der Slide.
+## Krabbelt die Figur gerade? Kein Schalter: Gekrabbelt wird, solange die
+## Slide-Taste gehalten wird (aus dem Stand heraus – mit Richtung ist
+## dieselbe Taste der Slide), und darüber hinaus so lange, wie über der
+## Figur kein Platz zum Aufrichten ist.
 var kriechen := false
 
 var _slide_dir := Vector3.ZERO
@@ -137,15 +145,7 @@ func _physics_process(delta: float) -> void:
 
 	# --- Slide bzw. Bauchplatscher ---
 	if InputHub.slide_gedrueckt():
-		if kriechen:
-			# Im Krabbeln beendet dieselbe Taste es wieder.
-			kriechen = false
-		elif am_boden and staerke <= 0.1 and sliding <= 0.0:
-			# Ohne Richtung ist die Slide-Taste der Schalter fürs Krabbeln.
-			# Ein Slide aus dem Stand hätte keine Richtung und wäre nur ein
-			# Zucken auf der Stelle – die Taste war dort bisher wirkungslos.
-			kriechen = true
-		elif am_boden and staerke > 0.1 and sliding <= 0.0:
+		if am_boden and staerke > 0.1 and sliding <= 0.0 and not kriechen:
 			sliding = SLIDE_TIME
 			_slide_dir = Vector3(eingabe.x, 0.0, eingabe.y).normalized()
 			Klang.spiele("slide")
@@ -156,10 +156,14 @@ func _physics_process(delta: float) -> void:
 			# Zehntelsekunden. Ein Zischen dazu würde noch dröhnen, wenn
 			# der Aufschlag längst zu hören ist.
 
+	# --- Krabbeln ---
+	_kriechen_pruefen(am_boden, staerke)
+
 	# --- Sprung ---
-	if InputHub.sprung_gedrueckt():
+	if InputHub.sprung_gedrueckt() and _kann_aufstehen():
 		# Wer springt, richtet sich auf – sonst hinge die Figur im
 		# Krabbeln in der Luft und käme mit der flachen Hitbox wieder auf.
+		# Unter einer zu tiefen Decke bleibt der Sprung aus.
 		kriechen = false
 		if am_boden:
 			# Sprung aus dem Slide heraus geht höher
@@ -345,6 +349,53 @@ func respawn() -> void:
 
 
 # ---------------------------------------------------------- Intern
+
+## Entscheidet Bild für Bild, ob die Figur krabbelt.
+##
+## Krabbeln ist kein Schalter, sondern ein Halten: Solange die Slide-Taste
+## gedrückt bleibt, bleibt die Figur unten; beim Loslassen richtet sie sich
+## wieder auf und läuft normal weiter. Der Einstieg verlangt Stillstand,
+## denn mit Richtung ist dieselbe Taste der Slide. Weiterkrabbeln mit
+## Richtung geht dagegen sehr wohl – die Taste ist dann schon gehalten,
+## und der Slide löst nur beim Drücken aus.
+##
+## Dazu kommt der Zwang: Wo über der Figur kein Platz zum Aufrichten ist,
+## krabbelt sie weiter, auch ohne Taste. Sonst stünde sie nach einem Slide
+## unter einem tiefen Vorsprung im Fels.
+func _kriechen_pruefen(am_boden: bool, staerke: float) -> void:
+	if not am_boden or sliding > 0.0 or slamming:
+		kriechen = false
+		return
+	var taste := InputHub.slide_gehalten()
+	if kriechen or _slide_hitbox_aktiv:
+		kriechen = taste or not _kann_aufstehen()
+	else:
+		kriechen = (taste and staerke <= 0.1) or not _kann_aufstehen()
+
+
+## Ist über der Figur Platz für die aufrechte Hitbox?
+##
+## Gefragt wird mit genau der Kapsel, die im Stehen gilt, an genau der
+## Stelle, an der sie dann säße. Nur so stimmt die Antwort auch an
+## schrägen Decken, wo ein einzelner Strahl nach oben daneben griffe.
+func _kann_aufstehen() -> bool:
+	var raum := get_world_3d().direct_space_state
+	if raum == null:
+		return true
+	if _stehform == null:
+		var echt := _kollision.shape as CapsuleShape3D
+		if echt == null:
+			return true
+		_stehform = CapsuleShape3D.new()
+		_stehform.radius = maxf(echt.radius - STEHRAND, 0.05)
+		_stehform.height = maxf(echt.height - STEHRAND * 2.0, _stehform.radius * 2.0)
+	var frage := PhysicsShapeQueryParameters3D.new()
+	frage.shape = _stehform
+	frage.transform = Transform3D(Basis(), global_position + _kollision.position)
+	frage.collision_mask = collision_mask
+	frage.exclude = [get_rid()]
+	return raum.intersect_shape(frage, 1).is_empty()
+
 
 ## Schaltet zwischen normaler und halbierter Hitbox um.
 func _hitbox_aktualisieren() -> void:

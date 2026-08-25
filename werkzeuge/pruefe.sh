@@ -29,7 +29,7 @@ rm -rf "$ZIEL/.godot" "$ZIEL/.git" "$ZIEL/export"
 # Meldungen des Dummy-Renderers im Headless-Modus sind keine Projektfehler
 RAUSCHEN='mesh_get_surface_count|Parameter "m" is null|texture_free|Condition "!texture" is true'
 
-echo "--- 1/3 Import und Parse-Prüfung ---"
+echo "--- 1/4 Import und Parse-Prüfung ---"
 IMPORT="$(timeout 300 "$GODOT" --headless --path "$ZIEL" --import 2>&1 \
 	| grep -E "SCRIPT ERROR|Parse Error|ERROR:|Cannot|Invalid" \
 	| grep -Ev "$RAUSCHEN")"
@@ -39,18 +39,26 @@ else
 	echo "keine Parse-Fehler"
 fi
 
-echo "--- 2/3 Szenen laden und instanziieren ---"
+echo "--- 2/4 Szenen laden und instanziieren ---"
 SZENEN="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/SzenenCheck.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$SZENEN" | grep -E "ok:|FEHLER|SCRIPT ERROR|ERROR:|Szenen geprüft|Szenen-Check"
 
-echo "--- 3/3 Level geometrisch prüfen ---"
+echo "--- 3/4 Level geometrisch prüfen ---"
 LEVEL="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/LevelCheck.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$LEVEL" | grep -E "FEHLER|geprüft|Problem|Absturzzone|schwebt|steckt|==="
 
+# Das Krabbeln lässt sich nur in Bewegung prüfen: Halten statt Umschalten,
+# Zwang unter tiefen Decken, und kein Knochen unter dem Boden.
+echo "--- 4/4 Krabbeln am Testaufbau ---"
+KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
+	| grep -Ev "$RAUSCHEN")"
+echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
+
 if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
-		|| echo "$LEVEL" | grep -qE "FEHLER"; then
+		|| echo "$LEVEL" | grep -qE "FEHLER" \
+		|| echo "$KRIECH" | grep -qE "FALSCH|IM BODEN"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1
 fi

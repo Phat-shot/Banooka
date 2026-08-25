@@ -79,6 +79,12 @@ res://
 | slide/slam | Shift | Kreis ○ (JOY_BUTTON_B) | Taste ○ (in der Luft = Bauchplatscher) |
 | status | Tab | Dreieck △ (JOY_BUTTON_Y) | Taste △ |
 
+Die Slide-Taste macht dreierlei, je nach Lage: mit Richtung am Boden den
+Slide, in der Luft den Bauchplatscher, und aus dem Stand **gehalten** das
+Krabbeln. Krabbeln ist kein Schalter – losgelassen richtet sich die Figur
+wieder auf und läuft normal weiter. Wo über ihr kein Platz zum Aufrichten
+ist, krabbelt sie weiter, auch ohne Taste; Springen ist dort gesperrt.
+
 Die Touch-Tasten liegen als Raute wie die Symboltasten eines Controllers und
 tragen dieselben Farben; ihre Größe folgt der Bildschirmdichte (Ziel rund
 13 mm Durchmesser), nicht der Pixelzahl.
