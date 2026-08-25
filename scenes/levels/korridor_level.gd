@@ -708,6 +708,23 @@ func stacheln(strecke: float, seitlich: float, flaeche: Vector2,
 
 ## Spannt unter dem ganzen Weg eine Zone, die den Spieler sterben lässt.
 ## In Stücken, weil ein einzelner Kasten einem kurvigen Verlauf nicht folgt.
+##
+## ACHTUNG BEI GESTAPELTEN EBENEN. `absturz_hoehe()` ist EIN Wert für das
+## ganze Level, und die Zonen hängen relativ am Verlauf. Führt der Weg über
+## sich selbst hinweg – eine Wendel, ein Obergeschoss, ein Turm –, dann
+## schwebt die Zone des oberen Stücks irgendwo über dem unteren Boden. Zwei
+## Regeln folgen daraus:
+##
+##   * Der Abstand zwischen zwei Ebenen muss größer sein als
+##     |absturz_hoehe()| plus Sprunghöhe (1,96 m), sonst tötet die obere
+##     Zone den Spieler, der unten nur springt.
+##   * Umgekehrt darf `absturz_hoehe()` nicht beliebig tief gesetzt werden,
+##     nur damit ein langer Sturz dramatisch wird – je tiefer, desto
+##     größer muss der Ebenenabstand sein.
+##
+## Wer beides nicht zusammenbekommt, nimmt statt der Zone eine tödliche
+## Fläche (`wasser()` mit `toedlich`) auf fester Welthöhe; die klettert
+## nicht mit.
 func absturzzonen(schritt: float = 18.0, breite: float = 70.0) -> void:
 	var s := 0.0
 	while s < ende():
