@@ -84,7 +84,12 @@ jobs:
           # Digest. Über die wandernde Marke ":main" ging das schief, sobald
           # zwei Pushes dicht aufeinander folgten: Dann lag dort schon der
           # nächste Bau, und der Test verglich mit dem falschen Stand.
-          MARKE="${{ env.REGISTRY }}/${{ github.repository }}@${{ steps.bau.outputs.digest }}"
+          # Kleinschreiben: Docker verlangt kleine Namen, und
+          # github.repository liefert die Schreibweise von GitHub
+          # ("Phat-shot/Banooka"). Die Marken-Action macht das von selbst,
+          # ein handgebauter Verweis nicht.
+          REPO="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          MARKE="${{ env.REGISTRY }}/$REPO@${{ steps.bau.outputs.digest }}"
           echo "geprüft wird: $MARKE"
           docker run -d --name banooka-test -p 8080:80 "$MARKE"
           for i in $(seq 1 30); do
