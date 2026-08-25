@@ -103,6 +103,9 @@ func _baue_menue() -> void:
 
 	_neuer_eintrag("Figur:  %s" % _figur_name(), _figur_weiter)
 	_neuer_eintrag("Größe:  %.2f ×" % Einstellungen.modell_groesse, _groesse_weiter)
+	if not Einstellungen.eigenes_modell.is_empty():
+		_neuer_eintrag("Blickrichtung:  %d°" % roundi(Einstellungen.modell_drehung),
+				_drehung_weiter)
 	if _dateiwahl_moeglich():
 		_neuer_eintrag("Datei wählen …", _datei_waehlen)
 	if not Einstellungen.eigenes_modell.is_empty():
@@ -188,7 +191,8 @@ func _vorschau_neu_bestuecken() -> void:
 	var pfad := Einstellungen.modell_pfad()
 	var geladen: Node3D = null
 	if not pfad.is_empty():
-		geladen = ModellLader.laden(pfad, Einstellungen.modell_groesse)
+		geladen = ModellLader.laden(pfad, Einstellungen.modell_groesse,
+				Einstellungen.modell_drehung)
 	if geladen == null:
 		# Beuteldachs: baut sich selbst auf und ist damit der Maßstab.
 		geladen = SpielerModell.new()
@@ -221,6 +225,13 @@ func _figur_weiter(richtung: int = 1) -> void:
 	if jetzt < 0:
 		jetzt = 0
 	Einstellungen.waehle_modell(liste[posmod(jetzt + richtung, liste.size())])
+
+
+## Dreht die Figur in Vierteln. Fremde Modelle schauen fast immer
+## entgegen unserer Konvention; wessen Figur dann rückwärts läuft, dreht
+## sie hier zurecht.
+func _drehung_weiter(richtung: int = 1) -> void:
+	Einstellungen.drehe_weiter(90.0 * float(richtung))
 
 
 func _groesse_weiter(richtung: int = 1) -> void:

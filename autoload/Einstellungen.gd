@@ -35,6 +35,12 @@ const SPEICHERPFAD := "user://einstellungen.cfg"
 var eigenes_modell := ""
 ## Feinjustierung der Figurengröße, 1.0 = auf Standardhöhe eingepasst.
 var modell_groesse := 1.0
+## Blickrichtung der eigenen Figur in Grad. Vorgabe 180: Fremde
+## glTF-Figuren schauen fast durchweg entgegen unserer Konvention
+## (siehe `ModellLader.STANDARDDREHUNG`). Wer ein anders gebautes Modell
+## hat, dreht es hier in Vierteln weiter.
+var modell_drehung := ModellLader.STANDARDDREHUNG
+
 ## Mitgelieferte Naturmodelle (Kenney, CC0) statt der prozeduralen Props.
 ## Umschaltbar, damit sich beide Fassungen vergleichen lassen; der
 ## prozedurale Aufbau bleibt in jedem Fall der Rückfall.
@@ -121,6 +127,13 @@ func waehle_modell(dateiname: String) -> void:
 	geaendert.emit()
 
 
+## Dreht die Figur um ein Viertel weiter.
+func drehe_weiter(schritt: float = 90.0) -> void:
+	modell_drehung = fposmod(modell_drehung + schritt, 360.0)
+	speichern()
+	geaendert.emit()
+
+
 func setze_groesse(faktor: float) -> void:
 	modell_groesse = clampf(faktor, 0.5, 2.0)
 	speichern()
@@ -191,6 +204,7 @@ func speichern() -> void:
 	var datei := ConfigFile.new()
 	datei.set_value("figur", "modell", eigenes_modell)
 	datei.set_value("figur", "groesse", modell_groesse)
+	datei.set_value("figur", "drehung", modell_drehung)
 	datei.set_value("spiel", "debug", debug)
 	datei.set_value("spiel", "fremde_modelle", fremde_modelle)
 	datei.save(SPEICHERPFAD)
@@ -202,5 +216,7 @@ func laden() -> void:
 		return
 	eigenes_modell = String(datei.get_value("figur", "modell", ""))
 	modell_groesse = clampf(float(datei.get_value("figur", "groesse", 1.0)), 0.5, 2.0)
+	modell_drehung = fposmod(float(datei.get_value("figur", "drehung",
+			ModellLader.STANDARDDREHUNG)), 360.0)
 	debug = bool(datei.get_value("spiel", "debug", false))
 	fremde_modelle = bool(datei.get_value("spiel", "fremde_modelle", true))

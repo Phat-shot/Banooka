@@ -19,7 +19,11 @@ func _ready() -> void:
 	var ordner := OS.get_environment("MODELLSCHAU")
 	if ordner.is_empty():
 		ordner = "assets/modelle/gegner"
-	var pfad := "res://" + ordner.trim_prefix("res://")
+	# Auch `user://` zulassen – dort liegen die zur Laufzeit hinzugelegten
+	# Figuren, und gerade die will man vergleichen können.
+	var pfad := ordner
+	if not (pfad.begins_with("res://") or pfad.begins_with("user://")):
+		pfad = "res://" + pfad
 
 	_licht()
 	var namen := _dateien(pfad)
@@ -34,7 +38,23 @@ func _ready() -> void:
 		namen = gefiltert
 	print("Modellschau: %d Modelle aus %s" % [namen.size(), pfad])
 
-	var x := -(float(namen.size()) - 1.0) * ABSTAND * 0.5
+	# Unsere eigene Figur mit in die Reihe: Nur so lässt sich sagen, ob ein
+	# fremdes Modell verdreht ist oder unsere Blickrichtung falsch liegt.
+	var eigene := OS.get_environment("MODELLSCHAU_EIGEN") == "1"
+	var plaetze := namen.size() + (1 if eigene else 0)
+	var x := -(float(plaetze) - 1.0) * ABSTAND * 0.5
+	if eigene:
+		var beuteldachs := SpielerModell.new()
+		beuteldachs.position = Vector3(x, 0.0, 0.0)
+		add_child(beuteldachs)
+		var schild_eigen := Label3D.new()
+		schild_eigen.text = "Beuteldachs (unser)"
+		schild_eigen.font_size = 48
+		schild_eigen.pixel_size = 0.004
+		schild_eigen.position = Vector3(x, ZIEL_HOEHE + 0.5, 0.0)
+		schild_eigen.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		add_child(schild_eigen)
+		x += ABSTAND
 	for name in namen:
 		var figur := ModellLader.laden("%s/%s" % [pfad, name], 1.0)
 		if figur == null:
@@ -63,7 +83,7 @@ func _ready() -> void:
 	kamera.fov = 45.0
 	# Abstand so, dass die Reihe das Bild füllt – vorher stand die Kamera
 	# viel zu weit weg und alles war briefmarkengroß.
-	var spanne := maxf(float(namen.size()) * ABSTAND, 2.0)
+	var spanne := maxf(float(plaetze) * ABSTAND, 2.0)
 	var weg := spanne * 0.62 + 1.8
 	var vorne := OS.get_environment("MODELLSCHAU_VORNE") == "1"
 	kamera.position = Vector3(0.0, 1.1, -weg if vorne else weg)

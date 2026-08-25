@@ -55,7 +55,7 @@ func _ready() -> void:
 	_verlassen.unterzeile = "zurück in den Portalraum"
 	_verlassen.schriftgroesse = 21
 	_verlassen.process_mode = Node.PROCESS_MODE_ALWAYS
-	_verlassen.angetippt.connect(_level_verlassen)
+	_verlassen.angetippt.connect(_zurueck)
 	_verlassen.visible = false
 	add_child(_verlassen)
 
@@ -82,10 +82,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not offen:
 		return
-	# Bestätigen verlässt das Level – aber nur, wenn man in einem ist.
-	if _im_level() and (event.is_action_pressed("ui_accept")
-			or event.is_action_pressed("jump")):
-		_level_verlassen()
+	# Bestätigen führt eine Ebene zurück: aus dem Level in den Portalraum,
+	# aus dem Portalraum ins Hauptmenü.
+	if event.is_action_pressed("ui_accept") or event.is_action_pressed("jump"):
+		_zurueck()
 		get_viewport().set_input_as_handled()
 		return
 	# Offen schließt alles: Abbrechen, Pause oder ein Tippen ins Bild.
@@ -112,7 +112,16 @@ func setzen(an: bool) -> void:
 	_auf_seit = Time.get_ticks_msec() * 0.001
 	get_tree().paused = an
 	if is_instance_valid(_verlassen):
-		_verlassen.visible = an and _im_level()
+		# Im Level führt der Knopf in den Portalraum, dort ins Hauptmenü.
+		# Ohne die zweite Fassung kam man aus dem Portalraum nur über das
+		# Schließen des Fensters heraus – im Browser also gar nicht.
+		if _im_level():
+			_verlassen.beschriftung = "Level verlassen"
+			_verlassen.unterzeile = "zurück in den Portalraum"
+		else:
+			_verlassen.beschriftung = "Zum Hauptmenü"
+			_verlassen.unterzeile = "Fortschritt bleibt gespeichert"
+		_verlassen.visible = an
 		_verlassen.setze_auswahl(true)
 	_knopf_ausrichten()
 	queue_redraw()
@@ -122,14 +131,16 @@ func _im_level() -> bool:
 	return Spielfluss.aktuelles_level > 0
 
 
-## Verlässt das Level. Erst den Baum wieder anlaufen lassen, dann wechseln –
-## ein Szenenwechsel bei angehaltenem Baum lässt das neue Level nie fertig
-## aufbauen, weil sein Aufbau über mehrere Bilder läuft.
-func _level_verlassen() -> void:
-	if not _im_level():
-		return
+## Eine Ebene zurück. Erst den Baum wieder anlaufen lassen, dann wechseln –
+## ein Szenenwechsel bei angehaltenem Baum lässt die neue Szene nie fertig
+## aufbauen, weil ihr Aufbau über mehrere Bilder läuft.
+func _zurueck() -> void:
+	var war_im_level := _im_level()
 	setzen(false)
-	Spielfluss.zum_hub()
+	if war_im_level:
+		Spielfluss.zum_hub()
+	else:
+		Spielfluss.zum_splash()
 
 
 func _knopf_ausrichten() -> void:
@@ -145,9 +156,9 @@ func _knopf_ausrichten() -> void:
 ## nicht auseinanderlaufen.
 func _tafelfeld() -> Rect2:
 	var breite := minf(size.x * 0.9, 780.0)
-	var hoehe := 176.0 + LEGENDE.size() * 30.0
-	if _im_level():
-		hoehe += 74.0     # Platz für "Level verlassen"
+	# Der Knopf steht überall: im Level "Level verlassen", sonst
+	# "Zum Hauptmenü".
+	var hoehe := 176.0 + LEGENDE.size() * 30.0 + 74.0
 	hoehe = minf(size.y * 0.9, hoehe)
 	return Rect2((size - Vector2(breite, hoehe)) * 0.5, Vector2(breite, hoehe))
 
@@ -179,7 +190,7 @@ func _zeichnen() -> void:
 	_zustand(schrift, Vector2(links, y + 40.0), breite * 0.4)
 	_steuerung(schrift, Vector2(rechts, y + 40.0), feld.end.x - 34.0 - rechts)
 
-	var fuss := "Dreieck, Tab, Esc oder Antippen schließt  ·  Spiel ist angehalten"
+	var fuss := "Enter führt ins Hauptmenü  ·  Dreieck, Tab oder Esc schließt"
 	if _im_level():
 		fuss = "Enter verlässt das Level  ·  Dreieck, Tab oder Esc schließt"
 	_text_mittig(schrift, Vector2(feld.get_center().x, feld.end.y - 22.0),

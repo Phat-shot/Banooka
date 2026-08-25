@@ -82,7 +82,8 @@ func _baue_eigenes() -> bool:
 	var pfad := Einstellungen.modell_pfad()
 	if pfad.is_empty():
 		return false
-	var figur := ModellLader.laden(pfad, Einstellungen.modell_groesse)
+	var figur := ModellLader.laden(pfad, Einstellungen.modell_groesse,
+			Einstellungen.modell_drehung)
 	if figur == null:
 		return false
 

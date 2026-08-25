@@ -42,7 +42,19 @@ static var letzter_fehler := ""
 ## Lädt die Datei, passt sie ein und gibt den Knoten zurück – oder null,
 ## wenn sie fehlt, unlesbar ist oder nichts Sichtbares enthält. Der Grund
 ## steht dann als Warnung im Protokoll.
-static func laden(pfad: String, groesse: float = 1.0) -> Node3D:
+## Vorgabe für die Blickrichtung fremder Figuren, in Grad.
+##
+## Unsere eigene Figur schaut nach −Z, so wie Godot es vorsieht. Fremde
+## glTF-Figuren schauen fast durchweg in die Gegenrichtung – nachgemessen
+## mit `werkzeuge/modellschau.gd` und MODELLSCHAU_VORNE=1: Der Beuteldachs
+## zeigt dort sein Gesicht, jedes eingesammelte Fremdmodell den Rücken.
+## Deshalb ist eine halbe Drehung die Vorgabe; wer ein anders gebautes
+## Modell hat, stellt sie in den Einstellungen um.
+const STANDARDDREHUNG := 180.0
+
+
+static func laden(pfad: String, groesse: float = 1.0,
+		drehung_grad: float = STANDARDDREHUNG) -> Node3D:
 	letzter_fehler = ""
 	if pfad.is_empty():
 		return null
@@ -54,7 +66,7 @@ static func laden(pfad: String, groesse: float = 1.0) -> Node3D:
 		return null
 
 	_kollisionen_entfernen(knoten)
-	if not einpassen(knoten, ZIEL_HOEHE * groesse):
+	if not einpassen(knoten, ZIEL_HOEHE * groesse, deg_to_rad(drehung_grad)):
 		knoten.queue_free()
 		letzter_fehler = "Modell enthält keine sichtbaren Netze"
 		push_warning("Eigenes Modell: %s (%s)" % [letzter_fehler, pfad])
@@ -122,17 +134,24 @@ static func _unbrauchbare_erweiterung(pfad: String) -> String:
 	return ""
 
 
-## Skaliert und verschiebt den Knoten so, dass er `ziel_hoehe` hoch ist,
-## mittig steht und mit der Unterkante auf y = 0. Liefert false, wenn das
-## Modell keine brauchbare Hülle hat.
-static func einpassen(knoten: Node3D, ziel_hoehe: float) -> bool:
+## Skaliert, dreht und verschiebt den Knoten so, dass er `ziel_hoehe` hoch
+## ist, mittig steht und mit der Unterkante auf y = 0. Liefert false, wenn
+## das Modell keine brauchbare Hülle hat.
+##
+## Die Drehung muss VOR der Mittigstellung eingerechnet werden: Der
+## Ausgleich verschiebt den Knoten um die Mitte seiner Hülle, und die
+## wandert mit, wenn man ihn dreht. Wer erst mittig stellt und danach
+## dreht, bekommt eine Figur, die um den doppelten Versatz danebensteht.
+static func einpassen(knoten: Node3D, ziel_hoehe: float,
+		drehung: float = 0.0) -> bool:
 	var huelle := huelle_von(knoten)
 	if huelle.size.y < MIN_HOEHE:
 		return false
 	var faktor := ziel_hoehe / huelle.size.y
 	knoten.scale = Vector3(faktor, faktor, faktor)
+	knoten.rotation.y = drehung
 	# Nach dem Skalieren zählt die skalierte Hülle, deshalb hier umrechnen.
-	var mitte := huelle.get_center() * faktor
+	var mitte := Basis(Vector3.UP, drehung) * (huelle.get_center() * faktor)
 	knoten.position = Vector3(-mitte.x, -huelle.position.y * faktor, -mitte.z)
 	return true
 
