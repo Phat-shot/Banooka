@@ -69,7 +69,22 @@ func _ready() -> void:
 	print("  Einstellungen.modell_pfad() = '%s'" % Einstellungen.modell_pfad())
 	print("  gefundene Modelle: %s" % str(Einstellungen.modelle()))
 
-	# --- 4. Weg über die Spielfigur ---
+	# --- 4. Weg über die Rohdaten (so kommt es im Browser herein) ---
+	var roh := FileAccess.get_file_as_bytes(ziel)
+	var uebernahme := Einstellungen.uebernehmen_daten("hochgeladen.glb", roh)
+	if uebernahme.is_empty():
+		var geprueft := ModellLader.laden(
+				Einstellungen.ORDNER.path_join("hochgeladen.glb"), 1.0)
+		print("  Rohdaten übernommen (%d Bytes) und geladen: %s"
+				% [roh.size(), "ja" if geprueft != null else "NEIN"])
+		if geprueft != null:
+			geprueft.queue_free()
+		DirAccess.remove_absolute(Einstellungen.ORDNER.path_join("hochgeladen.glb"))
+	else:
+		print("  FEHLER beim Übernehmen der Rohdaten: %s" % uebernahme)
+	Einstellungen.waehle_modell("pruefling.glb")
+
+	# --- 5. Weg über die Spielfigur ---
 	var modell := SpielerModell.new()
 	add_child(modell)
 	await get_tree().process_frame

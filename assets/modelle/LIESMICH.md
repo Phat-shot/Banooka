@@ -4,10 +4,19 @@ Hier hineingelegte `.glb`-Dateien erscheinen im Spiel unter
 **Einstellungen → Figur** und stecken in jedem Export – auch in der APK
 und im Browser. Das ist der verlässliche Weg für eigene Modelle.
 
-Der zweite Weg, „Datei wählen" im Einstellungsbild, kopiert eine Datei
-nach `user://modelle`. Der funktioniert am Rechner gut, auf Android aber
-nur mit Speicher-Berechtigung und passendem Dateidialog – für unsere
-eigenen Figuren ist er deshalb der falsche.
+Der zweite Weg, „Datei wählen" im Einstellungsbild, legt eine Datei nach
+`user://modelle`. Den gibt es auf allen drei Plattformen, er verhält sich
+aber überall etwas anders:
+
+| Plattform | Wie | Wo die Datei landet |
+|---|---|---|
+| Rechner | Dateidialog von Godot | `~/.local/share/godot/app_userdata/Banooka/modelle` |
+| Browser | Hochladefeld der Seite | im Browser selbst (IndexedDB), **pro Browser und pro Adresse** |
+| Android | Dateidialog des Geräts | App-Ordner; braucht Speicher-Berechtigung |
+
+Für **unsere eigenen** Figuren ist dieser Weg trotzdem der falsche: Was
+im Browser hochgeladen wurde, sieht nur der eine Browser, und beim
+Leeren der Websitedaten ist es weg. Mitgeliefert gehört sie hierher.
 
 ## Anforderungen an die Datei
 

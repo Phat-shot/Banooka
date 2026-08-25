@@ -151,6 +151,29 @@ func uebernehmen(quelle: String) -> String:
 	return ""
 
 
+## Nimmt eine Datei als Rohdaten auf. Im Browser gibt es keinen Pfad, den
+## man lesen könnte – dort kommen die Bytes aus dem Hochladefeld.
+## Gibt "" zurück, wenn es geklappt hat, sonst den Fehlertext.
+func uebernehmen_daten(dateiname: String, daten: PackedByteArray) -> String:
+	var sauber := dateiname.get_file()
+	if not ENDUNGEN.has(sauber.get_extension().to_lower()):
+		return "Nur .glb oder .gltf"
+	if daten.is_empty():
+		return "Datei war leer"
+	DirAccess.make_dir_recursive_absolute(ORDNER)
+	var schreiben := FileAccess.open(ORDNER.path_join(sauber), FileAccess.WRITE)
+	if schreiben == null:
+		return "Ordner nicht beschreibbar"
+	schreiben.store_buffer(daten)
+	schreiben.close()
+	# Im Browser liegt `user://` in der IndexedDB. Ohne diesen Anstoß wäre
+	# die Datei nach dem nächsten Laden der Seite wieder weg.
+	if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
+		JavaScriptBridge.force_fs_sync()
+	waehle_modell(sauber)
+	return ""
+
+
 ## Löscht ein Modell aus dem Ordner.
 func entfernen(dateiname: String) -> void:
 	var pfad := ORDNER.path_join(dateiname)

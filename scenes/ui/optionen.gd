@@ -260,12 +260,16 @@ func _zurueck() -> void:
 	Spielfluss.zum_splash()
 
 
-## Nur dort anbieten, wo es einen Dateidialog gibt – im Browser nicht.
+## Überall anbieten: am Rechner über den Dateidialog von Godot, im
+## Browser über ein Hochladefeld der Seite.
 func _dateiwahl_moeglich() -> bool:
-	return not OS.has_feature("web")
+	return true
 
 
 func _datei_waehlen() -> void:
+	if OS.has_feature("web"):
+		_web_datei_waehlen()
+		return
 	if _dateiwahl == null:
 		_dateiwahl = FileDialog.new()
 		_dateiwahl.file_mode = FileDialog.FILE_MODE_OPEN_FILE
@@ -276,6 +280,84 @@ func _datei_waehlen() -> void:
 		_dateiwahl.file_selected.connect(_auf_datei)
 		add_child(_dateiwahl)
 	_dateiwahl.popup_centered_ratio(0.7)
+
+
+# ------------------------------------------------- Hochladen im Browser
+
+## Baut im Browser ein verstecktes Dateifeld und öffnet es.
+##
+## Godot kann im Web nicht auf das Dateisystem zugreifen; die Datei kommt
+## deshalb über ein `<input type="file">` der Seite herein und wird als
+## Base64 zurückgereicht. Das bläht sie um ein Drittel auf, ist aber der
+## einzige Weg, Binärdaten über die Rückrufe der Brücke zu schicken.
+##
+## Browser öffnen einen Dateidialog nur kurz nach einer Nutzeraktion.
+## Godot verarbeitet Eingaben im Hauptlauf, also ein paar Millisekunden
+## später – das liegt bequem innerhalb der Frist, die die Browser dafür
+## einräumen. Öffnet sich trotzdem nichts, sagt die Meldung Bescheid.
+const WEB_SKRIPT := """
+window.banookaDateiWaehlen = function (rueckruf) {
+	var feld = document.createElement('input');
+	feld.type = 'file';
+	feld.accept = '.glb,.gltf';
+	feld.style.display = 'none';
+	document.body.appendChild(feld);
+	feld.addEventListener('change', function () {
+		var datei = feld.files && feld.files[0];
+		document.body.removeChild(feld);
+		if (!datei) { rueckruf('', ''); return; }
+		var leser = new FileReader();
+		leser.onload = function () {
+			var roh = new Uint8Array(leser.result);
+			var text = '';
+			var block = 0x8000;
+			for (var i = 0; i < roh.length; i += block) {
+				text += String.fromCharCode.apply(null, roh.subarray(i, i + block));
+			}
+			rueckruf(datei.name, btoa(text));
+		};
+		leser.onerror = function () { rueckruf(datei.name, ''); };
+		leser.readAsArrayBuffer(datei);
+	});
+	feld.click();
+	return true;
+};
+"""
+
+var _web_rueckruf: JavaScriptObject
+
+
+func _web_datei_waehlen() -> void:
+	if not Engine.has_singleton("JavaScriptBridge"):
+		_zeige_meldung("In diesem Browser nicht möglich")
+		return
+	JavaScriptBridge.eval(WEB_SKRIPT, true)
+	# Der Rückruf muss am Objekt hängen bleiben, sonst räumt Godot ihn ab,
+	# bevor der Browser die Datei gelesen hat.
+	_web_rueckruf = JavaScriptBridge.create_callback(_auf_web_datei)
+	var fenster := JavaScriptBridge.get_interface("window")
+	if fenster == null:
+		_zeige_meldung("In diesem Browser nicht möglich")
+		return
+	fenster.banookaDateiWaehlen(_web_rueckruf)
+	_zeige_meldung("Datei im Browserfenster auswählen …")
+
+
+## Kommt aus dem Browser zurück: [Dateiname, Base64-Inhalt].
+func _auf_web_datei(werte: Array) -> void:
+	if werte.size() < 2:
+		return
+	var name := String(werte[0])
+	var inhalt := String(werte[1])
+	if name.is_empty():
+		_zeige_meldung("Keine Datei gewählt")
+		return
+	if inhalt.is_empty():
+		_zeige_meldung("%s ließ sich nicht lesen" % name)
+		return
+	var fehler := Einstellungen.uebernehmen_daten(name,
+			Marshalls.base64_to_raw(inhalt))
+	_zeige_meldung(fehler if not fehler.is_empty() else "%s übernommen" % name)
 
 
 func _auf_datei(pfad: String) -> void:

@@ -197,6 +197,15 @@ fertigen Dateien. Das WebAssembly wird beim Bauen vorkomprimiert und über
 `gzip_static` ausgeliefert – aus rund 34 MB werden etwa 9 MB über die
 Leitung. `/gesundheit` liefert einen Health-Check für Orchestrierung.
 
+### Eigene Spielfigur im Browser
+
+„Einstellungen → Figur → Datei wählen …" gibt es auch im Browser. Dort
+öffnet die Seite ein Hochladefeld; die gewählte `.glb` wandert in den
+Speicher des Browsers und steht danach in der Figurenliste. Sie bleibt
+dort, bis die Websitedaten geleert werden, und ist an diesen einen
+Browser gebunden – wer sie überall haben will, legt sie stattdessen nach
+`assets/modelle/` (siehe `assets/modelle/LIESMICH.md`).
+
 ### Auf den neuesten Stand kommen
 
 `docker compose up -d` allein benutzt weiter das Abbild, das schon lokal
