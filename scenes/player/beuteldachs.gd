@@ -510,6 +510,46 @@ func _clips_zuordnen() -> void:
 		_schleife_setzen(clip, Animation.LOOP_NONE)
 
 
+## Hält den Sprungclip am Scheitel an, solange die Figur noch fliegt.
+##
+## Der Clip ist mit 1,15 s deutlich länger als ein Sprung dauert (0,64 s
+## bei JUMP_V 12,2 und G -38). Wer tiefer fällt – in ein Loch oder nach
+## einem Bauchplatscher – wäre sonst noch in der Luft, während der Clip
+## schon die Landung samt Aufrichten abgespielt hat und im letzten Bild
+## stehen bleibt: Die Figur schwebt dann in Landepose durchs Bild.
+##
+## Die Marken sind Anteile der Clip-Länge, nicht feste Sekunden – so
+## passen sie auch zu einer Figur mit anders langem Sprung.
+const SCHEITEL_ANTEIL := 0.48   ## ~0,55 s von 1,15 s: höchster Punkt
+const LANDUNG_ANTEIL := 0.78    ## ~0,90 s von 1,15 s: Aufsetzen
+
+
+func _am_scheitel_halten() -> void:
+	if _clip_sprung.is_empty() or _clip_laeuft != _clip_sprung:
+		return
+	var anim := _eigener_spieler.get_animation(_clip_sprung)
+	if anim == null:
+		return
+	var scheitel := anim.length * SCHEITEL_ANTEIL
+	if _eigener_spieler.current_animation_position > scheitel:
+		_eigener_spieler.seek(scheitel, true)
+
+
+## Beim Aufsetzen in den Landeteil des Clips springen.
+##
+## Ohne das bliebe die Figur beim Landen in der Scheitelpose stehen, bis
+## der nächste Bodenclip übergeblendet ist – sie käme mit angezogenen
+## Beinen auf. Der Landeteil ist kurz; die Überblendung zum Geh- oder
+## Ruheclip läuft ohnehin gleich darüber.
+func _landeteil_anspielen() -> void:
+	if _clip_sprung.is_empty() or _clip_laeuft != _clip_sprung:
+		return
+	var anim := _eigener_spieler.get_animation(_clip_sprung)
+	if anim == null:
+		return
+	_eigener_spieler.seek(anim.length * LANDUNG_ANTEIL, true)
+
+
 func _erster_clip(wuensche: Array) -> String:
 	for wunsch: String in wuensche:
 		var treffer := ModellLader.clip_fuer(_eigener_spieler, wunsch)
@@ -535,18 +575,21 @@ func _fuehre_clips(tempo: float, luft: bool, slide: bool) -> void:
 	if _eigener_spieler == null:
 		return
 
-	# Abheben stößt den Sprungclip genau einmal an. Er läuft ohne Schleife
-	# durch; landet die Figur vorher, übernimmt der Bodenclip.
-	if luft and not _war_in_luft and not _clip_sprung.is_empty():
-		_war_in_luft = true
-		_clip_laeuft = _clip_sprung
-		_eigener_spieler.play(_clip_sprung, 0.08)
-		return
 	if luft:
+		# Abheben stößt den Sprungclip genau einmal an.
+		if not _war_in_luft and not _clip_sprung.is_empty():
+			_war_in_luft = true
+			_clip_laeuft = _clip_sprung
+			_eigener_spieler.play(_clip_sprung, 0.08)
+			return
 		_war_in_luft = true
 		# Ohne eigenen Sprungclip bleibt der letzte Bodenclip stehen; die
 		# Stauchung aus `_animiere_eigenes()` zeigt den Sprung dann.
+		_am_scheitel_halten()
 		return
+
+	if _war_in_luft:
+		_landeteil_anspielen()
 	_war_in_luft = false
 
 	var wunsch := _clip_ruhe if not _clip_ruhe.is_empty() else _clip_pose
