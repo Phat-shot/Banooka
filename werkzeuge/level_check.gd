@@ -54,9 +54,16 @@ func _ready() -> void:
 func _pruefe_objekte(gruppe: String, soll: float) -> void:
 	var liste := get_tree().get_nodes_in_group(gruppe)
 	var schlecht := 0
+	var absichtlich := 0
 	for knoten in liste:
 		var n := knoten as Node3D
 		if n == null:
+			continue
+		# Kisten, die als Stufe oder Plattform gedacht sind, stehen
+		# absichtlich in der Luft. Sie tragen das Merkmal aus
+		# `korridor_level.kiste(..., schwebt = true)`.
+		if n.is_in_group("schwebende_kisten"):
+			absichtlich += 1
 			continue
 		var treffer := _boden_unter(n.global_position)
 		if treffer.is_empty():
@@ -71,7 +78,11 @@ func _pruefe_objekte(gruppe: String, soll: float) -> void:
 		elif abstand < -MAX_VERSUNKEN:
 			print("  steckt %.2f m im Boden: %s bei %s" % [-abstand, gruppe, str(n.global_position.snappedf(0.1))])
 			_warnungen += 1; schlecht += 1
-	print("  %s: %d geprüft, %d auffällig" % [gruppe, liste.size(), schlecht])
+	if absichtlich > 0:
+		print("  %s: %d geprüft, %d auffällig, %d schweben absichtlich"
+				% [gruppe, liste.size(), schlecht, absichtlich])
+	else:
+		print("  %s: %d geprüft, %d auffällig" % [gruppe, liste.size(), schlecht])
 
 ## Prüft, ob Bäume wirklich auf dem Boden stehen.
 ##

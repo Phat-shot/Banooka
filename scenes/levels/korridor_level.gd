@@ -605,10 +605,19 @@ func portale_setzen(start: float = 1.0, ziel_vor_ende: float = 4.0) -> void:
 	objekte.add_child(z)
 
 
+## Kiste auf den Weg setzen.
+##
+## `schwebt = true` sagt: Diese Kiste steht ABSICHTLICH in der Luft – sie
+## ist selbst der Boden, etwa als Stufe einer Kistentreppe über einer
+## Lücke. Das Prüfwerkzeug meldet eine Kiste ohne Boden darunter sonst als
+## Fehler, und es hat recht damit: In neun von zehn Fällen ist das ein
+## Versehen. Absicht muss deshalb dastehen, statt geraten zu werden.
 func kiste(art: Kiste.Art, strecke: float, seitlich: float,
-		hoehe: float = 0.5) -> Kiste:
+		hoehe: float = 0.5, schwebt := false) -> Kiste:
 	var k := KISTE.instantiate() as Kiste
 	k.art = art
+	if schwebt:
+		k.add_to_group("schwebende_kisten")
 	k.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
 	k.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(k)
