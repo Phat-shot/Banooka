@@ -41,6 +41,18 @@ func _ready() -> void:
 	add_child(_szene)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	# Auf den fertigen Levelaufbau warten. Er läuft über viele Bilder; wer
+	# vorher fotografiert, erwischt eine halbe Szene – und vor allem hängt
+	# die Verfolgerkamera dann noch nicht am Spieler, sodass JEDES Bild die
+	# Startstelle zeigt, egal welche Strecke angefordert wurde.
+	if _szene.has_signal("aufbau_fertig"):
+		var wartebilder := 0
+		while not Ladeschirm.ist_sichtbar() and wartebilder < 10:
+			wartebilder += 1
+			await get_tree().process_frame
+		await _szene.aufbau_fertig
+	for f in 5:
+		await get_tree().process_frame
 
 	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
 	if _spieler != null and "gesperrt" in _spieler:
@@ -110,6 +122,12 @@ func _fotografiere(stellen: PackedStringArray, modus: String) -> void:
 			var mitte: Vector3 = LevelWerkzeuge.punkt(_verlauf, wert, 0.0, 0.0)
 			if _spieler != null:
 				_spieler.global_position = mitte + Vector3.UP * 1.0
+				# Die Verfolgerkamera zieht dem versetzten Spieler nicht von
+				# allein nach: Ohne das zeigt JEDES Bild die Startstelle,
+				# egal welche Strecke angefordert wurde.
+				if modus == "verfolger" and _kamera != null \
+						and _kamera.has_method("sofort_ausrichten"):
+					_kamera.call("sofort_ausrichten")
 			if modus == "nah" and _kamera != null:
 				var vor: Vector3 = LevelWerkzeuge.richtung(_verlauf, wert)
 				_kamera.global_position = mitte + vor.cross(Vector3.UP) * 3.2 \

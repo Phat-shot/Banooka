@@ -18,7 +18,7 @@ extends KorridorLevel
 ## die Zone ist nur der Notnagel, falls jemand daran vorbeifällt.
 
 const SUMPFKROETE := preload("res://scenes/enemies/Sumpfkroete.tscn")
-const STELZENVOGEL := preload("res://scenes/enemies/Stelzenvogel.tscn")
+const STELZENSPINNE := preload("res://scenes/enemies/Stelzenspinne.tscn")
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 const BAUM := preload("res://scenes/props/Baum.tscn")
 const WURZEL := preload("res://scenes/props/Wurzel.tscn")
@@ -258,10 +258,10 @@ func _gegner_setzen() -> void:
 	gegner(PANZERKAEFER, 140.0, 0.0, 3.0, true)
 
 	# ---------- Schilfgürtel: Slide zwischen dem Schilf ----------
-	gegner(STELZENVOGEL, 152.0, -1.6, 3.0, true)
-	gegner(STELZENVOGEL, 160.0, 0.8, 3.5, true)
-	gegner(STELZENVOGEL, 170.0, -0.6, 3.0, true)
-	gegner(STELZENVOGEL, 179.0, 1.4, 3.0, true)
+	gegner(STELZENSPINNE, 152.0, -1.6, 3.0, true)
+	gegner(STELZENSPINNE, 160.0, 0.8, 3.5, true)
+	gegner(STELZENSPINNE, 170.0, -0.6, 3.0, true)
+	gegner(STELZENSPINNE, 179.0, 1.4, 3.0, true)
 
 	# ---------- Anhöhe ----------
 	gegner(SUMPFKROETE, 194.0, 2.0, 3.0, true)

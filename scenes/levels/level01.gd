@@ -16,7 +16,7 @@ extends LevelBasis
 const KISTE := preload("res://scenes/crates/Kiste.tscn")
 const FRUCHT := preload("res://scenes/fruits/Frucht.tscn")
 const SUMPFKROETE := preload("res://scenes/enemies/Sumpfkroete.tscn")
-const STELZENVOGEL := preload("res://scenes/enemies/Stelzenvogel.tscn")
+const STELZENSPINNE := preload("res://scenes/enemies/Stelzenspinne.tscn")
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 const WASSER := preload("res://scenes/hazards/Wasser.tscn")
 const STACHELN := preload("res://scenes/hazards/Stacheln.tscn")
@@ -393,15 +393,15 @@ func _gegner_setzen() -> void:
 	_gegner(SUMPFKROETE, 88.0, 0.0, 3.0, true)
 
 	# ---------- Stachelpassage: Slide lernen ----------
-	_gegner(STELZENVOGEL, 110.0, -1.0, 3.0, true)
-	_gegner(STELZENVOGEL, 123.0, 0.5, 3.5, true)
+	_gegner(STELZENSPINNE, 110.0, -1.0, 3.0, true)
+	_gegner(STELZENSPINNE, 123.0, 0.5, 3.5, true)
 	_gegner(PANZERKAEFER, 138.0, -2.0, 2.5, true)
-	_gegner(STELZENVOGEL, 146.0, 0.0, 3.0, true)
+	_gegner(STELZENSPINNE, 146.0, 0.0, 3.0, true)
 
 	# ---------- Baumkronen: alles gemischt ----------
 	_gegner(SUMPFKROETE, 166.0, 0.0, 2.5, true)
 	_gegner(PANZERKAEFER, 182.0, 1.2, 2.0, false)
-	_gegner(STELZENVOGEL, 200.0, 0.0, 2.5, true)
+	_gegner(STELZENSPINNE, 200.0, 0.0, 2.5, true)
 
 	# ---------- Lichtung: letzte Wache ----------
 	_gegner(PANZERKAEFER, 216.0, 3.5, 3.0, true)

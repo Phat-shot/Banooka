@@ -131,7 +131,11 @@ static func waehle(namen: Array, rng: RandomNumberGenerator,
 ## Ein Gegnermodell. Anders als bei Bäumen zählt hier die GRÖSSTE Achse:
 ## Ein Marienkäfer oder ein Frosch ist flach und lang – auf die Höhe
 ## eingepasst würde er meterweit über den Weg ragen.
-static func gegner(bezeichnung: String, ziel_groesse: float) -> Node3D:
+## `nach_hoehe` bestimmt, worauf sich `ziel_groesse` bezieht. Vorgabe ist
+## die größte Achse; für Gegner, unter denen man durchrutschen können muss,
+## zählt dagegen die HÖHE – sonst duckt sich ein breites Tier zu flach.
+static func gegner(bezeichnung: String, ziel_groesse: float,
+		nach_hoehe: bool = false) -> Node3D:
 	if not aktiv():
 		return null
 	var pfad := "%s/%s.glb" % [ORDNER_GEGNER, bezeichnung]
@@ -139,7 +143,7 @@ static func gegner(bezeichnung: String, ziel_groesse: float) -> Node3D:
 	if knoten == null:
 		return null
 	var mass := _abmessung(pfad, knoten)
-	var groesste := maxf(mass.x, maxf(mass.y, mass.z))
+	var groesste := mass.y if nach_hoehe else maxf(mass.x, maxf(mass.y, mass.z))
 	if groesste > 0.001 and ziel_groesse > 0.0:
 		var faktor := ziel_groesse / groesste
 		knoten.scale = Vector3(faktor, faktor, faktor)

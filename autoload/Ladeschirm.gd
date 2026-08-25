@@ -13,7 +13,7 @@ const TIPPS := [
 	"Slide und dann springen bringt dich höher als ein normaler Sprung.",
 	"Die Spin-Attacke zerbricht Kisten auch im Vorbeidrehen.",
 	"Der Bauchplatscher zerbricht alle Kisten im Umkreis von zwei Metern.",
-	"Die Sumpfkröte spinnen, den Stelzenvogel slidden, auf den Panzerkäfer springen.",
+	"Die Sumpfkröte spinnen, die Stelzenspinne unterrutschen, auf den Panzerkäfer springen.",
 	"Nitrokisten explodieren bei Berührung – aus der Ferne sind sie ungefährlich.",
 	"Federkisten geben zehn Früchte, wenn du zehnmal darauf springst.",
 	"Hundert Früchte ergeben ein Extraleben.",

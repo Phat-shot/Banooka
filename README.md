@@ -50,7 +50,7 @@ Checkpoints. Wer neben den Pfad fällt, landet in der Absturzzone.
 | Gegner | Nur besiegbar durch |
 |---|---|
 | Sumpfkröte | Drehschlag (der glitschige Rücken lässt Sprünge abrutschen) |
-| Stelzenvogel | Slide (der Kamm oben verhindert Draufspringen) |
+| Stelzenspinne | Slide (der Kamm oben verhindert Draufspringen) |
 | Panzerkäfer | Draufspringen (die Panzernaht hält kein Gewicht) |
 
 Der Bauchplatscher wirkt bei allen dreien.
@@ -338,7 +338,7 @@ autoload/InputHub.gd       Tastatur, Gamepad und Touch zu einem Eingabezustand
 scenes/player/             Player.tscn, player.gd, beuteldachs.gd (Modell)
 scenes/camera/             CorridorCamera.tscn
 scenes/crates/             Kiste.tscn + kiste.gd (alle neun Arten)
-scenes/enemies/            gegner.gd + Sumpfkroete/Stelzenvogel/Panzerkaefer
+scenes/enemies/            gegner.gd + Sumpfkroete/Stelzenspinne/Panzerkaefer
 scenes/fruits/             Frucht.tscn
 scenes/hazards/            Wasser.tscn, Stacheln.tscn
 scenes/portals/            StartPortal.tscn, ZielPortal.tscn

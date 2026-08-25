@@ -11,6 +11,7 @@ Jede übernommene Datei wird hier mit Quelle und Lizenz eingetragen.
 | `assets/modelle/natur/*.glb` (35) | [Kenney Nature Kit](https://kenney.nl/assets/nature-kit) | CC0 | Bäume, Felsen, Pilze, Büsche, Blumen – Lizenztext liegt daneben |
 | `assets/modelle/gegner/kroete.glb` | [Quaternius](https://quaternius.com) über [poly.pizza](https://poly.pizza) | CC0 | Laubfrosch, Optik der Sumpfkröte |
 | `assets/modelle/gegner/kaefer.glb` | Exceptional_3D über [poly.pizza](https://poly.pizza) | CC0 | Marienkäfer, Optik des Panzerkäfers |
+| `assets/modelle/gegner/spinne.glb` | [Quaternius](https://quaternius.com) über [poly.pizza](https://poly.pizza) | CC0 | Spinne, Optik der Stelzenspinne |
 
 ## Eigene Figuren einbinden
 
@@ -28,8 +29,7 @@ fehlt eine Datei, baut sich jedes Teil wie bisher selbst auf.
 | Bereich | Herkunft |
 |---|---|
 | Bäume, Felsen, Pilze, Büsche, Blumen | Kenney Nature Kit |
-| Sumpfkröte, Panzerkäfer | Quaternius bzw. Exceptional_3D |
-| Stelzenvogel | **selbstgebaut** – er wird per Slide besiegt, und die langen Stelzen sind das Zeichen dafür; unter den CC0-Vögeln gab es keinen mit dieser Silhouette |
+| Sumpfkröte, Panzerkäfer, Stelzenspinne | Quaternius bzw. Exceptional_3D – **alle Gegner** |
 | Spielfigur, Reiter, Flüchtling, Rennfahrer | selbstgebaut |
 | Kisten, Früchte, Portale, Stacheln, Wasser | selbstgebaut |
 | Gelände, Wurzeln, Grasfelder, Portalraum | selbstgebaut |
