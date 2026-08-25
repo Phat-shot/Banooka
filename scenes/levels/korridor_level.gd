@@ -343,11 +343,21 @@ func laserzaun(strecke: float, breite := 4.0, wandernd := true,
 
 
 ## Rollender Brocken, der dem Weg folgt.
+## Rollender Brocken, der dem Weg folgt.
+##
+## `auf_abruf` und `farbe` müssen VOR dem Einhängen gesetzt sein: Das Prop
+## baut seine Optik in `_ready()`, und der Helfer hängt es sofort ein.
+## Beide Werte nachträglich zu setzen wirkt nicht mehr auf das Aussehen –
+## ein Agent musste sich deshalb mit einem eigenen Fass behelfen.
 func rollbrocken(von: float, bis: float, seitlich := 0.0, hoehe := 0.0,
 		radius := 1.1, tempo := 9.0, pause := 2.0, phase := 0.0,
-		art := Rollhindernis.Art.KUGEL) -> Rollhindernis:
+		art := Rollhindernis.Art.KUGEL, auf_abruf := false,
+		farbe := Color(0, 0, 0, 0)) -> Rollhindernis:
 	var r := ROLLHINDERNIS.instantiate() as Rollhindernis
 	r.art = art
+	r.auf_abruf = auf_abruf
+	if farbe.a > 0.0:
+		r.farbe = farbe
 	r.verlauf = verlauf
 	r.strecke_von = von
 	r.strecke_bis = bis
