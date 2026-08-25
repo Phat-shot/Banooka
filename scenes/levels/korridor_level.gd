@@ -225,11 +225,14 @@ func _aufhaengung(strecke: float, seitlich: float, hoehe: float,
 ## Boden, auf dem der Spieler steht. Die aufrechte Kapsel ist 1,30 m
 ## hoch, die flache 0,76 m; alles dazwischen trennt Gehen von Krabbeln.
 func stachelbalken(strecke: float, seitlich: float, unterkante: float,
-		flaeche := Vector2(4.0, 1.1)) -> Stacheln:
+		flaeche := Vector2(4.0, 1.1), dicke := 0.55) -> Stacheln:
 	var st := STACHELN.instantiate() as Stacheln
 	st.flaeche = flaeche
 	st.einfahrbar = false
-	st.stachel_hoehe = 0.55
+	st.stachel_hoehe = dicke
+	# Die Gefahrzone reicht von `unterkante` bis `unterkante + dicke + 0,12`.
+	# Wo sie schmal sein muss – etwa zwischen baumelnden und angezogenen
+	# Beinen am Hangelgitter –, wird `dicke` kleiner gesetzt.
 	st.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich,
 			unterkante + st.stachel_hoehe + 0.12)
 	st.rotation = Vector3(0.0, LevelWerkzeuge.drehung(verlauf, strecke), PI)

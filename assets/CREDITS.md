@@ -30,7 +30,9 @@ fehlt eine Datei, baut sich jedes Teil wie bisher selbst auf.
 |---|---|
 | Bäume, Felsen, Pilze, Büsche, Blumen | Kenney Nature Kit |
 | Sumpfkröte, Panzerkäfer, Stelzenspinne | Quaternius bzw. Exceptional_3D – **alle Gegner** |
-| Spielfigur, Reiter, Flüchtling, Rennfahrer | selbstgebaut |
+| Spielfigur, Reiter, Flüchtling, Rennfahrer, Flieger | selbstgebaut |
+| Werfer, Schwarm, Flugziel | selbstgebaut – für diese drei gibt es noch kein fremdes Modell |
+| Hang-Clips der Spielfigur (`Hang`, `HangDuck`, `HangSpin`) | selbst erzeugt mit `werkzeuge/clip_bauen.py` |
 | Kisten, Früchte, Portale, Stacheln, Wasser | selbstgebaut |
 | Gelände, Wurzeln, Grasfelder, Portalraum | selbstgebaut |
 | **sämtliche Texturen** | selbstgebaut (`FastNoiseLite`) |

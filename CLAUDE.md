@@ -40,7 +40,13 @@ Raum 1 (Wurzelwald): 01 Wurzelschlucht (Wald) · 02 Frostgrat (Schnee) ·
 03 Treibgut (Sumpffluss mit Treibflößen) · 04 Katzensprung (Ritt auf der
 Wildkatze) · 05 Hauerjagd (Flucht vor dem Keiler).
 Raum 2 (Nebelsümpfe): 06 Wettrennen (Karts, drei Runden) ·
-07 Moorbrücken (Bohlenweg im Moor). 08–25 offen.
+07 Moorbrücken (Bohlenweg im Moor) · 10 Schleusenwerk (Tech-Demo:
+verfallenes Wasserwerk, zeigt jedes Bauteil einmal). 08, 09, 11–25 offen.
+
+Bauteile für neue Level stehen in `korridor_level.gd` bereit; welches
+Vorbild welches Bauteil hervorgebracht hat, steht in
+`doku/level-vorbilder.md`. Der Prüfstand `scenes/levels/Werkstatt.tscn`
+zeigt jedes einzeln, Level 10 zeigt sie im Zusammenspiel.
 
 Level 03 wechselt zwischen Laufen und Fahren: Zwei Abschnitte haben
 keinen Boden, dort trägt eine `Wasserplattform` (Treibfloß) den Spieler.
