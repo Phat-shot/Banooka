@@ -38,9 +38,9 @@ var modell_groesse := 1.0
 ## Mitgelieferte Naturmodelle (Kenney, CC0) statt der prozeduralen Props.
 ## Umschaltbar, damit sich beide Fassungen vergleichen lassen; der
 ## prozedurale Aufbau bleibt in jedem Fall der Rückfall.
-var natur_assets := true:
+var fremde_modelle := true:
 	set(an):
-		natur_assets = an
+		fremde_modelle = an
 		geaendert.emit()
 ## Debugmodus: unendlich Leben, immer Schutz, alle Räume offen.
 ## Bleibt über Sitzungen erhalten, damit man beim Prüfen eines Levels
@@ -169,7 +169,7 @@ func speichern() -> void:
 	datei.set_value("figur", "modell", eigenes_modell)
 	datei.set_value("figur", "groesse", modell_groesse)
 	datei.set_value("spiel", "debug", debug)
-	datei.set_value("spiel", "natur_assets", natur_assets)
+	datei.set_value("spiel", "fremde_modelle", fremde_modelle)
 	datei.save(SPEICHERPFAD)
 
 
@@ -180,4 +180,4 @@ func laden() -> void:
 	eigenes_modell = String(datei.get_value("figur", "modell", ""))
 	modell_groesse = clampf(float(datei.get_value("figur", "groesse", 1.0)), 0.5, 2.0)
 	debug = bool(datei.get_value("spiel", "debug", false))
-	natur_assets = bool(datei.get_value("spiel", "natur_assets", true))
+	fremde_modelle = bool(datei.get_value("spiel", "fremde_modelle", true))

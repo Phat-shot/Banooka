@@ -8,6 +8,9 @@ Jede übernommene Datei wird hier mit Quelle und Lizenz eingetragen.
 |---|---|---|---|
 | `icon.svg` | eigene Erstellung | CC0 | Projekt-Icon |
 | `assets/modelle/pruefling.glb` | eigene Erstellung (`werkzeuge/modelltest.gd`) | CC0 | Probefigur zum Prüfen des Modellwegs |
+| `assets/modelle/natur/*.glb` (35) | [Kenney Nature Kit](https://kenney.nl/assets/nature-kit) | CC0 | Bäume, Felsen, Pilze, Büsche, Blumen – Lizenztext liegt daneben |
+| `assets/modelle/gegner/kroete.glb` | [Quaternius](https://quaternius.com) über [poly.pizza](https://poly.pizza) | CC0 | Laubfrosch, Optik der Sumpfkröte |
+| `assets/modelle/gegner/kaefer.glb` | Exceptional_3D über [poly.pizza](https://poly.pizza) | CC0 | Marienkäfer, Optik des Panzerkäfers |
 
 ## Eigene Figuren einbinden
 
@@ -16,9 +19,25 @@ Jede übernommene Datei wird hier mit Quelle und Lizenz eingetragen.
 Anforderungen und Stolpersteine stehen in `assets/modelle/LIESMICH.md`;
 geprüft wird mit `bash werkzeuge/modelltest.sh`.
 
-## Bisheriger Stand
+## Was fremd ist und was nicht
 
-**Es werden keine fremden Asset-Dateien verwendet.** Sämtliche Modelle,
+Fremde Modelle tragen ausschließlich **Deko und zwei Gegner-Silhouetten**.
+Umschaltbar über `Einstellungen.fremde_modelle`; ist der Schalter aus oder
+fehlt eine Datei, baut sich jedes Teil wie bisher selbst auf.
+
+| Bereich | Herkunft |
+|---|---|
+| Bäume, Felsen, Pilze, Büsche, Blumen | Kenney Nature Kit |
+| Sumpfkröte, Panzerkäfer | Quaternius bzw. Exceptional_3D |
+| Stelzenvogel | **selbstgebaut** – er wird per Slide besiegt, und die langen Stelzen sind das Zeichen dafür; unter den CC0-Vögeln gab es keinen mit dieser Silhouette |
+| Spielfigur, Reiter, Flüchtling, Rennfahrer | selbstgebaut |
+| Kisten, Früchte, Portale, Stacheln, Wasser | selbstgebaut |
+| Gelände, Wurzeln, Grasfelder, Portalraum | selbstgebaut |
+| **sämtliche Texturen** | selbstgebaut (`FastNoiseLite`) |
+
+## Alles Übrige entsteht im Code
+
+Sämtliche Modelle,
 Texturen und Effekte entstehen zur Laufzeit im Code:
 
 - **Modelle** aus Godot-Primitiven (Kapsel, Kugel, Box, Zylinder, Kegel,

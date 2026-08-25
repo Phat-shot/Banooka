@@ -75,7 +75,7 @@ var _teile: Node3D
 ## Kleinzeug steht nur herum, es hat weder Kollision noch bewegliche Teile –
 ## der Wind wiegt den ganzen Knoten.
 func _setze_fertiges_modell() -> bool:
-	if not NaturAssets.aktiv():
+	if not Fremdmodelle.aktiv():
 		return false
 	var auswahl: Array = []
 	match art:
@@ -90,7 +90,7 @@ func _setze_fertiges_modell() -> bool:
 			# plant_flat* sind flache Blattkarten – als Farn am Boden
 			# werden sie zu breiten Keilen. Deshalb nur Buschwerk.
 			auswahl = ["grass_leafs", "grass_leafsLarge", "plant_bushSmall"]
-	var modell := NaturAssets.waehle(auswahl, _rng, groesse)
+	var modell := Fremdmodelle.waehle(auswahl, _rng, groesse)
 	if modell == null:
 		return false
 	modell.name = "Modell"

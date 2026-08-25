@@ -64,13 +64,13 @@ func _ready() -> void:
 ## Die Kollision bleibt eine grobe Kugel – ein Netz je Stein wäre für die
 ## Menge, die in einem Level steht, zu teuer.
 func _setze_fertiges_modell() -> bool:
-	if not NaturAssets.aktiv():
+	if not Fremdmodelle.aktiv():
 		return false
 	var auswahl := ["rock_smallFlatA", "rock_smallFlatB"] if flach \
 			else (["rock_largeA", "rock_largeB", "rock_largeC"] if groesse >= 1.2
 			else ["rock_smallA", "rock_smallB", "rock_smallC"])
 	var hoehe := groesse * (0.45 if flach else 0.9)
-	var modell := NaturAssets.waehle(auswahl, _rng, hoehe)
+	var modell := Fremdmodelle.waehle(auswahl, _rng, hoehe)
 	if modell == null:
 		return false
 	modell.name = "Modell"

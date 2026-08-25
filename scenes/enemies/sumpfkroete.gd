@@ -51,6 +51,12 @@ const AUGE_Y := 0.58
 ## Breit, flach und satt gezeichnet: Von der Spielkamera aus sieht man vor
 ## allem den Rücken – deshalb sitzen dort die hellen Flecken und die
 ## Glupschaugen, die die Kröte als "bespringbar" ausweisen.
+## Mitgeliefertes Modell für diesen Gegner.
+## Laubfrosch von Quaternius – flach und breit wie die eigene Kröte.
+func fremdmodell() -> Dictionary:
+	return {"datei": "kroete", "groesse": 1.15}
+
+
 func _baue() -> void:
 	# Dunkle, warzige Sumpfhaut
 	var haut := StandardMaterial3D.new()

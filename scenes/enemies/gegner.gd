@@ -87,6 +87,7 @@ func _ready() -> void:
 			trefferzone.body_entered.connect(_auf_koerper)
 
 	_baue()
+	_fremdmodell_setzen()
 
 
 func _physics_process(delta: float) -> void:
@@ -107,6 +108,34 @@ func _physics_process(delta: float) -> void:
 ## Baut die Optik unter `modell` auf. Wird von jedem Gegner überschrieben.
 func _baue() -> void:
 	pass
+
+
+## Datei und Zielgröße eines mitgelieferten Modells für diesen Gegner,
+## z. B. {"datei": "kroete", "groesse": 1.1}. Leer = nur die eigene Optik.
+func fremdmodell() -> Dictionary:
+	return {}
+
+
+## Hängt das mitgelieferte Modell ein und blendet die selbst gebaute Optik aus.
+##
+## Die gebauten Teile bleiben absichtlich im Baum: Die Bewegungslogik jedes
+## Gegners greift auf sie zu (Hüpf-Stauchung, Beintakt, Pickbewegung). Sie
+## zu entfernen hieße, jede dieser Stellen abzusichern. Unsichtbar
+## geschaltet kostet das nichts und kann nichts kaputtmachen.
+func _fremdmodell_setzen() -> void:
+	var angabe := fremdmodell()
+	if angabe.is_empty() or not is_instance_valid(modell):
+		return
+	var figur := Fremdmodelle.gegner(String(angabe.get("datei", "")),
+			float(angabe.get("groesse", 1.0)))
+	if figur == null:
+		return
+	for kind in modell.get_children():
+		var sichtbar := kind as Node3D
+		if sichtbar != null:
+			sichtbar.visible = false
+	figur.name = "Fremdmodell"
+	modell.add_child(figur)
 
 
 ## Fortbewegung und Animation. Wird von jedem Gegner überschrieben.

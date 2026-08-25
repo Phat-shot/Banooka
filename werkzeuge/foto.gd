@@ -33,7 +33,7 @@ var _verlauf: Variant = null
 func _ready() -> void:
 	# Zum Vergleichen: FOTO_ASSETS=0 zeigt die prozeduralen Props.
 	if OS.get_environment("FOTO_ASSETS") == "0":
-		Einstellungen.natur_assets = false
+		Einstellungen.fremde_modelle = false
 	var pfad := OS.get_environment("FOTO_LEVEL")
 	if pfad.is_empty():
 		pfad = "res://scenes/levels/Level01.tscn"

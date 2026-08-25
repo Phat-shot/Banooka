@@ -35,6 +35,12 @@ func _init() -> void:
 ## Tiefschwarzer Panzer mit gelben Warnstreifen, dicht über dem Boden.
 ## Die Streifen liegen quer über dem Rücken und sind daher genau das,
 ## was die Spielkamera von schräg oben zu sehen bekommt.
+## Mitgeliefertes Modell für diesen Gegner.
+## Marienkäfer von Exceptional_3D – roter Panzer, gut lesbar von oben.
+func fremdmodell() -> Dictionary:
+	return {"datei": "kaefer", "groesse": 1.30}
+
+
 func _baue() -> void:
 	var panzer_mat := Materialbibliothek.einfarbig(Farben.FELS.darkened(0.72), 0.35, 0.25)
 	var chitin := Materialbibliothek.einfarbig(Farben.RINDE.darkened(0.55), 0.55)

@@ -1,6 +1,7 @@
 extends RefCounted
-class_name NaturAssets
-## Mitgelieferte Naturmodelle (Kenney Nature Kit, CC0) für die Wald-Props.
+class_name Fremdmodelle
+## Mitgelieferte Modelle aus fremden CC0-Sammlungen: Wald-Props aus dem
+## Kenney Nature Kit, Gegner von Quaternius und Exceptional_3D.
 ##
 ## Der prozedurale Aufbau bleibt vollständig erhalten und ist der Rückfall:
 ## Fehlt eine Datei oder ist die Umschaltung aus, baut jedes Prop sich wie
@@ -14,6 +15,7 @@ class_name NaturAssets
 ## Quelle und Lizenz stehen in `assets/CREDITS.md`.
 
 const ORDNER := "res://assets/modelle/natur"
+const ORDNER_GEGNER := "res://assets/modelle/gegner"
 
 ## Einmal geladene Szenen. Ein Wald setzt dasselbe Modell hundertfach ein;
 ## ohne Zwischenspeicher würde jede Instanz neu von der Platte gelesen.
@@ -27,7 +29,7 @@ static var _materialien := {}
 
 ## Sollen die mitgelieferten Modelle benutzt werden?
 static func aktiv() -> bool:
-	return Einstellungen.natur_assets
+	return Einstellungen.fremde_modelle
 
 
 ## Liegt dieses Modell im Spiel?
@@ -86,12 +88,20 @@ static func _beleuchtung_anpassen(knoten: Node) -> void:
 static func _angepasst(roh: Material) -> Material:
 	if roh == null:
 		return null
-	var schluessel := roh.get_instance_id()
+	# ACHTUNG: Als Schlüssel diente hier einmal `get_instance_id()`. Das war
+	# falsch – Godot vergibt die IDs freigegebener Objekte neu. Ein später
+	# geladenes Modell bekam dadurch die Materialien eines früheren, und
+	# Figuren erschienen in fremden Farben. Der Schlüssel ist jetzt der
+	# Ressourcenpfad, und das Ausgangsmaterial wird mit festgehalten, damit
+	# es gar nicht erst freigegeben werden kann.
+	var schluessel: Variant = roh.resource_path
+	if String(schluessel).is_empty():
+		schluessel = roh
 	if _materialien.has(schluessel):
-		return _materialien[schluessel]
+		return _materialien[schluessel]["fertig"]
 	var standard := roh as StandardMaterial3D
 	if standard == null:
-		_materialien[schluessel] = null
+		_materialien[schluessel] = {"quelle": roh, "fertig": null}
 		return null
 	var neu_stoff := standard.duplicate() as StandardMaterial3D
 	neu_stoff.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
@@ -99,7 +109,7 @@ static func _angepasst(roh: Material) -> Material:
 	neu_stoff.roughness = 0.92
 	neu_stoff.metallic = 0.0
 	neu_stoff.metallic_specular = 0.12
-	_materialien[schluessel] = neu_stoff
+	_materialien[schluessel] = {"quelle": roh, "fertig": neu_stoff}
 	return neu_stoff
 
 
@@ -116,6 +126,45 @@ static func waehle(namen: Array, rng: RandomNumberGenerator,
 	if vorhanden.is_empty():
 		return null
 	return nimm(vorhanden[rng.randi() % vorhanden.size()], ziel_hoehe)
+
+
+## Ein Gegnermodell. Anders als bei Bäumen zählt hier die GRÖSSTE Achse:
+## Ein Marienkäfer oder ein Frosch ist flach und lang – auf die Höhe
+## eingepasst würde er meterweit über den Weg ragen.
+static func gegner(bezeichnung: String, ziel_groesse: float) -> Node3D:
+	if not aktiv():
+		return null
+	var pfad := "%s/%s.glb" % [ORDNER_GEGNER, bezeichnung]
+	var knoten := _instanz(pfad)
+	if knoten == null:
+		return null
+	var mass := _abmessung(pfad, knoten)
+	var groesste := maxf(mass.x, maxf(mass.y, mass.z))
+	if groesste > 0.001 and ziel_groesse > 0.0:
+		var faktor := ziel_groesse / groesste
+		knoten.scale = Vector3(faktor, faktor, faktor)
+		# Füße auf den Boden: die Hülle liegt selten schon auf y = 0.
+		knoten.position.y = -_unterkante(pfad, knoten) * faktor
+	_beleuchtung_anpassen(knoten)
+	return knoten
+
+
+static func _unterkante(pfad: String, muster: Node3D) -> float:
+	var schluessel := pfad + "#unten"
+	if _hoehen.has(schluessel):
+		return _hoehen[schluessel]
+	var u: float = ModellLader.huelle_von(muster).position.y
+	_hoehen[schluessel] = u
+	return u
+
+
+static func _instanz(pfad: String) -> Node3D:
+	if not _vorrat.has(pfad):
+		_vorrat[pfad] = load(pfad) if ResourceLoader.exists(pfad) else null
+	var szene: PackedScene = _vorrat[pfad]
+	if szene == null:
+		return null
+	return szene.instantiate() as Node3D
 
 
 static func _pfad(bezeichnung: String) -> String:

@@ -40,6 +40,10 @@ func _ready() -> void:
 ## Dunkles Gefieder, knallgelbe Stelzen, leuchtend roter Stachelkamm:
 ## Aus der Spielkamera sieht man vor allem den Kamm – und der sagt
 ## unmissverständlich "hier nicht landen".
+## KEIN mitgeliefertes Modell: Der Stelzenvogel wird per Slide besiegt,
+## und die langen Stelzen sind genau das Zeichen dafür. Unter den frei
+## verfügbaren CC0-Vögeln war keiner mit dieser Silhouette – ein gedrungener
+## Entenkörper nimmt dem Gegner seine Lesbarkeit. Bleibt deshalb selbstgebaut.
 func _baue() -> void:
 	var gefieder := Materialbibliothek.fell(Farben.WASSER.darkened(0.34))
 	var deckfeder := Materialbibliothek.fell(Farben.WASSER_HELL.darkened(0.30))

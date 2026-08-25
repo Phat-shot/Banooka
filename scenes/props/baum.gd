@@ -110,7 +110,7 @@ func _ready() -> void:
 ## Wald ohnehin zu teuer. Das Modell hängt unter der Krone, damit der
 ## Wind es als Ganzes wiegt.
 func _setze_fertiges_modell() -> bool:
-	if not NaturAssets.aktiv():
+	if not Fremdmodelle.aktiv():
 		return false
 	var auswahl: Array = []
 	match art:
@@ -123,7 +123,7 @@ func _setze_fertiges_modell() -> bool:
 		_:
 			auswahl = ["tree_default", "tree_detailed", "tree_oak",
 					"tree_fat", "tree_blocks"]
-	var modell := NaturAssets.waehle(auswahl, _rng, hoehe)
+	var modell := Fremdmodelle.waehle(auswahl, _rng, hoehe)
 	if modell == null:
 		return false
 	modell.name = "Modell"
