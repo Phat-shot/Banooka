@@ -60,7 +60,13 @@ signal abgeprallt
 
 @onready var _kollision: CollisionShape3D = $Kollision
 @onready var _kollision_slide: CollisionShape3D = $KollisionSlide
-@onready var _kollision_hangeln: CollisionShape3D = $KollisionHangeln
+## Kann fehlen: Die Schienenfiguren (Reiter, Flüchtling, Rennfahrer) sind
+## eigene Szenen und keine Ableger von Player.tscn – eine neue Kapsel dort
+## nachzutragen ist leicht zu vergessen. Ohne diese Absicherung meldete
+## Godot beim Laden "Node not found" und `_hitbox_aktualisieren()` liefe
+## auf ein Null.
+@onready var _kollision_hangeln: CollisionShape3D = get_node_or_null(
+		"KollisionHangeln")
 @onready var _modell: SpielerModell = $Modell
 
 ## Kapsel für die Frage „ist oben Platz?". Eine Spur schmaler und kürzer als
@@ -587,7 +593,8 @@ func _hitbox_aktualisieren() -> void:
 	_slide_hitbox_aktiv = art == 1
 	_kollision.set_deferred("disabled", art != 0)
 	_kollision_slide.set_deferred("disabled", art != 1)
-	_kollision_hangeln.set_deferred("disabled", art != 2)
+	if is_instance_valid(_kollision_hangeln):
+		_kollision_hangeln.set_deferred("disabled", art != 2)
 
 
 ## Schockwelle beim Aufschlag des Bauchplatschers: zerbricht Kisten im Umkreis.

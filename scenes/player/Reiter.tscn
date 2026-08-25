@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/player/reiter.gd" id="1_reiter"]
 [ext_resource type="Script" path="res://scenes/mounts/katze.gd" id="2_katze"]
@@ -9,6 +9,10 @@ radius = 0.5
 height = 1.9
 
 [sub_resource type="CapsuleShape3D" id="FormSlide"]
+radius = 0.5
+height = 1.2
+
+[sub_resource type="CapsuleShape3D" id="FormHangeln"]
 radius = 0.5
 height = 1.2
 
@@ -24,6 +28,11 @@ shape = SubResource("FormReiter")
 [node name="KollisionSlide" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
 shape = SubResource("FormSlide")
+disabled = true
+
+[node name="KollisionHangeln" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.92, 0)
+shape = SubResource("FormHangeln")
 disabled = true
 
 [node name="Katze" type="Node3D" parent="."]

@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/player/rennfahrer.gd" id="1_fahrer"]
 [ext_resource type="Script" path="res://scenes/vehicles/kart.gd" id="2_kart"]
@@ -7,6 +7,10 @@
 [sub_resource type="CapsuleShape3D" id="FormKart"]
 radius = 0.55
 height = 1.4
+
+[sub_resource type="CapsuleShape3D" id="FormHangeln"]
+radius = 0.38
+height = 0.76
 
 [node name="Rennfahrer" type="CharacterBody3D"]
 collision_layer = 0
@@ -20,6 +24,11 @@ shape = SubResource("FormKart")
 [node name="KollisionSlide" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 shape = SubResource("FormKart")
+disabled = true
+
+[node name="KollisionHangeln" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.92, 0)
+shape = SubResource("FormHangeln")
 disabled = true
 
 [node name="Kart" type="Node3D" parent="."]

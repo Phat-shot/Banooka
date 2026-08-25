@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/player/fluechtling.gd" id="1_flucht"]
 [ext_resource type="Script" path="res://scenes/player/beuteldachs.gd" id="2_modell"]
@@ -8,6 +8,10 @@ radius = 0.4
 height = 1.35
 
 [sub_resource type="CapsuleShape3D" id="FormSlide"]
+radius = 0.4
+height = 0.8
+
+[sub_resource type="CapsuleShape3D" id="FormHangeln"]
 radius = 0.4
 height = 0.8
 
@@ -29,6 +33,11 @@ shape = SubResource("FormFlucht")
 [node name="KollisionSlide" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
 shape = SubResource("FormSlide")
+disabled = true
+
+[node name="KollisionHangeln" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.92, 0)
+shape = SubResource("FormHangeln")
 disabled = true
 
 [node name="Modell" type="Node3D" parent="."]
