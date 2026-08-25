@@ -332,6 +332,12 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 			"koerper": [] as Array[Transform3D],
 			"ader": [] as Array[Transform3D],
 			"deck": [] as Array[Transform3D],
+			# Je Block eine eigene Farbe. Ohne die trägt jeder Würfel
+			# dasselbe Muster in derselben Helligkeit, und eine Wand aus
+			# hundert gleichen Würfeln liest sich als Tapete.
+			"koerper_farbe": [] as Array[Color],
+			"ader_farbe": [] as Array[Color],
+			"deck_farbe": [] as Array[Color],
 		}
 
 	var phase := float(saat % 360) * 0.017
@@ -362,26 +368,61 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		wurzel.add_child(wand)
 		var toepfe: Dictionary = je_seite[seite]
 		for teil: Array in [
-			["Koerper", toepfe["koerper"], material],
-			["Adern", toepfe["ader"], adermaterial],
-			["Deck", toepfe["deck"], deckmaterial],
+			["Koerper", toepfe["koerper"], material, toepfe["koerper_farbe"]],
+			["Adern", toepfe["ader"], adermaterial, toepfe["ader_farbe"]],
+			["Deck", toepfe["deck"], deckmaterial, toepfe["deck_farbe"]],
 		]:
 			var stellen: Array[Transform3D] = teil[1]
 			if stellen.is_empty() or teil[2] == null:
 				continue
+			var farben: Array[Color] = teil[3]
 			var haufen := MultiMesh.new()
 			haufen.transform_format = MultiMesh.TRANSFORM_3D
+			haufen.use_colors = true
 			haufen.mesh = netz
 			haufen.instance_count = stellen.size()
 			for i in stellen.size():
 				haufen.set_instance_transform(i, stellen[i])
+				haufen.set_instance_color(i,
+						farben[i] if i < farben.size() else Color.WHITE)
 
 			var anzeige := MultiMeshInstance3D.new()
 			anzeige.name = teil[0]
 			anzeige.multimesh = haufen
-			anzeige.material_override = teil[2]
+			# Eigene Fassung des Materials: Das gemeinsame aus der
+			# Materialbibliothek darf nicht verändert werden, es hängt an
+			# vielen anderen Stellen.
+			var stoff := (teil[2] as Material).duplicate() as BaseMaterial3D
+			if stoff != null:
+				stoff.vertex_color_use_as_albedo = true
+				anzeige.material_override = stoff
+			else:
+				anzeige.material_override = teil[2]
 			wand.add_child(anzeige)
 	return wurzel
+
+
+## Farbe eines Wandblocks: dunkel am Schluchtgrund, hell an der Krone,
+## dazu eine kleine Streuung je Block.
+##
+## Ohne das trägt jeder Würfel dasselbe Muster in derselben Helligkeit.
+## Eine Wand aus hundert davon liest sich als Tapete, egal wie gut die
+## Textur ist – der Blick findet keine Tiefe, weil unten und oben gleich
+## hell sind. Der Verlauf macht aus der Fläche eine Schlucht.
+##
+## Unten geht die Farbe zusätzlich ins Kühle, oben ins Warme: Tiefer
+## Schatten ist blaustichig, die Krone bekommt Sonne ab. Das ist derselbe
+## Griff, mit dem Landschaftsmaler Tiefe erzeugen.
+static func _wandfarbe(y: float, hoehe: float, sockel: float,
+		wuerfel: RandomNumberGenerator) -> Color:
+	var t := clampf((y + sockel) / maxf(hoehe + sockel, 0.001), 0.0, 1.0)
+	# Unten deutlich abdunkeln, oben leicht aufhellen.
+	var helligkeit := lerpf(0.63, 1.10, pow(t, 0.75))
+	helligkeit *= wuerfel.randf_range(0.93, 1.07)
+	var kalt := Color(0.82, 0.90, 1.06)     ## Schattenton am Grund
+	var warm := Color(1.06, 1.00, 0.92)     ## Sonnenton an der Krone
+	var ton := kalt.lerp(warm, t)
+	return Color(ton.r * helligkeit, ton.g * helligkeit, ton.b * helligkeit)
 
 
 ## Eine Säule aus Blöcken an einer Stelle der Wand.
@@ -411,7 +452,10 @@ static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
 		var form := Transform3D(Basis.IDENTITY, mitte)
 		form.basis = Basis(Vector3.UP, dreh + wuerfel.randf_range(-0.12, 0.12))
 		form.basis = form.basis.scaled(Vector3(tiefe, hoch, breite))
-		toepfe["ader" if ist_ader else "koerper"].append(form)
+		var topf := "ader" if ist_ader else "koerper"
+		toepfe[topf].append(form)
+		toepfe[topf + "_farbe"].append(
+				_wandfarbe(mitte.y, hoehe, sockel, wuerfel))
 		y += hoch * wuerfel.randf_range(0.7, 0.92)   # Lagen überlappen sich
 
 	if not mit_deck:
@@ -434,6 +478,7 @@ static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
 			block * 0.62 * wuerfel.randf_range(0.9, 1.3), kappe,
 			block * wuerfel.randf_range(0.75, 1.2)))
 	toepfe["deck"].append(kappen_form)
+	toepfe["deck_farbe"].append(_wandfarbe(hoehe, hoehe, sockel, wuerfel))
 
 
 ## Unsichtbare Leitwand am Rand der Schlucht.

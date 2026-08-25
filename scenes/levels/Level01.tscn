@@ -30,15 +30,15 @@ fog_enabled = true
 fog_mode = 0
 fog_light_color = Color(0.26, 0.33, 0.20, 1)
 fog_light_energy = 0.9
-fog_density = 0.0042
-fog_aerial_perspective = 0.25
+fog_density = 0.0055
+fog_aerial_perspective = 0.45
 fog_sky_affect = 0.05
 fog_height = 1.0
 fog_height_density = 0.11
 adjustment_enabled = true
 adjustment_brightness = 1.0
-adjustment_contrast = 1.08
-adjustment_saturation = 1.22
+adjustment_contrast = 1.03
+adjustment_saturation = 1.06
 
 [node name="Level01" type="Node3D"]
 script = ExtResource("1_level")

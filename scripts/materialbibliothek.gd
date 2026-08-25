@@ -507,7 +507,7 @@ static func _baue_frostgestein() -> StandardMaterial3D:
 static func wurzelfels() -> StandardMaterial3D:
 	return _hole("wurzelfels", func() -> StandardMaterial3D:
 		return _baue_bandfels(6305, Farben.SCHLUCHTFELS_WALD,
-				Farben.SCHLUCHTFELS_WALD_HELL, 0.46))
+				Farben.SCHLUCHTFELS_WALD_HELL, 0.32))
 
 
 ## Moosnarbe für den Schluchtrand im Wald.
@@ -516,44 +516,90 @@ static func moos() -> StandardMaterial3D:
 		return _baue_bandfels(6405, Farben.MOOS, Farben.MOOS_HELL, 0.34))
 
 
-## Gemeinsamer Bau für alle Schluchtwände: Zellrauschen, in vier Stufen
-## gerastert, mit dunklen Spalten dazwischen. Bewusst flau – es ist
-## Kulisse, keine Spielfläche, und alle Feinheit gehört an den Weg.
+## Gemeinsamer Bau für alle Schluchtwände: waagerechte Gesteinsschichten.
+##
+## Vorher war das Zellrauschen in vier harte Stufen gerastert. Das ergab
+## große, flache Flecken mit scharfen Rändern – aus der Spielkamera las
+## sich die Wand als Tarnmuster, und weil sie zwei Drittel des Bildes
+## füllt, hing daran der ganze Eindruck des Levels.
+##
+## Eine Schluchtwand ist geschichtet, und genau das trägt jetzt das
+## Material: Bänder unterschiedlicher Dicke, leicht verbogen, mit einer
+## dunklen Fuge dazwischen. Der Kontrast liegt zwischen den Bändern, nicht
+## innerhalb – innerhalb bleibt es ruhig, damit die Fläche nicht flimmert.
+## Dazu grobes Zellrauschen als Bruchstruktur und feines Korn.
 static func _baue_bandfels(saat: int, mittel: Color, hell: Color,
 		kachel: float) -> StandardMaterial3D:
 	var k := 256
-	var block := _zellen(saat, 0.032, k, FastNoiseLite.RETURN_CELL_VALUE, 18.0)
-	var fuge := _zellen(saat, 0.032, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 18.0)
-	var korn := _fbm(saat + 10, 0.18, 3, k)
+	# Die Schichtlinien verbiegen: zwei Wellen unterschiedlicher Länge,
+	# sonst laufen die Bänder schnurgerade und sehen gezeichnet aus.
+	var welle := _fbm(saat + 1, 0.010, 3, k)
+	var welle_fein := _fbm(saat + 2, 0.045, 2, k)
+	# Bruchstruktur innerhalb der Bänder, bewusst schwach.
+	var bruch := _zellen(saat, 0.030, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 16.0)
+	var korn := _fbm(saat + 10, 0.22, 3, k)
+	# Verwitterung: langgezogene Schlieren, die über die Bänder laufen.
+	var schliere := _gestreckt(saat + 3, 0.09, 3, k, 1, 6)
 
-	var dunkel := mittel.darkened(0.22)
+	var dunkel := mittel.darkened(0.34)
+	var tief := mittel.darkened(0.44)
 
 	var farbe := PackedByteArray(); farbe.resize(k * k * 3)
 	var hoehe := PackedByteArray(); hoehe.resize(k * k)
 	var rau := PackedByteArray(); rau.resize(k * k)
 	var ao := PackedByteArray(); ao.resize(k * k)
 
+	# Wenige, kräftige Lagen. Mit sieben Bändern je Kachel lag eine Lage
+	# bei rund 30 cm – das las sich als Holzmaserung, nicht als Fels.
+	const SCHICHTEN := 3.4
 	var j := 0
-	for i in k * k:
-		var stufe := floorf(block[i] * _B * 4.0) / 3.0
-		var spalt := clampf(1.0 - fuge[i] * _B * 5.5, 0.0, 1.0)
+	var i := 0
+	for y in k:
+		var v := float(y) / float(k)
+		for x in k:
+			# Lage innerhalb des Bandes, verbogen durch die beiden Wellen.
+			var versatz := (welle[i] * _B - 0.5) * 0.9 \
+					+ (welle_fein[i] * _B - 0.5) * 0.22
+			# Die Bandstärke schwankt: gleich dicke Schichten sehen
+			# gezeichnet aus, echtes Gestein hat dicke und dünne Lagen.
+			var dichte := SCHICHTEN * (0.78 + (welle[i] * _B) * 0.55)
+			var lage := v * dichte + versatz
+			var band := floorf(lage)
+			var innen := lage - band
 
-		var c := mittel.lerp(hell, clampf(stufe, 0.0, 1.0))
-		c = c.lerp(dunkel, spalt * 0.5)
-		var g := (korn[i] * _B - 0.5) * 0.05
-		farbe[j] = int(clampf(c.r + g, 0.0, 1.0) * 255.0)
-		farbe[j + 1] = int(clampf(c.g + g, 0.0, 1.0) * 255.0)
-		farbe[j + 2] = int(clampf(c.b + g, 0.0, 1.0) * 255.0)
-		j += 3
+			# Jedes Band bekommt eine eigene Helligkeit. Der Sprung von
+			# Band zu Band macht die Schichtung; innerhalb bleibt es ruhig.
+			var kennung := fmod(absf(band * 12.9898 + float(saat) * 0.017), 1.0)
+			var ton := mittel.lerp(hell, 0.18 + kennung * 0.72)
+			# Innerhalb des Bandes ein sanfter Verlauf nach unten dunkler.
+			ton = ton.lerp(dunkel, innen * 0.28)
 
-		var h := clampf(0.36 + stufe * 0.44 - spalt * 0.6, 0.0, 1.0)
-		hoehe[i] = int(h * 255.0)
-		rau[i] = int(clampf(0.86 - stufe * 0.1, 0.0, 1.0) * 255.0)
-		ao[i] = int(clampf(0.5 + 0.5 * h, 0.0, 1.0) * 255.0)
+			# Fuge an der Bandgrenze: schmal und dunkel.
+			var fuge := smoothstep(0.06, 0.0, innen) + smoothstep(0.94, 1.0, innen)
+			ton = ton.lerp(tief, clampf(fuge, 0.0, 1.0) * 0.55)
+
+			# Bruch und Verwitterung nur leicht darüberlegen.
+			var b := clampf(1.0 - bruch[i] * _B * 4.5, 0.0, 1.0)
+			ton = ton.lerp(dunkel, b * 0.22)
+			var sch := (schliere[i] * _B - 0.5) * 0.10
+			var g := (korn[i] * _B - 0.5) * 0.055
+
+			farbe[j] = int(clampf(ton.r + g + sch, 0.0, 1.0) * 255.0)
+			farbe[j + 1] = int(clampf(ton.g + g + sch, 0.0, 1.0) * 255.0)
+			farbe[j + 2] = int(clampf(ton.b + g + sch * 0.8, 0.0, 1.0) * 255.0)
+			j += 3
+
+			# Relief: Bänder treten vor, Fugen liegen zurück.
+			var h := clampf(0.52 + (0.5 - innen) * 0.30 - fuge * 0.55
+					- b * 0.25 + (korn[i] * _B - 0.5) * 0.12, 0.0, 1.0)
+			hoehe[i] = int(h * 255.0)
+			rau[i] = int(clampf(0.90 - kennung * 0.10, 0.0, 1.0) * 255.0)
+			ao[i] = int(clampf(0.42 + 0.58 * h, 0.0, 1.0) * 255.0)
+			i += 1
 
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = _farbtextur(farbe, k)
-	_karten_setzen(m, hoehe, rau, ao, k, 2.4, 0.8)
+	_karten_setzen(m, hoehe, rau, ao, k, 2.6, 0.85)
 	m.uv1_triplanar = true
 	m.uv1_triplanar_sharpness = 1.8
 	m.uv1_scale = Vector3(kachel, kachel, kachel)
