@@ -67,6 +67,8 @@ var _clip_sitzen := ""
 var _clip_reiten := ""
 var _clip_krabbeln := ""
 var _clip_hangeln := ""
+var _clip_hangeln_geduckt := ""
+var _clip_hangeln_spin := ""
 var _clip_laeuft := ""
 ## War die Figur im letzten Bild im Slide? Der Slideclip wird beim Ansetzen
 ## einmal angestoßen, nicht jedes Bild neu.
@@ -526,6 +528,9 @@ func _clips_zuordnen() -> void:
 	_clip_krabbeln = _erster_clip(["crawl", "krabbeln", "kriechen"])
 	# "hang" kollidiert mit keinem der elf bisherigen Namen.
 	_clip_hangeln = _erster_clip(["hang", "hangeln", "haengen"])
+	_clip_hangeln_geduckt = _erster_clip(
+			["hangduck", "hangeln_geduckt", "haengen_geduckt"])
+	_clip_hangeln_spin = _erster_clip(["hangspin", "hangeln_dreh"])
 
 	# Die Zyklen laufen endlos, sonst bleibt die Figur nach einem
 	# Durchlauf im letzten Bild stehen. Ruhepose und Sprung dagegen NICHT:
@@ -535,7 +540,7 @@ func _clips_zuordnen() -> void:
 	# braucht einen Zyklus wie beim Gehen.
 	for clip: String in [_clip_ruhe, _clip_schlendern, _clip_gehen, _clip_rennen,
 			_clip_spin, _clip_sitzen, _clip_reiten, _clip_krabbeln,
-			_clip_hangeln]:
+			_clip_hangeln, _clip_hangeln_geduckt, _clip_hangeln_spin]:
 		_schleife_setzen(clip, Animation.LOOP_LINEAR)
 	for clip: String in [_clip_pose, _clip_sprung, _clip_slide]:
 		_schleife_setzen(clip, Animation.LOOP_NONE)
@@ -594,6 +599,14 @@ func _clip_zu_haltung(haltung: String) -> String:
 			return _clip_krabbeln
 		"hangeln":
 			return _clip_hangeln
+		"hangeln_geduckt":
+			# Fehlt der eigene Clip, ist das gewöhnliche Hangeln immer noch
+			# besser als gar nichts – die Figur hängt dann eben gestreckt.
+			return _clip_hangeln_geduckt if not _clip_hangeln_geduckt.is_empty() \
+					else _clip_hangeln
+		"hangeln_spin":
+			return _clip_hangeln_spin if not _clip_hangeln_spin.is_empty() \
+					else _clip_hangeln
 		_:
 			return ""
 

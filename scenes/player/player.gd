@@ -60,6 +60,7 @@ signal abgeprallt
 
 @onready var _kollision: CollisionShape3D = $Kollision
 @onready var _kollision_slide: CollisionShape3D = $KollisionSlide
+@onready var _kollision_hangeln: CollisionShape3D = $KollisionHangeln
 @onready var _modell: SpielerModell = $Modell
 
 ## Kapsel für die Frage „ist oben Platz?". Eine Spur schmaler und kürzer als
@@ -89,12 +90,18 @@ var kriechen := false
 ## Öffentlich, weil `haltung()` und Gegner es lesen sollen. Mehr Zustand
 ## braucht es nicht: Hanghöhe, Richtung und Grenzen liegen alle im Prop.
 var hangelgitter: Hangelgitter = null
+## Zieht die hängende Figur die Beine an? Das ist das Krabbeln des Gitters:
+## Wer die Beine anzieht, wird oben schmal statt unten – die Kapsel wandert
+## deshalb nach oben, nicht nach unten wie beim Krabbeln am Boden.
+var hangeln_eingezogen := false
 
 var _slide_dir := Vector3.ZERO
 ## Restsperre nach dem Loslassen, in Sekunden.
 var _hangel_sperre := 0.0
 var _blick_y := 0.0
 var _slide_hitbox_aktiv := false
+## 0 = aufrecht, 1 = flach am Boden, 2 = eingezogen am Gitter
+var _hitbox_art := 0
 var _tempo := 0.0
 var _fall_rest := 0.0
 var _spin_geprueft := false
@@ -281,7 +288,9 @@ func _process(delta: float) -> void:
 ## sitzt, soll nicht so tun, als liefe er.
 func haltung() -> String:
 	if hangelgitter != null:
-		return "hangeln"
+		if spinning > 0.0:
+			return "hangeln_spin"
+		return "hangeln_geduckt" if hangeln_eingezogen else "hangeln"
 	return "krabbeln" if kriechen else ""
 
 
@@ -335,6 +344,7 @@ func hangeln_beenden() -> void:
 	if hangelgitter == null:
 		return
 	hangelgitter = null
+	hangeln_eingezogen = false
 	_hangel_sperre = HANGEL_SPERRE
 
 
@@ -383,6 +393,7 @@ func respawn() -> void:
 	slamming = false
 	kriechen = false
 	hangelgitter = null
+	hangeln_eingezogen = false
 	# Bewusst auf 0 statt auf HANGEL_SPERRE: Wer an einem Checkpoint unter
 	# einem Gitter erscheint, soll sofort wieder hinaufspringen dürfen.
 	_hangel_sperre = 0.0
@@ -413,6 +424,7 @@ func _einhaengen(gitter: Hangelgitter) -> void:
 	if gitter == null:
 		return
 	hangelgitter = gitter
+	hangeln_eingezogen = false
 	velocity = Vector3.ZERO
 	sliding = 0.0
 	slamming = false
@@ -446,23 +458,36 @@ func _hangeln(delta: float) -> void:
 
 	var eingabe := _kamerarelativ(InputHub.bewegung())
 
-	# Absprung: nach oben und in die Blickrichtung, Doppelsprung bleibt
-	# übrig. Das ist der Weg vom Gitter auf den nächsten Vorsprung.
+	# ✕ löst vom Gitter, und die RICHTUNG entscheidet wie: mit Richtung
+	# ein Absprung, der weiterträgt; ohne Richtung ein senkrechtes
+	# Loslassen, um genau darunter zu landen. Dieselbe Regel wie am Boden,
+	# wo die Richtung über Slide und Krabbeln entscheidet.
 	if InputHub.sprung_gedrueckt():
 		hangeln_beenden()
-		velocity = Vector3(eingabe.x * RUN_SPEED * AIR_CTRL, JUMP_V,
-				eingabe.y * RUN_SPEED * AIR_CTRL)
-		can_djump = true
-		Klang.spiele("sprung")
+		if eingabe.length() > 0.15:
+			velocity = Vector3(eingabe.x * RUN_SPEED * AIR_CTRL, JUMP_V,
+					eingabe.y * RUN_SPEED * AIR_CTRL)
+			can_djump = true
+			Klang.spiele("sprung")
+		else:
+			velocity = Vector3.ZERO
 		return
 
-	# Loslassen: senkrecht fallen. Dieselbe Taste, die am Boden den Slide
-	# und in der Luft den Bauchplatscher macht – im ganzen Spiel ist sie
-	# die "nach unten"-Taste, hier auch.
-	if InputHub.slide_gedrueckt():
-		hangeln_beenden()
-		velocity = Vector3.ZERO
-		return
+	# ○ zieht die Beine an. Damit ist die Slide-Taste am Gitter dasselbe
+	# wie am Boden: gehalten macht sie klein. Nur die Richtung, in die es
+	# eng wird, ist eine andere – wer hängt, wird oben schmal.
+	hangeln_eingezogen = InputHub.slide_gehalten()
+
+	# Drehschlag im Hängen: Die Beine werden herumgerissen. Die
+	# Spezifikation hatte ihn ausgeschlossen ("kaum Handlungs-
+	# möglichkeiten"), aber genau die wollten wir hier haben.
+	if InputHub.spin_gedrueckt() and spinning <= 0.0:
+		spinning = SPIN_TIME
+		_spin_geprueft = false
+		spin_gestartet.emit()
+		Klang.spiele("drehschlag")
+	if spinning > 0.0:
+		_spin_treffer()
 
 	# Die Eingabe wird auf die beiden Gitterachsen zerlegt. So bleibt die
 	# Steuerung kamerarelativ, auch wenn das Gitter schräg zur Kamera
@@ -541,16 +566,28 @@ func _kann_aufstehen() -> bool:
 	return raum.intersect_shape(frage, 1).is_empty()
 
 
-## Schaltet zwischen normaler und halbierter Hitbox um.
+## Schaltet zwischen den drei Kollisionsformen um.
+##
+## aufrecht  – der Normalfall, Kapsel von 0,00 bis 1,30 m
+## flach     – Slide und Krabbeln am Boden, 0,00 bis 0,76 m
+## eingezogen– angezogene Beine am Gitter, 0,54 bis 1,30 m
+##
+## Die dritte Form ist der Grund für den Umbau: Am Gitter hängt die Figur
+## an der Oberkante. Wer dort die Beine anzieht, wird UNTEN kürzer – die
+## flache Bodenkapsel säße genau falsch herum.
 func _hitbox_aktualisieren() -> void:
-	# Beim Krabbeln dieselbe flache Hitbox wie im Slide – nur so kommt man
-	# unter etwas hindurch, und genau dafür ist das Krabbeln da.
-	var im_slide := sliding > 0.0 or kriechen
-	if im_slide == _slide_hitbox_aktiv:
+	var art := 0
+	if hangelgitter != null and hangeln_eingezogen:
+		art = 2
+	elif sliding > 0.0 or kriechen:
+		art = 1
+	if art == _hitbox_art:
 		return
-	_slide_hitbox_aktiv = im_slide
-	_kollision.set_deferred("disabled", im_slide)
-	_kollision_slide.set_deferred("disabled", not im_slide)
+	_hitbox_art = art
+	_slide_hitbox_aktiv = art == 1
+	_kollision.set_deferred("disabled", art != 0)
+	_kollision_slide.set_deferred("disabled", art != 1)
+	_kollision_hangeln.set_deferred("disabled", art != 2)
 
 
 ## Schockwelle beim Aufschlag des Bauchplatschers: zerbricht Kisten im Umkreis.

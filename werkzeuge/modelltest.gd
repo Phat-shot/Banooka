@@ -203,6 +203,8 @@ const SOLL_CLIPS := [
 	["ride", "reitet", true],
 	["crawl", "krabbelt", true],
 	["hang", "haengt am Gitter", true],
+	["hangduck", "haengt mit angezogenen Beinen", true],
+	["hangspin", "dreht sich im Haengen", true],
 ]
 
 
@@ -232,7 +234,7 @@ func _clips_pruefen(figur: Node3D) -> void:
 		print("      %-10s -> '%s'  %.2f s, %d Spuren%s"
 				% [wunsch, treffer, anim.length, anim.get_track_count(), hinweis])
 	if fehlend.is_empty():
-		print("    Alle zwölf Standardclips vorhanden.")
+		print("    Alle vierzehn Standardclips vorhanden.")
 	else:
 		print("    %d von 11 fehlen – dafür greift die Ersatzbewegung."
 				% fehlend.size())

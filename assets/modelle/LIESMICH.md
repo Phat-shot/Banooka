@@ -37,7 +37,7 @@ Figur stumm verschwinden zu lassen.
 ## Animationen: der Satz, den jede Figur mitbringen soll
 
 Bringt eine Figur ein Skelett mit, führt das Spiel sie über ihre Clips.
-Diese zwölf Namen sind der Standard; sie werden ohne Rücksicht auf
+Diese vierzehn Namen sind der Standard; sie werden ohne Rücksicht auf
 Groß- und Kleinschreibung erkannt, deutsche Entsprechungen ebenso.
 
 | Clip | Dauer | Schleife | Wann |
@@ -54,6 +54,8 @@ Groß- und Kleinschreibung erkannt, deutsche Entsprechungen ebenso.
 | `Ride` | 0,8 s | ja | auf der Wildkatze (Level 04) |
 | `Sit` | 2,0 s | ja | im Kart (Level 06) |
 | `Hang` | 1,4 s | ja | hängt am Hangelgitter |
+| `HangDuck` | 1,0 s | ja | hängt mit angezogenen Beinen (○ gehalten) |
+| `HangSpin` | 0,4 s | ja | Drehschlag im Hängen, Beine schleudern herum |
 
 **Haltungen schlagen alles andere.** `Crawl`, `Ride` und `Sit` werden nicht
 aus Tempo und Zustand erraten, sondern vom Spielcode gesetzt: Wer im Kart

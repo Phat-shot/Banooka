@@ -22,6 +22,7 @@ extends Node3D
 ## kappt der Jump-Cut den Sprung auf 0,40 m.
 const KEY_SPACE := 32
 const KEY_SHIFT := 4194325
+const KEY_J := 74
 
 const GITTER_HOEHE := 3.2
 const GITTER_LAENGE := 10.0
@@ -59,6 +60,8 @@ func _ready() -> void:
 	await _darunter_durchlaufen()
 	await _hinaufspringen()
 	await _entlanghangeln()
+	await _einziehen()
+	await _drehschlag()
 	await _bild_machen()
 	await _abspringen()
 	await _wieder_einhaengen()
@@ -148,11 +151,53 @@ func _bild_machen() -> void:
 	print("      (Bild: %s)" % ziel)
 
 
+## ○ gehalten zieht die Beine an: Die Figur wird OBEN schmal, nicht unten.
+func _einziehen() -> void:
+	if _spieler.hangelgitter == null:
+		return
+	_taste(KEY_SHIFT, true)
+	for i in 6:
+		await get_tree().physics_frame
+	var eingezogen: bool = _spieler.hangeln_eingezogen
+	var kapsel := _spieler.get_node("KollisionHangeln") as CollisionShape3D
+	var flach := _spieler.get_node("KollisionSlide") as CollisionShape3D
+	var aufrecht := _spieler.get_node("Kollision") as CollisionShape3D
+	_melden("zieht die Beine an", eingezogen, "reagiert nicht auf ○")
+	_melden("obere Kapsel aktiv",
+			not kapsel.disabled and aufrecht.disabled and flach.disabled,
+			"falsche Kollisionsform")
+	_taste(KEY_SHIFT, false)
+	for i in 6:
+		await get_tree().physics_frame
+	_melden("streckt sich wieder", not _spieler.hangeln_eingezogen,
+			"bleibt eingezogen")
+	_melden("haengt dabei weiter", _spieler.hangelgitter != null,
+			"hat losgelassen – ○ darf am Gitter nicht loesen")
+
+
+## □ schlägt im Hängen zu, ohne dass die Figur das Gitter verliert.
+func _drehschlag() -> void:
+	if _spieler.hangelgitter == null:
+		return
+	_taste(KEY_J, true)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	_taste(KEY_J, false)
+	_melden("dreht sich im Haengen", _spieler.spinning > 0.0,
+			"kein Drehschlag ausgeloest")
+	_melden("haengt dabei weiter", _spieler.hangelgitter != null,
+			"faellt beim Drehschlag herunter")
+	for i in 40:
+		await get_tree().physics_frame
+
+
 ## Sprungtaste: Absprung nach oben und vorn.
 func _abspringen() -> void:
 	if _spieler.hangelgitter == null:
 		return
 	var start := _spieler.global_position.y
+	# Mit Richtung, sonst ist ✕ am Gitter das Loslassen und kein Absprung.
+	InputHub.touch_bewegung = Vector2(0.0, -1.0)
 	_sprungtaste(true)
 	# Zwei Bilder: Ein über `parse_input_event` eingespeister Tastendruck
 	# wird erst im nächsten Eingabedurchlauf zu "gerade gedrückt".
@@ -168,6 +213,7 @@ func _abspringen() -> void:
 		await get_tree().physics_frame
 		hoechste = maxf(hoechste, _spieler.global_position.y)
 	_sprungtaste(false)
+	InputHub.touch_bewegung = Vector2.ZERO
 	_melden("Absprung traegt nach oben", hoechste > start + 1.2,
 			"kommt nur %.2f m hoch" % (hoechste - start))
 	print("      (von %.2f m auf %.2f m, Sollhoehe +1,96 m)"
@@ -184,16 +230,17 @@ func _wieder_einhaengen() -> void:
 	_melden("haengt wieder", _spieler.hangelgitter != null, "greift nicht zu")
 
 
-## Slide-Taste: loslassen und senkrecht fallen – und NICHT sofort wieder
+## ✕ OHNE Richtung: senkrecht loslassen – und NICHT sofort wieder
 ## zugreifen. Das ist Fallstrick 2.
 func _loslassen() -> void:
 	if _spieler.hangelgitter == null:
 		return
 	var hoehe_vorher := _spieler.global_position.y
-	_taste(KEY_SHIFT, true)
+	InputHub.touch_bewegung = Vector2.ZERO
+	_sprungtaste(true)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	_taste(KEY_SHIFT, false)
+	_sprungtaste(false)
 	var wieder_gehaengt := false
 	for i in 40:
 		await get_tree().physics_frame
@@ -204,6 +251,10 @@ func _loslassen() -> void:
 			"greift sofort wieder zu – Sperre fehlt")
 	_melden("faellt dabei", _spieler.global_position.y < hoehe_vorher - 0.5,
 			"bleibt auf %.2f m" % _spieler.global_position.y)
+	_melden("faellt senkrecht",
+			absf(_spieler.velocity.x) < 0.5 and absf(_spieler.velocity.z) < 0.5,
+			"driftet mit %.1f m/s zur Seite"
+			% Vector2(_spieler.velocity.x, _spieler.velocity.z).length())
 
 
 ## Drückt oder löst eine Taste als echtes Tastenereignis.

@@ -91,11 +91,19 @@ Krabbeln. Krabbeln ist kein Schalter – losgelassen richtet sich die Figur
 wieder auf und läuft normal weiter. Wo über ihr kein Platz zum Aufrichten
 ist, krabbelt sie weiter, auch ohne Taste; Springen ist dort gesperrt.
 
-Am **Hangelgitter** bekommen beide Tasten eine dritte Bedeutung: ✕ ist der
-Absprung (trägt weiter, Doppelsprung bleibt übrig), ○ das Loslassen
-(senkrechter Fall). Eingehängt wird ohne Taste, allein durch den Sprung in
-die Fangzone – ein Gitter steht nie im Weg, es ist immer Ziel. Am Ende des
-Gitters passiert nichts: Die Figur bleibt hängen, statt loszulassen.
+Am **Hangelgitter** gilt dieselbe Regel wie am Boden: Die Richtung
+entscheidet, was eine Taste tut.
+
+| Taste | am Gitter |
+|---|---|
+| ✕ mit Richtung | Absprung, trägt weiter, Doppelsprung bleibt übrig |
+| ✕ ohne Richtung | Loslassen, senkrechter Fall |
+| ○ gehalten | Beine anziehen – die Figur wird OBEN schmal |
+| □ | Drehschlag, die Beine werden herumgerissen |
+
+Eingehängt wird ohne Taste, allein durch den Sprung in die Fangzone – ein
+Gitter steht nie im Weg, es ist immer Ziel. Am Ende des Gitters passiert
+nichts: Die Figur bleibt hängen, statt loszulassen.
 
 Die Touch-Tasten liegen als Raute wie die Symboltasten eines Controllers und
 tragen dieselben Farben; ihre Größe folgt der Bildschirmdichte (Ziel rund
