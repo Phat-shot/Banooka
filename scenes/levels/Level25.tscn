@@ -6,11 +6,11 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
 [sub_resource type="ProceduralSkyMaterial" id="Himmel"]
-sky_top_color = Color(0.16, 0.36, 0.72, 1)
-sky_horizon_color = Color(0.78, 0.79, 0.72, 1)
-sky_curve = 0.16
+sky_top_color = Color(0.113, 0.298, 0.686, 1)
+sky_horizon_color = Color(0.4, 0.607, 0.847, 1)
+sky_curve = 0.08
 ground_bottom_color = Color(0.55, 0.4, 0.26, 1)
-ground_horizon_color = Color(0.82, 0.7, 0.5, 1)
+ground_horizon_color = Color(0.72, 0.63, 0.5, 1)
 sun_angle_max = 40.0
 sun_curve = 0.22
 
@@ -22,21 +22,21 @@ background_mode = 2
 sky = SubResource("SkyRes")
 ambient_light_source = 2
 ambient_light_color = Color(0.86, 0.78, 0.64, 1)
-ambient_light_energy = 1.1
+ambient_light_energy = 0.8
 tonemap_mode = 3
-tonemap_exposure = 1.14
+tonemap_exposure = 1.0
 tonemap_white = 6.0
 fog_enabled = true
 fog_mode = 0
 fog_light_color = Color(0.9, 0.8, 0.62, 1)
-fog_light_energy = 0.9
-fog_density = 0.009
-fog_aerial_perspective = 0.5
-fog_sky_affect = 0.15
+fog_light_energy = 0.7
+fog_density = 0.0045
+fog_aerial_perspective = 0.3
+fog_sky_affect = 0.05
 fog_height = 0.2
 fog_height_density = 0.5
 adjustment_enabled = true
-adjustment_brightness = 1.02
+adjustment_brightness = 1.0
 adjustment_contrast = 1.06
 adjustment_saturation = 1.18
 
@@ -49,7 +49,7 @@ environment = SubResource("Umgebung")
 [node name="Sonne" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
 light_color = Color(1, 0.95, 0.82, 1)
-light_energy = 1.35
+light_energy = 1.1
 light_specular = 0.35
 shadow_enabled = true
 shadow_bias = 0.04

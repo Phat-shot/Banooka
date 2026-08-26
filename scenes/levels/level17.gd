@@ -52,6 +52,14 @@ const FIRN_HELL := Color(0.620, 0.714, 0.816)    ## #9EB6D0 Schneekrone
 ## Der eine warme Ton. Er kommt AUSSCHLIESSLICH an Totems vor.
 const TOTEM_HOLZ := Color(0.588, 0.318, 0.153)   ## #965127
 const TOTEM_MUSTER := Color(0.780, 0.470, 0.240)
+## Wie stark das Totemholz von sich aus glimmt (siehe `_totemholz`).
+const TOTEM_GLUT := 0.32
+## Länge des Pfahls. Ein Hindernis ist 1,05 bis 1,7 m hoch; das Totem muss
+## deutlich darüber hinausragen, sonst verdeckt die Form genau den Fleck,
+## der sie ankündigen soll.
+const TOTEM_HOEHE := 3.4
+## Höhe des Querarms – über beiden Hindernisarten, unter der Spitze.
+const TOTEM_ARM := 2.35
 
 # ------------------------------------------------------------- Marken
 
@@ -108,6 +116,10 @@ const WAENDE := [
 ]
 
 var _reiter: Reiter
+## Die beiden Totemmaterialien. Einmal gebaut und an alle Totems verteilt –
+## es sind rund dreißig, und jedes bekäme sonst seine eigene Kopie.
+var _totem_holz: StandardMaterial3D
+var _totem_muster: StandardMaterial3D
 
 
 func abschnitte() -> Array:
@@ -306,40 +318,101 @@ func _firnwall(eltern: Node3D, breite: float, hoehe: float) -> void:
 	eltern.add_child(mi)
 
 
+## Das Totemholz als Material.
+##
+## `kistenholz` allein reichte nicht. Es legt die Farbe zwischen
+## `farbe * 0,55` und `farbe.lightened(0,34)`, und dieser dunkle Schnitt
+## fiel unter blauem Mondlicht, blauem Umgebungslicht und blauem Nebel auf
+## Schiefergrau zusammen: Gemessen kam vom warmen Ton so gut wie nichts an,
+## obwohl `TOTEM_HOLZ` mit #965127 warm gesetzt ist. Ein Gefahrenzeichen,
+## das nur im Quelltext warm ist, ist keins.
+##
+## Zwei Gegenmittel, beide nötig:
+##   * Der Ton geht heller in die Textur, damit vom dunklen Ende der
+##     Holzmaserung noch Farbe übrig bleibt.
+##   * Eine schwache Eigenglut in genau diesem Ton. Glut hängt nicht am
+##     Licht der Szene – sie trägt das Warm durch Dunst und Nachtblau,
+##     ohne dass an der Beleuchtung des Levels gedreht werden muss. Und
+##     nur das Totem glimmt, die Palette bleibt sonst unberührt.
+func _totemholz(farbe: Color) -> StandardMaterial3D:
+	# Sättigung halten, nicht aufhellen: `lightened` zöge den Ton nach
+	# Rosa, und blass ist so schlecht lesbar wie dunkel.
+	var grund := Color(minf(farbe.r * 1.25, 1.0), minf(farbe.g * 1.25, 1.0),
+			minf(farbe.b * 1.25, 1.0))
+	# Die Bibliothek gibt geteilte Materialien zurück – verändert wird nur
+	# eine eigene Kopie.
+	var m := Materialbibliothek.kistenholz(grund).duplicate() as StandardMaterial3D
+	m.emission_enabled = true
+	m.emission = grund
+	m.emission_energy_multiplier = TOTEM_GLUT
+	return m
+
+
 ## Ein hölzernes Totem neben dem Hindernis – der einzige warme Ton im
 ## ganzen Level.
 ##
 ## Es steht am Rand des Hindernisses, nicht darauf: Bei der Sichtweite
 ## dieses Levels sieht man den warmen Fleck eher als die Form daneben, und
 ## dann weiß man schon, dass man ausweichen muss, bevor man weiß, wovor.
-## Deshalb ragt es auch deutlich über das Hindernis hinaus.
+##
+## Der erste Anlauf war ein Pfahl von 2,6 m mit drei schmalen Ringen. Er
+## kam auf zwei Zehntel Prozent Bildfläche und las sich schiefergrau – zu
+## wenig Fläche, zu dunkles Holz. Jetzt trägt das Totem vier Teile, die
+## jedes für sich Fläche machen:
+##   * einen breiten Fuß am Boden, dort liegt bei dieser tiefen
+##     Verfolgerkamera die meiste Bildfläche,
+##   * einen deutlich dickeren Pfahl mit vier breiten Ringen,
+##   * einen geschnitzten Kopf, der über allem steht und schon aus der
+##     Ferne als Marke zu sehen ist,
+##   * einen Querarm mit drei Warnbrettern, der über das Hindernis reicht
+##     und damit genau die Spur überdeckt, die zu ist.
 func _totem(eltern: Node3D, breite: float) -> void:
+	if _totem_holz == null:
+		_totem_holz = _totemholz(TOTEM_HOLZ)
+		_totem_muster = _totemholz(TOTEM_MUSTER)
+
+	# Fuß, Pfahl und Querarm in EINEM Mesh – ein Zeichen, ein Knoten.
 	var st := PropWerkzeug.bauer()
-	var pfahl := PropWerkzeug.stumpf(0.20, 0.17, 2.6, 6, true)
-	PropWerkzeug.anfuegen(st, pfahl, Transform3D(Basis(),
-			Vector3(0.0, 1.3, 0.0)))
+	PropWerkzeug.anfuegen(st, PropWerkzeug.stumpf(0.62, 0.40, 0.55, 8, true),
+			Transform3D(Basis(), Vector3(0.0, 0.275, 0.0)))
+	PropWerkzeug.anfuegen(st,
+			PropWerkzeug.stumpf(0.33, 0.27, TOTEM_HOEHE, 8, true),
+			Transform3D(Basis(), Vector3(0.0, 0.5 + TOTEM_HOEHE * 0.5, 0.0)))
+	# Der Querarm ist ein Ausleger und bekommt bewusst keine zweite Stütze
+	# jenseits des Hindernisses: Wo zwei Nachbarspuren zu sind, stünden
+	# zwei Pfähle eine Handbreit nebeneinander, und aus dem Zeichen würde
+	# ein Zaun.
+	PropWerkzeug.anfuegen(st,
+			PropWerkzeug.kasten(Vector3(breite * 0.9, 0.24, 0.28)),
+			Transform3D(Basis(), Vector3(-breite * 0.45 - 0.1, TOTEM_ARM, 0.0)))
 	var knoten := PropWerkzeug.mesh_knoten("Totem", PropWerkzeug.fertig(st),
-			Materialbibliothek.kistenholz(TOTEM_HOLZ))
+			_totem_holz)
 	if knoten == null:
 		return
-	knoten.position = Vector3(breite * 0.5 + 0.25, 0.0, 0.0)
+	knoten.position = Vector3(breite * 0.5 + 0.45, 0.0, 0.0)
 	eltern.add_child(knoten)
 
-	# Drei geschnitzte Ringe in einem helleren Warmton. Sie sind der Teil,
-	# der aus der Ferne noch als Fleck übrig bleibt.
-	var muster := Materialbibliothek.kistenholz(TOTEM_MUSTER)
+	# Das Muster im helleren Warmton als zweites Mesh: Ringe, Kopf, Spitze
+	# und die drei Bretter am Arm. Sie sind der Teil, der aus der Ferne als
+	# Fleck übrig bleibt, wenn die Schnitzerei längst nicht mehr zu
+	# erkennen ist.
+	var mst := PropWerkzeug.bauer()
+	for i in 4:
+		PropWerkzeug.anfuegen(mst, PropWerkzeug.stumpf(0.40, 0.40, 0.24, 8, true),
+				Transform3D(Basis(), Vector3(0.0, 0.95 + float(i) * 0.62, 0.0)))
+	PropWerkzeug.anfuegen(mst, PropWerkzeug.kasten(Vector3(0.86, 0.5, 0.62)),
+			Transform3D(Basis(), Vector3(0.0, TOTEM_HOEHE + 0.35, 0.0)))
+	PropWerkzeug.anfuegen(mst, PropWerkzeug.stumpf(0.30, 0.0, 0.55, 6, true),
+			Transform3D(Basis(), Vector3(0.0, TOTEM_HOEHE + 0.88, 0.0)))
 	for i in 3:
-		var ring := CylinderMesh.new()
-		ring.top_radius = 0.25
-		ring.bottom_radius = 0.25
-		ring.height = 0.16
-		ring.radial_segments = 6
-		ring.rings = 1
-		var mi := MeshInstance3D.new()
-		mi.mesh = ring
-		mi.material_override = muster
-		mi.position = Vector3(0.0, 0.75 + float(i) * 0.72, 0.0)
-		knoten.add_child(mi)
+		var t := (float(i) + 0.5) / 3.0
+		PropWerkzeug.anfuegen(mst, PropWerkzeug.kasten(Vector3(0.52, 0.62, 0.14)),
+				Transform3D(Basis(), Vector3(-breite * 0.9 * t - 0.1,
+						TOTEM_ARM - 0.48, 0.0)))
+	var mknoten := PropWerkzeug.mesh_knoten("Totemmuster",
+			PropWerkzeug.fertig(mst), _totem_muster)
+	if mknoten != null:
+		knoten.add_child(mknoten)
 
 
 ## Eine Reihe Spurhindernisse mit gleichmäßigem Abstand.

@@ -32,9 +32,13 @@ class_name Schliesstuer
 @export var hoehe := 2.8
 
 ## Takt: offen stehen, zufahren, zu bleiben, auffahren – in Sekunden.
-@export var offen_zeit := 2.2
+## TAKTVERTRAG (doku/level-vorbilder.md): erlaubt sind nur 1,0 · 2,0 · 4,0,
+## damit mehrere Taktgeber nebeneinander ein lernbares Muster ergeben.
+## Voller Zyklus ist `offen_zeit + zu_zeit + schliess_zeit * 2`.
+## Vorgabe 2,0 + 1,0 + 2·0,5 = 4,0 s.
+@export var offen_zeit := 2.0
 @export var schliess_zeit := 0.5
-@export var zu_zeit := 1.6
+@export var zu_zeit := 1.0
 
 ## Verschiebt den Takt gegen andere Türen. 0 bis 1 = eine volle Runde.
 @export var phase := 0.0

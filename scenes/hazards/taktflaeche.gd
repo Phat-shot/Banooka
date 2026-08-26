@@ -34,8 +34,15 @@ enum Takt {
 		if is_inside_tree():
 			_aufbauen()
 
-## Dauer der harmlosen Ruhe in Sekunden.
-@export var ruhe_zeit := 2.0
+## Länge eines vollen Durchlaufs in Sekunden – die Uhr dieses Bauteils.
+##
+## TAKTVERTRAG (doku/level-vorbilder.md): In einem Abschnitt schlägt alles
+## auf derselben Uhr, und die Uhr läuft in ganzen Sekunden. Erlaubt sind
+## nur 1,0 · 2,0 · 4,0; nur dann wiederholt sich das gemeinsame Muster
+## mehrerer Taktgeber schnell genug, dass man es lernen kann. Vorher lief
+## dieses Bauteil auf 3,8 s und der Feuerspeier auf 3,6 s – gemeinsames
+## Muster erst nach 68,4 Sekunden, also nie.
+@export var takt := 4.0
 
 ## Dauer der Vorwarnung. Unter 0,4 s bleibt keine Zeit zum Reagieren.
 @export var warnzeit := 0.6
@@ -105,11 +112,11 @@ func ist_gefaehrlich() -> bool:
 
 ## Bestimmt die Stelle im Takt und färbt die Platte entsprechend.
 func _takt_rechnen() -> void:
-	var runde := ruhe_zeit + warnzeit + gefahr_zeit
-	if runde <= 0.0:
-		_lage = Takt.RUHE
-		_bild_stellen(0.0)
-		return
+	var runde := maxf(takt, 0.1)
+	# Die Ruhe ist der Rest, nicht ein eigener Wert: So bleibt `takt` die
+	# Uhr, und Warn- und Gefahrzeit bleiben absolute Reaktionszeiten, die
+	# nicht mitskalieren dürfen.
+	var ruhe_zeit := maxf(runde - warnzeit - gefahr_zeit, 0.2)
 	var p := fposmod(_zeit + phase * runde, runde)
 	if p < ruhe_zeit:
 		_lage = Takt.RUHE

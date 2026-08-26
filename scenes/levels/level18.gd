@@ -261,9 +261,9 @@ func _horizont_bauen() -> void:
 func _wegkunde_bauen() -> void:
 	# Der erste Fleck liegt mitten auf dem Weg und ist groß: Man soll ihn
 	# nicht suchen müssen, sondern hineinlaufen.
-	deckungsfleck(30.0, 0.0, 2.2)
+	deckungsfleck(30.0, 0.0, 2.2).grundleuchten = 0.95
 	# Der zweite kommt kurz danach und ist schon kleiner – die Übung.
-	deckungsfleck(44.0, -1.8, 1.7)
+	deckungsfleck(44.0, -1.8, 1.7).grundleuchten = 0.95
 	# Zwei Steintore als Wegmarken. Sie tragen nichts, sie zählen den Weg.
 	LevelWerkzeuge.torbogen(deko, verlauf, 20.0, 13.0,
 			Materialbibliothek.rinde(), 11, -0.2)
@@ -285,7 +285,7 @@ func _wellenlauf_bauen() -> void:
 	var stellen := [60.0, 74.0, 88.0, 102.0]
 	var seiten := [1.6, -1.8, 2.0, -1.6]
 	for i in stellen.size():
-		deckungsfleck(stellen[i], seiten[i], 1.7)
+		deckungsfleck(stellen[i], seiten[i], 1.7).grundleuchten = 0.95
 	# Umgestürzte Stämme quer über den Weg: Sie zwingen zum Sprung, genau
 	# dort, wo der Schwarm am nächsten ist.
 	_querstamm(67.0, 0.9)
@@ -309,10 +309,10 @@ func _wurzeltore_bauen() -> void:
 	stachelbalken(132.0, 0.0, KRIECHHOEHE, Vector2(7.0, 1.2))
 	stachelbalken(160.0, 0.0, KRIECHHOEHE, Vector2(7.0, 1.2))
 	# Und genau darunter der Fleck: Wer krabbelt, ist zugleich in Deckung.
-	deckungsfleck(132.0, 0.0, 1.8)
-	deckungsfleck(160.0, 0.0, 1.8)
+	deckungsfleck(132.0, 0.0, 1.8).grundleuchten = 0.95
+	deckungsfleck(160.0, 0.0, 1.8).grundleuchten = 0.95
 	# Ein dritter Fleck dazwischen, damit der Rhythmus nicht abreißt.
-	deckungsfleck(146.0, 1.8, 1.6)
+	deckungsfleck(146.0, 1.8, 1.6).grundleuchten = 0.95
 
 	_querstamm(125.0, 0.9)
 	_querstamm(153.0, 1.0)
@@ -342,9 +342,9 @@ func _wurzelsteg_bauen() -> void:
 
 	# Deckungsflecken auf den festen Stücken vor und nach jeder Lücke –
 	# der Rhythmus geht weiter, nur die Abstände werden ungleich.
-	deckungsfleck(174.0, -1.6, 1.6)
-	deckungsfleck(196.0, 1.6, 1.6)
-	deckungsfleck(216.0, -1.8, 1.7)
+	deckungsfleck(174.0, -1.6, 1.6).grundleuchten = 0.95
+	deckungsfleck(196.0, 1.6, 1.6).grundleuchten = 0.95
+	deckungsfleck(216.0, -1.8, 1.7).grundleuchten = 0.95
 
 	# --- Der Regelbruch: die Wurzelinsel abseits ---
 	# Sie hängt seitlich über dem Abgrund. Von der Kante bei 195 m sind es
@@ -390,10 +390,10 @@ func _dickicht_bauen() -> void:
 	# Die Flecken liegen hier absichtlich AM RAND: In der Mitte läuft die
 	# Nuss. Deckung und Rollbahn dürfen sich nicht überlagern, sonst wäre
 	# die richtige Antwort zugleich die tödliche.
-	deckungsfleck(232.0, -2.4, 1.6)
-	deckungsfleck(248.0, 2.4, 1.6)
-	deckungsfleck(264.0, -2.4, 1.6)
-	deckungsfleck(276.0, 2.4, 1.6)
+	deckungsfleck(232.0, -2.4, 1.6).grundleuchten = 0.95
+	deckungsfleck(248.0, 2.4, 1.6).grundleuchten = 0.95
+	deckungsfleck(264.0, -2.4, 1.6).grundleuchten = 0.95
+	deckungsfleck(276.0, 2.4, 1.6).grundleuchten = 0.95
 
 	_querstamm(242.0, 1.0)
 	_querstamm(270.0, 1.0)
@@ -406,8 +406,8 @@ func _dickicht_bauen() -> void:
 ## Flecken, beide früh. Die letzten zwanzig Meter sind bewusst leer: Nach
 ## einem Level, das ums Stehenbleiben ging, soll der Schluss ein Lauf sein.
 func _nest_bauen() -> void:
-	deckungsfleck(288.0, -2.6, 1.8)
-	deckungsfleck(300.0, 2.6, 1.8)
+	deckungsfleck(288.0, -2.6, 1.8).grundleuchten = 0.95
+	deckungsfleck(300.0, 2.6, 1.8).grundleuchten = 0.95
 
 	# Drei Wurzelpodeste als Aussichts- und Sprungpunkte im Weiten.
 	var holz := Materialbibliothek.rinde()
@@ -443,11 +443,11 @@ func _querstamm(strecke: float, hoehe: float) -> void:
 ## Licht und Nebel. Unter dem Blätterdach wird es enger und grüner, auf den
 ## beiden weiten Stücken heller und wärmer.
 func _stimmungen_setzen() -> void:
-	stimmung(M_WELLEN, M_STEG, Color(0.28, 0.44, 0.26), 0.026, 0.85,
+	stimmung(M_WELLEN, M_STEG, Color(0.28, 0.44, 0.26), 0.018, 0.85,
 			Color(0.34, 0.50, 0.30), 44.0)
-	stimmung(M_DICKICHT, M_NEST, Color(0.22, 0.38, 0.22), 0.032, 0.75,
+	stimmung(M_DICKICHT, M_NEST, Color(0.22, 0.38, 0.22), 0.018, 0.75,
 			Color(0.28, 0.46, 0.26), 40.0)
-	stimmung(M_NEST, M_ENDE, Color(0.60, 0.68, 0.46), 0.010, 1.1,
+	stimmung(M_NEST, M_ENDE, Color(0.60, 0.68, 0.46), 0.01, 1.05,
 			Color(0.62, 0.70, 0.50), 54.0)
 
 

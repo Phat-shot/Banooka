@@ -23,10 +23,13 @@ extends KorridorLevel
 ## zurück nach oben. Einmal, nie zweimal – sonst wäre die Grundangst des
 ## Levels entwertet.
 ##
-## Der Kontrast trägt alles: fast weißes Wolkenmeer (#CED1D6) gegen
-## dunkle Pfosten (#434036). Farbe gibt es kaum, nur Helligkeitsstufen –
-## und genau deshalb leuchten die Kisten hier stärker als in jedem anderen
-## Level.
+## Der Kontrast trägt alles – aber GESCHICHTET, nicht flächig. Der fast
+## weiße Dunst (#CED1D6) liegt HINTER dem Spielgeschehen; davor steht der
+## Steg in voller Sättigung (Seilbeige, Holzplanken, türkis und blau
+## bemalte Pfostenköpfe), und dunkle Felszacken rahmen den unteren
+## Bildrand. Die Zacken sind dabei nicht Zierde, sondern Bedingung: Ohne
+## sie hätte das Weiß nichts, wogegen es hell wäre – ein Bild aus lauter
+## Weiß ist nicht kontrastreich, es ist nur hell.
 
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 const GLETSCHERKRABBE := preload("res://scenes/enemies/Gletscherkrabbe.tscn")
@@ -43,9 +46,19 @@ const BAUM := preload("res://scenes/props/Baum.tscn")
 const WOLKENWEISS := Color(0.808, 0.820, 0.839)   # #CED1D6
 const PFOSTENHOLZ := Color(0.263, 0.251, 0.212)   # #434036
 const FELSGRAU := Color(0.639, 0.627, 0.639)      # #A3A0A3
-const SEILBEIGE := Color(0.541, 0.459, 0.341)     # #8A7557
+const SEILBEIGE := Color(0.616, 0.478, 0.290)     # #9D7A4A
 const DUNSTHELL := Color(0.757, 0.733, 0.706)     # #C1BBB4
-const STEGHOLZ := Color(0.655, 0.576, 0.404)      # #A79367
+const STEGHOLZ := Color(0.694, 0.518, 0.310)      # #B1844F
+## Die Rahmenzacken. Zwei Töne, weil eine einzige Farbe eine Wand ergibt
+## und keine Tiefe: der nahe Fels dunkel und warm, der ferne schon halb
+## im Dunst.
+const ZACKENNAH := Color(0.180, 0.129, 0.106)     # #2E211B
+const ZACKENFELS := Color(0.325, 0.243, 0.204)    # #533E34
+const ZACKENFERN := Color(0.549, 0.463, 0.435)    # #8C766F
+## Die bemalten Pfostenköpfe. Türkis und Blau sind im Vorbild die einzigen
+## kalten Töne im ganzen Bild – gerade deshalb sieht man sie im Weiß.
+const KOPF_TUERKIS := Color(0.106, 0.549, 0.541)  # #1B8C8A
+const KOPF_BLAU := Color(0.267, 0.431, 0.549)     # #446E8C
 
 # --- Streckenmarken -------------------------------------------------
 const M_ANKERFELS := 0.0
@@ -116,6 +129,11 @@ const BODEN_STEG := [
 ]
 
 
+## Zwischenspeicher der Zackenanstriche – zwei Töne, aber ein paar hundert
+## Kegel; ohne ihn stünde je Kegel ein eigenes Material im Speicher.
+var _zackenstoffe: Dictionary = {}
+
+
 func abschnitte() -> Array:
 	return STRECKE
 
@@ -136,6 +154,7 @@ func _bauschritte() -> Array:
 		{"text": "Pfosten und Seile", "tun": _seilgelaender_bauen},
 		{"text": "Absturzzone", "tun": _absturz_spannen},
 		{"text": "Ferne Felszacken", "tun": _horizont_bauen},
+		{"text": "Rahmenzacken am Bildrand", "tun": _rahmenzacken_bauen},
 		{"text": "Erste Planken", "tun": _planken_bauen},
 		{"text": "Rutschsteg", "tun": _rutschsteg_bauen},
 		{"text": "Das Sims unter dem Steg", "tun": _sims_bauen},
@@ -239,6 +258,9 @@ func _boden_bauen() -> void:
 func _seilgelaender_bauen() -> void:
 	var holz := Materialbibliothek.einfarbig(PFOSTENHOLZ, 0.95)
 	var seil := Materialbibliothek.einfarbig(SEILBEIGE, 0.9)
+	var kopf := [Materialbibliothek.einfarbig(KOPF_TUERKIS, 0.6),
+			Materialbibliothek.einfarbig(KOPF_BLAU, 0.6)]
+	var zaehler := 0
 	for eintrag in BODEN_STEG:
 		var von: float = eintrag["von"]
 		var bis: float = eintrag["bis"]
@@ -254,10 +276,24 @@ func _seilgelaender_bauen() -> void:
 				mi.position = LevelWerkzeuge.punkt(verlauf, s, seite * halb, 0.6)
 				mi.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 				deko.add_child(mi)
+				# Der bemalte Pfostenkopf. Er ist klein und trägt nichts –
+				# aber er ist der einzige kalte Fleck im Bild, und im
+				# weißen Dunst zieht ihn das Auge sofort heraus. Ohne ihn
+				# ist der Steg eine graue Linie in einer grauen Fläche.
+				var haube := BoxMesh.new()
+				haube.size = Vector3(0.34, 0.26, 0.34)
+				var kappe := MeshInstance3D.new()
+				kappe.mesh = haube
+				kappe.material_override = kopf[zaehler % 2]
+				kappe.position = LevelWerkzeuge.punkt(verlauf, s,
+						seite * halb, 1.40)
+				kappe.rotation.y = mi.rotation.y
+				deko.add_child(kappe)
 				# Zwei Seile zwischen diesem Pfosten und dem nächsten.
 				if s + 4.0 < bis - 0.5:
 					_seilstueck(s, s + 4.0, seite * halb, 1.15, seil)
 					_seilstueck(s, s + 4.0, seite * halb, 0.62, seil)
+			zaehler += 1
 			s += 4.0
 
 
@@ -270,7 +306,7 @@ func _seilstueck(von: float, bis: float, seitlich: float, hoehe: float,
 		var durchhang := sin(t * PI) * 0.16
 		var s := lerpf(von, bis, t)
 		var stueck := BoxMesh.new()
-		stueck.size = Vector3(0.07, 0.07, (bis - von) / float(teile) + 0.05)
+		stueck.size = Vector3(0.12, 0.12, (bis - von) / float(teile) + 0.05)
 		var mi := MeshInstance3D.new()
 		mi.mesh = stueck
 		mi.material_override = stoff
@@ -307,6 +343,120 @@ func _absturz_spannen() -> void:
 func _horizont_bauen() -> void:
 	horizont(320.0, 44.0, Color(0.34, 0.33, 0.31), Color(0.62, 0.62, 0.63),
 			false, -22.0)
+
+
+## Die Rahmenzacken: dunkle Felsspitzen, die von unten ins Bild ragen.
+##
+## Sie sind der Grund, warum das Weiß dieses Levels überhaupt als hell
+## gelesen wird. Ein Bild aus lauter Weiß hat keinen Kontrast, es hat nur
+## Helligkeit – erst eine dunkle Silhouette am unteren Bildrand gibt dem
+## Dunst etwas, wogegen er hell sein kann. Das Vorbild hat den stärksten
+## Kontrast der Reihe, und er kommt genau daher: geschichtet, nicht flächig.
+##
+## Sie stehen paarweise links und rechts des Stegs, nie darunter: In der
+## Mitte wären sie eine Andeutung von Grund, und dieses Level darf keinen
+## Grund andeuten. Aus demselben Grund tragen sie keine Kollision und ihre
+## Spitzen enden mindestens einen Meter unter der Planke – wer neben den
+## Steg tritt, fällt an ihnen vorbei.
+func _rahmenzacken_bauen() -> void:
+	var wuerfel := randi()
+	seed(14900)
+	# Drei Ringe je Seite, von innen nach außen: {Abstand vom Steg,
+	# Spitzenhöhe, Zackenhöhe, Dicke}. Der innerste rahmt den unteren
+	# Bildrand, die beiden äußeren staffeln sich dahinter – erst dadurch
+	# wird aus einer Silhouette eine Landschaft.
+	var ringe := [
+		{"quer": Vector2(4.6, 7.0), "spitze": Vector2(-6.0, -10.0),
+			"hoehe": Vector2(7.0, 11.0), "dicke": Vector2(2.6, 4.2),
+			"farbe": ZACKENNAH, "jedes": 1},
+		{"quer": Vector2(9.5, 16.0), "spitze": Vector2(-10.0, -16.0),
+			"hoehe": Vector2(10.0, 15.0), "dicke": Vector2(3.4, 5.6),
+			"farbe": ZACKENFELS, "jedes": 1},
+		{"quer": Vector2(22.0, 44.0), "spitze": Vector2(-18.0, -28.0),
+			"hoehe": Vector2(16.0, 26.0), "dicke": Vector2(5.0, 9.0),
+			"farbe": ZACKENFERN, "jedes": 2},
+	]
+	var s := -10.0
+	var i := 0
+	while s < M_ENDE + 16.0:
+		# Immer beide Seiten: Ein Rahmen, der nur links steht, ist kein
+		# Rahmen, sondern eine Wand – und genau so sah der erste Versuch
+		# aus, der die Seiten abwechselnd besetzte.
+		for seite: float in [-1.0, 1.0]:
+			for ring: Dictionary in ringe:
+				if i % int(ring["jedes"]) != 0:
+					continue
+				var q: Vector2 = ring["quer"]
+				var sp: Vector2 = ring["spitze"]
+				var ho: Vector2 = ring["hoehe"]
+				var di: Vector2 = ring["dicke"]
+				_felszacke(s + randf_range(-6.0, 6.0),
+						seite * randf_range(q.x, q.y),
+						randf_range(sp.x, sp.y), randf_range(ho.x, ho.y),
+						randf_range(di.x, di.y), ring["farbe"])
+		s += randf_range(15.0, 21.0)
+		i += 1
+	seed(wuerfel)
+
+
+## Eine einzelne Zacke: ein schlanker Kegel mit abgesetztem Sockel.
+##
+## Zwei Kegel statt einem, weil ein einzelner Kegel wie ein Hütchen
+## aussieht; der breitere Sockel darunter macht daraus einen Felsdorn.
+## `spitze` ist die Höhe der Spitze über dem Weg – sie ist negativ, die
+## Zacke ragt also von unten herein und hört unter dem Steg auf.
+func _felszacke(strecke: float, seitlich: float, spitze: float,
+		hoehe: float, dicke: float, farbe: Color) -> void:
+	# Unbeleuchtet und ohne Nebeleinfluss. Beides absichtlich: Eine
+	# beleuchtete Zacke bekommt von der weißen Umgebung eine helle
+	# Sonnenseite, und der Dunst zieht sie vollends ins Weiß – am Ende
+	# stünden dort blasse Hütchen statt Silhouetten. Die Zacke ist aber
+	# kein Gegenstand, den man betrachtet, sondern ein Scherenschnitt vor
+	# dem Dunst. Gestaffelte Tiefe macht hier die Farbe, nicht der Nebel.
+	var stoff := _scherenschnitt(farbe)
+	# Drei gestapelte Kegelstümpfe, von unten nach oben schlanker: unten,
+	# Mitte, Spitze. Ein einzelner Kegel ergibt ein Hütchen; erst der Knick
+	# zwischen den Stücken macht daraus einen Felsdorn. Je Zeile:
+	# Radius unten, Radius oben, Höhe, Mitte über der Spitze.
+	var teile := [
+		[dicke * 1.0, dicke * 0.62, hoehe * 0.45, -hoehe * 0.825],
+		[dicke * 0.60, dicke * 0.30, hoehe * 0.32, -hoehe * 0.44],
+		[dicke * 0.31, 0.0, hoehe * 0.28, -hoehe * 0.14],
+	]
+	for teil: Array in teile:
+		var kegel := CylinderMesh.new()
+		kegel.bottom_radius = teil[0]
+		kegel.top_radius = teil[1]
+		kegel.height = teil[2]
+		kegel.radial_segments = 6
+		kegel.rings = 0
+		var mi := MeshInstance3D.new()
+		mi.mesh = kegel
+		mi.material_override = stoff
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Jedes Stück ein wenig versetzt und verdreht – eine lotrechte
+		# Reihe gleicher Kegel liest sich als Zaun, nicht als Fels.
+		mi.position = LevelWerkzeuge.punkt(verlauf, strecke,
+				seitlich + randf_range(-0.3, 0.3), spitze + teil[3])
+		mi.rotation.y = randf() * TAU
+		mi.rotation.z = randf_range(-0.07, 0.07)
+		mi.scale = Vector3(1.0, 1.0, randf_range(0.75, 1.3))
+		deko.add_child(mi)
+
+
+## Unbeleuchteter, nebelfreier Anstrich für die Rahmenzacken.
+##
+## Steht hier und nicht in der `Materialbibliothek`: Sie ist gemeinsames
+## Gut, und ein Stoff, der den Nebel abschaltet, taugt nur für dieses eine
+## Level – überall sonst wäre er ein Fehler, der lange unbemerkt bliebe.
+func _scherenschnitt(farbe: Color) -> StandardMaterial3D:
+	if not _zackenstoffe.has(farbe):
+		var m := StandardMaterial3D.new()
+		m.albedo_color = farbe
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.disable_fog = true
+		_zackenstoffe[farbe] = m
+	return _zackenstoffe[farbe]
 
 
 # =========================================================== Abschnitte
@@ -483,11 +633,11 @@ func _kamerazonen_setzen() -> void:
 ## sie wieder auf. Damit hat das Level einen Anfang, eine Mitte und ein
 ## Ende, ohne dass sich die Form ändert.
 func _stimmungen_setzen() -> void:
-	stimmung(0.0, 36.0, Color(0.86, 0.87, 0.89), 0.028, 1.3,
+	stimmung(0.0, 36.0, Color(0.86, 0.87, 0.89), 0.018, 1.05,
 			Color(0.84, 0.86, 0.90), 44.0)
-	stimmung(90.0, 160.0, Color(0.90, 0.91, 0.93), 0.052, 1.5,
+	stimmung(90.0, 160.0, Color(0.90, 0.91, 0.93), 0.018, 1.05,
 			Color(0.90, 0.92, 0.95), 44.0)
-	stimmung(252.0, M_ENDE, Color(0.82, 0.84, 0.88), 0.024, 1.25,
+	stimmung(252.0, M_ENDE, Color(0.82, 0.84, 0.88), 0.018, 1.05,
 			Color(0.82, 0.85, 0.90), 48.0)
 
 

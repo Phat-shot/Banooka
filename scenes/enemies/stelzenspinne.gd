@@ -22,6 +22,52 @@ const RUMPF_Y := 1.30            ## Hinterleib
 const VORDERLEIB_Y := 1.24       ## Vorderleib mit Augen, stößt nach unten
 const BEINE := 8
 
+# ---------------------------------------------------------- Farben
+#
+# Die Spinne steht in mehr Leveln als in dem Wald, für den sie gebaut
+# wurde. Damit ein Level sie in seine eigene Palette holen kann, ohne
+# dass ein zweiter Gegner entstehen muss, sind ihre Flächen einzeln
+# einstellbar. Vorgabe ist überall der bisherige Ton: Wer nichts setzt,
+# sieht nichts Neues.
+#
+# ZEICHENSPRACHE (siehe gegner.gd): Der Stachelkamm auf dem Rücken sagt
+# "hier nicht landen", die Lücke zwischen den Beinen sagt "hier durch".
+# Der Kamm muss deshalb HELL gegen den Leib stehen bleiben, und die Beine
+# müssen sich vom Leib absetzen – sonst verschwindet die Lücke und mit
+# ihr die Anleitung.
+
+## Hinterleib und Vorderleib – die dunkle Grundfläche.
+@export var farbe_leib: Color = Farben.FELS_DUNKEL.darkened(0.45):
+	set(wert):
+		farbe_leib = wert
+		_neu_faerben()
+## Beine und Kieferklauen. Heller als der Leib, damit die Lücke zu sehen ist.
+@export var farbe_beine: Color = Farben.FELS_DUNKEL.darkened(0.2):
+	set(wert):
+		farbe_beine = wert
+		_neu_faerben()
+## Stachelkamm auf dem Rücken – die Warnung vor dem Draufspringen.
+@export var farbe_stacheln: Color = Farben.WARNUNG:
+	set(wert):
+		farbe_stacheln = wert
+		_neu_faerben()
+## Haupt- und Nebenaugen.
+@export var farbe_augen: Color = Color(0.95, 0.15, 0.12):
+	set(wert):
+		farbe_augen = wert
+		_neu_faerben()
+## Leibfarbe der mitgelieferten Spinnenfigur.
+##
+## Eigener Wert und nicht `farbe_leib`: Das fremde Modell bringt seinen
+## eigenen, fast schwarzen Ton mit, und die Vorgabe ist genau dieser Ton –
+## so sieht die Spinne aus wie bisher, solange niemand sie umfärbt. Wer
+## sie in eine andere Palette holt, setzt beide.
+@export var farbe_fremdmodell: Color = Color(0.225949, 0.225949, 0.225949):
+	set(wert):
+		farbe_fremdmodell = wert
+		_neu_faerben()
+
+
 var _stoss_zeit := 0.0
 var _stoss_laeuft := 0.0
 
@@ -49,7 +95,7 @@ func _ready() -> void:
 ## durch die man rutschen soll.
 func fremdmodell() -> Dictionary:
 	return {"datei": "spinne", "groesse": 1.30, "nach_hoehe": true,
-			"drehung": PI}
+			"drehung": PI, "farben": {"Material": farbe_fremdmodell}}
 
 
 # ---------------------------------------------------------- Optik
@@ -58,10 +104,10 @@ func fremdmodell() -> Dictionary:
 ## acht helle Beine, roter Stachelkamm auf dem Rücken. Der Kamm sagt
 ## unmissverständlich "hier nicht landen".
 func _baue() -> void:
-	var panzer := Materialbibliothek.fell(Farben.FELS_DUNKEL.darkened(0.45))
-	var gelenk := Materialbibliothek.einfarbig(Farben.FELS_DUNKEL.darkened(0.2), 0.6)
-	var stachel_mat := Materialbibliothek.leuchtend(Farben.WARNUNG, 0.9)
-	var augapfel := Materialbibliothek.leuchtend(Color(0.95, 0.15, 0.12), 1.2)
+	var panzer := Materialbibliothek.fell(farbe_leib)
+	var gelenk := Materialbibliothek.einfarbig(farbe_beine, 0.6)
+	var stachel_mat := Materialbibliothek.leuchtend(farbe_stacheln, 0.9)
+	var augapfel := Materialbibliothek.leuchtend(farbe_augen, 1.2)
 
 	# Acht Beine, gleichmäßig um den Leib verteilt
 	for i in BEINE:
@@ -172,3 +218,29 @@ func _todesanimation(delta: float) -> void:
 	for bein in _beine:
 		if is_instance_valid(bein):
 			bein.rotation.x = lerp_angle(bein.rotation.x, 1.4, minf(delta * 8.0, 1.0))
+
+
+# ---------------------------------------------------------- Umfärben
+
+## Baut die Optik neu auf, wenn eine Farbe nach dem Einhängen gesetzt wird.
+##
+## Nötig, weil die Meshes samt Material in `_baue()` entstehen, und das
+## läuft in `_ready()`. Ein Level, das die Spinne erst aufstellt und dann
+## einfärbt, träfe sonst nur noch die Variable. Die Materialien der
+## `Materialbibliothek` sind geteilt und dürfen nicht nachträglich
+## verändert werden – deshalb der Neubau, wie ihn auch die Props halten
+## (`baum.gd`, `deckungsfleck.gd`).
+##
+## Eine besiegte Spinne wird nicht angefasst: Ihre Todesanimation steckt
+## in Skalierung und Drehung des Modells, ein Neubau setzte sie zurück.
+func _neu_faerben() -> void:
+	if besiegt or not is_inside_tree() or not is_instance_valid(modell):
+		return
+	for kind in modell.get_children():
+		modell.remove_child(kind)
+		kind.queue_free()
+	_beine.clear()
+	_rumpf = null
+	_vorderleib = null
+	_baue()
+	_fremdmodell_setzen()

@@ -66,6 +66,13 @@ const GRAULILA := Color(0.635, 0.541, 0.576)       ## #A28A93 – Putz im Schatt
 ## sonst nirgends im Bild vor und markiert deshalb, was wichtig ist.
 const TUERKIS := Color(0.16, 0.70, 0.66)
 const ORNAMENT_WEISS := Color(0.94, 0.92, 0.86)
+## Das satte Ziegelrot der Ornamentbänder – im Vorbild der dritte Ton
+## neben Türkis und Weiß, und der einzige, der die Terrakotta übertönt.
+const ZIEGELROT := Color(0.663, 0.149, 0.043)      ## #A9260B
+## Das Holzgitter der Fenster. Es ist fast schwarz, und das ist seine
+## ganze Aufgabe: In einer Wand aus lauter Warmtönen ist es das einzige
+## wirklich Dunkle, und ohne einen tiefen Ton gibt es keine Tiefe.
+const HOLZGITTER := Color(0.129, 0.086, 0.063)     ## #211610
 
 # ----------------------------------------------------------- Marken
 const M_SANDGASSE := 0.0
@@ -303,11 +310,32 @@ func _altstadt_bauen() -> void:
 		# ohne ihn sind es Kartons.
 		_sichtquader(s, quer, dach + 0.25, Vector3(breit + 0.4, 0.5, tief + 0.4),
 				ton)
-		# Und jedes dritte Haus bekommt eine türkise Fensterreihe.
-		if i % 3 == 0:
-			_sichtquader(s, quer + seite * breit * 0.5, dach - 2.0,
-					Vector3(0.3, 0.9, tief * 0.7),
-					Materialbibliothek.einfarbig(TUERKIS, 0.5))
+		# Auf der Brüstung ein schmaler türkisweißer Fries. In den Vorlagen
+		# läuft er über jedes Dach, und er ist dort das Gegengewicht zur
+		# warmen Wand: Ohne ihn liegt über der ganzen Stadt ein einziger
+		# Ton, und eine Stadt aus einem einzigen Ton sieht flach aus.
+		var friesstoff := Materialbibliothek.einfarbig(
+				TUERKIS if i % 2 == 0 else ORNAMENT_WEISS, 0.5)
+		# Vier schmale Riegel, nicht eine Platte: Eine Platte deckt das
+		# ganze Dach ein und macht aus dem Fries einen Anstrich.
+		for kante: Array in [
+				[Vector3(breit + 0.44, 0.16, 0.3), 0.0, (tief + 0.44) * 0.5],
+				[Vector3(breit + 0.44, 0.16, 0.3), 0.0, -(tief + 0.44) * 0.5],
+				[Vector3(0.3, 0.16, tief + 0.44), (breit + 0.44) * 0.5, 0.0],
+				[Vector3(0.3, 0.16, tief + 0.44), -(breit + 0.44) * 0.5, 0.0]]:
+			_sichtquader(s + float(kante[2]), quer + float(kante[1]),
+					dach + 0.54, kante[0], friesstoff)
+		# Die Häuser der beiden vorderen Bänder bekommen Spitzbogenfenster:
+		# eines auf der Wand zum Weg hin, eines auf der Wand quer dazu.
+		# Zwei, weil die Verfolgerkamera fast immer schräg auf die Häuser
+		# sieht – ein einziges Fenster steht in halben Bildern auf Kante
+		# und ist dann so gut wie nicht da.
+		if lage < 2:
+			var feldbreite := minf(breit * 0.34, 2.0)
+			_spitzbogenfenster(s, quer - seite * breit * 0.5, dach - 2.6,
+					feldbreite, false)
+			_spitzbogenfenster(s - tief * 0.5, quer, dach - 2.6,
+					feldbreite, true)
 
 	# Die Gassensohle, tief unten. Sie schließt die Stadt nach unten ab.
 	var flaeche := PlaneMesh.new()
@@ -320,6 +348,54 @@ func _altstadt_bauen() -> void:
 			GASSENGRUND)
 	geometrie.add_child(boden)
 	seed(wuerfel)
+
+
+## Ein Spitzbogenfenster in einer Hauswand.
+##
+## Es besteht aus drei Lagen, und jede hat einen Zweck: das fast schwarze
+## Holzgitter innen, weil in einer Wand aus lauter Warmtönen sonst kein
+## einziger tiefer Ton vorkommt; ein weißes Band darum, das das Dunkle
+## überhaupt erst sichtbar macht; und ein türkiser Rahmen außen, die
+## Signalfarbe des Levels. Darüber zwei geneigte Balken als Spitze – der
+## Bogen, dem der Abschnitt seinen Namen verdankt.
+##
+## Ohne Kollision wie die ganze Altstadt: Es ist Kulisse, kein Vorsprung.
+## `laengs` gibt an, auf welcher Wand das Fenster sitzt: `false` auf der
+## Wand quer zum Weg (dünn in Querrichtung), `true` auf der Wand längs
+## dazu (dünn in Wegrichtung).
+func _spitzbogenfenster(strecke: float, seitlich: float, hoehe: float,
+		breite: float, laengs: bool) -> void:
+	var hoch := breite * 1.1
+	# Von innen nach außen gestapelt: Das Gitter steht am weitesten aus der
+	# Wand heraus, die Rahmen sind flacher, aber größer – so bleiben sie
+	# als Ringe darum sichtbar, statt sich mit der Wand zu überlagern.
+	var lagen := [
+		[0.10, hoch + 0.72, breite + 0.72, TUERKIS, 0.45],
+		[0.16, hoch + 0.28, breite + 0.28, ORNAMENT_WEISS, 0.7],
+		[0.22, hoch, breite, HOLZGITTER, 0.6],
+	]
+	for lage: Array in lagen:
+		_sichtquader(strecke, seitlich, hoehe,
+				_wandmass(lage[0], lage[1], lage[2], laengs),
+				Materialbibliothek.einfarbig(lage[3], lage[4]))
+	# Die Spitze: vier Stufen, von unten nach oben schmaler. Gestuft statt
+	# gedreht, weil geneigte Balken in der Wandebene liegen müssten und
+	# jede Kurve des Weges die Neigung mitdreht – eine Treppe stimmt in
+	# jeder Lage, und auf Kulissenabstand liest sie sich als Bogen.
+	var stufen := [0.82, 0.62, 0.42, 0.22]
+	var ton := Materialbibliothek.einfarbig(ZIEGELROT, 0.75)
+	for i in stufen.size():
+		_sichtquader(strecke, seitlich,
+				hoehe + hoch * 0.5 + breite * (0.06 + 0.10 * float(i)),
+				_wandmass(0.20, breite * 0.16, breite * stufen[i], laengs),
+				ton)
+
+
+## Dreht ein Wandmaß in die Ebene der gewählten Wand.
+func _wandmass(dicke: float, hoch: float, breit: float,
+		laengs: bool) -> Vector3:
+	return Vector3(breit, hoch, dicke) if laengs \
+			else Vector3(dicke, hoch, breit)
 
 
 ## Ein reiner Sichtkörper ohne Kollision, relativ zum Verlauf gesetzt.
@@ -339,9 +415,13 @@ func _sichtquader(strecke: float, seitlich: float, hoehe: float,
 ## Ornamentale Bögen über dem Weg.
 ##
 ## `LevelWerkzeuge.torbogen()` setzt einen echten Halbkreis von Boden zu
-## Boden. Jeder Bogen bekommt hier zusätzlich einen türkisen Scheitelstein
-## – die Signalfarbe des Levels sitzt damit genau dort, wo der Blick beim
-## Durchlaufen hängen bleibt.
+## Boden – aber als glatte Terrakottaröhre, und damit war der Bogen im
+## Bild nur eine weitere warme Fläche unter vielen. Das Vorbild macht es
+## umgekehrt: Der Bogen ist dort der farbigste Gegenstand überhaupt, weil
+## sein Band aus einzelnen Feldern in Rot, Weiß und Türkis besteht.
+##
+## Genau dort lohnt sich die Farbe am meisten: Der Bogen steht mitten im
+## Bild und rahmt den Weg, der Blick kommt an ihm nicht vorbei.
 func _boegen_bauen() -> void:
 	var ton := _terrakotta()
 	var zier := Materialbibliothek.einfarbig(TUERKIS, 0.4)
@@ -350,8 +430,64 @@ func _boegen_bauen() -> void:
 		var breite := maxf(breite_bei(s), 7.0)
 		if breite < 1.0:
 			continue
-		LevelWerkzeuge.torbogen(deko, verlauf, s, breite * 1.02, ton, 13, 0.0)
+		var spannweite := breite * 1.02
+		var bogen := LevelWerkzeuge.torbogen(deko, verlauf, s, spannweite,
+				ton, 13, 0.0)
+		_bogen_ornament(bogen, spannweite * 0.5)
 		_sichtquader(s, 0.0, breite * 0.52, Vector3(1.1, 0.5, 0.9), zier)
+
+
+## Die Ornamentfelder auf einem Bogen: Rot, Weiß, Türkis im Wechsel.
+##
+## Sie liegen auf BEIDEN Stirnseiten des Bogenbands, nicht nur auf der
+## vorderen. Der Weg führt hindurch, und ein Bogen, der von hinten nackt
+## ist, verrät sich in dem Augenblick, in dem man ihn durchquert hat.
+##
+## Die Felder werden an den fertigen Bogenknoten gehängt, weil der bereits
+## an der richtigen Stelle steht und mit dem Weg mitgedreht ist – ihre
+## Koordinaten sind damit reine Bogenkoordinaten (Winkel und Radius) und
+## müssen nicht noch einmal über den Verlauf gerechnet werden.
+func _bogen_ornament(bogen: Node3D, radius: float) -> void:
+	# Bänder, die MITLAUFEN, keine Felder, die sich abwechseln: Türkis und
+	# Weiß liegen als durchgehende Ringe auf der inneren Hälfte des
+	# Bogenbands, das Rot sitzt außen und nur auf jeder dritten Stelle.
+	# Der erste Versuch wechselte die drei Farben rundum ab – das ergab
+	# einen Ringelbogen, unter dem der Terrakottaton verschwand. Die
+	# Vorlage macht es umgekehrt: Terrakotta ist der Grund, das Ornament
+	# ist ein Saum darauf.
+	#
+	# Je Zeile: Farbe, Radiusversatz, Bandbreite, Länge, jedes wievielte.
+	var baender := [
+		[TUERKIS, -0.075, 0.115, 1.08, 1],
+		[ORNAMENT_WEISS, 0.020, 0.070, 1.08, 1],
+		[ZIEGELROT, 0.104, 0.046, 0.45, 3],
+	]
+	var anzahl := 23
+	var laenge := PI * radius / float(anzahl)
+	for band: Array in baender:
+		var stoff := Materialbibliothek.einfarbig(band[0], 0.6)
+		for i in anzahl:
+			if i % int(band[4]) != 0:
+				continue
+			var t := (float(i) + 0.5) / float(anzahl)
+			var winkel := lerpf(-PI * 0.5, PI * 0.5, t)
+			var r: float = radius * (1.0 + float(band[1]))
+			for seite: float in [-1.0, 1.0]:
+				var feld := MeshInstance3D.new()
+				var kasten := BoxMesh.new()
+				# X liegt TANGENTIAL zum Bogen, Y radial – `torbogen()`
+				# dreht seine Blöcke um Z, damit stehen die Achsen so
+				# herum. Vertauscht ergibt das Sprossen quer zum Band
+				# statt eines mitlaufenden Saums.
+				kasten.size = Vector3(laenge * float(band[3]),
+						radius * float(band[2]), 0.09)
+				feld.mesh = kasten
+				feld.material_override = stoff
+				# Knapp vor der Stirnfläche des Bands (Tiefe radius·0,34).
+				feld.position = Vector3(sin(winkel) * r, cos(winkel) * r,
+						seite * (radius * 0.17 + 0.055))
+				feld.rotation.z = -winkel
+				bogen.add_child(feld)
 
 
 # =========================================================== Abschnitte
@@ -698,9 +834,9 @@ func _auf_neuaufbau(_von_vorn: bool) -> void:
 ## die Tiefe flach. Am Basar wird das Licht wärmer und satter: Der
 ## dichteste Abschnitt soll auch der farbigste sein.
 func _stimmungen_setzen() -> void:
-	stimmung(48.0, 164.0, SAND.lightened(0.15), 0.014, 1.15,
+	stimmung(48.0, 164.0, SAND.lightened(0.15), 0.014, 1.05,
 			Color(0.92, 0.84, 0.72), 56.0)
-	stimmung(228.0, 276.0, TERRAKOTTA.lightened(0.25), 0.010, 1.25,
+	stimmung(228.0, 276.0, TERRAKOTTA.lightened(0.25), 0.01, 1.05,
 			Color(0.98, 0.82, 0.62), 56.0)
 
 

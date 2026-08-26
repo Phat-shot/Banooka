@@ -561,11 +561,11 @@ func _fackel(strecke: float, seitlich: float, nummer: int) -> void:
 ## Nacht, Regen und Dunst. Über den beiden Lücken steht der Dunst höher –
 ## dort soll man die Tiefe ahnen und nicht ausmessen können.
 func _stimmungen_setzen() -> void:
-	stimmung(M_SAEULEN, M_GOETZEN, Color(0.16, 0.15, 0.24), 0.036, 0.55,
+	stimmung(M_SAEULEN, M_GOETZEN, Color(0.16, 0.15, 0.24), 0.018, 0.65,
 			Color(0.22, 0.20, 0.32), 46.0)
-	stimmung(M_TERRASSE, M_AFFENHOF, Color(0.16, 0.15, 0.24), 0.034, 0.55,
+	stimmung(M_TERRASSE, M_AFFENHOF, Color(0.16, 0.15, 0.24), 0.018, 0.65,
 			Color(0.22, 0.20, 0.32), 46.0)
-	stimmung(M_TREPPE, M_ENDE, Color(0.22, 0.20, 0.30), 0.020, 0.85,
+	stimmung(M_TREPPE, M_ENDE, Color(0.22, 0.20, 0.30), 0.018, 0.85,
 			Color(0.30, 0.27, 0.40), 50.0)
 
 

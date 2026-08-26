@@ -10,7 +10,7 @@ class_name Feuerspeier
 ##
 ## Der Takt hat drei Abschnitte und ist mit Absicht von weitem lesbar:
 ##
-##   `ruhe_zeit`  – nichts geschieht, der Weg ist frei
+##   Ruhe        – nichts geschieht, der Weg ist frei (Rest des `takt`)
 ##   `warnzeit`   – Glut sammelt sich sichtbar in der Düsenmündung, harmlos
 ##   `speit_zeit` – die Flamme fährt aus, ist tödlich, zieht sich zurück
 ##
@@ -36,8 +36,12 @@ class_name Feuerspeier
 ## Durchmesser der Flamme an der Düse in Metern.
 @export var dicke := 0.8
 
-## Ruhepause zwischen zwei Stößen in Sekunden.
-@export var ruhe_zeit := 1.8
+## Länge eines vollen Durchlaufs in Sekunden – die Uhr dieses Bauteils.
+##
+## TAKTVERTRAG (doku/level-vorbilder.md): erlaubt sind nur 1,0 · 2,0 · 4,0.
+## Vorher lief der Speier auf 3,6 s und die Taktfläche auf 3,8 s; nebenein-
+## ander wiederholte sich ihr gemeinsames Muster erst nach 68,4 Sekunden.
+@export var takt := 4.0
 
 ## Vorwarnung in Sekunden: Die Glut glimmt schon, das Feuer kommt aber erst.
 @export var warnzeit := 0.7
@@ -119,12 +123,18 @@ func _physics_process(delta: float) -> void:
 ## Dauer eines vollen Takts. Untergrenze, damit ein versehentlich auf 0
 ## gesetzter Speier nicht durch fposmod() ins Nichts rechnet.
 func _taktlaenge() -> float:
-	return maxf(ruhe_zeit + warnzeit + speit_zeit, 0.1)
+	return maxf(takt, 0.1)
+
+
+## Ruhe ist der Rest des Takts. So bleibt `takt` die Uhr, während Warn- und
+## Speizeit absolute Reaktionszeiten bleiben, die nicht mitskalieren.
+func _ruhe() -> float:
+	return maxf(_taktlaenge() - warnzeit - speit_zeit, 0.2)
 
 
 ## Ausfahrgrad der Flamme (0 = eingezogen, 1 = volle `laenge`).
 func _flammengrad(p: float) -> float:
-	var beginn := ruhe_zeit + warnzeit
+	var beginn := _ruhe() + warnzeit
 	if p < beginn or speit_zeit <= 0.0:
 		return 0.0
 	var t := (p - beginn) / speit_zeit
@@ -140,12 +150,13 @@ func _flammengrad(p: float) -> float:
 ## Spieler VOR dem Feuer bekommt – deshalb steigt sie im Quadrat an, wird
 ## also gegen Ende der Warnzeit deutlich schneller heller.
 func _glutgrad(p: float) -> float:
-	if p < ruhe_zeit:
+	var ruhe := _ruhe()
+	if p < ruhe:
 		# Nachglühen: der Rest des vorigen Stoßes verklingt.
-		var rest := 1.0 - p / maxf(ruhe_zeit * 0.35, 0.05)
+		var rest := 1.0 - p / maxf(ruhe * 0.35, 0.05)
 		return maxf(rest, 0.0)
-	if p < ruhe_zeit + warnzeit:
-		var t := (p - ruhe_zeit) / maxf(warnzeit, 0.01)
+	if p < ruhe + warnzeit:
+		var t := (p - ruhe) / maxf(warnzeit, 0.01)
 		return t * t
 	return 1.0
 

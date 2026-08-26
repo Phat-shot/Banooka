@@ -341,7 +341,7 @@ func feuerspeier(strecke: float, seitlich: float, hoehe: float,
 ## `wandernd` ist die interessantere Betriebsart: Es fehlt immer nur EIN
 ## Strahl, und die Lücke wandert – mal muss man krabbeln, mal springen.
 func laserzaun(strecke: float, breite := 4.0, wandernd := true,
-		takt := 1.2, phase := 0.0) -> Laserzaun:
+		takt := 2.0, phase := 0.0) -> Laserzaun:
 	var l := LASERZAUN.instantiate() as Laserzaun
 	l.breite = breite
 	l.art = Laserzaun.Art.WANDERND if wandernd else Laserzaun.Art.GLEICHZEITIG
@@ -407,7 +407,7 @@ func ausloeseplatte(strecke: float, seitlich := 0.0,
 
 ## Tor, das sich im Takt schließt. Es blockiert, es tötet nicht.
 func schliesstuer(strecke: float, seitlich := 0.0, breite := 3.6,
-		hoehe := 2.8, offen := 2.2, zu := 1.6,
+		hoehe := 2.8, offen := 2.0, zu := 1.0,
 		phase := 0.0, farbe := Color(0, 0, 0, 0)) -> Schliesstuer:
 	var t := SCHLIESSTUER.instantiate() as Schliesstuer
 	if farbe.a > 0.0:
@@ -706,6 +706,19 @@ func kiste(art: Kiste.Art, strecke: float, seitlich: float,
 ## seine Startposition ein und hält die Patrouille auf deren Höhe fest,
 ## nachträgliches Verschieben zieht ihn beim ersten Schritt wieder
 ## herunter. Gemeldet aus Level 21, das sich dafür eine eigene Hilfe baute.
+## Ortsfarben für alle Gegner dieses Levels, als {Eigenschaftsname: Color}.
+##
+## Unser Bestiarium besteht aus acht Tieren aus Wald, Sumpf und Eis, die
+## fünfzehn Level bespielen – in der Raumstation lief ein Schneewiesel, im
+## ägyptischen Grab eine Gletscherkrabbe. Neue Gegner zu bauen ist teuer;
+## sie an den Ort anzupassen kostet eine Zeile. Namen, die ein Gegner nicht
+## kennt, werden übergangen, ein Satz gilt also für ein ganzes Level.
+##
+## Die Zeichensprache aus `gegner.gd` bleibt bindend: Die Stelle, an der ein
+## Angriff wirkt, muss hell abgesetzt bleiben. Wer umfärbt, prüft das im Bild.
+var gegner_faerbung := {}
+
+
 func gegner(szene: PackedScene, strecke: float, seitlich: float,
 		weite: float, quer: bool, hoehe := 0.05) -> Gegner:
 	var g := szene.instantiate() as Gegner
@@ -722,6 +735,11 @@ func gegner(szene: PackedScene, strecke: float, seitlich: float,
 			if strecke >= a["von"] and strecke <= a["bis"]:
 				frei = minf(strecke - a["von"], a["bis"] - strecke) - 1.0
 		weite = minf(weite, maxf(frei, 0.5))
+	# Ortsfarben VOR dem Einhängen: Die Gegner bauen ihre Optik in `_ready()`,
+	# und ein Umfärben danach wirft sie neu auf. Siehe `gegner_faerbung`.
+	for name in gegner_faerbung:
+		if name in g:
+			g.set(name, gegner_faerbung[name])
 	g.patrouille_weite = weite
 	var richtung := LevelWerkzeuge.richtung(verlauf, strecke)
 	g.patrouille_achse = richtung.cross(Vector3.UP).normalized() if quer else richtung
@@ -778,7 +796,7 @@ func wasser(strecke: float, flaeche: Vector2, hoehe: float,
 ## Wert gelegt, ein anderer Teiler verschöbe sie stumm.
 func stacheln(strecke: float, seitlich: float, flaeche: Vector2,
 		einfahrbar: bool, farbe: Color = Color(0, 0, 0, 0),
-		takt := 2.4, versatz := -1.0) -> Stacheln:
+		takt := 2.0, versatz := -1.0) -> Stacheln:
 	var st := STACHELN.instantiate() as Stacheln
 	st.flaeche = flaeche
 	st.einfahrbar = einfahrbar

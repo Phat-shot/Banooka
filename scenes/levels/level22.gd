@@ -53,13 +53,13 @@ const ZIEL_ABSCHUESSE := 5
 # SCHNEE und FELS sind beide zu farbig –, deshalb hier gemessene Werte
 # aus dem Steckbrief 5-2.
 
-const DUNST := Color(0.48, 0.51, 0.58)          ## #7B82 – der Grundton
-const DUNST_HELL := Color(0.74, 0.74, 0.79)     ## #BCBDC9
+const DUNST := Color(0.45, 0.50, 0.60)          ## #7B82 – der Grundton
+const DUNST_HELL := Color(0.71, 0.74, 0.82)     ## #BCBDC9
 const DUNST_DUNKEL := Color(0.14, 0.15, 0.17)   ## #24252C
-const WOLKE := Color(0.93, 0.94, 0.96)
-const WOLKE_SCHATTEN := Color(0.66, 0.69, 0.75)
-const BERGFELS := Color(0.19, 0.21, 0.27)
-const BERGSCHNEE := Color(0.88, 0.90, 0.94)
+const WOLKE := Color(0.90, 0.93, 0.98)
+const WOLKE_SCHATTEN := Color(0.61, 0.67, 0.79)
+const BERGFELS := Color(0.17, 0.20, 0.29)
+const BERGSCHNEE := Color(0.84, 0.89, 0.97)
 ## Lack der eigenen Maschine: braun-oliv wie im Vorbild.
 const EIGEN_RUMPF := Color(0.36, 0.27, 0.17)
 const EIGEN_FLAECHE := Color(0.42, 0.44, 0.28)

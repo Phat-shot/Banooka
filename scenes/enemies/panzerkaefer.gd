@@ -14,6 +14,56 @@ class_name Panzerkaefer
 const DREH_DAUER := 0.55     ## So lange braucht er zum Umdrehen
 const SCHRITT_TEMPO := 5.0   ## Taktrate des Sechsbeinlaufs
 
+# ---------------------------------------------------------- Farben
+#
+# Der Käfer läuft in mehr Leveln als in den Wäldern, für die er gebaut
+# wurde. Damit ein Level ihn in seine eigene Palette holen kann, ohne
+# dass ein zweiter Gegner entstehen muss, sind seine Flächen einzeln
+# einstellbar. Vorgabe ist überall der bisherige Ton: Wer nichts setzt,
+# sieht nichts Neues.
+#
+# ZEICHENSPRACHE (siehe gegner.gd): Warnstreifen und Naht liegen auf dem
+# Rücken – genau dort, wo das Draufspringen wirkt. Sie müssen HELL gegen
+# den Panzer stehen bleiben. Ein Panzer im Ton der Streifen nimmt dem
+# Käfer seine Anleitung; dann muss der Spieler wieder ausprobieren.
+
+## Panzer und Schädel – die dunkle Grundfläche.
+@export var farbe_panzer: Color = Farben.FELS.darkened(0.72):
+	set(wert):
+		farbe_panzer = wert
+		_neu_faerben()
+## Beine und Fühler.
+@export var farbe_chitin: Color = Farben.RINDE.darkened(0.55):
+	set(wert):
+		farbe_chitin = wert
+		_neu_faerben()
+## Warnstreifen und Stirnband. Der helle Gegenpol zum Panzer.
+@export var farbe_streifen: Color = Farben.KISTE_FEDER:
+	set(wert):
+		farbe_streifen = wert
+		_neu_faerben()
+## Mittelnaht und Zangen – die Bruchstelle auf dem Rücken.
+@export var farbe_naht: Color = Farben.FELS_HELL.darkened(0.1):
+	set(wert):
+		farbe_naht = wert
+		_neu_faerben()
+## Glühende Augenpunkte.
+@export var farbe_augen: Color = Farben.WARNUNG:
+	set(wert):
+		farbe_augen = wert
+		_neu_faerben()
+## Panzerfarbe der mitgelieferten Käferfigur.
+##
+## Eigener Wert und nicht `farbe_panzer`: Das fremde Modell hat für den
+## ganzen Rücken nur EIN Material. Was hier auf Panzer, Naht und Streifen
+## verteilt ist, muss dort ein einziger Ton tragen, und der liegt deshalb
+## etwas wärmer. Wer den Käfer umfärbt, setzt beide.
+@export var farbe_fremdmodell: Color = Color(0.19, 0.14, 0.10):
+	set(wert):
+		farbe_fremdmodell = wert
+		_neu_faerben()
+
+
 var _dreht := 0.0
 
 var _panzer: MeshInstance3D
@@ -45,16 +95,16 @@ func fremdmodell() -> Dictionary:
 	# die Änderung ist in assets/CREDITS.md vermerkt.
 	return {
 		"datei": "kaefer", "groesse": 1.30, "drehung": PI,
-		"farben": {"red": Color(0.19, 0.14, 0.10)},
+		"farben": {"red": farbe_fremdmodell},
 	}
 
 
 func _baue() -> void:
-	var panzer_mat := Materialbibliothek.einfarbig(Farben.FELS.darkened(0.72), 0.35, 0.25)
-	var chitin := Materialbibliothek.einfarbig(Farben.RINDE.darkened(0.55), 0.55)
-	var streifen_mat := Materialbibliothek.einfarbig(Farben.KISTE_FEDER, 0.5)
-	var naht_mat := Materialbibliothek.einfarbig(Farben.FELS_HELL.darkened(0.1), 0.4, 0.3)
-	var glut := Materialbibliothek.leuchtend(Farben.WARNUNG, 1.3)
+	var panzer_mat := Materialbibliothek.einfarbig(farbe_panzer, 0.35, 0.25)
+	var chitin := Materialbibliothek.einfarbig(farbe_chitin, 0.55)
+	var streifen_mat := Materialbibliothek.einfarbig(farbe_streifen, 0.5)
+	var naht_mat := Materialbibliothek.einfarbig(farbe_naht, 0.4, 0.3)
+	var glut := Materialbibliothek.leuchtend(farbe_augen, 1.3)
 
 	# --- Sechs Laufbeine, jeweils an einem eigenen Drehpunkt ---
 	for seite: float in [-1.0, 1.0]:
@@ -176,3 +226,30 @@ func _todesanimation(delta: float) -> void:
 	for bein in _beine:
 		if is_instance_valid(bein):
 			bein.rotation.x = sin(_zeit * 26.0) * 0.8
+
+
+# ---------------------------------------------------------- Umfärben
+
+## Baut die Optik neu auf, wenn eine Farbe nach dem Einhängen gesetzt wird.
+##
+## Nötig, weil die Meshes samt Material in `_baue()` entstehen, und das
+## läuft in `_ready()`. Ein Level, das den Käfer erst aufstellt und dann
+## einfärbt, träfe sonst nur noch die Variable. Die Materialien der
+## `Materialbibliothek` sind geteilt und dürfen nicht nachträglich
+## verändert werden – deshalb der Neubau, wie ihn auch die Props halten
+## (`baum.gd`, `deckungsfleck.gd`).
+##
+## Ein besiegter Käfer wird nicht angefasst: Seine Todesanimation steckt
+## in Skalierung und Drehung des Modells, ein Neubau setzte sie zurück.
+func _neu_faerben() -> void:
+	if besiegt or not is_inside_tree() or not is_instance_valid(modell):
+		return
+	for kind in modell.get_children():
+		modell.remove_child(kind)
+		kind.queue_free()
+	_beine.clear()
+	_fuehler.clear()
+	_panzer = null
+	_kopf = null
+	_baue()
+	_fremdmodell_setzen()

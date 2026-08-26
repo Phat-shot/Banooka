@@ -69,6 +69,12 @@ var _strecke := -1.0
 var _seiten_grad := 0.0
 
 
+## Abstand, den die herangeholte Kamera vor der Wand hält.
+const SICHT_PUFFER := 0.35
+## Näher als das geht sie nie an die Figur – sonst steckt die Linse im Kopf.
+const SICHT_MINDEST := 1.4
+
+
 func _ready() -> void:
 	# Die Kamera wird selbst im Bildtakt gesetzt. Godot darf sie deshalb
 	# nicht zusätzlich interpolieren, sonst hinkt sie einen Physikschritt
@@ -118,6 +124,38 @@ func _process(delta: float) -> void:
 ## nur mit begrenztem Tempo ändern. Ein großer Sprung im Messwert ist kein
 ## echter Ortswechsel, sondern ein Umspringen der Suche – außer bei einem
 ## Rundkurs, wo der Wert am Rundenende tatsächlich auf null zurückfällt.
+
+## Holt die Kamera heran, wenn etwas zwischen ihr und der Figur steht.
+##
+## Ohne das steckte sie regelmäßig in der Kulisse: im Torbogen von Level 11
+## bei 330 m, in einem Block in Level 12 bei 269 m, im Kolben von Level 20
+## bei 296 m – jedes Mal ein vollständig verdecktes Bild. Geprüft wird gegen
+## Ebene 1, also die feste Levelgeometrie; Deko ohne Kollision stört nicht.
+##
+## Der Treffer wird um `SICHT_PUFFER` nach vorn gezogen, damit die Linse
+## nicht in der Wand sitzt, die sie gerade noch getroffen hat.
+func _freie_sicht(wunsch: Vector3, blickziel: Vector3) -> Vector3:
+	var welt := get_world_3d()
+	if welt == null:
+		return wunsch
+	# Ebene 1 ist die feste Levelgeometrie, Ebene 4 (Wert 8) die
+	# Sichtsperre der Deko – siehe LevelWerkzeuge.SICHTSPERRE.
+	var frage := PhysicsRayQueryParameters3D.create(blickziel, wunsch, 1 | 8)
+	# Die Figur selbst steht auf Ebene 2 und ist hier ohnehin nicht dabei;
+	# ausgeschlossen wird sie trotzdem, falls ein Level sie umhängt.
+	if _ziel != null and _ziel is CollisionObject3D:
+		frage.exclude = [(_ziel as CollisionObject3D).get_rid()]
+	var treffer := welt.direct_space_state.intersect_ray(frage)
+	if treffer.is_empty():
+		return wunsch
+	var punkt: Vector3 = treffer["position"]
+	var weg := punkt - blickziel
+	var laenge := weg.length()
+	if laenge <= SICHT_MINDEST:
+		return wunsch
+	return blickziel + weg.normalized() * maxf(laenge - SICHT_PUFFER,
+			SICHT_MINDEST)
+
 func _strecke_gefuehrt(gemessen: float, laenge: float, delta: float) -> float:
 	if _strecke < 0.0 or _muss_springen:
 		_strecke = gemessen
@@ -210,6 +248,8 @@ func _folgen(delta: float) -> void:
 		# --- Gerader Korridor Richtung -Z (Verhalten der HTML-Demo) ---
 		wunsch = Vector3(p.x * seiten_faktor, p.y + hoehe, p.z + abstand)
 		blickziel = Vector3(p.x * seiten_faktor, p.y + 1.0, p.z - blick_vorlauf)
+
+	wunsch = _freie_sicht(wunsch, blickziel)
 
 	if _muss_springen:
 		global_position = wunsch

@@ -26,6 +26,22 @@ extends KorridorLevel
 ## demselben Prinzip – mintgrüner Boden, Neonstreifen an der Kante,
 ## stumpfe Fassade an der Klippe.
 ##
+## WARUM DIE NACHT NICHT NUR BLAU IST. Ein Level, das ausschließlich aus
+## Blau und Violett besteht, hat keine Farbe mehr, sondern nur noch
+## Helligkeit: Alles darin ist dieselbe Farbe in verschiedenen Stufen, und
+## das Auge findet nichts, woran es sich festhält. Das Vorbild (Steckbrief
+## 5-4) löst das mit **Kupfer und Bronze** – knapp ein Drittel der Fläche
+## ist dort warm. Diese Gegenfarbe steht hier in `_kupfer()` und liegt
+## überall dort, wo etwas GEBAUT ist: an der Klippe des Stegs, als
+## Brüstungspaneel an seinem Rand, als Bahn quer über die Trittfläche, als
+## Podest unter jeder Kiste. Das Blau bleibt die Nacht, das Kupfer ist die
+## Stadt darin.
+##
+## Kupfer und Mint tragen beide Eigenlicht. Das ist kein Effekt, sondern
+## Notwendigkeit: In diesem Level steht kein Licht außer dem
+## Umgebungslicht der Stimmungszonen, und ein Metall ohne Lichtquelle ist
+## schwarz. Was hier leuchten soll, muss es selbst tun.
+##
 ## WARUM DIE ZÄUNE ALLE `hoehe = 3.0` UND VIER STRAHLEN HABEN: Diese
 ## Rechnung steht im Kopf von `laserzaun.gd` und ist der Grund, warum das
 ## Bauteil überhaupt vier verschiedene Aufgaben stellen kann (krabbeln,
@@ -36,6 +52,24 @@ extends KorridorLevel
 const STELZENSPINNE := preload("res://scenes/enemies/Stelzenspinne.tscn")
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 const SUMPFKROETE := preload("res://scenes/enemies/Sumpfkroete.tscn")
+
+# ----------------------------------------------------------- Gegenfarben
+## Die warme Hälfte des Bildes. Sie steht hier und nicht im
+## `Neonmaterial`, weil sie diesem Level gehört: Der Materialsatz ist der
+## Satz der NACHT, das Kupfer ist das, was Menschen hineingebaut haben.
+## Satt und dunkel gewählt: Auf die Paneele fällt bläuliches Mondlicht,
+## und jede helle Grundfarbe wird darunter zu blassem Sand. Erst ein
+## tiefes Kupfer bleibt Kupfer.
+const BRONZE := Color(0.17, 0.08, 0.02)      ## #3D1C08 – Paneel im Schatten
+const KUPFER := Color(0.62, 0.29, 0.08)      ## #DB6B1A – Paneel im Licht
+const KUPFER_HELL := Color(0.92, 0.50, 0.14) ## Leuchtkante der Paneele
+
+## Der Steg in zwei Tönen. Beide sind gesättigt gehalten und keiner
+## entsteht durch Aufhellen: `Color.lightened()` mischt Weiß bei, und ein
+## Mint mit Weiß darin wird unter dem bläulichen Mondlicht sofort wieder
+## grau – genau der Fehler, den das Level vorher hatte.
+const STEG_TIEF := Color(0.16, 0.42, 0.35)
+const STEG := Color(0.46, 0.88, 0.74)
 
 # ----------------------------------------------------------- Marken
 const M_DACHTERRASSE := 0.0
@@ -80,6 +114,9 @@ const STRECKE := [
 ]
 
 var _mat_kante: StandardMaterial3D = null
+var _mat_kupfer: StandardMaterial3D = null
+var _mat_kupfer_hell: StandardMaterial3D = null
+var _mat_steg: StandardMaterial3D = null
 
 
 func abschnitte() -> Array:
@@ -100,6 +137,7 @@ func _bauschritte() -> Array:
 		{"text": "Stege und Dächer", "tun": _boden_bauen},
 		{"text": "Die Stadt darunter", "tun": _stadt_bauen},
 		{"text": "Leuchtkanten", "tun": _kanten_bauen},
+		{"text": "Kupferpaneele", "tun": _paneele_bauen},
 		{"text": "Absturzzone", "tun": _absturz_spannen},
 		{"text": "Ferne Türme", "tun": _horizont_bauen},
 		{"text": "Dachterrasse", "tun": _dachterrasse_bauen},
@@ -147,7 +185,13 @@ func _verlauf_anlegen() -> void:
 
 # =========================================================== Stoffe
 
-## Die Leuchtkante des Weges.
+## Die Leuchtkante des Weges: ein helleres Mint als der Steg selbst.
+##
+## Sie war früher cyan. Cyan ist aber dieselbe Farbfamilie wie die
+## Fassaden ringsum, und ein cyanfarbenes Band auf einem blaugrauen Steg
+## sagt nur "hell", nicht "hier ist der Rand". Mint über Mint sagt beides:
+## Der Steg ist ein Band, seine Kante ist die hellere Linie darin – so
+## beschreibt es der Steckbrief.
 ##
 ## `Neonmaterial.streifen()` gibt eine geteilte Instanz mit voller
 ## Leuchtstärke heraus – die gehört allen und darf nicht verändert
@@ -158,22 +202,111 @@ func _verlauf_anlegen() -> void:
 func _kantenlicht() -> StandardMaterial3D:
 	if _mat_kante == null:
 		_mat_kante = Neonmaterial.streifen(
-				Neonmaterial.NEON_CYAN).duplicate() as StandardMaterial3D
-		_mat_kante.emission_energy_multiplier = 1.1
+				Color(0.72, 1.0, 0.90)).duplicate() as StandardMaterial3D
+		_mat_kante.emission_energy_multiplier = 1.0
 	return _mat_kante
+
+
+## Kupferpaneel: die warme Gegenfarbe des Levels.
+##
+## Metallisch und rau zugleich – ein Spiegel wäre in einem Level ohne
+## Lichtquellen schwarz, ein mattes Blech ohne Metallanteil wäre Pappe.
+## Das Eigenlicht folgt der Rauschtextur statt einer flachen Farbe:
+## Nur so bleibt die Fläche eine Fläche mit Zeichnung und wird nicht zum
+## gleichmäßig leuchtenden Rechteck.
+func _kupfer() -> StandardMaterial3D:
+	if _mat_kupfer == null:
+		var zeichnung := Materialbibliothek.rauschtextur(2401, 0.05,
+				BRONZE, KUPFER)
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = zeichnung
+		m.emission_enabled = true
+		m.emission_texture = zeichnung
+		m.emission = Color(1, 1, 1)
+		m.emission_energy_multiplier = 0.30
+		m.normal_enabled = true
+		m.normal_texture = Materialbibliothek.normalmap(2402, 0.11, 1.5)
+		m.normal_scale = 0.6
+		m.roughness = 0.52
+		m.metallic = 0.45
+		m.metallic_specular = 0.45
+		# Dreiachsig wie der Grundton der Stadt: Paneele stehen hier
+		# senkrecht an der Klippe und liegen flach auf dem Steg.
+		m.uv1_triplanar = true
+		m.uv1_triplanar_sharpness = 1.8
+		m.uv1_scale = Vector3(0.32, 0.32, 0.32)
+		_mat_kupfer = m
+	return _mat_kupfer
+
+
+## Die glühende Kante eines Kupferpaneels.
+##
+## Dasselbe Verhältnis wie zwischen Steg und Wegkante: Die Fläche trägt
+## die Farbe, ein schmaler Streifen daran macht sie lesbar. Unbeleuchtet,
+## damit sie aus jedem Blickwinkel gleich hell bleibt.
+func _kupferlicht() -> StandardMaterial3D:
+	if _mat_kupfer_hell == null:
+		_mat_kupfer_hell = Neonmaterial.streifen(
+				KUPFER_HELL).duplicate() as StandardMaterial3D
+		_mat_kupfer_hell.emission_energy_multiplier = 0.55
+	return _mat_kupfer_hell
+
+
+## Die Trittfläche des Stegs.
+##
+## Eine eigene Fassung statt `Neonmaterial.boden()`: Dort ist das Mint auf
+## den gemessenen Wert des Vorbilds gesetzt und wird von allem geteilt,
+## was die Zukunftsstadt benutzt. Hier soll der Steg das Hellste im Bild
+## sein, und unter blauem Umgebungslicht wird jede reflektierte Farbe
+## blau. Deshalb ein Eigenlicht auf der eigenen Zeichnung: Der Steg
+## leuchtet mintgrün, egal welche Farbe gerade auf ihn fällt.
+func _stegboden() -> StandardMaterial3D:
+	if _mat_steg == null:
+		var zeichnung := Materialbibliothek.rauschtextur(2403, 0.07,
+				STEG_TIEF, STEG)
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = zeichnung
+		m.emission_enabled = true
+		m.emission_texture = zeichnung
+		m.emission = Color(1, 1, 1)
+		m.emission_energy_multiplier = 0.34
+		m.normal_enabled = true
+		m.normal_texture = Materialbibliothek.normalmap(5402, 0.19, 1.1)
+		m.normal_scale = 0.45
+		# Etwas nasser Glanz wie auf einer Straße bei Nacht, aber nur
+		# etwas: Ein stark metallischer Steg spiegelt das blaue Mondlicht
+		# und ist wieder grau.
+		m.roughness = 0.45
+		m.metallic = 0.15
+		m.metallic_specular = 0.4
+		m.uv1_triplanar = true
+		m.uv1_triplanar_sharpness = 1.6
+		m.uv1_scale = Vector3(0.34, 0.34, 0.34)
+		_mat_steg = m
+	return _mat_steg
 
 
 # =========================================================== Grund
 
 ## Der Weg trägt den Materialsatz der Stadt: mintgrüne Trittfläche,
-## leuchtende Kante, stumpfe Fassade an der Klippe. Damit ist die
+## leuchtende Kante, Kupferpaneele an der Klippe. Damit ist die
 ## Wegkante von oben wie von der Seite die hellste Linie im Bild – in
 ## einem Level mit so viel Leere daneben ist das keine Zierde, sondern
 ## die wichtigste Auskunft, die das Bild geben kann.
+##
+## Die Klippe ist der größte warme Streifen des Levels: Sie läuft über
+## die ganzen 344 m mit und steht in jeder Einstellung genau dort, wo das
+## Auge ohnehin hinsieht – an der Kante zwischen Steg und Leere.
 func _boden_bauen() -> void:
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
-		"oben": Neonmaterial.boden(),
+		"oben": _stegboden(),
 		"kante": _kantenlicht(),
+		# Die Klippe laeuft ueber die vollen 344 m und ist damit die groesste
+		# Flaeche im Bild. Kupfer lag hier zunaechst als warmer Gegenpart -
+		# gemessen stimmte es dann, gesehen war es falsch: Das Lachsbraun
+		# verwaesserte die tiefblaue Neonnacht, von der dieses Level lebt.
+		# Der warme Ton bleibt, aber als AKZENT auf Bruestung, Bordbahnen
+		# und Dachaufbauten, nicht als Grundflaeche.
 		"klippe": Neonmaterial.grund(),
 	}, {"tiefe": 2.4, "schritt": 1.0, "kante_hoehe": 0.22, "kante_breite": 0.55})
 	luecken_markieren(Neonmaterial.NEON_MAGENTA)
@@ -282,6 +415,59 @@ func _kanten_bauen() -> void:
 			i += 1
 
 
+## Die Kupferpaneele – der warme Gegenpart zur blauen Nacht.
+##
+## Drei Lagen, weil eine nicht reicht: Ein warmer Ton, der nur am
+## Horizont steht, ändert am Eindruck des Weges nichts. Die Wärme muss
+## dort liegen, wo man beim Laufen ohnehin hinschaut.
+##
+##   * Brüstungen knapp AUSSERHALB der Trittfläche. Sie tragen bewusst
+##     keine Kollision: Wer über die Kante geht, soll fallen. Eine
+##     Brüstung, die hält, nähme dem Level seine einzige Drohung.
+##   * Bordbahnen INNEN am Rand der Trittfläche, als flache Bleche. Sie
+##     fassen das Mint ein, statt es zu ersetzen.
+##   * Querbahnen alle 9 m über den ganzen Steg. Sie geben dem langen
+##     Band einen Takt fürs Auge – man sieht beim Laufen, dass man
+##     vorankommt.
+##
+## Die Querbahnen liegen um eine halbe Teilung gegen die Brüstungen
+## versetzt, damit nicht alles Warme an derselben Stelle zusammenfällt.
+func _paneele_bauen() -> void:
+	var paneel := _kupfer()
+	var glut := _kupferlicht()
+	for a in STRECKE:
+		var von: float = float(a["von"])
+		var bis: float = float(a["bis"])
+
+		# Bordbahnen: durchgehend, in 4-m-Stücken, damit sie der Biegung
+		# folgen. Ein einzelner langer Quader stünde in der Kurve schräg
+		# über der Kante.
+		var s := von + 1.0
+		while s < bis - 1.0:
+			var halb := breite_bei(s) * 0.5
+			for seite: float in [-1.0, 1.0]:
+				_sichtquader(s, seite * (halb - 0.72), 0.03,
+						Vector3(1.25, 0.06, 4.1), paneel)
+			s += 4.0
+
+		# Querbahnen alle 7 m.
+		s = von + 4.0
+		while s < bis - 2.0:
+			_sichtquader(s, 0.0, 0.03,
+					Vector3(maxf(breite_bei(s) - 2.8, 1.0), 0.06, 1.8), paneel)
+			s += 7.0
+
+		# Brüstungen alle 6,5 m, versetzt gegen die Querbahnen.
+		s = von + 2.5
+		while s < bis - 2.0:
+			var halb2 := breite_bei(s) * 0.5
+			for seite: float in [-1.0, 1.0]:
+				var aussen := seite * (halb2 + 0.34)
+				_sichtquader(s, aussen, 0.44, Vector3(0.28, 1.05, 3.8), paneel)
+				_sichtquader(s, aussen, 0.99, Vector3(0.36, 0.09, 3.9), glut)
+			s += 6.5
+
+
 # =========================================================== Abschnitte
 
 ## 0–52 · Dachterrasse. Die Frage: Was tut ein Laserzaun, der nur an und
@@ -295,10 +481,12 @@ func _dachterrasse_bauen() -> void:
 	laserzaun(44.0, 10.6, false, 1.5, 0.4)
 
 	# Ein Aufbau auf dem Dach, über den man springt oder um den man läuft.
-	plattform(14.0, -3.4, 0.7, Vector3(4.0, 1.4, 4.0), Neonmaterial.grund())
+	# Kupfer, nicht Fassade: Was auf dem Dach steht, ist Technik – und
+	# Technik ist in diesem Level die warme Seite.
+	plattform(14.0, -3.4, 0.7, Vector3(4.0, 1.4, 4.0), _kupfer())
 	_sichtquader(14.0, -3.4, 1.45, Vector3(4.2, 0.22, 4.2),
 			Neonmaterial.streifen(Neonmaterial.NEON_GRUEN))
-	plattform(34.0, 3.6, 0.5, Vector3(3.4, 1.0, 3.4), Neonmaterial.grund())
+	plattform(34.0, 3.6, 0.5, Vector3(3.4, 1.0, 3.4), _kupfer())
 
 	# Ein Fließband als Lüftungsschacht: Der Boden hat hier schon ein
 	# eigenes Tempo, bevor irgendetwas taktet.
@@ -411,7 +599,7 @@ func _reklamegasse_bauen() -> void:
 		var s := 232.0 + float(i) * 7.0
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
 		_sichtquader(s, seite * 7.5, 3.6, Vector3(0.5, 5.4, 4.6),
-				Neonmaterial.grund())
+				_kupfer())
 		_sichtquader(s, seite * 7.1, 3.6, Vector3(0.24, 4.6, 3.8),
 				Neonmaterial.streifen(Neonmaterial.NEON[i % 3]))
 
@@ -444,7 +632,7 @@ func _antenne_bauen() -> void:
 	# Die Antenne selbst: ein Mast am Ende, damit der höchste Punkt des
 	# Levels auch von weitem einer ist.
 	_sichtquader(340.0, 0.0, 9.0, Vector3(0.5, 18.0, 0.5),
-			Neonmaterial.grund())
+			_kupfer())
 	for i in 4:
 		_sichtquader(340.0, 0.0, 4.0 + float(i) * 3.4,
 				Vector3(2.2 - float(i) * 0.4, 0.22, 2.2 - float(i) * 0.4),
@@ -459,7 +647,7 @@ func _antenne_bauen() -> void:
 ## nachträglich das Material aller Sichtkörper überschrieben: Ein Floß
 ## aus Baumstämmen wäre in einer Zukunftsstadt ein Fremdkörper.
 func _neon_anstrich(scheibe: Wasserplattform, farbe: Color) -> void:
-	var rumpf := Neonmaterial.grund()
+	var rumpf := _kupfer()
 	var stapel: Array[Node] = [scheibe]
 	while not stapel.is_empty():
 		var k: Node = stapel.pop_back()
@@ -513,11 +701,11 @@ func _kamerazonen_setzen() -> void:
 ## reißt er auf – ganz oben ist die Luft klar, und man sieht bis zum
 ## Horizont.
 func _stimmungen_setzen() -> void:
-	stimmung(0.0, 112.0, Neonmaterial.BLAU_TIEF, 0.020, 0.55,
+	stimmung(0.0, 112.0, Neonmaterial.BLAU_TIEF, 0.018, 0.65,
 			Neonmaterial.BLAU, 60.0)
-	stimmung(226.0, 292.0, Color(0.24, 0.12, 0.30), 0.026, 0.7,
+	stimmung(226.0, 292.0, Color(0.24, 0.12, 0.30), 0.018, 0.7,
 			Color(0.42, 0.24, 0.52), 60.0)
-	stimmung(294.0, M_ENDE, Neonmaterial.NACHT, 0.008, 0.45,
+	stimmung(294.0, M_ENDE, Neonmaterial.NACHT, 0.008, 0.65,
 			Neonmaterial.BLAU_TIEF, 60.0)
 
 
@@ -529,73 +717,96 @@ func _portale() -> void:
 
 # =========================================================== Kisten
 
+## Eine Kiste auf einem beleuchteten Podest.
+##
+## Kisten sind Holzkästen in Erdfarben – im Wald leuchten sie, in dieser
+## Nacht waren sie dunkle Kästen auf dunklem Weg und schlicht nicht zu
+## finden. Die `Kiste` selbst umzufärben verbietet sich: Der Kistenvertrag
+## gilt über alle 25 Level, und eine Kiste, die hier anders aussieht als
+## dort, kostet mehr, als sie einbringt.
+##
+## Also bleibt die Kiste, wie sie ist, und der Steg unter ihr ändert sich:
+## eine glühende Kupferplatte mit hellem Rand. Die Kiste steht dadurch als
+## dunkle Silhouette in einem hellen Fleck – dieselbe Lesehilfe, die die
+## Stadt ringsum benutzt, nur umgedreht.
+##
+## Nur für Kisten, die auf dem Steg stehen. Eine gestapelte Kiste bekommt
+## keins: Ihr Podest ist die Kiste darunter.
+func _podestkiste(art: Kiste.Art, strecke: float, seitlich: float) -> void:
+	kiste(art, strecke, seitlich)
+	_sichtquader(strecke, seitlich, 0.02, Vector3(1.62, 0.05, 1.62),
+			_kupferlicht())
+	_sichtquader(strecke, seitlich, 0.045, Vector3(1.34, 0.05, 1.34),
+			_kupfer())
+
+
 ## 51 Kisten. Auf den Absätzen der Schwebebahn und des Pumpturms stehen
 ## bewusst wenige: Dort ist der Platz knapp, und eine Kiste, die man
 ## zwischen zwei Sprüngen zerschlagen soll, ist keine Belohnung, sondern
 ## eine Falle.
 func _kisten_setzen() -> void:
 	# ---------- Dachterrasse ----------
-	kiste(Kiste.Art.CHECKPOINT, 4.0, -3.0)
-	kiste(Kiste.Art.NORMAL, 10.0, -3.0)
-	kiste(Kiste.Art.NORMAL, 10.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 10.0, 3.0)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 18.0, 0.0)
-	kiste(Kiste.Art.EISEN, 30.0, -2.6)
+	_podestkiste(Kiste.Art.CHECKPOINT, 4.0, -3.0)
+	_podestkiste(Kiste.Art.NORMAL, 10.0, -3.0)
+	_podestkiste(Kiste.Art.NORMAL, 10.0, 0.0)
+	_podestkiste(Kiste.Art.NORMAL, 10.0, 3.0)
+	_podestkiste(Kiste.Art.FRUCHT_MEHRFACH, 18.0, 0.0)
+	_podestkiste(Kiste.Art.EISEN, 30.0, -2.6)
 	kiste(Kiste.Art.NORMAL, 30.0, -2.6, 1.6, true)
-	kiste(Kiste.Art.SCHUTZ, 38.0, 2.6)
-	kiste(Kiste.Art.NORMAL, 48.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 48.0, -2.4)
+	_podestkiste(Kiste.Art.SCHUTZ, 38.0, 2.6)
+	_podestkiste(Kiste.Art.NORMAL, 48.0, 0.0)
+	_podestkiste(Kiste.Art.NORMAL, 48.0, -2.4)
 
 	# ---------- Zaunstraße: immer zwischen zwei Zäunen ----------
-	kiste(Kiste.Art.NORMAL, 54.0, -2.4)
-	kiste(Kiste.Art.CHECKPOINT, 62.0, 2.4)
-	kiste(Kiste.Art.NORMAL, 72.0, -2.4)
-	kiste(Kiste.Art.TNT, 82.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 82.0, -2.2)
-	kiste(Kiste.Art.NORMAL, 82.0, 2.2)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 93.0, -2.2)
-	kiste(Kiste.Art.NORMAL, 103.0, 2.4)
-	kiste(Kiste.Art.SCHUTZ, 110.0, 0.0)
+	_podestkiste(Kiste.Art.NORMAL, 54.0, -2.4)
+	_podestkiste(Kiste.Art.CHECKPOINT, 62.0, 2.4)
+	_podestkiste(Kiste.Art.NORMAL, 72.0, -2.4)
+	_podestkiste(Kiste.Art.TNT, 82.0, 0.0)
+	_podestkiste(Kiste.Art.NORMAL, 82.0, -2.2)
+	_podestkiste(Kiste.Art.NORMAL, 82.0, 2.2)
+	_podestkiste(Kiste.Art.FRUCHT_MEHRFACH, 93.0, -2.2)
+	_podestkiste(Kiste.Art.NORMAL, 103.0, 2.4)
+	_podestkiste(Kiste.Art.SCHUTZ, 110.0, 0.0)
 
 	# ---------- Schwebebahn: nur auf den Absätzen ----------
-	kiste(Kiste.Art.CHECKPOINT, 116.0, -2.2)
-	kiste(Kiste.Art.NORMAL, 118.0, 2.2)
-	kiste(Kiste.Art.NORMAL, 140.0, -2.2)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 142.0, 2.2)
-	kiste(Kiste.Art.NORMAL, 164.0, -2.4)
-	kiste(Kiste.Art.NORMAL, 164.0, 2.4)
+	_podestkiste(Kiste.Art.CHECKPOINT, 116.0, -2.2)
+	_podestkiste(Kiste.Art.NORMAL, 118.0, 2.2)
+	_podestkiste(Kiste.Art.NORMAL, 140.0, -2.2)
+	_podestkiste(Kiste.Art.FRUCHT_MEHRFACH, 142.0, 2.2)
+	_podestkiste(Kiste.Art.NORMAL, 164.0, -2.4)
+	_podestkiste(Kiste.Art.NORMAL, 164.0, 2.4)
 
 	# ---------- Pumpturm ----------
-	kiste(Kiste.Art.CHECKPOINT, 172.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 176.0, -2.6)
-	kiste(Kiste.Art.SCHUTZ, 199.0, -2.6)
-	kiste(Kiste.Art.NORMAL, 206.0, 2.6)
-	kiste(Kiste.Art.NORMAL, 228.0, -2.4)
-	kiste(Kiste.Art.NORMAL, 228.0, 2.4)
+	_podestkiste(Kiste.Art.CHECKPOINT, 172.0, 0.0)
+	_podestkiste(Kiste.Art.NORMAL, 176.0, -2.6)
+	_podestkiste(Kiste.Art.SCHUTZ, 199.0, -2.6)
+	_podestkiste(Kiste.Art.NORMAL, 206.0, 2.6)
+	_podestkiste(Kiste.Art.NORMAL, 228.0, -2.4)
+	_podestkiste(Kiste.Art.NORMAL, 228.0, 2.4)
 
 	# ---------- Reklamegasse: hier ist Platz für Stapel ----------
-	kiste(Kiste.Art.CHECKPOINT, 232.0, 0.0)
-	kiste(Kiste.Art.EISEN, 236.0, -3.0)
+	_podestkiste(Kiste.Art.CHECKPOINT, 232.0, 0.0)
+	_podestkiste(Kiste.Art.EISEN, 236.0, -3.0)
 	kiste(Kiste.Art.NORMAL, 236.0, -3.0, 1.6, true)
 	kiste(Kiste.Art.NORMAL, 236.0, -3.0, 2.6, true)
-	kiste(Kiste.Art.NORMAL, 248.0, 3.0)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 256.0, 0.0)
-	kiste(Kiste.Art.NITRO, 266.0, -2.6)
-	kiste(Kiste.Art.NORMAL, 266.0, 2.6)
-	kiste(Kiste.Art.FEDER, 274.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 282.0, -2.6)
-	kiste(Kiste.Art.NORMAL, 282.0, 2.6)
-	kiste(Kiste.Art.LEBEN, 290.0, 0.0)
+	_podestkiste(Kiste.Art.NORMAL, 248.0, 3.0)
+	_podestkiste(Kiste.Art.FRUCHT_MEHRFACH, 256.0, 0.0)
+	_podestkiste(Kiste.Art.NITRO, 266.0, -2.6)
+	_podestkiste(Kiste.Art.NORMAL, 266.0, 2.6)
+	_podestkiste(Kiste.Art.FEDER, 274.0, 0.0)
+	_podestkiste(Kiste.Art.NORMAL, 282.0, -2.6)
+	_podestkiste(Kiste.Art.NORMAL, 282.0, 2.6)
+	_podestkiste(Kiste.Art.LEBEN, 290.0, 0.0)
 
 	# ---------- Antennenspitze ----------
-	kiste(Kiste.Art.CHECKPOINT, 296.0, -2.0)
-	kiste(Kiste.Art.NORMAL, 296.0, 2.0)
-	kiste(Kiste.Art.NORMAL, 308.0, 0.0)
-	kiste(Kiste.Art.SCHUTZ, 316.0, 2.0)
-	kiste(Kiste.Art.NORMAL, 322.0, -2.0)
-	kiste(Kiste.Art.FRUCHT_MEHRFACH, 330.0, 0.0)
-	kiste(Kiste.Art.NORMAL, 336.0, -2.4)
-	kiste(Kiste.Art.NORMAL, 336.0, 2.4)
+	_podestkiste(Kiste.Art.CHECKPOINT, 296.0, -2.0)
+	_podestkiste(Kiste.Art.NORMAL, 296.0, 2.0)
+	_podestkiste(Kiste.Art.NORMAL, 308.0, 0.0)
+	_podestkiste(Kiste.Art.SCHUTZ, 316.0, 2.0)
+	_podestkiste(Kiste.Art.NORMAL, 322.0, -2.0)
+	_podestkiste(Kiste.Art.FRUCHT_MEHRFACH, 330.0, 0.0)
+	_podestkiste(Kiste.Art.NORMAL, 336.0, -2.4)
+	_podestkiste(Kiste.Art.NORMAL, 336.0, 2.4)
 
 
 # =========================================================== Gegner

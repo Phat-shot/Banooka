@@ -132,6 +132,7 @@ func _bauschritte() -> Array:
 		{"text": "Gabelung", "tun": _gabelung_bauen},
 		{"text": "Klärbecken", "tun": _klaerbecken_bauen},
 		{"text": "Rohre und Ventile", "tun": _rohre_bauen},
+		{"text": "Deckenlampen", "tun": _lampen_bauen},
 		{"text": "Messuhren", "tun": _messuhren_bauen},
 		{"text": "Schimmel und Moos", "tun": _deko_bauen},
 		{"text": "Stimmungen", "tun": _stimmungen_setzen},
@@ -276,7 +277,7 @@ func _stromrinne_bauen() -> void:
 	# Welle B – fünf Platten, engerer Takt, längere Gefahrzeit.
 	for t in taktwelle(86.0, 104.0, 5, 0.0, Vector2(8.4, 2.9), 0.16):
 		_stromplatte(t)
-		t.ruhe_zeit = 1.6
+		t.takt = 4.0
 		t.gefahr_zeit = 1.4
 
 	# Ein Balken über der Insel: geduckt hindurch, und zwar im Trockenen –
@@ -561,6 +562,64 @@ func _ventilrad(strecke: float, seitlich: float, hoehe: float,
 ##
 ## Sie sind die einzigen Lichtpunkte zwischen den Kisten und geben dem Auge
 ## in der Dunkelheit einen Anhalt, wie weit die Wand noch reicht.
+## Deckenlampen: die Lichtinseln, die den Kanal überhaupt erst lesbar machen.
+##
+## Der Nachscan der Vorlage (doku/level-vorbilder.md, 4-1) hat gezeigt, dass
+## die Röhre dort keineswegs schwarz ist: An der Decke sitzen Lampen, die
+## warme Pfützen auf den Laufrost werfen, und erst dadurch darf der Rest
+## dunkel sein. Dieses Level hatte bis dahin KEIN einziges Punktlicht – es
+## stand auf Helligkeit 2,5 von 255 und war damit dunkler als unser
+## Dunkellevel. Die Lampen sind deshalb kein Schmuck, sondern der Boden,
+## auf dem die Gestaltung steht.
+##
+## Sie hängen tiefer als die Wandkrone: Ein Licht auf zehn Metern leuchtet
+## die Wände aus und den Weg nicht.
+func _lampen_bauen() -> void:
+	var stelle := 8.0
+	while stelle < M_ENDE:
+		var seite: float = 1.0 if int(stelle / 15.0) % 2 == 0 else -1.0
+		var quer := rand_bei(stelle, 1.0) * 0.72 * seite
+
+		var gruppe := Node3D.new()
+		gruppe.name = "Deckenlampe"
+		gruppe.position = LevelWerkzeuge.punkt(verlauf, stelle, quer, 4.6)
+		deko.add_child(gruppe)
+
+		# Der Schirm ist klein und stumpf: Er soll die Quelle zeigen,
+		# nicht selbst zum Blickfang werden.
+		var schirm := MeshInstance3D.new()
+		var kegel := CylinderMesh.new()
+		kegel.top_radius = 0.10
+		kegel.bottom_radius = 0.34
+		kegel.height = 0.30
+		kegel.radial_segments = 8
+		schirm.mesh = kegel
+		schirm.material_override = Materialbibliothek.metall(MESSING)
+		gruppe.add_child(schirm)
+
+		var birne := MeshInstance3D.new()
+		var kugel := SphereMesh.new()
+		kugel.radius = 0.13
+		kugel.height = 0.26
+		kugel.radial_segments = 8
+		kugel.rings = 5
+		birne.mesh = kugel
+		birne.material_override = Materialbibliothek.leuchtend(SANDGELB, 2.4)
+		birne.position = Vector3(0.0, -0.18, 0.0)
+		gruppe.add_child(birne)
+
+		var licht := OmniLight3D.new()
+		licht.light_color = SANDGELB
+		licht.light_energy = 4.6
+		licht.omni_range = 16.0
+		licht.omni_attenuation = 1.5
+		licht.shadow_enabled = false
+		licht.position = Vector3(0.0, -0.5, 0.0)
+		gruppe.add_child(licht)
+
+		stelle += 15.0
+
+
 func _messuhren_bauen() -> void:
 	var gehaeuse := Materialbibliothek.metall(MESSING)
 	var glas := Materialbibliothek.leuchtend(SANDGELB, 0.9)
@@ -634,11 +693,11 @@ func _deko_bauen() -> void:
 ## sich davon ab. Erst dadurch fühlt sich das Klärbecken nach Ankommen an
 ## und nicht nach dem nächsten Rohr.
 func _stimmungen_setzen() -> void:
-	stimmung(0.0, 46.0, KANALGRUEN.lerp(GIFT_TIEF, 0.4), 0.022, 0.85,
+	stimmung(0.0, 46.0, KANALGRUEN.lerp(GIFT_TIEF, 0.4), 0.018, 0.85,
 			Color(0.24, 0.32, 0.28), 42.0)
-	stimmung(48.0, 214.0, KANAL_SCHWARZ.lightened(0.10), 0.045, 0.55,
+	stimmung(48.0, 214.0, KANAL_SCHWARZ.lightened(0.10), 0.018, 0.65,
 			Color(0.16, 0.24, 0.22), 34.0)
-	stimmung(216.0, 268.0, KANAL_SCHWARZ.lightened(0.14), 0.036, 0.70,
+	stimmung(216.0, 268.0, KANAL_SCHWARZ.lightened(0.14), 0.018, 0.7,
 			Color(0.18, 0.27, 0.25), 44.0)
 	stimmung(272.0, M_ENDE, GIFT_TIEF.lightened(0.18), 0.016, 1.05,
 			Color(0.30, 0.40, 0.36), 56.0)

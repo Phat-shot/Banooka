@@ -15,6 +15,47 @@ class_name Gletscherkrabbe
 const SCHERE_TAKT := 3.2      ## Frequenz des Scherenklapperns
 const BEIN_TAKT := 9.0
 
+# ---------------------------------------------------------- Farben
+#
+# Die Krabbe krabbelt in mehr Leveln als in dem Schnee, für den sie
+# gebaut wurde – bis in eine Grabkammer. Damit ein Level sie in seine
+# eigene Palette holen kann, ohne dass ein zweiter Gegner entstehen muss,
+# sind ihre Flächen einzeln einstellbar. Vorgabe ist überall der
+# bisherige Ton: Wer nichts setzt, sieht nichts Neues.
+#
+# ZEICHENSPRACHE (siehe gegner.gd): Die leuchtende Panzernaht ist die
+# Stelle, an der das Draufspringen wirkt, der Klingenkranz ringsum die
+# Absage an Schlag und Slide. Naht und Klingen müssen deshalb HELL gegen
+# den Panzer stehen bleiben – eine Naht im Ton des Panzers ist keine
+# Einladung mehr, sondern eine Fuge.
+
+## Panzerdeckel – die dunkle Grundfläche.
+@export var farbe_panzer: Color = Farben.FROSTTIER:
+	set(wert):
+		farbe_panzer = wert
+		_neu_faerben()
+## Panzernaht auf dem Rücken. Die Einladung – hell halten.
+@export var farbe_naht: Color = Farben.EIS_HELL:
+	set(wert):
+		farbe_naht = wert
+		_neu_faerben()
+## Beine, Scheren und Augenstiele.
+@export var farbe_chitin: Color = Farben.FROSTTIER.darkened(0.35):
+	set(wert):
+		farbe_chitin = wert
+		_neu_faerben()
+## Klingenkranz auf Schlag- und Slidehöhe. Die Absage – hell halten.
+@export var farbe_klingen: Color = Farben.EIS_HELL:
+	set(wert):
+		farbe_klingen = wert
+		_neu_faerben()
+## Augen auf den Stielen.
+@export var farbe_augen: Color = Farben.KRISTALL_VIOLETT:
+	set(wert):
+		farbe_augen = wert
+		_neu_faerben()
+
+
 var _panzer: MeshInstance3D
 var _naht: MeshInstance3D
 var _scheren: Array[Node3D] = []
@@ -38,10 +79,10 @@ func _init() -> void:
 func _baue() -> void:
 	# Undurchsichtig und dunkel: Ein durchscheinender Panzer aus Klareis war
 	# auf Schnee schlicht nicht zu sehen.
-	var panzer := Materialbibliothek.einfarbig(Farben.FROSTTIER, 0.45, 0.15)
-	var naht := Materialbibliothek.leuchtend(Farben.EIS_HELL, 1.4)
-	var chitin := Materialbibliothek.einfarbig(Farben.FROSTTIER.darkened(0.35), 0.55)
-	var auge := Materialbibliothek.leuchtend(Farben.KRISTALL_VIOLETT, 1.2)
+	var panzer := Materialbibliothek.einfarbig(farbe_panzer, 0.45, 0.15)
+	var naht := Materialbibliothek.leuchtend(farbe_naht, 1.4)
+	var chitin := Materialbibliothek.einfarbig(farbe_chitin, 0.55)
+	var auge := Materialbibliothek.leuchtend(farbe_augen, 1.2)
 
 	_panzer = _teil(modell, _kugel(0.46), panzer, Vector3(0.0, 0.34, 0.0),
 			Vector3.ZERO, Vector3(1.35, 0.62, 1.0), "Panzer")
@@ -78,7 +119,7 @@ func _baue() -> void:
 	# liegt auf +Y, und ihn per rotation.x/y gleichzeitig auszurichten und
 	# im Kreis zu stellen ergab keine Krone, sondern verstreute Splitter.
 	# Der Drehpunkt schwenkt, die Klinge kippt darin nur noch nach außen.
-	var klinge := Materialbibliothek.kristall(Farben.EIS_HELL)
+	var klinge := Materialbibliothek.kristall(farbe_klingen)
 	for i in 10:
 		var dreh := Node3D.new()
 		dreh.name = "Klingenpunkt"
@@ -136,3 +177,31 @@ func _todesanimation(delta: float) -> void:
 	for bein in _beine:
 		if is_instance_valid(bein):
 			bein.rotation.x = sin(_zeit * 24.0) * 0.9
+
+
+# ---------------------------------------------------------- Umfärben
+
+## Baut die Optik neu auf, wenn eine Farbe nach dem Einhängen gesetzt wird.
+##
+## Nötig, weil die Meshes samt Material in `_baue()` entstehen, und das
+## läuft in `_ready()`. Ein Level, das die Krabbe erst aufstellt und dann
+## einfärbt, träfe sonst nur noch die Variable. Die Materialien der
+## `Materialbibliothek` sind geteilt und dürfen nicht nachträglich
+## verändert werden – deshalb der Neubau, wie ihn auch die Props halten
+## (`baum.gd`, `deckungsfleck.gd`).
+##
+## Eine besiegte Krabbe wird nicht angefasst: Ihre Todesanimation steckt
+## in der Skalierung des Modells, ein Neubau setzte sie zurück.
+func _neu_faerben() -> void:
+	if besiegt or not is_inside_tree() or not is_instance_valid(modell):
+		return
+	for kind in modell.get_children():
+		modell.remove_child(kind)
+		kind.queue_free()
+	_scheren.clear()
+	_beine.clear()
+	_bein_phase.clear()
+	_panzer = null
+	_naht = null
+	_baue()
+	_fremdmodell_setzen()

@@ -71,22 +71,48 @@ const KRIECHHOEHE := 0.95
 const SCHACHTGRUND := -14.0
 
 # ------------------------------------------------------------ Leitfarben
-# Gemessen: `#926630` (Messing) gegen `#4D5650` (Stahl), dazu die warmen
-# Wandkacheln `#A19279`. Aufgehellt, weil `albedo_color` die Textur
-# multipliziert – die gemessenen Werte ergäben einen dunklen Klumpen.
-## Warme sandfarbene Wandkachel.
-const SANDKACHEL := Color(0.94, 0.83, 0.62)
-const SANDKACHEL_DUNKEL := Color(0.66, 0.56, 0.40)
-## Messing für Rohre, Ziernähte und Kolbenmäntel.
+# Gemessen an der Vorlage: olivgelbe Fliesen auf blauschwarzem Grund
+# `#0C0C18`, davor Kupfer `#A36630` und Bronze `#8D441C`. Aufgehellt, weil
+# `albedo_color` die Textur multipliziert – die gemessenen Werte ergäben
+# einen dunklen Klumpen.
+## Die Fliese und ihre Fuge. Olivgelb, NICHT sandfarben: Sand ist Höhle,
+## Oliv ist Station – der Unterschied entscheidet, wo man zu sein glaubt.
+const FLIESE_HELL := Color(0.74, 0.65, 0.25)
+const FLIESE_DUNKEL := Color(0.46, 0.40, 0.15)
+const FUGE := Color(0.29, 0.26, 0.17)
+## Die Niete in der Fugenkreuzung: heller als jede Fliese, sonst
+## verschwindet sie schon aus zwei Metern Entfernung.
+const NIETE := Color(0.88, 0.82, 0.55)
+## Kupfer, Bronze und blaugrauer Rohrstahl für die Bündel.
+const KUPFER := Color(0.82, 0.42, 0.19)
+const BRONZE := Color(0.74, 0.50, 0.24)
+const ROHRSTAHL := Color(0.40, 0.47, 0.58)
+## Messing für Kolbenmäntel, Tore und die Lückenmarken.
 const MESSING := Color(0.92, 0.66, 0.26)
-## Graues Stationsmetall für Böden und Stempel.
-const STAHL := Color(0.66, 0.72, 0.68)
-const STAHL_DUNKEL := Color(0.40, 0.45, 0.43)
-## Grün leuchtende Bildschirme – das kalte Gegenlicht zum warmen Messing.
-const SCHIRM_GRUEN := Color(0.24, 1.0, 0.45)
-## Ferner Stationsrumpf, wo der Gang sich öffnet.
-const RUMPF_NAH := Color(0.20, 0.22, 0.24)
-const RUMPF_FERN := Color(0.36, 0.38, 0.42)
+## Gebürsteter Stationsstahl für Stege und Stempel – blaugrau statt
+## graugrün, damit er neben der olivgelben Wand nach Metall aussieht.
+const STAHL := Color(0.62, 0.69, 0.75)
+## Das Deckblech des Ganges. Eigener, wärmerer Ton als der übrige Stahl:
+## Der Boden ist die größte Fläche im Bild, und ein rein grauer Boden
+## nimmt dem Gang alle Farbe – im Vorbild liegt der Steg im warmen
+## Widerschein der Wand, nicht im Neonlicht.
+const DECKBLECH := Color(0.72, 0.66, 0.54)
+const STAHL_DUNKEL := Color(0.36, 0.40, 0.45)
+## Der helle Kantenglanz, den der Steckbrief an jedem Steg verlangt.
+const KANTENGLANZ := Color(0.84, 0.90, 0.97)
+## Grün leuchtende Schirme, Ventilräder und Sichtscheiben – das kalte
+## Gegenlicht zum warmen Messing.
+##
+## Bewusst ins Blaugrüne gezogen und nicht ins Gelbgrüne: Auf dem warmen
+## Deckblech mischt sich das Rot des Umgebungslichts dazu, und ein
+## gelbstichiges Grün rutscht dabei bis in den Gelbton zurück. Erst mit
+## diesem Blauanteil bleibt der Fleck auf dem Steg grün.
+const SCHIRM_GRUEN := Color(0.12, 1.0, 0.58)
+## Der matte Grünton der Tankhauben.
+const HAUBE_GRUEN := Color(0.20, 0.46, 0.28)
+## Ferner Stationsrumpf: blauschwarze Leere.
+const RUMPF_NAH := Color(0.07, 0.08, 0.13)
+const RUMPF_FERN := Color(0.15, 0.17, 0.26)
 
 
 ## Der Gang. Eine einzige Lücke: der offene Schacht im Strahlengang.
@@ -100,7 +126,12 @@ const STRECKE := [
 	{"von": 268.0, "bis": 318.0, "breite": 11.0, "breite_ende": 14.0},
 ]
 
-## Die Gangwände. Sandfarbene Kacheln, Messingadern, Stahlkrone.
+## Die Gangwände. Olivgelbe Fliesen, Stahlsockel, Stahlkrone.
+##
+## `abstand` ist die Flucht, in der die LEITWAND sperrt (sie steht bei
+## `abstand - 0,4`). Davor liegt nichts, dahinter staffelt sich alles:
+## Rohrbündel, Rippen, Fliesentafel. Wer hier eine Zahl ändert, ändert
+## die Gangbreite und damit jede Kolbenbreite mit.
 const WAENDE := [
 	{"von": -6.0, "bis": 104.0, "abstand": 6.0, "hoehe": 9.0},
 	{"von": 104.0, "bis": 198.0, "abstand": 6.2, "hoehe": 9.0},
@@ -125,7 +156,7 @@ func _bauschritte() -> Array:
 	return [
 		{"text": "Der Gang wird ausgemessen", "tun": _verlauf_anlegen},
 		{"text": "Stahlboden", "tun": _boden_bauen},
-		{"text": "Kachelwände", "tun": _waende_bauen},
+		{"text": "Fliesenwände", "tun": _waende_bauen},
 		{"text": "Decke wird geschlossen", "tun": _decke_bauen},
 		{"text": "Absturzzone", "tun": _absturz_spannen},
 		{"text": "Blick in den Rumpf", "tun": _horizont_bauen},
@@ -136,7 +167,8 @@ func _bauschritte() -> Array:
 		{"text": "Strahlengang", "tun": _strahlengang_bauen},
 		{"text": "Frachtbucht", "tun": _frachtbucht_bauen},
 		{"text": "Maschinenherz", "tun": _maschinenherz_bauen},
-		{"text": "Messingrohre", "tun": _rohre_bauen},
+		{"text": "Rohrbündel", "tun": _rohrbuendel_bauen},
+		{"text": "Ventilräder und Sichtscheiben", "tun": _ventile_setzen},
 		{"text": "Bildschirme gehen an", "tun": _bildschirme_setzen},
 		{"text": "Notbeleuchtung", "tun": _stimmungen_setzen},
 		{"text": "Portale", "tun": _portale},
@@ -177,48 +209,373 @@ func _verlauf_anlegen() -> void:
 
 # =========================================================== Grund
 
-## Der Boden ist geriffeltes Stationsblech, die Kante eine Messingnaht.
-## Die Naht ist nicht Schmuck: Sie zeichnet die Kante des Ganges nach, und
-## im Strahlengang ist genau das der Unterschied zwischen Steg und Schacht.
+## Der Steg ist gebürsteter Stahl mit hellem Kantenglanz – so verlangt es
+## der Steckbrief, und so ist die Kante zugleich nützlich: Sie zeichnet den
+## Rand des Ganges nach, und im Strahlengang ist genau das der Unterschied
+## zwischen Steg und Schacht. Messing wäre dafür zu dunkel; die helle Naht
+## ist die einzige Stelle im Bild, an der etwas fast weiß ist.
 func _boden_bauen() -> void:
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
-		"oben": Materialbibliothek.metall(STAHL),
-		"kante": Materialbibliothek.metall(MESSING),
+		"oben": Materialbibliothek.metall(DECKBLECH),
+		"kante": Materialbibliothek.metall(KANTENGLANZ),
 		"klippe": Materialbibliothek.metall(STAHL_DUNKEL),
 	}, {"tiefe": 6.0, "schritt": 1.0, "kante_hoehe": 0.22, "kante_breite": 0.6})
 	luecken_markieren(MESSING)
 
 
+# =========================================================== Fliesenwand
+
+## Die Wandfliese: olivgelb, mit flacher Fuge und einer Niete in jeder
+## Fugenkreuzung.
+##
+## Warum eine eigene Textur und nicht `fels()` mit anderem Anstrich: Das
+## Felsrauschen schlägt durch jede Einfärbung durch, und ein Gang aus
+## Rauschen liest sich als Höhle, egal welche Farbe er trägt. Eine Station
+## ist gebaut und nicht gewachsen – sie braucht ein Raster, das sich
+## sichtbar wiederholt. Alles Zufällige steckt hier nur noch im Ton der
+## einzelnen Fliese, nicht mehr in ihrer Form.
+##
+## Dreiseitige Projektion (`uv1_triplanar`): Die Wandtafeln sind
+## unterschiedlich lang gestreckte Einheitswürfel in einem MultiMesh. Über
+## ihre eigenen UVs bekäme die Fliese mit jeder Tafel eine andere Größe;
+## über die Weltkoordinaten bleibt sie überall 78 cm breit.
+var _fliesen_stoff: StandardMaterial3D = null
+
+
+func _fliesenstoff() -> StandardMaterial3D:
+	if _fliesen_stoff != null:
+		return _fliesen_stoff
+
+	var kante := 256
+	var spalten := 4               ## Fliesen je Texturkante
+	var zelle := kante / spalten
+	var fugenbreite := 5           ## in Pixeln
+	var nietradius := 5.5          ## in Pixeln
+
+	var farben := PackedByteArray()
+	farben.resize(kante * kante * 3)
+	var hoehen := PackedByteArray()
+	hoehen.resize(kante * kante)
+
+	# Je Fliese ein eigener Ton. Ohne ihn ist die Wand Karopapier: Das
+	# Raster sieht man dann nur an den Fugen, und zwei Fliesen unterscheiden
+	# sich durch nichts.
+	var wuerfel := RandomNumberGenerator.new()
+	wuerfel.seed = 2005
+	var toene: Array[float] = []
+	for i in spalten * spalten:
+		toene.append(wuerfel.randf_range(0.80, 1.16))
+
+	for y in kante:
+		for x in kante:
+			var sx := x % zelle
+			var sy := y % zelle
+			var zur_fuge := mini(mini(sx, zelle - 1 - sx),
+					mini(sy, zelle - 1 - sy))
+			# Abstand zur nächsten Fugenkreuzung – dort sitzt die Niete.
+			var ex := mini(sx, zelle - sx)
+			var ey := mini(sy, zelle - sy)
+			var zum_kreuz := sqrt(float(ex * ex + ey * ey))
+
+			var farbe: Color
+			var h: int
+			if zur_fuge < fugenbreite:
+				farbe = FUGE
+				# Die Fuge steigt zur Fliese hin an: eine flache Böschung
+				# statt einer Kerbe. Eine Kerbe würfe harte Schatten, und
+				# harte Schatten sind wieder Rauschen.
+				h = 40 + zur_fuge * 24
+			else:
+				var t := float(sy) / float(zelle)
+				var ton: float = toene[(y / zelle) * spalten + (x / zelle)]
+				farbe = FLIESE_HELL.lerp(FLIESE_DUNKEL, t * 0.7) * ton
+				h = 230
+			if zum_kreuz < nietradius:
+				farbe = NIETE
+				h = 255
+
+			var i := (y * kante + x) * 3
+			farben[i] = int(clampf(farbe.r, 0.0, 1.0) * 255.0)
+			farben[i + 1] = int(clampf(farbe.g, 0.0, 1.0) * 255.0)
+			farben[i + 2] = int(clampf(farbe.b, 0.0, 1.0) * 255.0)
+			hoehen[y * kante + x] = h
+
+	var bild := Image.create_from_data(kante, kante, false,
+			Image.FORMAT_RGB8, farben)
+	bild.generate_mipmaps()
+
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(bild)
+	m.normal_enabled = true
+	m.normal_texture = _normalkarte(hoehen, kante, 2.4)
+	m.normal_scale = 0.7
+	m.uv1_triplanar = true
+	# Weltbezogen, und das ist hier keine Feinheit: Ohne es rechnet die
+	# Projektion mit den LOKALEN Koordinaten des Einheitswürfels. Jede Tafel
+	# bekäme denselben handtellergroßen Ausschnitt über ihre ganze Fläche
+	# gezogen – die Wand wäre gestreift statt gekachelt.
+	m.uv1_world_triplanar = true
+	# 0,32 heißt: Die Textur wiederholt sich alle 3,1 m; bei vier Fliesen je
+	# Kante ist eine Fliese also 78 cm breit, wie in der Vorlage.
+	m.uv1_scale = Vector3(0.32, 0.32, 0.32)
+	m.roughness = 0.62
+	_fliesen_stoff = m
+	return m
+
+
+## Normalmap aus der Höhenkarte, per Sobel über die vier Nachbarn.
+##
+## Eigenbau statt `Materialbibliothek.normalmap()`: Die baut aus Rauschen,
+## und Rauschen ist genau das, was hier nicht hingehört. Gebraucht wird die
+## Kante der Fuge und die Wölbung der Niete, sonst nichts. Der Zugriff
+## läuft ringförmig (`% kante`), damit die Karte kachelbar bleibt.
+func _normalkarte(hoehe: PackedByteArray, kante: int,
+		staerke: float) -> ImageTexture:
+	var daten := PackedByteArray()
+	daten.resize(kante * kante * 3)
+	for y in kante:
+		for x in kante:
+			var links := float(hoehe[y * kante + (x - 1 + kante) % kante])
+			var rechts := float(hoehe[y * kante + (x + 1) % kante])
+			var oben := float(hoehe[((y - 1 + kante) % kante) * kante + x])
+			var unten := float(hoehe[((y + 1) % kante) * kante + x])
+			var n := Vector3((links - rechts) / 255.0 * staerke,
+					(oben - unten) / 255.0 * staerke, 1.0).normalized()
+			var i := (y * kante + x) * 3
+			daten[i] = int((n.x * 0.5 + 0.5) * 255.0)
+			daten[i + 1] = int((n.y * 0.5 + 0.5) * 255.0)
+			daten[i + 2] = int((n.z * 0.5 + 0.5) * 255.0)
+	var bild := Image.create_from_data(kante, kante, false,
+			Image.FORMAT_RGB8, daten)
+	bild.generate_mipmaps()
+	return ImageTexture.create_from_image(bild)
+
+
+## Ein Kasten für ein MultiMesh, ausgerichtet am Wegverlauf.
+## `groesse`: x quer zum Gang, y hoch, z längs – wie bei `plattform()`.
+func _tafel(strecke: float, seitlich: float, hoehe: float, groesse: Vector3,
+		dreh: float) -> Transform3D:
+	var b := Basis.from_euler(Vector3(0.0, dreh, 0.0))
+	return Transform3D(
+			Basis(b.x * groesse.x, b.y * groesse.y, b.z * groesse.z),
+			LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe))
+
+
+## Ein liegendes Rohr für ein MultiMesh.
+##
+## Die Einheitswalze steht auf ihrer Y-Achse; die Vierteldrehung um X legt
+## sie längs des Weges. Skaliert wird über die eigenen Achsen der Basis und
+## nicht über `Basis.scaled()` – das skaliert entlang der WELTachsen und
+## machte aus jedem gedrehten Rohr ein schiefes Oval.
+func _walze(strecke: float, seitlich: float, hoehe: float,
+		durchmesser: float, laenge: float, dreh: float) -> Transform3D:
+	var b := Basis.from_euler(Vector3(PI * 0.5, dreh, 0.0))
+	return Transform3D(
+			Basis(b.x * durchmesser, b.y * laenge, b.z * durchmesser),
+			LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe))
+
+
+## Dasselbe quer über den Gang – die zusätzliche Vierteldrehung um die
+## Hochachse dreht das Rohr aus der Wegrichtung heraus.
+func _querwalze(strecke: float, seitlich: float, hoehe: float,
+		durchmesser: float, laenge: float, dreh: float) -> Transform3D:
+	return _walze(strecke, seitlich, hoehe, durchmesser, laenge,
+			dreh + PI * 0.5)
+
+
+## Dasselbe stehend – für die Steiger, die das Bündel an die Wand binden.
+func _steher(strecke: float, seitlich: float, hoehe: float,
+		durchmesser: float, laenge: float, dreh: float) -> Transform3D:
+	var b := Basis.from_euler(Vector3(0.0, dreh, 0.0))
+	return Transform3D(
+			Basis(b.x * durchmesser, b.y * laenge, b.z * durchmesser),
+			LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe))
+
+
+## Sammelt gleichartige Körper in EINEN Zeichenaufruf.
+##
+## Zweihundert Wandtafeln als Einzelknoten wären zweihundert Zeichenaufrufe,
+## und der Web-Export verzeiht das nicht.
+func _haufen(bezeichnung: String, netz: Mesh, stellen: Array[Transform3D],
+		stoff: Material) -> void:
+	if stellen.is_empty():
+		return
+	var haufen := MultiMesh.new()
+	haufen.transform_format = MultiMesh.TRANSFORM_3D
+	haufen.mesh = netz
+	haufen.instance_count = stellen.size()
+	for i in stellen.size():
+		haufen.set_instance_transform(i, stellen[i])
+	var anzeige := MultiMeshInstance3D.new()
+	anzeige.name = bezeichnung
+	anzeige.multimesh = haufen
+	anzeige.material_override = stoff
+	deko.add_child(anzeige)
+
+
+## Abstand der Wandflucht an dieser Stelle. Außerhalb aller Wandabschnitte
+## kommt ein unerreichbar weiter Wert zurück: Dort hängt nichts an der
+## Wand, weil es dort keine gibt.
+func _wandabstand(strecke: float) -> float:
+	for w in WAENDE:
+		if strecke >= w["von"] and strecke <= w["bis"]:
+			return w["abstand"]
+	return 99.0
+
+
+## Die Gangwände: ebene Fliesentafeln in einer Flucht.
+##
+## Kein `schluchtwand()` mehr. Die setzt frei gedrehte Brocken übereinander
+## – richtig für eine Schlucht, falsch für einen Innenraum. Eine Station
+## hat gerade Wände; die Abwechslung kommt aus der Fliese und aus dem, was
+## davor hängt, nicht aus der Wand selbst.
+##
+## Gestaffelt wird nach hinten, damit vor der Wand Platz für die Rohre
+## bleibt: Die Leitwand sperrt bei `abstand - 0,4`, die Fliesentafel steht
+## erst bei `abstand + 0,5`. Die 90 cm dazwischen sind das Bündel.
 func _waende_bauen() -> void:
-	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE,
-			_kachelstoff(SANDKACHEL), {
-		"schritt": 2.2, "lagen": 3, "block": 2.6,
-		"sockel": 8.0, "saat": 2004,
-		"adermaterial": Materialbibliothek.metall(MESSING),
-		"deckmaterial": _kachelstoff(SANDKACHEL_DUNKEL),
-		"aderdichte": 0.3,
-	})
+	var fliesen := _fliesenstoff()
+	var blech := Materialbibliothek.metall(STAHL_DUNKEL)
+	var glanz := Materialbibliothek.metall(KANTENGLANZ)
+
+	var tafeln: Array[Transform3D] = []
+	var sockel: Array[Transform3D] = []
+	var kronen: Array[Transform3D] = []
+	var rippen: Array[Transform3D] = []
+	var randbleche: Array[Transform3D] = []
+
+	for w in WAENDE:
+		var von: float = w["von"]
+		var bis: float = w["bis"]
+		var abstand: float = w["abstand"]
+		var hoehe: float = w["hoehe"]
+		var s := von
+		var zaehler := 0
+		while s < bis:
+			var laenge := minf(3.0, bis - s)
+			var mitte := s + laenge * 0.5
+			var dreh := LevelWerkzeuge.drehung(verlauf, mitte)
+			# Etwas länger als der Schritt: In der Kurve klaffte sonst
+			# zwischen zwei Tafeln eine Fuge, durch die man ins Leere sieht.
+			var tiefe := laenge + 0.9
+			for seite: float in [-1.0, 1.0]:
+				tafeln.append(_tafel(mitte, seite * (abstand + 1.2),
+						(hoehe - 7.0) * 0.5, Vector3(1.4, hoehe + 7.0, tiefe),
+						dreh))
+				sockel.append(_tafel(mitte, seite * (abstand + 1.05),
+						-0.35, Vector3(1.7, 1.1, tiefe), dreh))
+				kronen.append(_tafel(mitte, seite * (abstand + 1.05),
+						hoehe - 0.35, Vector3(1.8, 0.7, tiefe), dreh))
+				# Jede vierte Tafel bekommt eine Rippe. Ein Gang ohne
+				# Gliederung hat keine Länge, die man sehen kann – erst an
+				# den Rippen merkt man, wie schnell man vorankommt.
+				if zaehler % 4 == 0:
+					rippen.append(_tafel(mitte, seite * (abstand + 0.35),
+							(hoehe - 1.4) * 0.5,
+							Vector3(0.6, hoehe - 1.4, 0.9), dreh))
+				# Das Randblech schließt die Lücke zwischen Wegkante und
+				# Wand. Über den Schächten gibt es keine Wegkante – dort
+				# liefert `breite_bei` null, und die Lücke bleibt offen.
+				var halb := breite_bei(mitte) * 0.5
+				if halb > 1.0 and abstand - halb > 0.3:
+					var tief := abstand - halb + 1.4
+					randbleche.append(_tafel(mitte,
+							seite * (halb + tief * 0.5 - 0.4), -0.3,
+							Vector3(tief, 0.4, tiefe), dreh))
+			s += laenge
+			zaehler += 1
+
+	var wuerfel := BoxMesh.new()
+	wuerfel.size = Vector3.ONE
+	_haufen("Fliesentafeln", wuerfel, tafeln, fliesen)
+	_haufen("Wandsockel", wuerfel, sockel, blech)
+	_haufen("Wandkronen", wuerfel, kronen, glanz)
+	_haufen("Wandrippen", wuerfel, rippen, blech)
+	_haufen("Randbleche", wuerfel, randbleche, blech)
+
+	_tanks_bauen()
+
 	for w in WAENDE:
 		LevelWerkzeuge.leitwand(geometrie, verlauf, maxf(w["von"], 0.0),
 				minf(w["bis"], M_ENDE), w["abstand"] - 0.4, 8.0)
 
 
+## Gefliese Tanks an den Wänden, jeder mit einer matten grünen Haube.
+##
+## In der Vorlage ist die Wand gar keine Wand, sondern eine Reihe stehender
+## Zylinder. So weit geht es hier nicht – der Gang braucht eine ebene
+## Flucht, an der die Kolben dichtschließen. Aber alle sechzehn Meter tritt
+## ein Tank aus der Flucht heraus, genau bis an die Sperrebene der
+## Leitwand: näher darf er nicht, sonst steht er in der Figur.
+##
+## Die Haube ist grün und stumpf, nicht leuchtend. Sie ist die RUHIGE
+## Hälfte des kalten Gegenparts – das Leuchten übernehmen Ventil und
+## Scheibe, und wenn alles leuchtet, leuchtet nichts.
+func _tanks_bauen() -> void:
+	var fliesen := _fliesenstoff()
+	var haube := Materialbibliothek.metall(HAUBE_GRUEN)
+	var band := Materialbibliothek.metall(STAHL_DUNKEL)
+	var s := 10.0
+	var i := 0
+	while s < M_ENDE - 6.0:
+		var abstand := _wandabstand(s)
+		if abstand < 20.0:
+			var seite: float = -1.0 if i % 2 == 0 else 1.0
+			var quer := seite * (abstand + 1.5)
+			var hoch := 5.6 + float(i % 3) * 0.8
+			_zylinder("Tank", s, quer, hoch * 0.5 - 1.4, 1.9, hoch + 1.4,
+					fliesen, 14)
+			for reifen: float in [0.3, hoch - 2.2]:
+				_zylinder("Tankreifen", s, quer, reifen, 2.0, 0.36, band, 14)
+			_haube_setzen(s, quer, hoch - 1.4, 1.98, haube)
+		s += 16.0
+		i += 1
+
+
+func _zylinder(bezeichnung: String, strecke: float, seitlich: float,
+		hoehe: float, radius: float, laenge: float, stoff: Material,
+		seiten: int = 12) -> MeshInstance3D:
+	var form := CylinderMesh.new()
+	form.top_radius = radius
+	form.bottom_radius = radius
+	form.height = laenge
+	form.radial_segments = seiten
+	var mi := MeshInstance3D.new()
+	mi.name = bezeichnung
+	mi.mesh = form
+	mi.material_override = stoff
+	mi.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	deko.add_child(mi)
+	return mi
+
+
+func _haube_setzen(strecke: float, seitlich: float, hoehe: float,
+		radius: float, stoff: Material) -> void:
+	var kuppel := SphereMesh.new()
+	kuppel.radius = radius
+	kuppel.height = radius * 2.0
+	kuppel.is_hemisphere = true
+	kuppel.radial_segments = 14
+	kuppel.rings = 6
+	var mi := MeshInstance3D.new()
+	mi.name = "Tankhaube"
+	mi.mesh = kuppel
+	mi.material_override = stoff
+	mi.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	deko.add_child(mi)
+
+
 ## Die Decke. Ohne sie ist eine Raumstation ein Graben unter freiem Himmel.
 ##
 ## Sie trägt Kollision – das ist in einem Innenraum richtig so und kostet
-## nichts: Bei 6,2 m liegt sie weit über der Doppelsprunghöhe von rund
+## nichts: Bei 8,6 m liegt sie weit über der Doppelsprunghöhe von rund
 ## 3,4 m. Über dem Schacht im Strahlengang bleibt sie weg, damit man dort
 ## nach oben sieht und die Kolben aus dem Dunkeln kommen.
-## Wandkachel in einem der beiden Sandtöne. Eigene Kopie, weil die
-## Bibliothek keinen sandfarbenen Stein kennt und ihre Materialien geteilt
-## sind – ein Eingriff daran träfe jedes andere Level mit.
-func _kachelstoff(farbe: Color) -> StandardMaterial3D:
-	var m := Materialbibliothek.fels().duplicate() as StandardMaterial3D
-	m.albedo_color = farbe
-	m.roughness = 0.7
-	return m
-
-
+##
+## Sie reicht fünf Meter über die Wegbreite hinaus, nicht drei: Seit die
+## Wand eine ebene Flucht ist, steht sie weiter draußen als früher die
+## Felsblöcke, und eine Decke, die vor der Wand endet, lässt oben einen
+## Spalt Himmel stehen.
 func _decke_bauen() -> void:
 	var blech := Materialbibliothek.metall(STAHL_DUNKEL)
 	for stueck in [{"von": 0.0, "bis": 196.0}, {"von": 212.0, "bis": 318.0}]:
@@ -227,7 +584,7 @@ func _decke_bauen() -> void:
 			var laenge: float = minf(10.0, stueck["bis"] - s)
 			var mitte := s + laenge * 0.5
 			plattform(mitte, 0.0, DECKENHOEHE,
-					Vector3(breite_bei(mitte) + 3.0, 0.5, laenge + 0.4), blech)
+					Vector3(breite_bei(mitte) + 5.0, 0.5, laenge + 0.4), blech)
 			s += laenge
 
 
@@ -519,6 +876,9 @@ func _frachtbucht_bauen() -> void:
 	var tor := SCHLIESSTUER.instantiate() as Schliesstuer
 	tor.breite = 4.2
 	tor.hoehe = 3.0
+	# Ausnahme vom Taktvertrag, und die einzige: Dieses Tor ist kein
+	# Taktgeber, sondern ein Schalter – es hängt an der Auslöseplatte,
+	# nicht an einer Uhr. Ein Rasterwert wäre hier sinnlos.
 	tor.offen_zeit = 0.6
 	tor.zu_zeit = 9.0
 	tor.farbe = MESSING
@@ -561,40 +921,238 @@ func _maschinenherz_bauen() -> void:
 
 # =========================================================== Ausstattung
 
-## Messingrohre entlang beider Wände. Reine Optik ohne Kollision – sie
-## sollen die Länge des Ganges zeichnen, nicht den Fuß aufhalten.
-func _rohre_bauen() -> void:
-	var messing := Materialbibliothek.metall(MESSING)
-	var stuecke := [
-		{"von": 4.0, "bis": 100.0, "hoehe": 4.2},
-		{"von": 106.0, "bis": 194.0, "hoehe": 4.6},
-		{"von": 214.0, "bis": 264.0, "hoehe": 4.4},
-		{"von": 270.0, "bis": 314.0, "hoehe": 4.8},
+## Rohrbündel entlang beider Wände – das Erkennungsmerkmal des Vorbilds.
+##
+## Nicht EIN Rohr je Seite, sondern ein BÜNDEL: sieben Stränge in fünf
+## Stärken, dicht gestapelt, in Kupfer, Bronze und blaugrauem Rohrstahl.
+## Ein einzelnes Rohr ist eine Linie; erst der Stapel liest sich als
+## Maschinenraum. Die Muffen an jedem Stoß sind kein Schmuck: Ein Rohr ohne
+## Stoßstelle hat keine Länge, es ist nur ein Strich.
+##
+## Zwischen 1,8 und 3,4 m bleibt eine Bahn frei. Dort hängen die
+## Ventilräder, und ein Rad hinter einem Rohr ist kein Gegenlicht mehr.
+##
+## Reine Optik ohne Kollision. Sie liegen zwischen Sperrebene und
+## Fliesentafel, also gerade so weit draußen, dass man sie streift, aber
+## nicht durch sie hindurchläuft: In der Kurve schiebt sich das Bündel
+## damit vor die Kamera, und man sieht den Steg dahinter durch die Rohre.
+func _rohrbuendel_bauen() -> void:
+	var kupferstoff := Materialbibliothek.metall(KUPFER)
+	var bronzestoff := Materialbibliothek.metall(BRONZE)
+	var stahlstoff := Materialbibliothek.metall(ROHRSTAHL)
+	var muffenstoff := Materialbibliothek.metall(STAHL_DUNKEL)
+
+	var straenge := [
+		{"d": 0.36, "y": 0.48, "q": 0.10, "f": 0},
+		{"d": 0.24, "y": 1.10, "q": 0.36, "f": 1},
+		{"d": 0.15, "y": 1.52, "q": 0.06, "f": 2},
+		{"d": 0.30, "y": 3.78, "q": 0.12, "f": 1},
+		{"d": 0.20, "y": 4.36, "q": 0.38, "f": 0},
+		{"d": 0.12, "y": 4.84, "q": 0.08, "f": 2},
+		{"d": 0.26, "y": 5.50, "q": 0.24, "f": 1},
 	]
-	for stueck in stuecke:
-		var s: float = stueck["von"]
-		while s < stueck["bis"]:
-			var laenge: float = minf(8.0, stueck["bis"] - s)
+
+	var kupfer: Array[Transform3D] = []
+	var bronze: Array[Transform3D] = []
+	var stahlrohr: Array[Transform3D] = []
+	var muffen: Array[Transform3D] = []
+	var steiger: Array[Transform3D] = []
+
+	for w in WAENDE:
+		var von: float = maxf(w["von"], 0.0)
+		var bis: float = minf(w["bis"], M_ENDE)
+		var abstand: float = w["abstand"]
+		var s := von
+		var zaehler := 0
+		while s < bis:
+			var laenge := minf(6.0, bis - s)
 			var mitte := s + laenge * 0.5
-			var rand := rand_bei(mitte, 0.2)
-			if rand < 2.0:
-				s += laenge
-				continue
+			var dreh := LevelWerkzeuge.drehung(verlauf, mitte)
 			for seite: float in [-1.0, 1.0]:
-				var walze := CylinderMesh.new()
-				walze.top_radius = 0.18
-				walze.bottom_radius = 0.18
-				walze.height = laenge + 0.3
-				walze.radial_segments = 8
-				var rohr := MeshInstance3D.new()
-				rohr.mesh = walze
-				rohr.material_override = messing
-				rohr.position = LevelWerkzeuge.punkt(verlauf, mitte,
-						seite * (rand + 0.5), float(stueck["hoehe"]))
-				rohr.rotation = Vector3(PI * 0.5,
-						LevelWerkzeuge.drehung(verlauf, mitte), 0.0)
-				deko.add_child(rohr)
+				for strang in straenge:
+					var d: float = strang["d"]
+					var quer: float = seite * (abstand + 0.02 + float(strang["q"]))
+					var hoch: float = strang["y"]
+					var ort := _walze(mitte, quer, hoch, d, laenge + 0.4, dreh)
+					match int(strang["f"]):
+						0: kupfer.append(ort)
+						1: bronze.append(ort)
+						_: stahlrohr.append(ort)
+					muffen.append(_walze(s + 0.25, quer, hoch, d + 0.08,
+							0.3, dreh))
+				# Alle achtzehn Meter ein Steiger. Er bindet das Bündel an
+				# die Wand und gibt dem waagerechten Gang eine Senkrechte,
+				# an der das Auge die Höhe ablesen kann.
+				if zaehler % 3 == 0:
+					steiger.append(_steher(mitte, seite * (abstand - 0.16),
+							3.0, 0.32, 9.0, dreh))
+					steiger.append(_steher(mitte + 0.55,
+							seite * (abstand - 0.02), 3.0, 0.2, 9.0, dreh))
 			s += laenge
+			zaehler += 1
+
+	# Querrohre unter der Decke. Sie sind der einzige Grund, den Blick nach
+	# oben zu heben: Ein Gang, dessen Decke leer ist, hat nur zwei Wände.
+	# Und sie zerteilen die Flucht – man sieht, wie viele man schon
+	# unterquert hat.
+	var quer := 12.0
+	while quer < M_ENDE - 6.0:
+		var dreh := LevelWerkzeuge.drehung(verlauf, quer)
+		var spanne := maxf(breite_bei(quer), 8.0) + 6.0
+		for lage in 3:
+			var hoch := 6.4 + float(lage) * 0.62
+			var ort := _querwalze(quer, 0.0, hoch,
+					0.30 - float(lage) * 0.06, spanne, dreh)
+			if lage == 1:
+				bronze.append(ort)
+			else:
+				kupfer.append(ort)
+		quer += 12.0
+
+	var walze := CylinderMesh.new()
+	walze.top_radius = 0.5
+	walze.bottom_radius = 0.5
+	walze.height = 1.0
+	walze.radial_segments = 10
+	_haufen("RohreKupfer", walze, kupfer, kupferstoff)
+	_haufen("RohreBronze", walze, bronze, bronzestoff)
+	_haufen("RohreStahl", walze, stahlrohr, stahlstoff)
+	_haufen("Rohrmuffen", walze, muffen, muffenstoff)
+	_haufen("Steigrohre", walze, steiger, kupferstoff)
+
+
+## Ventilräder und Sichtscheiben: der kalte Gegenpart.
+##
+## Der Steckbrief misst am Vorbild zwanzig Prozent kühl gegen
+## zweiundsechzig warm; unser Gang kam auf ein halbes Prozent. Ohne diese
+## Reihe ist er einfarbig, und einfarbig heißt: Der Blick findet nichts,
+## woran er sich festhalten kann – jeder Meter sieht aus wie der vorige.
+##
+## Jedes Rad leuchtet selbst UND beleuchtet. Ein selbstleuchtendes Netz
+## allein wirft kein Grün auf den Stahlsteg davor, und genau dieser grüne
+## Fleck auf dem Weg ist das, was man wirklich sieht – die Tafel dahinter
+## ist nur seine Ursache.
+##
+## Alle sieben Meter eines, abwechselnd links und rechts: Wer geht, hat
+## immer eines im Bild, aber nie zwei nebeneinander.
+func _ventile_setzen() -> void:
+	var gruen := Materialbibliothek.leuchtend(SCHIRM_GRUEN, 1.2)
+	var stahl := Materialbibliothek.metall(STAHL)
+	var dunkel := Materialbibliothek.metall(STAHL_DUNKEL)
+	var s := 7.0
+	var i := 0
+	while s < M_ENDE - 4.0:
+		var abstand := _wandabstand(s)
+		if abstand < 20.0:
+			var seite: float = -1.0 if i % 2 == 0 else 1.0
+			var quer := seite * (abstand + 0.1)
+			var hoch := 2.5 if i % 2 == 0 else 2.1
+			if i % 2 == 0:
+				_ventilrad(s, quer, hoch, seite, gruen, stahl)
+			else:
+				_sichtscheibe(s, quer, hoch, seite, gruen, dunkel)
+			_gruenlicht(s, seite * (abstand - 4.0), 1.5, 2.6, 9.0)
+		s += 7.0
+		i += 1
+
+
+## Ein Ventilrad: Kranz, vier Speichen, Nabe.
+##
+## Die Gruppe ist mit dem Weg gedreht, ihre X-Achse zeigt also quer zum
+## Gang. Ein Torus steht auf seiner Y-Achse – die Vierteldrehung um Z legt
+## seine Achse quer und stellt das Rad damit flach an die Wand.
+func _ventilrad(strecke: float, seitlich: float, hoehe: float, seite: float,
+		leuchtstoff: Material, metallstoff: Material) -> void:
+	var gruppe := Node3D.new()
+	gruppe.name = "Ventilrad"
+	gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	gruppe.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(gruppe)
+
+	var kranz := TorusMesh.new()
+	kranz.inner_radius = 0.42
+	kranz.outer_radius = 0.66
+	kranz.rings = 18
+	kranz.ring_segments = 8
+	var rad := MeshInstance3D.new()
+	rad.name = "Kranz"
+	rad.mesh = kranz
+	rad.material_override = leuchtstoff
+	rad.rotation.z = PI * 0.5
+	gruppe.add_child(rad)
+
+	for k in 4:
+		var speiche := BoxMesh.new()
+		speiche.size = Vector3(0.10, 0.07, 1.1)
+		var stab := MeshInstance3D.new()
+		stab.mesh = speiche
+		stab.material_override = metallstoff
+		# Um die Radachse gedreht, nicht um die Hochachse: Die Speichen
+		# liegen in der Radebene.
+		stab.rotation.x = float(k) * PI * 0.25
+		gruppe.add_child(stab)
+
+	var nabe := CylinderMesh.new()
+	nabe.top_radius = 0.19
+	nabe.bottom_radius = 0.19
+	nabe.height = 0.55
+	nabe.radial_segments = 10
+	var mitte := MeshInstance3D.new()
+	mitte.name = "Nabe"
+	mitte.mesh = nabe
+	mitte.material_override = metallstoff
+	mitte.rotation.z = PI * 0.5
+	mitte.position.x = -seite * 0.2
+	gruppe.add_child(mitte)
+
+
+## Eine Sichtscheibe: grünes Glas in einem Stahlring.
+func _sichtscheibe(strecke: float, seitlich: float, hoehe: float,
+		seite: float, leuchtstoff: Material, metallstoff: Material) -> void:
+	var gruppe := Node3D.new()
+	gruppe.name = "Sichtscheibe"
+	gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	gruppe.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(gruppe)
+
+	var glas := CylinderMesh.new()
+	glas.top_radius = 0.66
+	glas.bottom_radius = 0.66
+	glas.height = 0.22
+	glas.radial_segments = 14
+	var scheibe := MeshInstance3D.new()
+	scheibe.name = "Glas"
+	scheibe.mesh = glas
+	scheibe.material_override = leuchtstoff
+	scheibe.rotation.z = PI * 0.5
+	scheibe.position.x = -seite * 0.26
+	gruppe.add_child(scheibe)
+
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.64
+	ring.outer_radius = 0.84
+	ring.rings = 18
+	ring.ring_segments = 6
+	var fassung := MeshInstance3D.new()
+	fassung.name = "Fassung"
+	fassung.mesh = ring
+	fassung.material_override = metallstoff
+	fassung.rotation.z = PI * 0.5
+	fassung.position.x = -seite * 0.24
+	gruppe.add_child(fassung)
+
+
+## Ein grünes Licht ohne Schatten. Schattenwurf kostet hier nur Rechenzeit:
+## Was es beleuchten soll, ist der Steg davor, und der liegt frei.
+func _gruenlicht(strecke: float, seitlich: float, hoehe: float,
+		staerke: float, reichweite: float) -> void:
+	var licht := OmniLight3D.new()
+	licht.light_color = SCHIRM_GRUEN
+	licht.light_energy = staerke
+	licht.omni_range = reichweite
+	licht.shadow_enabled = false
+	licht.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	deko.add_child(licht)
 
 
 ## Grün leuchtende Bildschirme in den Wänden.
@@ -604,7 +1162,7 @@ func _rohre_bauen() -> void:
 ## `plattform()` mit `Materialbibliothek.leuchtend()`: eine flache Tafel,
 ## die selbst leuchtet.
 func _bildschirme_setzen() -> void:
-	var schirm := Materialbibliothek.leuchtend(SCHIRM_GRUEN, 1.5)
+	var schirm := Materialbibliothek.leuchtend(SCHIRM_GRUEN, 0.8)
 	var stellen := [8.0, 22.0, 34.0, 50.0, 64.0, 74.0, 96.0, 112.0, 128.0,
 			142.0, 156.0, 168.0, 180.0, 216.0, 230.0, 248.0, 264.0, 276.0,
 			290.0, 306.0]
@@ -614,29 +1172,27 @@ func _bildschirme_setzen() -> void:
 		if rand < 2.0:
 			continue
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		plattform(s, seite * (rand + 0.35), 2.4, Vector3(0.16, 1.1, 1.8),
+		plattform(s, seite * (rand + 0.35), 3.9, Vector3(0.16, 1.3, 2.2),
 				schirm)
 		# Ein Omni davor, sonst leuchtet die Tafel, ohne zu beleuchten.
-		var licht := OmniLight3D.new()
-		licht.light_color = SCHIRM_GRUEN
-		licht.light_energy = 1.4
-		licht.omni_range = 7.0
-		licht.shadow_enabled = false
-		licht.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * (rand - 0.4), 2.4)
-		deko.add_child(licht)
+		_gruenlicht(s, seite * (rand - 1.6), 1.6, 1.8, 8.0)
 
 
-## Innenraumlicht. Der Schleusengang ist warm und gut ausgeleuchtet, der
-## Strahlengang kalt und diesig, das Maschinenherz warm und dunstig – man
-## soll an der Luft merken, in welchem Teil der Station man steht.
+## Innenraumlicht. Die Plattenkammer steht in trockener Maschinenluft, der
+## Strahlengang ist kalt und diesig, das Maschinenherz staubig – man soll
+## an der Luft merken, in welchem Teil der Station man steht.
+##
+## Alle drei Zonen sind heute NEUTRAL bis kühl. Früher waren sie
+## bernsteinfarben, und dann kam das Gelb aus der Luft statt aus der
+## Fliese: Ein warmer Dunst über einer warmen Wand macht jedes grüne Licht
+## darin unsichtbar.
 func _stimmungen_setzen() -> void:
-	stimmung(M_KAMMER, M_STRAHLEN, Color(0.52, 0.48, 0.38), 0.020, 0.85,
-			Color(0.56, 0.52, 0.42), 40.0)
-	stimmung(M_STRAHLEN, M_FRACHT, Color(0.30, 0.40, 0.38), 0.030, 0.7,
-			Color(0.34, 0.46, 0.44), 40.0)
-	stimmung(M_HERZ, M_ENDE, Color(0.50, 0.42, 0.30), 0.026, 0.9,
-			Color(0.58, 0.48, 0.34), 44.0)
+	stimmung(M_KAMMER, M_STRAHLEN, Color(0.16, 0.20, 0.33), 0.020, 1.05,
+			Color(0.60, 0.60, 0.58), 40.0)
+	stimmung(M_STRAHLEN, M_FRACHT, Color(0.11, 0.20, 0.30), 0.022, 0.95,
+			Color(0.44, 0.56, 0.56), 40.0)
+	stimmung(M_HERZ, M_ENDE, Color(0.18, 0.20, 0.31), 0.020, 1.1,
+			Color(0.64, 0.60, 0.55), 44.0)
 
 
 # =========================================================== Portale
@@ -756,6 +1312,27 @@ func _kisten_setzen() -> void:
 ## einer: Wer im Fenster eines Kolbens steht, soll nicht gleichzeitig
 ## kämpfen müssen.
 func _gegner_setzen() -> void:
+	# ORTSFARBEN. Raumstation: Messing, Stahl und das gruene Leuchten der Anlage.
+	# Unser Bestiarium kommt aus Wald, Sumpf und Eis; ungefaerbt liefe hier
+	# Getier durchs Bild, das offensichtlich woandershin gehoert. Die
+	# Wirkstellen bleiben hell abgesetzt - Naht, Stacheln, Zapfen und die
+	# dunklen Streifen sagen weiterhin, was gegen wen hilft.
+	gegner_faerbung = {
+		"farbe_fell": Color(0.45, 0.48, 0.5),
+		"farbe_fell_dunkel": Color(0.26, 0.28, 0.31),
+		"farbe_bauch": Color(0.62, 0.5, 0.26),
+		"farbe_zapfen": Color(0.86, 0.9, 0.92),
+		"farbe_nase": Color(0.25, 0.27, 0.29),
+		"farbe_augen": Color(0.24, 1.0, 0.45),
+		"farbe_panzer": Color(0.55, 0.42, 0.2),
+		"farbe_naht": Color(0.94, 0.96, 0.92),
+		"farbe_chitin": Color(0.32, 0.34, 0.33),
+		"farbe_klingen": Color(0.72, 0.76, 0.74),
+		"farbe_pelz": Color(0.38, 0.4, 0.42),
+		"farbe_fluegel": Color(0.72, 0.8, 0.74),
+		"farbe_fuehler": Color(0.55, 0.45, 0.22),
+	}
+
 	# ---------- Schleusengang: einer je Kolbenpause ----------
 	gegner(GLETSCHERKRABBE, 8.0, -2.0, 3.5, true)
 	gegner(SCHNEEWIESEL, 20.0, 2.0, 3.0, true)

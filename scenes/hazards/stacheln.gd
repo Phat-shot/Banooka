@@ -39,7 +39,9 @@ class_name Stacheln
 @export var einfahrbar := false
 
 ## Dauer eines vollen Zyklus (aus, warten, ein, warten) in Sekunden.
-@export_range(0.5, 10.0, 0.1) var takt := 2.4
+## TAKTVERTRAG (doku/level-vorbilder.md): erlaubt sind nur 1,0 · 2,0 · 4,0,
+## damit mehrere Taktgeber nebeneinander ein lernbares Muster ergeben.
+@export_range(0.5, 10.0, 0.1) var takt := 2.0
 
 ## Zeitversatz, damit mehrere Felder versetzt takten.
 @export_range(0.0, 10.0, 0.05) var versatz := 0.0

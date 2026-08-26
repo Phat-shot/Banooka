@@ -15,6 +15,71 @@ const HUPF_G := -20.0        ## Gravitation für den Hüpfbogen
 const PAUSE := 0.55          ## Wartezeit am Boden zwischen zwei Hüpfern
 const ANSPANNUNG := 0.22     ## Kurz vor dem Absprung geht sie in die Hocke
 
+# ---------------------------------------------------------- Farben
+#
+# Die Kröte hüpft längst nicht mehr nur im Sumpf. Damit ein Level sie in
+# seine eigene Palette holen kann, ohne dass ein zweiter Gegner entstehen
+# muss, sind ihre Flächen einzeln einstellbar. Vorgabe ist überall der
+# bisherige Ton: Wer nichts setzt, sieht nichts Neues.
+#
+# ZEICHENSPRACHE (siehe gegner.gd): Rücken und Flanke sind die Stelle,
+# an der der Drehschlag wirkt, und die hellen Rückenflecken setzen sie
+# ab. Flecken und Haut müssen deshalb weit auseinanderliegen – eine
+# Kröte, deren Flecken im Ton der Haut liegen, ist eine Kröte ohne
+# Anleitung.
+
+## Warzige Grundhaut (dunkler Anteil der Rauschtextur).
+@export var farbe_haut: Color = Farben.LAUB_DUNKEL.darkened(0.35):
+	set(wert):
+		farbe_haut = wert
+		_neu_faerben()
+## Hellerer Anteil derselben Haut – erst beide zusammen ergeben die Warzen.
+@export var farbe_haut_hell: Color = Farben.MOOS:
+	set(wert):
+		farbe_haut_hell = wert
+		_neu_faerben()
+## Bauch, Lippe und Schwimmfüße.
+@export var farbe_bauch: Color = Farben.KISTE_FEDER.lightened(0.18):
+	set(wert):
+		farbe_bauch = wert
+		_neu_faerben()
+## Rückenflecken – der helle Gegenpol zur Haut.
+@export var farbe_flecken: Color = Farben.GRAS_HELL.lightened(0.32):
+	set(wert):
+		farbe_flecken = wert
+		_neu_faerben()
+## Warzen zwischen den Flecken.
+@export var farbe_warzen: Color = Farben.LAUB_DUNKEL.darkened(0.55):
+	set(wert):
+		farbe_warzen = wert
+		_neu_faerben()
+## Kehlsack, der sich beim Quaken aufplustert.
+@export var farbe_kehlsack: Color = Farben.LAUB_HELL.lightened(0.05):
+	set(wert):
+		farbe_kehlsack = wert
+		_neu_faerben()
+## Maulspalt und Pupillen – die dunkelste Fläche.
+@export var farbe_maul: Color = Farben.NASE:
+	set(wert):
+		farbe_maul = wert
+		_neu_faerben()
+## Augapfel.
+@export var farbe_auge: Color = Color(0.99, 0.97, 0.88):
+	set(wert):
+		farbe_auge = wert
+		_neu_faerben()
+## Hautfarbe der mitgelieferten Froschfigur.
+##
+## Eigener Wert und nicht `farbe_haut`: Das fremde Modell bringt seinen
+## eigenen Grünton mit, und die Vorgabe ist genau dieser Ton – so sieht
+## der Frosch aus wie bisher, solange niemand ihn umfärbt. Wer die Kröte
+## in eine andere Palette holt, setzt beide.
+@export var farbe_fremdmodell: Color = Color(0.502539, 0.663341, 0.377470):
+	set(wert):
+		farbe_fremdmodell = wert
+		_neu_faerben()
+
+
 var _hoehe := 0.0
 var _vy := 0.0
 var _in_luft := false
@@ -56,24 +121,25 @@ const AUGE_Y := 0.58
 func fremdmodell() -> Dictionary:
 	# Das Modell blickt nach +Z, das Spiel erwartet −Z – ohne die halbe
 	# Drehung hüpft die Kröte rückwärts.
-	return {"datei": "kroete", "groesse": 1.15, "drehung": PI}
+	return {"datei": "kroete", "groesse": 1.15, "drehung": PI,
+			"farben": {"Green": farbe_fremdmodell}}
 
 
 func _baue() -> void:
 	# Dunkle, warzige Sumpfhaut
 	var haut := StandardMaterial3D.new()
 	haut.albedo_texture = Materialbibliothek.rauschtextur(4711, 0.9,
-			Farben.LAUB_DUNKEL.darkened(0.35), Farben.MOOS)
+			farbe_haut, farbe_haut_hell)
 	haut.uv1_triplanar = true
 	haut.uv1_scale = Vector3(2.2, 2.2, 2.2)
 	haut.roughness = 0.5
 
-	var bauch_mat := Materialbibliothek.einfarbig(Farben.KISTE_FEDER.lightened(0.18), 0.7)
-	var fleck_mat := Materialbibliothek.einfarbig(Farben.GRAS_HELL.lightened(0.32), 0.65)
-	var warze_mat := Materialbibliothek.einfarbig(Farben.LAUB_DUNKEL.darkened(0.55), 0.75)
-	var sack_mat := Materialbibliothek.einfarbig(Farben.LAUB_HELL.lightened(0.05), 0.5)
-	var dunkel := Materialbibliothek.einfarbig(Farben.NASE, 0.6)
-	var augapfel := Materialbibliothek.einfarbig(Color(0.99, 0.97, 0.88), 0.25)
+	var bauch_mat := Materialbibliothek.einfarbig(farbe_bauch, 0.7)
+	var fleck_mat := Materialbibliothek.einfarbig(farbe_flecken, 0.65)
+	var warze_mat := Materialbibliothek.einfarbig(farbe_warzen, 0.75)
+	var sack_mat := Materialbibliothek.einfarbig(farbe_kehlsack, 0.5)
+	var dunkel := Materialbibliothek.einfarbig(farbe_maul, 0.6)
+	var augapfel := Materialbibliothek.einfarbig(farbe_auge, 0.25)
 
 	# Sehr breiter, sehr flacher Körper
 	_koerper = _teil(modell, _kugel(0.5, 16, 10), haut, Vector3(0.0, KOERPER_Y, 0.0),
@@ -226,3 +292,31 @@ func _todesanimation(delta: float) -> void:
 		modell.rotation.x += delta * 8.0
 		modell.rotation.z += delta * 12.0
 		modell.scale = modell.scale.lerp(Vector3(0.6, 0.6, 0.6), minf(delta * 3.0, 1.0))
+
+
+# ---------------------------------------------------------- Umfärben
+
+## Baut die Optik neu auf, wenn eine Farbe nach dem Einhängen gesetzt wird.
+##
+## Nötig, weil die Meshes samt Material in `_baue()` entstehen, und das
+## läuft in `_ready()`. Ein Level, das die Kröte erst aufstellt und dann
+## einfärbt, träfe sonst nur noch die Variable. Die Materialien der
+## `Materialbibliothek` sind geteilt und dürfen nicht nachträglich
+## verändert werden – deshalb der Neubau, wie ihn auch die Props halten
+## (`baum.gd`, `deckungsfleck.gd`).
+##
+## Eine besiegte Kröte wird nicht angefasst: Ihre Todesanimation steckt in
+## Skalierung und Drehung des Modells, ein Neubau setzte sie zurück.
+func _neu_faerben() -> void:
+	if besiegt or not is_inside_tree() or not is_instance_valid(modell):
+		return
+	for kind in modell.get_children():
+		modell.remove_child(kind)
+		kind.queue_free()
+	_beine.clear()
+	_bein_ruhe.clear()
+	_augen.clear()
+	_koerper = null
+	_kehlsack = null
+	_baue()
+	_fremdmodell_setzen()

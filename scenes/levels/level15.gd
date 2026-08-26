@@ -576,11 +576,11 @@ func _fackeln_setzen() -> void:
 ## ist der Lohn für den Aufstieg, und er wird nicht erzählt, sondern
 ## beleuchtet.
 func _stimmungen_setzen() -> void:
-	stimmung(0.0, 70.0, Color(0.34, 0.36, 0.32), 0.020, 0.85,
+	stimmung(0.0, 70.0, Color(0.34, 0.36, 0.32), 0.018, 0.85,
 			Color(0.38, 0.44, 0.42), 54.0)
 	stimmung(150.0, 200.0, Color(0.52, 0.40, 0.26), 0.014, 1.05,
 			Color(0.58, 0.48, 0.34), 54.0)
-	stimmung(286.0, M_ENDE, Color(0.72, 0.50, 0.26), 0.009, 1.3,
+	stimmung(286.0, M_ENDE, Color(0.72, 0.50, 0.26), 0.009, 1.05,
 			Color(0.80, 0.58, 0.32), 58.0)
 
 

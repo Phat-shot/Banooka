@@ -36,7 +36,7 @@ class_name Lichtkreis
 @export var reichweite := 7.0
 
 ## Helligkeit des mitgeführten Lichts.
-@export var staerke := 2.2
+@export var staerke := 3.0
 
 ## Farbe des Lichts. Warmes Ocker wie im Vorbild (`#A05524` ist dort der
 ## Lichtkreis) – warmes Licht in kaltem Schwarz liest sich als Feuer,
@@ -54,7 +54,19 @@ class_name Lichtkreis
 ## Anteil des Umgebungslichts, der übrig bleibt (0 = stockfinster).
 ## Ganz auf null gedreht verschwinden auch die Silhouetten der Wände,
 ## und der Gang wird zur schwarzen Fläche ohne Raumgefühl.
-@export_range(0.0, 1.0, 0.01) var restlicht := 0.06
+## LESBARKEITSVERTRAG (doku/level-vorbilder.md): Der Lichtkreis nimmt dem
+## Level die WEITSICHT, nicht die Sichtbarkeit. Beim Vorbild sind rund
+## 47 % der Fläche warmer Ocker in gut lesbarer Helligkeit; schwarz ist
+## nur die Ferne. Mit 0,06 war unser Dunkellevel vierzehnmal dunkler als
+## seine Vorlage und die Figur selbst nicht mehr auszumachen.
+@export_range(0.0, 1.0, 0.01) var restlicht := 0.55
+
+## Wie viel vom Himmel bleibt. Getrennt von `restlicht`, weil beides
+## Gegenläufiges will: Die Nahzone braucht Licht, damit die Wände als
+## Ocker lesbar bleiben – der Himmel muss weg, sonst hat der schwarze
+## Gang plötzlich einen leuchtenden Horizont. Mit einem gemeinsamen
+## Wert ließ sich nur eines von beiden haben.
+@export_range(0.0, 1.0, 0.01) var himmelrest := 0.08
 
 ## Höhe des Lichts über dem Ursprung der Figur (Brusthöhe).
 @export var hoehe := 1.2
@@ -62,12 +74,14 @@ class_name Lichtkreis
 ## Anteil, auf den gerichtete Lichter (die Levelsonne) gedimmt werden.
 ## Ohne das bliebe das Level trotz ausgeschaltetem Umgebungslicht taghell –
 ## die Sonne allein beleuchtet den ganzen Gang.
-@export_range(0.0, 1.0, 0.01) var sonnenrest := 0.04
+@export_range(0.0, 1.0, 0.01) var sonnenrest := 0.10
 
 ## Mindestdichte des Nebels. Der Nebel ist hier kein Wettereffekt, sondern
 ## die Wand aus Schwarz, hinter der die Strecke aufhört – ohne ihn sieht
 ## man unbeleuchtete Geometrie noch als Umriss vor dem Horizont.
-@export var nebeldichte := 0.05
+## Nebeldichte im Dunkellevel. Sie begrenzt die Weitsicht - sie darf die
+## Nahzone nicht anfassen (Lesbarkeitsvertrag).
+@export var nebeldichte := 0.014
 
 ## Frequenzen des Flackerns. Zwei Wellen, die kein ganzzahliges Verhältnis
 ## haben – sonst wiederholt sich das Muster hörbar regelmäßig und wirkt
@@ -152,11 +166,16 @@ func _dunkel_machen() -> void:
 		# Der Himmel ist im Vorbild nicht dunkelblau, sondern weg. Bleibt er
 		# hell, hat der schwarze Gang plötzlich einen leuchtenden Horizont.
 		dunkel.background_energy_multiplier = \
-				_umgebung_vorher.background_energy_multiplier * restlicht
+				_umgebung_vorher.background_energy_multiplier * himmelrest
 		dunkel.fog_enabled = true
+		# Nur gedaempft, nicht ausgeloescht: Bei voller Abdunklung verliert
+		# auch die Nahzone ihren Ockerton, und uebrig bleibt Schwarz.
 		dunkel.fog_light_color = dunkel.fog_light_color.darkened(
-				clampf(1.0 - restlicht, 0.0, 1.0))
-		dunkel.fog_density = maxf(dunkel.fog_density, nebeldichte)
+				clampf(1.0 - restlicht, 0.0, 0.55))
+		# NICHT maxf(): Das nahm die Szenendichte als Untergrenze und machte
+		# jede Absenkung in der .tscn wirkungslos - der Grund, warum Level 23
+		# auf Helligkeit 4 von 255 stand.
+		dunkel.fog_density = nebeldichte
 		dunkel.fog_sky_affect = 1.0
 		dunkel.fog_aerial_perspective = 0.0
 		_welt.environment = dunkel

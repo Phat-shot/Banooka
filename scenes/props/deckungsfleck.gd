@@ -47,6 +47,16 @@ signal deckung_geaendert(in_deckung: bool)
 
 ## Farbe, solange jemand geduckt drinsteht. Heller und wärmer – der
 ## Fleck soll beim Umschalten aufleuchten, nicht nur den Ton wechseln.
+## Wie kräftig der ruhende Fleck von selbst leuchtet.
+##
+## Das gehört dem Level, nicht dem Bauteil. Wo der Fleck die Kernmechanik
+## ist (Level 18, Schwarmpfad), muss die Signalfarbe durch farbigen Dunst
+## tragen – dort mass er sonst (116, 68, 58) gegen einen Weg von
+## (46, 79, 18), also stumpfes Braun auf Rotbraun. Wo er nur Beiwerk in
+## einer warmen Palette ist (Level 13, 21, 25), schreit derselbe Wert und
+## reisst ein Loch ins Bild. Vorgabe ist deshalb zurückhaltend.
+@export_range(0.0, 2.0, 0.05) var grundleuchten := 0.35
+
 @export var farbe_aktiv := Color(1.0, 0.47, 0.80):
 	set(wert):
 		farbe_aktiv = wert
@@ -239,11 +249,11 @@ func _bild_stellen() -> void:
 	var ton := farbe.lerp(farbe_aktiv, _mischung)
 	_mat_scheibe.albedo_color = ton
 	_mat_scheibe.emission = ton
-	_mat_scheibe.emission_energy_multiplier = 0.25 + puls + _mischung * 1.35
+	_mat_scheibe.emission_energy_multiplier = grundleuchten + puls + _mischung * 1.35
 
 	var randton := ton.darkened(0.35)
 	_mat_rand.albedo_color = randton
 	_mat_rand.emission = randton
-	_mat_rand.emission_energy_multiplier = 0.15 + _mischung * 0.6
+	_mat_rand.emission_energy_multiplier = grundleuchten * 0.65 + _mischung * 0.6
 
 	_bild.position.y = -tiefe * _mischung

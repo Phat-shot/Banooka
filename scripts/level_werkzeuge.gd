@@ -17,6 +17,10 @@ class_name LevelWerkzeuge
 
 ## Punkt relativ zum Korridor: `strecke` entlang der Kurve,
 ## `seitlich` quer dazu (positiv = rechts), `hoehe` nach oben.
+## Kollisionsebene, die NUR die Kamera abfragt: Deko, die den Blick auf
+## die Figur verstellen kann, ohne die Bewegung zu behindern.
+const SICHTSPERRE := 8
+
 static func punkt(kurve: Curve3D, strecke: float, seitlich: float = 0.0,
 		hoehe: float = 0.0) -> Vector3:
 	var laenge := kurve.get_baked_length()
@@ -795,6 +799,12 @@ static func torbogen(elternteil: Node3D, kurve: Curve3D, strecke: float,
 	bogen.rotation.y = drehung(kurve, strecke)
 	elternteil.add_child(bogen)
 
+	var sperre := StaticBody3D.new()
+	sperre.name = "Sichtsperre"
+	sperre.collision_layer = SICHTSPERRE
+	sperre.collision_mask = 0
+	bogen.add_child(sperre)
+
 	var radius := spannweite * 0.5
 	# Blockbreite so wählen, dass sich die Blöcke am Scheitel berühren.
 	var bogenlaenge := PI * radius
@@ -811,4 +821,21 @@ static func torbogen(elternteil: Node3D, kurve: Curve3D, strecke: float,
 		# Der Block steht quer zum Radius, also um den Winkel gedreht.
 		block.rotation.z = -winkel
 		bogen.add_child(block)
+
+		# Sichtkörper für die Kamera. Ein Torbogen ist Deko ohne Kollision;
+		# die Verfolgerkamera fuhr deshalb mitten hinein und lieferte ein
+		# vollständig verdecktes Bild (Level 11 bei 322 und 330 m). Der
+		# Körper liegt auf der eigenen Ebene SICHTSPERRE und wird von nichts
+		# anderem abgefragt – er blockiert also keine Bewegung, nur den
+		# Blick. Er deckt bewusst nur den RING ab: Durch die Öffnung soll
+		# die Kamera weiter hindurchsehen, sonst zöge sie sich bei jedem
+		# Durchgang unnötig heran.
+		var form := CollisionShape3D.new()
+		var kiste := BoxShape3D.new()
+		kiste.size = kasten.size
+		form.shape = kiste
+		form.position = block.position
+		form.rotation.z = block.rotation.z
+		sperre.add_child(form)
+
 	return bogen

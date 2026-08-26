@@ -58,7 +58,9 @@ enum Art {
 ## Höhe; ein voller Umlauf dauert `takt` mal `strahlen`. Für WANDERND sind
 ## darum kürzere Werte (1,0 bis 1,5) meist besser – sonst wartet der
 ## Spieler zu lange, bis „seine" Lücke wieder unten ist.
-@export var takt := 2.4
+## TAKTVERTRAG (doku/level-vorbilder.md): erlaubt sind nur 1,0 · 2,0 · 4,0,
+## damit mehrere Taktgeber nebeneinander ein lernbares Muster ergeben.
+@export var takt := 2.0
 
 ## Verschiebt den Takt gegen andere Zäune (0..1 = Anteil eines Umlaufs).
 @export var phase := 0.0

@@ -661,6 +661,31 @@ func _kisten_setzen() -> void:
 ## Über dem Totenwasser steht keiner: Ein patrouillierender Gegner stünde
 ## dort still im Raum, während der Sargdeckel unter dem Spieler wegtaucht.
 func _gegner_setzen() -> void:
+	# ORTSFARBEN. Grabgang bei Nacht: dieselbe Kammer, nur tiefer im Berg.
+	# Unser Bestiarium kommt aus Wald, Sumpf und Eis; ungefaerbt liefe hier
+	# Getier durchs Bild, das offensichtlich woandershin gehoert. Die
+	# Wirkstellen bleiben hell abgesetzt - Naht, Stacheln, Zapfen und die
+	# dunklen Streifen sagen weiterhin, was gegen wen hilft.
+	gegner_faerbung = {
+		"farbe_haut": Color(0.42, 0.3, 0.18),
+		"farbe_haut_hell": Color(0.58, 0.44, 0.26),
+		"farbe_bauch": Color(0.72, 0.62, 0.44),
+		"farbe_flecken": Color(0.26, 0.18, 0.1),
+		"farbe_warzen": Color(0.34, 0.24, 0.14),
+		"farbe_kehlsack": Color(0.66, 0.44, 0.26),
+		"farbe_maul": Color(0.3, 0.16, 0.12),
+		"farbe_auge": Color(0.95, 0.72, 0.26),
+		"farbe_panzer": Color(0.46, 0.32, 0.18),
+		"farbe_chitin": Color(0.28, 0.2, 0.12),
+		"farbe_streifen": Color(0.1, 0.09, 0.08),
+		"farbe_naht": Color(0.9, 0.84, 0.66),
+		"farbe_augen": Color(0.95, 0.7, 0.24),
+		"farbe_leib": Color(0.4, 0.28, 0.16),
+		"farbe_beine": Color(0.27, 0.19, 0.12),
+		"farbe_stacheln": Color(0.86, 0.8, 0.62),
+		"farbe_fremdmodell": Color(0.48, 0.34, 0.19),
+	}
+
 	# ---------- Grabmund ----------
 	gegner(PANZERKAEFER, 12.0, -2.0, 3.0, true)
 	gegner(SUMPFKROETE, 31.0, 1.5, 2.5, true)
@@ -720,7 +745,10 @@ func _fruechte_setzen() -> void:
 ## kommen Kisten, Früchte, Sargdeckel und Kantenmarken alle vor diesem
 ## Schritt.
 func _dunkelheit_setzen() -> void:
-	dunkelheit(LICHTWEITE, 0.05)
+	# Restlicht nach dem Lesbarkeitsvertrag: Die Wände bleiben als Ocker
+	# angedeutet, schwarz ist die Ferne. Vorher 0,05 – da war das Level
+	# dunkler als jedes andere und die Figur selbst unsichtbar.
+	dunkelheit(LICHTWEITE, 0.90)
 
 
 # Das Auffrischen der Leuchtmarker nach einem Tod stand hier einmal

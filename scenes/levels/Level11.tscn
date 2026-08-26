@@ -21,27 +21,27 @@ sky_material = SubResource("Himmel")
 background_mode = 2
 sky = SubResource("SkyRes")
 ambient_light_source = 2
-ambient_light_color = Color(0.55, 0.58, 0.47, 1)
-ambient_light_energy = 0.85
+ambient_light_color = Color(0.54, 0.55, 0.45, 1)
+ambient_light_energy = 0.7
 tonemap_mode = 3
-tonemap_exposure = 1.05
+tonemap_exposure = 1.18
 tonemap_white = 6.0
 ssao_enabled = true
 ssao_radius = 1.4
 ssao_intensity = 1.6
 fog_enabled = true
 fog_mode = 0
-fog_light_color = Color(0.56, 0.57, 0.42, 1)
-fog_light_energy = 0.7
-fog_density = 0.010
+fog_light_color = Color(0.55, 0.55, 0.42, 1)
+fog_light_energy = 0.6
+fog_density = 0.013
 fog_aerial_perspective = 0.55
 fog_sky_affect = 0.35
-fog_height = 1.2
-fog_height_density = 1.1
+fog_height = -1.0
+fog_height_density = 0.35
 adjustment_enabled = true
 adjustment_brightness = 1.0
 adjustment_contrast = 1.08
-adjustment_saturation = 1.06
+adjustment_saturation = 1.14
 
 [node name="Level11" type="Node3D"]
 script = ExtResource("1_level")
@@ -51,8 +51,8 @@ environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.574, 0, 0.818, 0.4335, 0.8473, -0.3042, -0.694, 0.53, 0.487, 0, 30, 0)
-light_color = Color(1, 0.93, 0.72, 1)
-light_energy = 1.35
+light_color = Color(1, 0.95, 0.8, 1)
+light_energy = 1.0
 light_specular = 0.25
 shadow_enabled = true
 shadow_bias = 0.04

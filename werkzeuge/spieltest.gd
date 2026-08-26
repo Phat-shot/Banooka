@@ -77,6 +77,24 @@ func _ablauf() -> void:
 		_ende()
 		return
 
+	# Fortschritt stellen, DANN den Portalraum neu aufbauen lassen.
+	#
+	# Die Reihenfolge ist die ganze Schwierigkeit: `hub.gd` entscheidet beim
+	# BAUEN der Szene, vor welchen Raum ein Sperrgitter kommt. Vorher
+	# gesetzter Fortschritt ist wertlos, weil der Startbildschirm ein neues
+	# Spiel beginnt und dabei alles auf null zieht; nachher gesetzter ist
+	# wertlos, weil die Mauer dann schon steht. Also: neues Spiel abwarten,
+	# Fortschritt stellen, Portalraum einmal neu betreten.
+	#
+	# Geschrieben wird dabei nichts: `Spielfluss.speichern()` steigt bei
+	# Slot 0 aus, und der Bot waehlt keinen. Der echte Spielstand unter
+	# `user://` bleibt unangetastet - er gehoert NICHT zur Projektkopie.
+	if _ausdruecklich():
+		if await _warte_szene("Hub", 40.0):
+			_fortschritt_vortaeuschen(_levelliste())
+			Spielfluss.zum_hub()
+			await _warte(1.0)
+
 	for nummer in _levelliste():
 		if not await _warte_szene("Hub", 40.0):
 			_fehler.append("Level %02d: Portalraum kam nicht" % nummer)
@@ -532,6 +550,53 @@ func _spaeter(sekunden: float, was: Callable) -> void:
 
 
 # ------------------------------------------------------------- Hilfen
+
+## Trägt so viel Fortschritt ein, dass die genannten Level erreichbar sind.
+##
+## Ohne das prüfte der Bot nichts: Ein frisches Projekt hat nur Raum 1 offen,
+## und ein Lauf mit `TEST_LEVEL=11,16,…` übersprang alles als "verschlossen" –
+## der Bericht meldete trotzdem "keine Auffälligkeiten". Ein stiller Nulltest
+## ist schlimmer als ein roter.
+##
+## Die Sperre einfach zu übergehen war der falsche Hebel: Der Portalraum
+## stellt für gesperrte Räume eine echte TRENNMAUER auf, der Bot lief dagegen
+## und meldete "Portal nicht erreicht". `raum_offen()` will echten
+## Fortschritt sehen, also bekommt es den – jedes gebaute Level der Vorräume
+## wird als geschafft eingetragen.
+##
+## `GameState.debug` wäre der bequeme Weg und ist trotzdem falsch: Es macht
+## die Figur unverwundbar, damit zählen Treffer nicht mehr und der Durchlauf
+## prüft wieder nichts.
+func _fortschritt_vortaeuschen(liste: Array[int]) -> void:
+	var hoechstes := 1
+	for nummer in liste:
+		hoechstes = maxi(hoechstes, nummer)
+	Spielfluss.freigeschaltet = maxi(Spielfluss.freigeschaltet, hoechstes)
+
+	var letzter_raum := Spielfluss.raum_von_level(hoechstes)
+	for raum in range(1, letzter_raum):
+		for nummer in Spielfluss.level_im_raum(raum):
+			if Spielfluss.level_gebaut(nummer) and not Spielfluss.geschafft.has(nummer):
+				Spielfluss.geschafft[nummer] = {
+					"kisten": true, "ohne_tod": true, "fruechte": 0,
+				}
+	_notiz("Fortschritt gestellt: Räume 1 bis %d gelten als geschafft"
+			% maxi(letzter_raum - 1, 0))
+
+
+## Hat der Aufrufer die Level ausdrücklich genannt?
+##
+## Dann prüft der Bot sie auch, egal was der Spielstand sagt. `level_offen()`
+## hängt nämlich nicht nur an der Levelfreigabe, sondern am RAUM-Fortschritt:
+## Raum 3 öffnet erst, wenn Raum 2 abgeschlossen ist. Ein frisches Projekt
+## hat nur Raum 1 offen, und ein Lauf mit `TEST_LEVEL=11,16,…` übersprang
+## deshalb stillschweigend alles und meldete am Ende "keine Auffälligkeiten".
+##
+## `GameState.debug` wäre der bequeme Weg, macht die Figur aber unverwundbar
+## und damit den ganzen Test wertlos – Treffer würden nicht mehr zählen.
+func _ausdruecklich() -> bool:
+	return not OS.get_environment("TEST_LEVEL").is_empty()
+
 
 func _levelliste() -> Array[int]:
 	var liste: Array[int] = []

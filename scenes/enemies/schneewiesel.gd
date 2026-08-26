@@ -18,6 +18,52 @@ const SPRINT_DAUER := 0.9
 const PAUSE_DAUER := 0.7
 const WITTERN := 0.35         ## wie hoch es sich in der Pause aufrichtet
 
+# ---------------------------------------------------------- Farben
+#
+# Das Wiesel läuft in mehr Leveln als in dem Schnee, für den es gebaut
+# wurde – bis in die Raumstation. Damit ein Level es in seine eigene
+# Palette holen kann, ohne dass ein zweiter Gegner entstehen muss, sind
+# seine Flächen einzeln einstellbar. Vorgabe ist überall der bisherige
+# Ton: Wer nichts setzt, sieht nichts Neues.
+#
+# ZEICHENSPRACHE (siehe gegner.gd): Zapfenkranz oben und Borstenkragen
+# auf Schlaghöhe sind die Absagen, die dünnen Läufe unten die Einladung
+# für den Slide. Zapfen und Borsten müssen deshalb HELL gegen das Fell
+# stehen bleiben, und die Läufe dürfen nicht in der Silhouette
+# verschwinden – sonst sieht niemand mehr, wo etwas zu holen ist.
+
+## Rücken- und Halsfell.
+@export var farbe_fell: Color = Farben.FROSTTIER_HELL:
+	set(wert):
+		farbe_fell = wert
+		_neu_faerben()
+## Kruppe und Läufe – dunkler, damit die Beine als Beine lesbar sind.
+@export var farbe_fell_dunkel: Color = Farben.FROSTTIER.darkened(0.25):
+	set(wert):
+		farbe_fell_dunkel = wert
+		_neu_faerben()
+## Bauchseite.
+@export var farbe_bauch: Color = Farben.FROSTTIER_BAUCH:
+	set(wert):
+		farbe_bauch = wert
+		_neu_faerben()
+## Zapfenkranz und Borstenkragen – die beiden Absagen. Hell halten.
+@export var farbe_zapfen: Color = Farben.EIS_HELL:
+	set(wert):
+		farbe_zapfen = wert
+		_neu_faerben()
+## Nasenspiegel.
+@export var farbe_nase: Color = Farben.NASE:
+	set(wert):
+		farbe_nase = wert
+		_neu_faerben()
+## Augen.
+@export var farbe_augen: Color = Farben.KRISTALL_BLAU:
+	set(wert):
+		farbe_augen = wert
+		_neu_faerben()
+
+
 var _rumpf: Node3D
 var _hals: Node3D
 var _zapfen: Array[MeshInstance3D] = []
@@ -47,11 +93,11 @@ func _ready() -> void:
 ## Draufspringen hier nicht geht.
 func _baue() -> void:
 	# Weiß auf Schnee war unsichtbar – dunkler Rücken, heller Bauch.
-	var fell := Materialbibliothek.fell(Farben.FROSTTIER_HELL)
-	var dunkelfell := Materialbibliothek.fell(Farben.FROSTTIER.darkened(0.25))
-	var eis := Materialbibliothek.kristall(Farben.EIS_HELL)
-	var nase := Materialbibliothek.einfarbig(Farben.NASE, 0.35)
-	var auge := Materialbibliothek.leuchtend(Farben.KRISTALL_BLAU, 1.1)
+	var fell := Materialbibliothek.fell(farbe_fell)
+	var dunkelfell := Materialbibliothek.fell(farbe_fell_dunkel)
+	var eis := Materialbibliothek.kristall(farbe_zapfen)
+	var nase := Materialbibliothek.einfarbig(farbe_nase, 0.35)
+	var auge := Materialbibliothek.leuchtend(farbe_augen, 1.1)
 
 	_rumpf = Node3D.new()
 	_rumpf.name = "Rumpf"
@@ -62,7 +108,7 @@ func _baue() -> void:
 			Vector3.ZERO, Vector3(90.0, 0.0, 0.0), Vector3.ONE, "Leib")
 	_teil(_rumpf, _kugel(0.15), dunkelfell, Vector3(0.0, -0.05, 0.3),
 			Vector3.ZERO, Vector3(1.0, 0.85, 1.2), "Kruppe")
-	_teil(_rumpf, _kugel(0.13), Materialbibliothek.fell(Farben.FROSTTIER_BAUCH),
+	_teil(_rumpf, _kugel(0.13), Materialbibliothek.fell(farbe_bauch),
 			Vector3(0.0, -0.13, 0.0), Vector3.ZERO, Vector3(0.9, 0.6, 2.2), "Bauch")
 
 	_hals = Node3D.new()
@@ -91,7 +137,7 @@ func _baue() -> void:
 	# Borstenkragen auf Schlaghöhe: die Warnung vor dem Drehschlag.
 	# Wie beim Klingenkranz der Krabbe: Drehpunkt schwenken, Borste darin
 	# nur noch nach außen kippen.
-	var borste := Materialbibliothek.kristall(Farben.EIS_HELL)
+	var borste := Materialbibliothek.kristall(farbe_zapfen)
 	for i in 12:
 		var dreh := Node3D.new()
 		dreh.name = "Borstenpunkt"
@@ -160,3 +206,30 @@ func _todesanimation(delta: float) -> void:
 	if is_instance_valid(modell):
 		modell.rotation.x += delta * 10.0
 		modell.scale = modell.scale.lerp(Vector3(0.6, 0.6, 0.6), minf(delta * 3.0, 1.0))
+
+
+# ---------------------------------------------------------- Umfärben
+
+## Baut die Optik neu auf, wenn eine Farbe nach dem Einhängen gesetzt wird.
+##
+## Nötig, weil die Meshes samt Material in `_baue()` entstehen, und das
+## läuft in `_ready()`. Ein Level, das das Wiesel erst aufstellt und dann
+## einfärbt, träfe sonst nur noch die Variable. Die Materialien der
+## `Materialbibliothek` sind geteilt und dürfen nicht nachträglich
+## verändert werden – deshalb der Neubau, wie ihn auch die Props halten
+## (`baum.gd`, `deckungsfleck.gd`).
+##
+## Ein besiegtes Wiesel wird nicht angefasst: Seine Todesanimation steckt
+## in Skalierung und Drehung des Modells, ein Neubau setzte sie zurück.
+func _neu_faerben() -> void:
+	if besiegt or not is_inside_tree() or not is_instance_valid(modell):
+		return
+	for kind in modell.get_children():
+		modell.remove_child(kind)
+		kind.queue_free()
+	_zapfen.clear()
+	_laeufe.clear()
+	_rumpf = null
+	_hals = null
+	_baue()
+	_fremdmodell_setzen()

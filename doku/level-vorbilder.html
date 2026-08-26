@@ -443,32 +443,144 @@ h3.tabellentitel + p { margin: 0.3rem 0 0; color: var(--tinte-leise); max-width:
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ------------------------------------------ Zweite Fassung: Ergänzungen */
+
+.ansicht {
+  font-family: var(--schrift-daten);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.22em 0.6em;
+  border-radius: 999px;
+  border: 1px solid var(--linie);
+  color: var(--tinte-leise);
+  white-space: nowrap;
+}
+.ansicht.art-s { color: var(--signal); border-color: var(--signal); background: var(--signal-grund); font-weight: 600; }
+.ansicht.art-m { color: var(--signal); border-color: var(--signal); font-weight: 600; }
+
+.ton.klein .feld { height: 2.4rem; }
+.ton.klein .wert { font-size: 0.6rem; opacity: 0.85; }
+
+.messwerte {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.4rem;
+  font-family: var(--schrift-daten);
+  font-size: 0.7rem;
+  color: var(--tinte-leise);
+  margin: 0.55rem 0 0;
+  min-width: 34rem;
+}
+.messwerte b { color: var(--tinte); font-weight: 600; }
+
+.abgleich {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-left: 3px solid var(--tinte-leise);
+  border-radius: 0 3px 3px 0;
+  padding: 1rem 1.15rem;
+}
+.abgleich > b {
+  display: block;
+  font-family: var(--schrift-titel);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--tinte-leise);
+  margin-bottom: 0.3rem;
+}
+.abgleich p { margin: 0; font-size: 0.95rem; }
+
+.korr, .best {
+  font-family: var(--schrift-daten);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.16em 0.5em;
+  border-radius: 3px;
+  margin-right: 0.35em;
+  vertical-align: 0.08em;
+  font-weight: 600;
+  background: var(--signal-grund);
+  color: var(--signal);
+}
+.best { background: var(--flaeche-tief); color: var(--tinte-leise); }
+
+.vertraege { padding-top: 3.5rem; }
+
+.vertrag {
+  max-width: var(--spalte);
+  padding: 1.6rem 0;
+  border-top: 1px solid var(--linie-fein);
+}
+.vertrag:first-of-type { border-top: 1px solid var(--linie); }
+.vertrag h3 {
+  font-family: var(--schrift-titel);
+  font-weight: 800;
+  font-size: 1.12rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5rem;
+}
+.vertrag h3 .zif {
+  font-family: var(--schrift-daten);
+  font-size: 0.8rem;
+  color: var(--signal);
+  margin-right: 0.5rem;
+}
+.vertrag p { margin: 0 0 0.7rem; }
+.vertrag p:last-child { margin-bottom: 0; }
+
+.regel {
+  background: var(--signal-grund);
+  border-left: 3px solid var(--signal);
+  border-radius: 0 3px 3px 0;
+  padding: 0.85rem 1.1rem;
+  margin-top: 0.9rem;
+}
+.regel p { margin: 0; font-size: 0.95rem; }
+.regel b { color: var(--signal); }
+
+td.zahl-gut { color: var(--tinte-leise); }
+td.zahl-weg { color: var(--signal); font-weight: 600; }
+td.num {
+  font-family: var(--schrift-daten);
+  font-size: 0.8rem;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 </style>
 
 <div class="rahmen">
 
 <header class="kopf">
-  <p class="marke">Banooka · Entwurfsunterlage · Raum 3 bis 5</p>
+  <p class="marke">Banooka · Entwurfsunterlage · Raum 3 bis 5 · zweite Fassung</p>
   <h1>Vorbildkartei</h1>
-  <p class="anriss">Fünfzehn Level aus drei klassischen Korridor-Plattformern, auseinandergenommen nach dem, was wir davon brauchen: <strong>Mechanik, Leveldesign, Design.</strong> Nicht zum Nachbauen von Inhalten, sondern zum Herausziehen von Werkzeugen.</p>
+  <p class="anriss">Fünfzehn Level aus drei klassischen Korridor-Plattformern, auseinandergenommen nach dem, was wir davon brauchen: <strong>Ansicht, Mechanik, Leveldesign, Design.</strong> Nicht zum Nachbauen von Inhalten, sondern zum Herausziehen von Werkzeugen.</p>
 
   <div class="hinweise">
     <div>
-      <b>Wann ein Level für uns interessant ist</b>
-      Wenn es eine Frage stellt, die unsere bisherigen Level nicht stellen. Aus jeder solchen Frage wird ein Bauteil, das in jedem unserer Level einsetzbar ist. Erst danach entstehen eigene Level daraus.
+      <b>Was die zweite Fassung ändert</b>
+      Ein Nachscan über 76 Bildschirmfotos aller fünfzehn Level hat drei Fehler gezeigt, die bereits in den gebauten Leveln 11 bis 25 stecken: die fehlende Ansichtsart, eine Farbmessung, die die Signalfarben verwirft, und ein Level, dessen zwei Paletten zu einem gleichzeitigen Kontrast verrechnet wurden.
     </div>
     <div>
       <b>Was nicht übernommen wird</b>
-      Keine Namen, keine Figuren, keine Assets, keine Texturen, keine Musik. Die Arbeitstitel sind unsere eigenen. Auf dieser Seite stehen bewusst keine fremden Bildschirmfotos — nur Farben, die daraus gemessen wurden.
+      Keine Namen, keine Figuren, keine Assets, keine Texturen, keine Musik. Die Arbeitstitel sind unsere eigenen. Auf dieser Seite stehen bewusst keine fremden Bildschirmfotos — nur gemessene Zahlen und eigene Beschreibungen.
     </div>
     <div>
       <b>Wie die Farbbänder zu lesen sind</b>
-      Je Level die sechs Leitfarben eines Referenzbildes, ermittelt über eine Farbreduktion auf sechs Töne. Die Vorlagen sind durchweg dunkler, als sie in Erinnerung sind — der wichtigere Wert ist deshalb der Kontrast. Die zwei Töne, die das Bild tragen, stehen erhöht und sind markiert.
+      Erhöht stehen die <strong>zwei Trägerfarben</strong> mit Flächenanteil, flach daneben die <strong>Signalfarben</strong> unter 6&nbsp;% Fläche. Darunter Warm-, Kühl-Anteil und Helligkeit als nachprüfbare Zahlen. Gemessen über <em>alle</em> Bilder eines Levels, nicht über eines.
     </div>
   </div>
 </header>
 
 <nav class="rail" aria-label="Level">
+  <h2>Zuerst</h2>
+  <a href="#vertraege"><span class="nr">§</span> Die fünf Verträge</a>
   <h2>Raum 3</h2>
   <a href="#l31"><span class="nr">3-1</span> Steinschlag</a>
   <a href="#l32"><span class="nr">3-2</span> Kesselwerk</a>
@@ -488,523 +600,629 @@ h3.tabellentitel + p { margin: 0.3rem 0 0; color: var(--tinte-leise); max-width:
   <a href="#l54"><span class="nr">5-4</span> Neonhöhe</a>
   <a href="#l55"><span class="nr">5-5</span> Dächergasse</a>
   <h2>Danach</h2>
-  <a href="#werkzeuge"><span class="nr">→</span> Werkzeugliste</a>
-  <a href="#befunde"><span class="nr">→</span> Befunde</a>
+  <a href="#werkzeuge"><span class="nr">&rarr;</span> Werkzeugliste</a>
+  <a href="#abgleich"><span class="nr">&rarr;</span> Abgleichtabelle</a>
+  <a href="#befunde"><span class="nr">&rarr;</span> Befunde</a>
 </nav>
 
 <main>
 
-<!-- ================================================== RAUM 3 -->
+<section class="vertraege" id="vertraege">
+  <div class="raum-kopf">
+    <span class="zahl">Vorab · gilt über alle fünfzehn</span>
+    <h2>Die fünf Verträge</h2>
+    <p>Das Wichtigste an den Vorbildern steht nicht in den einzelnen Leveln, sondern unter ihnen. Fünf Regeln gelten über alle drei Spiele hinweg — und weil sie über allem gelten, kann man dort jedes Level auf den ersten Blick lesen.</p>
+  </div>
+
+  <div class="vertrag">
+    <h3><span class="zif">1</span>Der Ansichtsvertrag</h3>
+    <p>Die Kamera ist kein Standpunkt, sondern ein <strong>Ventil für Information</strong>. Es gibt drei Betriebsarten, und sie gelten für einen ganzen Abschnitt oder ein ganzes Level — nicht als Ausnahme in einem 3D-Level.</p>
+    <p><span class="ansicht art-v">3D-Verfolger</span> Tiefe ist lesbar, Seitwärtsbewegung ist frei. Die Vorwarnzeit hängt daran, wie weit der Gang einsehbar ist.</p>
+    <p><span class="ansicht art-s">2,5D-Seitenansicht</span> Sprungweite und Höhe sind exakt ablesbar, Tiefe fällt weg. Damit werden dichte Sprungfolgen erst fair.</p>
+    <p><span class="ansicht art-f">Frontansicht</span> Die Figur läuft auf die Kamera zu. Man sieht nicht, was hinter einem herkommt — die Sicht selbst ist die Aufgabe.</p>
+    <div class="regel"><p><b>Bei uns:</b> <code>corridor_camera.gd</code> kennt nur Verfolger und Seitenansicht, und die Seitenansicht nur als <code>kamerazone()</code> innerhalb eines 3D-Levels. Die Frontansicht fehlt ganz. <strong>Vier Vorbilder sind durchgehend Seitenansicht, eines wechselt mitten im Level</strong> — wir haben alle fünfzehn als 3D-Korridor gebaut.</p></div>
+  </div>
+
+  <div class="vertrag">
+    <h3><span class="zif">2</span>Der Kistenvertrag</h3>
+    <p>Die Signalfarben sind <strong>global</strong>, nicht levelweise. Dieselbe Farbe bedeutet in allen drei Spielen und allen fünfzehn Leveln dasselbe: grelles Grün ist tödlich bei jeder Berührung, Rot mit gelber Schrift ist ein Zünder mit kurzem Countdown, Orange mit gelbem Zeichen eine Umrisskiste, ein weißer Umriss ohne Körper wartet auf seinen Auslöser, türkisgrünes Leuchten ist Rettungspunkt oder Ausgang.</p>
+    <p>Deshalb muss ein Level seine Gefahren nicht selbst erklären. Die erste Fassung hat daraus eine levelspezifische Regel gemacht und die magentafarbenen Deckungsflecken abgeleitet. Die stärkere Regel ist die globale.</p>
+    <div class="regel"><p><b>Zweitens:</b> Kisten sind ein <strong>Layout-Werkzeug</strong>. Sie stehen dort, wo sie den Spieler von der sicheren Linie wegholen — über einer Grube, hinter einer Nitrokiste, nur mit Slide-Sprung erreichbar. Bei uns stehen sie in Reihen entlang des Wegs; von rund 58 Kisten je Level sind null bis drei riskant platziert.</p></div>
+  </div>
+
+  <div class="vertrag">
+    <h3><span class="zif">3</span>Der Taktvertrag</h3>
+    <p>In einem Abschnitt schlägt <strong>alles auf derselben Uhr</strong>, und die Uhr läuft in ganzen Sekunden. Nur dadurch wird eine Passage lernbar: Man liest den Rhythmus einmal und geht dann durch.</p>
+    <p>Unsere Taktgeber laufen jeder auf eigener Uhr: <code>Taktflaeche</code> 3,8&nbsp;s · <code>Feuerspeier</code> 3,6&nbsp;s · <code>Laserzaun</code> 2,4&nbsp;s · <code>Stacheln</code> 2,4&nbsp;s · <code>Schliesstuer</code> 4,8&nbsp;s. Taktfläche und Feuerspeier nebeneinander wiederholen ihr gemeinsames Muster erst nach <strong>68,4 Sekunden</strong>. Das ist kein Takt, das ist Rauschen.</p>
+    <div class="regel"><p><b>Verbindlich für neue Bauteile:</b> Jeder Taktgeber bekommt einen <code>takt</code>-Wert als Parameter, Vorgabe <strong>2,0&nbsp;s</strong>; erlaubt sind nur ganzzahlige Vielfache und Teiler davon (1,0 · 2,0 · 4,0). Der Versatz ist ein Bruchteil davon.</p></div>
+    <div class="regel"><p><b>Stand: umgesetzt.</b> <code>Taktflaeche</code> und <code>Feuerspeier</code> haben einen <code>takt</code>-Wert bekommen (Vorgabe 4,0&nbsp;s); die Ruhe ist der Rest, damit Warn- und Gefahrzeit absolute Reaktionszeiten bleiben. <code>Laserzaun</code>, <code>Stacheln</code> und <code>Werfer</code> stehen auf 2,0&nbsp;s, <code>Schliesstuer</code> und <code>Bruchplatte</code> auf 4,0&nbsp;s. Die von Hand gesetzten Takte in Level 13, 16 und 21 sind aufs Raster gezogen. Einzige Ausnahme, im Code vermerkt: das plattengehaltene Tor in Level 20 – ein Schalter, kein Taktgeber.</p></div>
+  </div>
+
+  <div class="vertrag">
+    <h3><span class="zif">4</span>Der Lesbarkeitsvertrag</h3>
+    <p><strong>Die größte einzelne Fläche ist ein dunkler Ton.</strong> In elf von fünfzehn Leveln liegt der größte Farbanteil unter 20&nbsp;% Helligkeit — Blattwerk, Schatten, Nachthimmel, Schachtdunkel. Das Dunkel ist der Rahmen.</p>
+    <p><strong>Die begehbare Fläche ist das Hellste und am wenigsten Gesättigte im Bild.</strong> Alles andere rahmt sie ein. Wo der Weg aufhört, hört die Helligkeit auf — man muss die Kante nicht suchen.</p>
+    <p><strong>Dunst liegt hinter dem Spielgeschehen, nicht darüber.</strong> Bei 3-4 ist der Nebel fast weiß, aber die Brücke davor steht in voller Sättigung, und dunkle Felszacken rahmen den unteren Bildrand.</p>
+    <div class="regel"><p><b>Verbindlich:</b> Nebeldichte und Umgebungslicht dürfen die Nahzone bis rund zwölf Meter nicht anfassen. Ein Level braucht mindestens eine dunkle Rahmenfläche und eine helle Wegfläche.</p></div>
+  </div>
+
+  <div class="vertrag">
+    <h3><span class="zif">5</span>Der Belohnungsvertrag</h3>
+    <p>Ein Level hat drei Ebenen, nicht eine: <strong>Ankommen</strong> (der Hauptweg), <strong>alle Kisten</strong> (ein Zähler, der ständig sichtbar ist), und <strong>der Bonusraum</strong> — ein eigener kleiner Raum in eigener Gestaltung, betreten über gesammelte Marken, <strong>ohne Todesstrafe</strong>. Dort liegt in vielen Vorbildern der größere Teil der Kisten.</p>
+    <p>Dazu kommt in den späteren Vorbildern der <strong>zweite Ausgang</strong>: ein Weg, der nicht ins Ziel führt, sondern woandershin — gedeckelt durch Können oder durch einen Gegenstand aus einem anderen Level.</p>
+    <div class="regel"><p><b>Bei uns:</b> Ebene 1 und 2 sind gebaut (<code>GameState.kisten_gesamt</code>, <code>ohne_tod</code> für den zweiten Edelstein) — aber ohne Level, die sie fordern. Der Bonusraum fehlt vollständig.</p></div>
+  </div>
+</section>
+
 <section class="raum" id="raum3">
   <div class="raum-kopf">
     <span class="zahl">Raum 3 · Vorbilder aus dem ersten Spiel</span>
     <h2>Enge Korridore, harte Fallen, wenig Ausweichraum</h2>
-    <p>Der Spieler hat dort nur Laufen, Springen und den Drehschlag. Alles, was schwer ist, ist es durch <strong>Timing</strong>, nicht durch Bewegungsvielfalt. Für uns heißt das: Diese fünf liefern die Taktgeber.</p>
+    <p>Der Spieler hat dort nur Laufen, Springen und den Drehschlag. Alles, was schwer ist, ist es durch <strong>Timing</strong>, nicht durch Bewegungsvielfalt. Diese fünf liefern die Taktgeber.</p>
+    <p style="margin-top:.6rem"><strong>Zu beachten:</strong> Drei der fünf sind ganz oder überwiegend Seitenansicht. Raum 3 ist nicht der Korridorraum, für den wir ihn gehalten haben.</p>
   </div>
 
   <article class="level" id="l31">
-    <div class="level-kopf"><span class="nr">3-1</span><h3>Steinschlag</h3></div>
-    <p class="vorbild">Vorbild: „Rolling Stones" · Dschungel</p>
+    <div class="level-kopf"><span class="nr">3-1</span><h3>Steinschlag</h3><span class="ansicht art-v">3D-Verfolger</span></div>
+    <p class="vorbild">Vorbild: „Rolling Stones"</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#282007"></div><span class="wert">#282007</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#572D07"></div><span class="wert">#572D07</span></div>
-        <div class="ton"><div class="feld" style="background:#654F14"></div><span class="wert">#654F14</span></div>
-        <div class="ton"><div class="feld" style="background:#9B5F0F"></div><span class="wert">#9B5F0F</span></div>
-        <div class="ton"><div class="feld" style="background:#B98D26"></div><span class="wert">#B98D26</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#3A512D"></div><span class="wert">#3A512D</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#1F170B"></div><span class="wert">#1F170B · 22 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#09151B"></div><span class="wert">#09151B · 22 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#841D0C"></div><span class="wert">#841D0C · 1,7 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#8C4211"></div><span class="wert">#8C4211 · 2,5 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#925D1D"></div><span class="wert">#925D1D · 3,2 %</span></div>
       </div>
-      <p class="band-bild">Erde und Holz tragen fast alles, das Grün liegt nur als Randband darum.</p>
+      <p class="band-bild">Dunkles Blattwerk und dunkle Grabenwand tragen; die gesättigten Tupfer liegen alle im Nahbereich.</p>
+      <p class="messwerte"><span>warm <b>56,5 %</b></span><span>kühl <b>21,4 %</b></span><span>Helligkeit <b>50</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Rollende Steinkugeln laufen den Korridor entlang — teils entgegen, teils von hinten. Sie sind nicht besiegbar und nicht überspringbar; man weicht in Seitennischen aus oder läuft ihnen davon. Das dreht die Grundfrage um: nicht „wohin springe ich", sondern „wann darf ich überhaupt losgehen".</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Gerader Dschungelpfad, kaum Höhenunterschied. Der Weg ist rhythmisch von steinernen Torbögen unterbrochen; dazwischen liegen die Nischen. Die Kugel bestimmt den Takt, die Nischen sind die Pausen. Länge über Wiederholung mit steigender Frequenz.</p></div>
-      <div class="feldblock"><b>Design</b><p>Warm-kalt-Kontrast: sandbrauner Weg gegen türkisgrünen, geschnitzten Stein. Dunkelgrünes Blattwerk als Rahmen, orangebraune umgestürzte Stämme quer, rosa Blüten als einzige helle Tupfer.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Stinktiere (laufen quer über den Weg), Schildkröten, fleischfressende Pflanzen (stationär, schnappen im Takt).</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Rollende Steinkugeln laufen den Korridor entlang — teils entgegen, teils von hinten. Nicht besiegbar, nicht überspringbar; man weicht in Seitennischen aus oder läuft ihnen davon. Das dreht die Grundfrage um: nicht &bdquo;wohin springe ich&ldquo;, sondern &bdquo;wann darf ich überhaupt losgehen&ldquo;.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p><span class="korr">korrigiert</span> Der Weg ist <strong>abgesenkt</strong> — ein gemauerter Graben, über dessen Rand der Dschungel beidseits höher steht. Man läuft in einer Rinne, nicht auf einem Pfad. Die steinernen Wegmarken sind <strong>flach in die Wand eingelassene geschnitzte Scheiben</strong>, keine freistehenden Bögen über dem Weg.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Deutlich farbiger als angenommen. Der Nahbereich trägt kräftig gesättigte Tupfer: rosa Blüten, rotviolette Hochblätter, breite hellgrüne Blätter, ein blaugrüner Gegner. Der Weg selbst ist heller, moosig überzogener Stein.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Querläufer über den Weg, gepanzerte Kriecher, stationäre Schnapper im Takt.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Zwei Takte gleichzeitig: der Fels und der quer laufende Gegner. Wer nur auf einen achtet, wird vom anderen erwischt.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick nach hinten über die Schulter auf eine Kugel, die den ganzen Gang ausfüllt.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Rollhindernis</span> (Kugel läuft die Levelkurve entlang, tötet bei Berührung, endet in einer Grube), <span class="wz">Nische</span> (Ausweichbucht als Korridor-Bauteil). <em>Vorhanden:</em> Gegner mit Querpatrouille.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick über die Schulter auf eine Kugel, die den ganzen Gang ausfüllt — in der Vorlage über die <strong>Frontansicht</strong> gelöst, nicht über eine Seitenansicht.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Rollhindernis</span>, <span class="wz">Nische</span>, <span class="wz">Frontansicht</span>, <span class="wz">Wandscheibe</span> (Wegmarke, die nicht über dem Weg steht und deshalb die Kamera nicht verdeckt). <em>Vorhanden:</em> Gegner mit Querpatrouille.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L11 Steinschlag.</b> Kühl 8,1 % statt 21,4 %, Helligkeit 97 statt 50 — zu hell und zu farbarm. Die 40 rosa Blüten ergeben 0 von 5,3 Mio. Pixeln. Die Torbögen stehen über dem Weg und verschlucken bei 330 m die Kamera.</p></div>
     </div>
   </article>
 
   <article class="level" id="l32">
-    <div class="level-kopf"><span class="nr">3-2</span><h3>Kesselwerk</h3></div>
-    <p class="vorbild">Vorbild: „Castle Machinery" · Burgmaschinerie</p>
+    <div class="level-kopf"><span class="nr">3-2</span><h3>Kesselwerk</h3><span class="ansicht art-s">2,5D-Seitenansicht</span></div>
+    <p class="vorbild">Vorbild: „Castle Machinery"</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#241B17"></div><span class="wert">#241B17</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#5B2515"></div><span class="wert">#5B2515</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#37454E"></div><span class="wert">#37454E</span></div>
-        <div class="ton"><div class="feld" style="background:#4D4A39"></div><span class="wert">#4D4A39</span></div>
-        <div class="ton"><div class="feld" style="background:#ABA786"></div><span class="wert">#ABA786</span></div>
-        <div class="ton"><div class="feld" style="background:#A14635"></div><span class="wert">#A14635</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#2E1510"></div><span class="wert">#2E1510 · 27 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#16110F"></div><span class="wert">#16110F · 22 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#A01B0A"></div><span class="wert">#A01B0A · 1,1 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#C24413"></div><span class="wert">#C24413 · 2,0 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#AB5429"></div><span class="wert">#AB5429 · 2,0 %</span></div>
       </div>
-      <p class="band-bild">Stein kalt gegen Rost warm — die einzige Wärme im Bild kommt aus der Maschine.</p>
+      <p class="band-bild">Warm, nicht kalt: Rost und Glut tragen das Bild, blaugraues Mauerwerk nur den Anfang.</p>
+      <p class="messwerte"><span>warm <b>69,0 %</b></span><span>kühl <b>10,9 %</b></span><span>Helligkeit <b>51</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Maschinen als Boden: Fließbänder, die den Spieler tragen oder zurückschieben, Aufzugsplattformen, Kolben und Zahnräder. Der Boden ist hier zum ersten Mal kein Verlass.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Innenraum über mehrere Ebenen. Der Weg führt genauso oft nach oben wie nach vorn; die Kamera muss dafür weiter weg. Enge Gänge wechseln mit hohen Hallen. Ein Geheimweg direkt am Start führt nach oben — dort liegen Extraleben statt Kisten.</p></div>
-      <div class="feldblock"><b>Design</b><p>Kaltes blaugraues Mauerwerk, rostroter Stahl, gelbe Seilzüge als Linienführung, ein orange glühender Ofen als einzige warme Lichtquelle. Punktbeleuchtung statt Sonne.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Roboterschildkröten, Holo-Projektoren (blenden Hindernisse ein und aus), Stachel-Untertassen (fliegen auf fester Bahn).</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Maschinen als Boden: Fließbänder, die tragen oder zurückschieben, Aufzugsplattformen, Kolben und Zahnräder. Der Boden ist hier zum ersten Mal kein Verlass.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Innenraum über mehrere Ebenen, senkrecht gestaffelt. Der Weg führt genauso oft nach oben wie nach vorn. Enge Gänge wechseln mit hohen Hallen. Ein Geheimweg direkt am Start führt nach oben — dort liegen Extraleben statt Kisten.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Das Level ist <strong>warm</strong>. Blaugraues Mauerwerk gibt es nur im ersten Abschnitt; danach tragen rostbrauner Stahl und vor allem <strong>glühend orange Rohrbündel</strong> das Bild. Diese Rohre sind zugleich die Lichtquelle — es gibt keine Sonne, alles Licht kommt aus der Maschine. Grün leuchtende Kisten als Gegenakzent.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Maschinenkriecher, Projektoren, die Hindernisse ein- und ausblenden, fliegende Störer auf fester Bahn.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Bewegte Böden über Abgründen. Ein verpasster Absprung ist nicht korrigierbar, weil der Boden weiterfährt.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Reihen kleiner Maschinen hinter Gittern — eine Kulisse, die arbeitet, ohne dass man sie berührt.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Fließband</span>, <span class="wz">Zahnrad</span> (drehendes Hindernis), <span class="wz">Feuerstoß</span>. <em>Vorhanden:</em> <code>Wasserplattform</code> deckt Aufzug und Kolben bereits ab.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Das glühende Rohr, das quer durchs Bild läuft und den ganzen Raum färbt.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Fließband</span>, <span class="wz">Zahnrad/Walze</span>, <span class="wz">Feuerstoß</span>, <span class="wz">Seitenansicht als Betriebsart</span>, <span class="wz">Glührohr</span> (Deko, die zugleich Licht ist). <em>Vorhanden:</em> <span class="wz">Wasserplattform</span> deckt Aufzug und Kolben ab.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L12 Kesselwerk.</b> <strong>Farblich umgedreht:</strong> unser Level hat 14,4 % warm und 71,3 % kühl, das Vorbild 69,0 % warm und 10,9 % kühl. Wir haben eine kalte blaue Halle gebaut, wo eine glühende steht. Dazu stehen bei uns Totholzbäume, Grasbüschel und eine Sumpfkröte in der Burgmaschinerie.</p></div>
     </div>
   </article>
 
   <article class="level" id="l33">
-    <div class="level-kopf"><span class="nr">3-3</span><h3>Pfahlfeste</h3></div>
-    <p class="vorbild">Vorbild: „Native Fortress" · Eingeborenenfestung</p>
+    <div class="level-kopf"><span class="nr">3-3</span><h3>Pfahlfeste</h3><span class="ansicht art-s">2,5D-Seitenansicht</span></div>
+    <p class="vorbild">Vorbild: „Native Fortress"</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#221405"></div><span class="wert">#221405</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#572A08"></div><span class="wert">#572A08</span></div>
-        <div class="ton"><div class="feld" style="background:#935C1A"></div><span class="wert">#935C1A</span></div>
-        <div class="ton"><div class="feld" style="background:#6E4B18"></div><span class="wert">#6E4B18</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#B19045"></div><span class="wert">#B19045</span></div>
-        <div class="ton"><div class="feld" style="background:#9E3D05"></div><span class="wert">#9E3D05</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#603313"></div><span class="wert">#603313 · 28 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#2B1D0F"></div><span class="wert">#2B1D0F · 25 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#895223"></div><span class="wert">#895223 · 19 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#BBAEA5"></div><span class="wert">#BBAEA5 · 12 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#827674"></div><span class="wert">#827674 · 10 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#495059"></div><span class="wert">#495059 · 7 %</span></div>
       </div>
-      <p class="band-bild">Eine reine Holzpalette. Die Musterfarben sind zu kleinflächig für die Messung — bei uns bewusst zu setzen.</p>
+      <p class="band-bild">Keine reine Holzpalette: die drei rechten Töne sind Himmel, Wolken und helle Palisadenspitzen — zusammen 29 % der Fläche.</p>
+      <p class="messwerte"><span>warm <b>70,7 %</b></span><span>kühl <b>18,4 %</b></span><span>Helligkeit <b>80</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Senkrechter Aufstieg. Der Weg führt an einer Festungswand entlang nach oben, über schmale Holzstege und einzelne Plattformen. Dazu Fallen, die aus dem Boden schießen, und Werfer, die von oben stören.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Klettern statt Laufen. Die Strecke ist kurz, die Höhe groß. Fallen stehen dicht: Speersäule, Sprung, Fackel, Sprung. Kein Abschnitt ist länger als zwei Hindernisse — dafür folgen sie ohne Pause.</p></div>
-      <div class="feldblock"><b>Design</b><p>Warmes Holz in Braunstufen, überzogen mit gesättigten Stammesmustern in Rot, Türkis und Ocker. Sandiger Boden, große geschnitzte Tore als Wegmarken. Die Muster sind das ganze Design — die Formen selbst sind schlichte Kästen.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Schildkröten, fleischfressende Pflanzen, Affen (werfen von Podesten), Stachelsäulen, Fackeln, Speerträger.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Senkrechter Aufstieg über schmale Holzstege und einzelne Plattformen. Dazu Fallen, die aus dem Boden schießen, und Werfer, die von oben stören.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Klettern statt Laufen. Die Strecke ist kurz, die Höhe groß. Fallen stehen dicht: Speersäule, Sprung, Fackel, Sprung. Kein Abschnitt ist länger als zwei Hindernisse — dafür folgen sie ohne Pause. Zwei Hälften: erst ein dunkler Innenraum zwischen riesigen Stämmen, dann ein Aufstieg im Freien.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> <strong>Keine reine Holzpalette.</strong> Die zweite Hälfte spielt vor <strong>blauem Himmel mit Wolken</strong> und einer violetten Fernlandschaft; helle, fast cremefarbene Palisadenspitzen kommen dazu — zusammen rund 29 % der Fläche und 18,4 % ausgesprochen kühl. Die Muster sind großflächige, kontraststarke Grafikbänder (Zickzack in Rot, Schwarz und Creme, breite türkisgrüne Ringe) auf etwa einem Drittel der Säulenfläche. Keine schmalen Zierstreifen.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Kriecher, Schnapper, Werfer von Podesten, Stachelsäulen, Fackeln.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Dichte. Und dass ein Fehler nicht nur Schaden ist, sondern Höhe kostet.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Das riesige geschnitzte Tor am Ende des Aufstiegs.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Werfer</span> (Wurfgeschoss im Bogen), <span class="wz">Feuerdüse quer</span>, <span class="wz">Aufstiegsverlauf</span>. <em>Vorhanden:</em> <code>Stacheln</code> mit <code>einfahrbar = true</code> ist bereits die Speersäule.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die gemusterte Säule vor blauem Himmel, zwischen Palisadenspitzen.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Werfer</span>, <span class="wz">Feuerdüse quer</span>, <span class="wz">Aufstiegsverlauf</span>, <span class="wz">Musterband</span> (breites Grafikband als Materialschicht, nicht als Ring). <em>Vorhanden:</em> <span class="wz">Stacheln</span> mit <code>einfahrbar</code> ist die Speersäule.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L13 Pfahlfeste.</b> Kühl 0,1 % statt 18,4 % — unser <code>MUSTER_TUERKIS</code> ist gesetzt, kommt aber nicht im Bild an, und der Himmel fehlt als Gegengewicht. Dazu hängen Bäume und Steine ohne Boden in der Luft neben der Feste.</p></div>
     </div>
   </article>
 
   <article class="level" id="l34">
-    <div class="level-kopf"><span class="nr">3-4</span><h3>Wolkensteg</h3></div>
-    <p class="vorbild">Vorbild: „The High Road" · Seilbrücke über den Wolken</p>
+    <div class="level-kopf"><span class="nr">3-4</span><h3>Wolkensteg</h3><span class="ansicht art-v">3D-Verfolger</span></div>
+    <p class="vorbild">Vorbild: „The High Road"</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton traegt"><div class="feld" style="background:#CED1D6"></div><span class="wert">#CED1D6</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#434036"></div><span class="wert">#434036</span></div>
-        <div class="ton"><div class="feld" style="background:#A3A0A3"></div><span class="wert">#A3A0A3</span></div>
-        <div class="ton"><div class="feld" style="background:#8A7557"></div><span class="wert">#8A7557</span></div>
-        <div class="ton"><div class="feld" style="background:#C1BBB4"></div><span class="wert">#C1BBB4</span></div>
-        <div class="ton"><div class="feld" style="background:#A79367"></div><span class="wert">#A79367</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#D1D2D6"></div><span class="wert">#D1D2D6 · 32 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#575B4A"></div><span class="wert">#575B4A · 25 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#734029"></div><span class="wert">#734029 · 2,6 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#7B5C40"></div><span class="wert">#7B5C40 · 2,7 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#446E8C"></div><span class="wert">#446E8C · 1,6 %</span></div>
       </div>
-      <p class="band-bild">Der stärkste Kontrast der ganzen Reihe — und fast keine Farbe, nur Helligkeitsstufen.</p>
+      <p class="band-bild">Der stärkste Kontrast der Reihe — aber geschichtet: Weiß hinten, volle Sättigung vorn, dunkle Zacken am unteren Rand.</p>
+      <p class="messwerte"><span>warm <b>14,5 %</b></span><span>kühl <b>15,1 %</b></span><span>Helligkeit <b>167</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Eine Brücke aus einzelnen Planken über dem Nichts, mit Lücken genau an der Sprungweite. Dazu Platten, die beim Betreten wegbrechen, rutschige Platten, und Gegner, die man als Absprunghilfe benutzt: Auf eine umgeworfene Schildkröte gesprungen trägt der Sprung weiter.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Das schmalste Level des Spiels — zwei Planken breit, kein Rand, keine Deckung. Rein linear. Die Schwierigkeit steckt allein in der Abfolge von Lücken; es gibt fast keine Gegner im üblichen Sinn.</p></div>
-      <div class="feldblock"><b>Design</b><p>Ein fast weißes Wolkenmeer gegen dunkle Pfosten und Seile, am Horizont dunkle Felszacken. Farbe gibt es kaum — Holzbraun, Seilbeige, sonst Helligkeitsstufen.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Fast nur Schildkröten, und die sind hier Werkzeug statt Feind.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Eine Brücke aus einzelnen Planken über dem Nichts, mit Lücken, die genau an der Sprungweite liegen. Dazu Platten, die beim Betreten wegbrechen, rutschige Platten, und Gegner, die man als Absprunghilfe benutzt.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Das schmalste Level der Reihe — zwei Planken breit, kein Rand, keine Deckung. Rein linear. Die Schwierigkeit steckt allein in der Abfolge von Lücken; es gibt fast keine Gegner im üblichen Sinn.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Der Kontrast ist <strong>geschichtet</strong>, nicht flächig. Der Dunst ist fast weiß und liegt <strong>hinter</strong> dem Spielgeschehen. Die Brücke davor steht in voller Sättigung: warmes Seilbeige, Holzplanken, türkis und blau bemalte Pfostenköpfe, knallgrüngelbe Gegner. Dazu rahmen <strong>dunkle Felszacken den unteren Bildrand</strong> — ohne sie hätte das Weiß nichts, wogegen es hell wäre.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Fast nur Kriecher, und die sind hier Werkzeug statt Feind.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Kein Fehler ist verzeihbar. Es gibt keinen Boden unter dem Boden.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die Seilbrücke, die im Weiß verschwindet.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Bruchplatte</span>, <span class="wz">Trampolingegner</span>, <span class="wz">Seilsteg</span>. <em>Vorhanden:</em> <code>Eisfläche</code> ist die rutschige Platte; <code>Gegner.abprall_hoehe</code> kennt die Absprunghöhe bereits.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die Seilbrücke, die im Weiß verschwindet — während das Seil selbst warm und scharf bleibt.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Bruchplatte</span>, <span class="wz">Trampolingegner</span>, <span class="wz">Seilsteg</span>, <span class="wz">Rahmenzacken</span> (dunkle Silhouetten am unteren Bildrand als Kontrastanker). <em>Vorhanden:</em> <span class="wz">Eisfläche</span>, <code>Gegner.abprall_hoehe</code>.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L14 Wolkensteg.</b> Der einzige Fall, in dem die erste Fassung die Trägerfarben richtig gemessen hat — und trotzdem der größte Fehlschlag. Unser Level: warm 0,1 %, kühl 0,0 %, Helligkeit 245, Kontrast 6,6. Das Vorbild hat den höchsten Kontrast der Reihe, unser Level den niedrigsten. Ursache in <code>Level14.tscn</code>: <code>fog_density 0.042</code> bei <code>fog_light_energy 1.3</code>, <code>ambient_light_energy 1.45</code>, <code>tonemap_exposure 1.2</code>.</p></div>
     </div>
   </article>
 
   <article class="level" id="l35">
-    <div class="level-kopf"><span class="nr">3-5</span><h3>Abendruinen</h3></div>
-    <p class="vorbild">Vorbild: „Sunset Vista" · Ruinen im Abendlicht</p>
+    <div class="level-kopf"><span class="nr">3-5</span><h3>Abendruinen</h3><span class="ansicht art-s">überwiegend 2,5D</span></div>
+    <p class="vorbild">Vorbild: „Sunset Vista"</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#142218"></div><span class="wert">#142218</span></div>
-        <div class="ton"><div class="feld" style="background:#26471B"></div><span class="wert">#26471B</span></div>
-        <div class="ton"><div class="feld" style="background:#523114"></div><span class="wert">#523114</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#34494A"></div><span class="wert">#34494A</span></div>
-        <div class="ton"><div class="feld" style="background:#5C4C1A"></div><span class="wert">#5C4C1A</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#91531C"></div><span class="wert">#91531C</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#27271C"></div><span class="wert">#27271C · 29 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#962F20"></div><span class="wert">#962F20 · 23 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#BE2828"></div><span class="wert">#BE2828 · 2,4 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#B44428"></div><span class="wert">#B44428 · 3,1 %</span></div>
       </div>
-      <p class="band-bild">Komplementärkontrast: Stein kühl gegen Abendlicht warm.</p>
+      <p class="band-bild">Drei Paletten nacheinander — die Messung mittelt sie zusammen, im Spiel folgen sie aufeinander.</p>
+      <p class="messwerte"><span>warm <b>71,3 %</b></span><span>kühl <b>16,9 %</b></span><span>Helligkeit <b>73</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Das Ausdauer-Level. Drei Stockwerke übereinander, mit Fallen, die alle etwas anderes verlangen: Platten, die im Takt heiß werden; Blöcke, die den Spieler seitlich von der Kante schieben; Fledermäuse, die Bögen fliegen.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Der Weg staffelt sich dreimal übereinander, statt nur vorwärts zu laufen. Dadurch sieht man von unten, wo man später oben entlangkommt — das ist die eigentliche Idee. Länge ist hier bewusst ein Mittel: Konzentration über Minuten statt über Sekunden.</p></div>
-      <div class="feldblock"><b>Design</b><p>Türkisgrüner Ruinenstein gegen einen warm orangefarbenen Abendhimmel. Dunkelgrüne Pflanzen wachsen aus den Fugen, drinnen brennen Fackeln.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Fledermäuse, Echsen, Feuerplatten, Schiebeblöcke.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Das Ausdauer-Level. Mehrere Stockwerke übereinander, mit Fallen, die alle etwas anderes verlangen: Platten, die im Takt heiß werden; Blöcke, die den Spieler seitlich von der Kante schieben; Flieger, die Bögen ziehen.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Der Weg staffelt sich mehrfach übereinander. Von unten sieht man, wo man später oben entlangkommt — das ist die eigentliche Idee. Länge ist bewusst ein Mittel: Konzentration über Minuten, nicht über Sekunden.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> <strong>Kein Komplementärkontrast, sondern drei Paletten nacheinander:</strong> (1) kühler Tempel im Sumpf — blaugrüner Stein, dunkelgrünes Laub, graugrünes Wasser; (2) roter Sandstein unter <strong>magentafarbenem</strong> Abendhimmel, Wände voller eingeschnittener Reliefs in dunklerem Rot — Struktur ohne zusätzliche Farbe; (3) helles Blätterdach unter blauem Himmel mit weißen Wolken. Die erste Fassung hat Palette 1 und 2 zu einem gleichzeitigen Kontrast verrechnet. Das ist der Fehler, der in Level 15 steckt.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Flieger im Bogen, Echsen, Feuerplatten, Schiebeblöcke.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Nicht eine einzelne Stelle, sondern die Summe. Wer achtzig Prozent schafft, fängt trotzdem von vorn an.</p></div>
       <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick von der obersten Ebene zurück über die Strecke, die man schon gelaufen ist.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schiebeblock</span>, <span class="wz">Taktfläche</span>, <span class="wz">Flugbahn-Gegner</span>, <span class="wz">Stockwerksverlauf</span>.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schiebeblock</span>, <span class="wz">Taktfläche</span>, <span class="wz">Flugbahn-Gegner</span>, <span class="wz">Stockwerksverlauf</span>, <span class="wz">Palettenwechsel</span> (Level durchläuft mehrere Grundpaletten statt einer — als Entwurfsmittel, nicht als Wetter).</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L15 Abendruinen.</b> Kühl 0,0 % statt 16,9 %. <code>RUINENSTEIN</code> ist mit <code>#34494A</code> richtig kühl gesetzt, aber die Sonne in <code>Level15.tscn</code> ist <code>Color(1, 0.66, 0.33)</code> bei Energie 1,6 und der Nebel <code>(0.72, 0.44, 0.2)</code> — der kühle Stein kommt nie kühl an.</p></div>
     </div>
   </article>
+
 </section>
 
-<!-- ================================================== RAUM 4 -->
 <section class="raum" id="raum4">
   <div class="raum-kopf">
     <span class="zahl">Raum 4 · Vorbilder aus dem zweiten Spiel</span>
     <h2>Der Spieler kann mehr, also darf das Level mehr verlangen</h2>
-    <p>Slide, Bauchplatscher und Krabbeln existieren — und werden gezielt erzwungen: Gegner, die nur per Slide fallen, Gänge, die nur geduckt passierbar sind. <strong>Das ist genau unsere Lage nach dem Krabbeln-Umbau.</strong></p>
+    <p>Slide, Bauchplatscher und Krabbeln existieren — und werden gezielt erzwungen: Gegner, die nur per Slide fallen, Gänge, die nur geduckt passierbar sind. Das ist genau unsere Lage nach dem Krabbeln-Umbau.</p>
+    <p style="margin-top:.6rem"><strong>Neu gegenüber Raum 3:</strong> In vier von fünf Leveln ist ein Bonusraum im Bild belegt, und die Kistenzähler laufen sichtbar mit.</p>
   </div>
 
   <article class="level" id="l41">
-    <div class="level-kopf"><span class="nr">4-1</span><h3>Kanalgrund</h3></div>
-    <p class="vorbild">Vorbild: „The Eel Deal" · Kanalisation</p>
+    <div class="level-kopf"><span class="nr">4-1</span><h3>Kanalgrund</h3><span class="ansicht art-v">3D-Verfolger</span></div>
+    <p class="vorbild">Vorbild: &bdquo;The Eel Deal&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#0D1711"></div><span class="wert">#0D1711</span></div>
-        <div class="ton"><div class="feld" style="background:#573015"></div><span class="wert">#573015</span></div>
-        <div class="ton"><div class="feld" style="background:#624E29"></div><span class="wert">#624E29</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#1F4C3F"></div><span class="wert">#1F4C3F</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#93481B"></div><span class="wert">#93481B</span></div>
-        <div class="ton"><div class="feld" style="background:#BA9455"></div><span class="wert">#BA9455</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#091712"></div><span class="wert">#091712 · 25 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#313B27"></div><span class="wert">#313B27 · 20 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#236251"></div><span class="wert">#236251 · 4,2 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#6E1E0A"></div><span class="wert">#6E1E0A · 2,5 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#6E3D18"></div><span class="wert">#6E3D18 · 3,7 %</span></div>
       </div>
-      <p class="band-bild">Kanalgrün gegen Rost. Sehr dunkel — die Kisten sind die hellsten Flächen im Bild.</p>
+      <p class="band-bild">Dunkel, aber weit von schwarz entfernt: Deckenlampen und ein ockerfarbenes Leitband halten den Raum lesbar.</p>
+      <p class="messwerte"><span>warm <b>34,3 %</b></span><span>kühl <b>41,0 %</b></span><span>Helligkeit <b>45</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Der Boden ist zeitweise tödlich. In den Wasserrinnen takten Stromstöße; man wartet, statt zu rennen. Dazu rollende Giftfässer, die den Gang entlangkommen, und drehende Rotorblätter als bewegliche Wände.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Enge Gänge mit zwei Gabelungen. Eine davon sieht aus wie eine Sackgasse voller Nitro — und ist der Geheimweg. Das Level lehrt: Was offensichtlich falsch aussieht, ist manchmal der richtige Weg.</p></div>
-      <div class="feldblock"><b>Design</b><p>Olivbraune Rohre, teal-grüne Metallwände, giftgrünes Wasser, rostorange Kisten als einzige warme Signale. Runde Ventile und Messuhren als Wandschmuck — die Kulisse erzählt „Maschine", ohne dass sich etwas bewegt.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Ratten, Aale (takten Strom), Scrubber (Putzroboter auf Bahn), Fässer.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p><strong>Der Boden ist zeitweise tödlich.</strong> In den Wasserrinnen takten Stromstöße; man wartet, statt zu rennen. Dazu rollende Giftfässer, die den Gang entlangkommen, und drehende Rotorblätter als bewegliche Wände.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p><span class="korr">korrigiert</span> Der Gang ist eine <strong>runde Röhre</strong>. Die Wände krümmen sich nach oben in die Decke, es gibt keinen Himmel und keine offene Kante. Das ist der Grund, warum das Level dunkel sein darf, ohne unlesbar zu werden: Es gibt keine Ferne, in der sich etwas verlieren könnte. Zwei Gabelungen; eine sieht wie eine Sackgasse voller Nitro aus und ist der Geheimweg.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Deutlich heller und farbiger als angenommen. Die Röhre ist tealgrün, davor liegen messingfarbene Rohrbögen; an der Decke sitzen <strong>Lampen, die warme Lichtinseln werfen</strong>. Auf halber Höhe läuft ein <strong>waagerechtes ockerfarbenes Leitband</strong> die ganze Röhre entlang — dieselbe Aufgabe wie unsere gelben Seilzüge in Level 12. Dazu gelb-schwarze Warnschraffuren an den Kanten und einzelne violett ausgeleuchtete Abschnitte.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Nager, Stromgeber im Wasser, Putzroboter auf fester Bahn, Fässer.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Warten. Das Level bestraft das Tempo, das alle anderen Level belohnen.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die grün leuchtende Rinne, die man nicht betreten darf.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Taktfläche</span> (wie 3-5, hier im Boden), <span class="wz">Rollfass</span>, <span class="wz">Rotorblatt</span>, <span class="wz">Verfolger</span>. <em>Vorhanden:</em> <code>Wasser</code> mit <code>toedlich = true</code>.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die runde Röhre, die sich vor einem schließt, mit der Lampenreihe an der Decke.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Taktfläche</span> waagerecht, <span class="wz">Rollfass</span>, <span class="wz">Rotorblatt</span>, <span class="wz">Verfolger</span>, <span class="wz">Röhrengang</span>, <span class="wz">Deckenlampe</span>, <span class="wz">Leitband</span>. <em>Vorhanden:</em> <span class="wz">Wasser</span> mit <code>toedlich</code>.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L16 Kanalgrund.</b> Helligkeit <strong>2,5 statt 45</strong> — achtzehnmal dunkler als das Vorbild. Ursache: Ambient 0,55, Sonne 0,65, dunkelgrüner Nebel 0,038 und <strong>null Punktlichter im ganzen Level</strong>. Unser Gang ist außerdem oben offen, wo das Vorbild eine geschlossene Röhre hat.</p></div>
     </div>
   </article>
 
   <article class="level" id="l42">
-    <div class="level-kopf"><span class="nr">4-2</span><h3>Frostritt</h3></div>
-    <p class="vorbild">Vorbild: „Bear It" · Ritt auf dem Eisbären</p>
+    <div class="level-kopf"><span class="nr">4-2</span><h3>Frostritt</h3><span class="ansicht art-v">3D-Verfolger (Ritt)</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Bear It&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton traegt"><div class="feld" style="background:#B0BDCA"></div><span class="wert">#B0BDCA</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#1A3752"></div><span class="wert">#1A3752</span></div>
-        <div class="ton"><div class="feld" style="background:#6F91B0"></div><span class="wert">#6F91B0</span></div>
-        <div class="ton"><div class="feld" style="background:#3A6694"></div><span class="wert">#3A6694</span></div>
-        <div class="ton"><div class="feld" style="background:#9EB6D0"></div><span class="wert">#9EB6D0</span></div>
-        <div class="ton"><div class="feld" style="background:#965127"></div><span class="wert">#965127</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#063257"></div><span class="wert">#063257 · 21 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#4A81A7"></div><span class="wert">#4A81A7 · 19 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#065696"></div><span class="wert">#065696 · 4,1 %</span></div>
       </div>
-      <p class="band-bild">Eine reine Blaupalette mit genau einem warmen Ton — und der sitzt dort, wo etwas gefährlich ist.</p>
+      <p class="band-bild">Reine Blaupalette. Der Gefahrenzeiger ist nicht warmes Holz, sondern die grelle Nitrokiste.</p>
+      <p class="messwerte"><span>warm <b>1,2 %</b></span><span>kühl <b>94,4 %</b></span><span>Helligkeit <b>107</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Reittier. Vorwärts läuft es von allein, gelenkt wird nur quer. Dazu ein Turbo, der Tempo gegen Kontrolle tauscht — das ist der eigentliche Reiz: Der Spieler entscheidet laufend, wie viel Risiko er will.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Schienenlevel. Eine enge Schneerinne, Hindernisse auf drei gedachten Spuren, TNT-Kisten dazwischen. Kein Erkunden, reine Reaktion.</p></div>
-      <div class="feldblock"><b>Design</b><p>Strahlend weißer Schnee, blaugraue Eiswände, türkisblaue Eisformationen, dunkelblauer Nachthimmel mit Schneefall. Hölzerne Totems mit warmen Mustern sind die einzigen Farbtupfer.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Robben, Orcas (springen quer über die Bahn), Totempfähle, TNT.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Reittier. Vorwärts läuft es von allein, gelenkt wird nur quer. Dazu ein <strong>Turbo, der Tempo gegen Kontrolle tauscht</strong> — das ist der eigentliche Reiz. <em>Neu belegt:</em> Der Turbo ist im Bild <strong>farblich gekennzeichnet</strong>, durch eine violette Bewegungsspur am Reittier. Tempo ist dort ein sichtbarer Zustand, kein Zahlenwert.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Schienenlevel. Eine enge Schneerinne, Hindernisse auf drei gedachten Spuren, Nitrokisten dazwischen. Kein Erkunden, reine Reaktion.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Strahlend weißer Schnee, blaugraue Eiswände, türkisblaue Eisformationen, dunkelblauer Himmel. Der Gefahrenzeiger ist die <strong>grelle Nitrokiste</strong> — grün auf blauem Eis, die einzige Farbe, die dort sonst nicht vorkommt. Die geschnitzten Pfähle sind Wegmarken, keine Warnungen.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Tiere, die quer über die Bahn springen, Pfähle, Nitro.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Sichtweite. Hindernisse erscheinen spät.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick von hinten auf Reiter und Tier in der weißen Rinne.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Vorhanden:</em> <code>Reiter</code> (Level 04) kann das schon. <em>Neu:</em> <span class="wz">Spurhindernisse</span>, <span class="wz">Turbo mit Kontrollverlust</span>.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick von hinten auf Reiter und Tier in der weißen Rinne — mit violetter Spur, wenn der Turbo läuft.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Vorhanden:</em> <span class="wz">Reiter</span> (Level 04). <em>Neu:</em> <span class="wz">Spurhindernisse</span>, <span class="wz">Turbo mit Kontrollverlust</span> samt eigener Einfärbung.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L17 Frostritt.</b> Palette trifft (kühl 98,9 % gegen 94,4 %) — eines der zwei am besten getroffenen Level. <strong>Der Turbo fehlt jedoch ganz.</strong> Und unsere Totems sind mit <code>#965127</code> warm gesetzt, kommen im Bild aber auf 0,2 % und lesen sich schiefergrau; als Gefahrenzeichen taugen sie so nicht.</p></div>
     </div>
   </article>
 
   <article class="level" id="l43">
-    <div class="level-kopf"><span class="nr">4-3</span><h3>Schwarmpfad</h3></div>
-    <p class="vorbild">Vorbild: „Bee-Having" · Dschungel mit Bienenschwärmen</p>
+    <div class="level-kopf"><span class="nr">4-3</span><h3>Schwarmpfad</h3><span class="ansicht art-v">3D-Verfolger</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Bee-Having&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#07180D"></div><span class="wert">#07180D</span></div>
-        <div class="ton"><div class="feld" style="background:#000101"></div><span class="wert">#000101</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#154D2A"></div><span class="wert">#154D2A</span></div>
-        <div class="ton"><div class="feld" style="background:#4B3A1F"></div><span class="wert">#4B3A1F</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#894113"></div><span class="wert">#894113</span></div>
-        <div class="ton"><div class="feld" style="background:#C0357A"></div><span class="wert">#C0357A ¹</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#292413"></div><span class="wert">#292413 · 22 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#722C10"></div><span class="wert">#722C10 · 20 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#9F310E"></div><span class="wert">#9F310E · 2,9 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#833412"></div><span class="wert">#833412 · 4,4 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#C0357A"></div><span class="wert">#C0357A · ¹</span></div>
       </div>
-      <p class="band-bild">¹ Das Magenta der Deckungsflecken ist zu kleinflächig für die Messung — hier von Hand ergänzt, weil es der Schlüssel des Levels ist.</p>
+      <p class="band-bild">Der warme rote Weg trägt das Bild, nicht das Grün. Die auffälligsten Farben sind die Kisten. — ¹ Magenta der Deckungsflecken, in der ersten Fassung von Hand ergänzt; im Nachscan über 5 Bilder nicht angetroffen und deshalb ohne Flächenwert.</p>
+      <p class="messwerte"><span>warm <b>75,9 %</b></span><span>kühl <b>8,1 %</b></span><span>Helligkeit <b>77</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Verfolgende Schwärme. Ein Schwarm ist kein einzelner Gegner, sondern eine Gruppe, die als Ganzes kommt — und mit einem einzigen gut gesetzten Schlag als Ganzes fällt. Dazu Bodenflecken, in die man sich kurz eingräbt und unangreifbar ist.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Dschungelpfad, auf dem Schwärme in Wellen kommen. Die Deckungsflecken liegen rhythmisch — das Level ist ein Wechsel aus Rennen und Ducken.</p></div>
-      <div class="feldblock"><b>Design</b><p>Rot-maroon gepflasterter Weg mit hellem Sandstreifen in der Mitte, große Baumstämme als Torbögen, sattes Grün, rote Pilze. Die magentafarbenen Erdflecken sind Signalfarbe — sie kommen sonst nirgends vor.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Bienenschwärme, grabende Gegner.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p><strong>Verfolgende Schwärme.</strong> Ein Schwarm ist kein einzelner Gegner, sondern eine Gruppe, die als Ganzes kommt — und mit einem einzigen gut gesetzten Schlag als Ganzes fällt. Dazu Bodenflecken, in die man sich kurz eingräbt und unangreifbar ist.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Dschungelpfad, auf dem Schwärme in Wellen kommen. Die Deckungsflecken liegen rhythmisch — das Level ist ein Wechsel aus Rennen und Ducken. Zusätzlich versperren <strong>Wände aus Nitrokisten</strong> quer den Weg.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Rotbrauner Weg mit hellem Sandstreifen in der Mitte, große Stämme als Torbögen, sattes Grün, rote Pilze mit weißen Punkten, türkis bemalte Zeichen an den Felswänden, weiße Schneeflecken am Rand. <strong>Die auffälligsten Farben im Bild sind die Kisten</strong> — grelles Nitro-Grün und orange Umrisskisten. Die Signalwirkung kommt aus dem globalen Kistenvertrag, nicht aus einer levelspezifischen Erfindung.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Schwärme, grabende Gegner.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Man darf nicht stehenbleiben, muss aber genau zielen.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die magentafarbenen Flecken im roten Weg.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schwarm</span> (Gruppe, die zusammen verfolgt und zusammen fällt), <span class="wz">Deckungsfleck</span> — passt unmittelbar auf unser Krabbeln.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die Wand aus grünen Nitrokisten quer über dem roten Weg.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schwarm</span>, <span class="wz">Deckungsfleck</span>, <span class="wz">Nitrowand</span> (Reihe Nitrokisten als Sperre, die nur der Auslöser räumt).</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L18 Schwarmpfad.</b> Warm 5,8 % statt 75,9 % — unser Dschungel ist ein flächiger Grünschleier, das Vorbild wird vom warmen roten Weg getragen. Und die Deckungsflecken, auf denen das ganze Level steht, messen im Bild <code>(116, 68, 58)</code> gegen den Weg <code>(46, 79, 18)</code>: ein stumpfes Braun auf rotbraunem Weg. Grüner Nebel und grünes Umgebungslicht entsättigen das Magenta zu Schlamm.</p></div>
     </div>
   </article>
 
   <article class="level" id="l44">
-    <div class="level-kopf"><span class="nr">4-4</span><h3>Sturmruinen</h3></div>
-    <p class="vorbild">Vorbild: „Ruination" · Ruinen im Gewitter</p>
+    <div class="level-kopf"><span class="nr">4-4</span><h3>Sturmruinen</h3><span class="ansicht art-v">3D-Verfolger</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Ruination&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#1E1511"></div><span class="wert">#1E1511</span></div>
-        <div class="ton"><div class="feld" style="background:#582511"></div><span class="wert">#582511</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#41364F"></div><span class="wert">#41364F</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#6E44B7"></div><span class="wert">#6E44B7</span></div>
-        <div class="ton"><div class="feld" style="background:#953720"></div><span class="wert">#953720</span></div>
-        <div class="ton"><div class="feld" style="background:#E0C4E2"></div><span class="wert">#E0C4E2</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#0A0F17"></div><span class="wert">#0A0F17 · 21 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#415159"></div><span class="wert">#415159 · 19 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#2B506B"></div><span class="wert">#2B506B · 2,0 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#3C6871"></div><span class="wert">#3C6871 · 2,7 %</span></div>
       </div>
-      <p class="band-bild">Sturmstein gegen Violett, dazwischen das Feuer. Das einzige Vorbild mit einem kalten Buntton als Leitfarbe.</p>
+      <p class="band-bild">Dunkel vor hell: die Ruinen sind schwarze Umrisse vor einem helleren Regenhimmel.</p>
+      <p class="messwerte"><span>warm <b>9,4 %</b></span><span>kühl <b>74,4 %</b></span><span>Helligkeit <b>53</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Böden, die sich drehen und kippen. Rotierende Säulen als Plattformen, Platten, die beim Betreten kippen und fallen. Dazu Statuen, die im Takt Feuer speien, und Gorillas, die Stämme werfen.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Ruinenpfad mit großen Steinbauwerken, nachts im Gewitter. Die Drehplattformen stehen oft dort, wo auch ein Gegner steht — der Spieler muss zwei bewegte Dinge gleichzeitig lesen.</p></div>
-      <div class="feldblock"><b>Design</b><p>Nasses blaugraues Steinwerk, dunkler Gewitterhimmel, orangefarbenes Fackelfeuer, violette und magentafarbene Akzente. Blitze als kurze Vollbeleuchtung.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Possums (harmlos, aber im Weg), Affen, Echsen (<strong>nur per Slide</strong> zu besiegen — ihr Kragen schützt gegen Sprung und Drehschlag), Gorillas (Wurfgeschoss), Götzenköpfe (Feuerstoß, teils schwenkend).</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p><strong>Böden, die sich drehen und kippen.</strong> Rotierende Säulen als Plattformen, Platten, die beim Betreten kippen und fallen. Dazu Statuen, die im Takt Feuer speien, und Werfer.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Ruinenpfad mit großen Steinbauwerken, nachts im Gewitter. Die Drehplattformen stehen oft dort, wo auch ein Gegner steht — der Spieler muss zwei bewegte Dinge gleichzeitig lesen. Im Bild belegt: <strong>weiße Umrisskisten</strong>, die erst durch ihren Auslöser körperlich werden, und ein <strong>Bonusraum</strong>.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Das Level ist dunkel, aber <strong>die Silhouette liegt dunkel vor hell</strong>. Die Ruinen am Horizont sind schwarze Umrisse vor einem helleren blaugrauen Regenhimmel — daran liest man ihre Form. Der begehbare Stein ist tealgrün bemoost und deutlich heller als der Hintergrund. Dazu orangefarbenes Fackelfeuer als einziger warmer Ton, Regenstreifen als Struktur und Blitze als senkrechte helle Akzente.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Harmlose Läufer im Weg, Werfer, Echsen (<strong>nur per Slide</strong> zu besiegen), Feuerspeier, teils schwenkend.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Gegner auf drehenden Plattformen.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blitz, der für einen Moment die ganze Ruine zeigt.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Drehplattform</span>, <span class="wz">Kippplattform</span>, <span class="wz">Feuerspeier</span>, <span class="wz">Werfer</span>. <em>Vorhanden:</em> <code>Gegner.besiegbar_durch</code> kann „nur Slide" bereits ausdrücken.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blitz, der für einen Moment die ganze Ruine zeigt — und die schwarzen Ruinenumrisse, die auch ohne ihn lesbar bleiben.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Drehplattform</span>, <span class="wz">Kippplattform</span>, <span class="wz">Feuerspeier</span>, <span class="wz">Werfer</span>, <span class="wz">Umrisskiste</span> + <span class="wz">Auslöserkiste</span>, <span class="wz">Bonusraum</span>, <span class="wz">Silhouettenband</span>. <em>Vorhanden:</em> <code>Gegner.besiegbar_durch</code> kann &bdquo;nur Slide&ldquo; bereits ausdrücken.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L19 Sturmruinen.</b> Helligkeit <strong>9,6 statt 53</strong>. Bei uns steht Dunkel vor Dunkel — im Säulengang sieht man die fünf Scheiben über dem Abgrund zwischen zwei Blitzen nicht. Dazu glüht unser Boden im Affenhof orangerot wie Lava, wo das Vorbild nassen blaugrauen Stein hat.</p></div>
     </div>
   </article>
 
   <article class="level" id="l45">
-    <div class="level-kopf"><span class="nr">4-5</span><h3>Kolbengang</h3></div>
-    <p class="vorbild">Vorbild: „Piston It Away" · Raumstation</p>
+    <div class="level-kopf"><span class="nr">4-5</span><h3>Kolbengang</h3><span class="ansicht art-s">2,5D-Seitenansicht</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Piston It Away&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#1C100D"></div><span class="wert">#1C100D</span></div>
-        <div class="ton"><div class="feld" style="background:#512F11"></div><span class="wert">#512F11</span></div>
-        <div class="ton"><div class="feld" style="background:#6B4C20"></div><span class="wert">#6B4C20</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#4D5650"></div><span class="wert">#4D5650</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#926630"></div><span class="wert">#926630</span></div>
-        <div class="ton"><div class="feld" style="background:#A19279"></div><span class="wert">#A19279</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#0C0C18"></div><span class="wert">#0C0C18 · 29 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#321815"></div><span class="wert">#321815 · 19 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#A36630"></div><span class="wert">#A36630 · 3,0 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#8D441C"></div><span class="wert">#8D441C · 2,9 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#601B0C"></div><span class="wert">#601B0C · 2,7 %</span></div>
       </div>
-      <p class="band-bild">Messing gegen Stahl. Das Grünleuchten der Bildschirme ist zu punktuell für die Messung — bei uns als Leuchtmaterial zu setzen.</p>
+      <p class="band-bild">Messing und Kupfer tragen warm, grün leuchtende Ventilräder halten dagegen.</p>
+      <p class="messwerte"><span>warm <b>62,7 %</b></span><span>kühl <b>20,0 %</b></span><span>Helligkeit <b>57</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Ein Hindernis, zwei Rollen. Riesige Kolben versperren den Gang — manche muss man passieren, während sie oben sind, auf andere muss man sich stellen und hochfahren lassen. Dazu Gegner, deren Haltung bestimmt, wie man sie besiegt: Arme unten = draufspringen, Arme oben = durchsliden.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Innenraumkorridor mit Rückwegen: Um alle Kisten zu bekommen, muss man den Weg zurücklaufen. Ein Todesweg zweigt ab — ohne Rettungsnetz, dafür mit dem besten Preis.</p></div>
-      <div class="feldblock"><b>Design</b><p>Warme sandfarbene Wandkacheln mit Ziernaht, Messing- und Kupferrohre, grün leuchtende Bildschirme mit Symbolen, graues Metall, orangefarbene Roboter.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Laufroboter (nur Slide), Tentakelroboter (haltungsabhängig), Schrumpfstrahlen (ausgelöst durch Bodenplatten), Schildträger (schieben).</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p><strong>Ein Hindernis, zwei Rollen.</strong> Riesige Kolben versperren den Gang — manche muss man passieren, während sie oben sind, auf andere muss man sich stellen und hochfahren lassen. Dazu Gegner, deren Haltung bestimmt, wie man sie besiegt: Arme unten = draufspringen, Arme oben = durchsliden.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Innenraumkorridor mit Rückwegen: Um alle Kisten zu bekommen, muss man den Weg zurücklaufen. Ein Todesweg zweigt ab — ohne Rettungsnetz, dafür mit dem besten Preis. Bonusraum im Bild belegt, Kistenzähler sichtbar.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Es sind <strong>keine sandfarbenen Wandkacheln</strong>. Die Wände sind <strong>olivgelbe Fliesen mit sichtbarem Fugenraster und Nieten</strong> auf zylindrischen Tanks; davor liegen dichte Bündel aus <strong>Kupfer- und Bronzerohren</strong> in mehreren Durchmessern. Die Stege sind gebürsteter Stahl mit hellem Kantenglanz. Als kalte Gegenfarbe grün leuchtende Ventilräder und Sichtscheiben; der Hintergrund ist blauschwarze Leere.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Laufroboter (nur Slide), Haltungsgegner, Bodenplatten, die etwas auslösen, Schieber.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Man muss bei jedem Gegner erst lesen, in welchem Zustand er ist, bevor man reagiert.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Kolben, der wie ein Stempel aus der Decke kommt.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Auslöseplatte</span>, <span class="wz">Strahlfalle</span>, <span class="wz">Haltungsgegner</span>. <em>Vorhanden:</em> <code>Wasserplattform</code> senkrecht ist bereits der Kolben.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Das Rohrbündel im Vordergrund, durch das man den Steg dahinter sieht.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Auslöseplatte</span>, <span class="wz">Strahlfalle</span>, <span class="wz">Haltungsgegner</span>, <span class="wz">Rohrbündel</span>, <span class="wz">Fliesenwand</span>. <em>Vorhanden:</em> <span class="wz">Wasserplattform</span> senkrecht ist bereits der Kolben.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L20 Kolbengang.</b> Kühl 0,5 % statt 20,0 % — das grüne Leuchten als Gegenfarbe fehlt fast ganz. Unsere Wand ist <code>Materialbibliothek.fels().duplicate()</code> mit sandfarbenem Albedo: Das Rauschen der Felstextur schlägt durch, es liest sich als Höhle statt als Station. Dazu laufen Schneewiesel, Gletscherkrabben und Frostmotten durch die Raumstation.</p></div>
     </div>
   </article>
+
 </section>
 
-<!-- ================================================== RAUM 5 -->
 <section class="raum" id="raum5">
   <div class="raum-kopf">
     <span class="zahl">Raum 5 · Vorbilder aus dem dritten Spiel</span>
     <h2>Jedes Level bringt eine eigene Regel mit</h2>
-    <p>Nicht mehr nur neue Hindernisse, sondern neue Grundbedingungen — Dunkelheit, Fliegen, Hangeln. <strong>Der teuerste, aber auch der lohnendste Raum.</strong></p>
+    <p>Nicht mehr nur neue Hindernisse, sondern neue Grundbedingungen — Dunkelheit, Fliegen, Hangeln. Das ist der teuerste, aber auch der lohnendste Raum.</p>
+    <p style="margin-top:.6rem"><strong>Was in der ersten Fassung fehlte:</strong> In diesem Raum kommen zwei Meta-Systeme dazu, die jedes Level rückwirkend verändern — Fähigkeiten, die man anderswo bekommt und mit denen man in alte Level zurückgeht, und Zeitläufe, die jedes Level zwingen, sauber und schnell durchlaufbar zu sein. Beides steht bei uns nicht auf der Karte.</p>
   </div>
 
   <article class="level" id="l51">
-    <div class="level-kopf"><span class="nr">5-1</span><h3>Sandgrab</h3></div>
-    <p class="vorbild">Vorbild: „Sphynxinator" · ägyptisches Grab</p>
+    <div class="level-kopf"><span class="nr">5-1</span><h3>Sandgrab</h3><span class="ansicht art-v">3D-Verfolger</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Sphynxinator&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton traegt"><div class="feld" style="background:#60200E"></div><span class="wert">#60200E</span></div>
-        <div class="ton"><div class="feld" style="background:#26120D"></div><span class="wert">#26120D</span></div>
-        <div class="ton"><div class="feld" style="background:#9B501A"></div><span class="wert">#9B501A</span></div>
-        <div class="ton"><div class="feld" style="background:#A03F16"></div><span class="wert">#A03F16</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#E68D36"></div><span class="wert">#E68D36</span></div>
-        <div class="ton"><div class="feld" style="background:#4E4827"></div><span class="wert">#4E4827</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#33191A"></div><span class="wert">#33191A · 27 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#7B2C0D"></div><span class="wert">#7B2C0D · 18 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#9C430C"></div><span class="wert">#9C430C · 3,7 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#932C08"></div><span class="wert">#932C08 · 2,2 %</span></div>
       </div>
-      <p class="band-bild">Durchweg warm. Das Fackellicht ist der Blickfang, das grüne Wegband der einzige kühle Ton.</p>
+      <p class="band-bild">Durchweg warm — das einzige Gegengewicht ist das kühle blaugraue Nichts über den Wänden.</p>
+      <p class="messwerte"><span>warm <b>94,1 %</b></span><span>kühl <b>2,3 %</b></span><span>Helligkeit <b>82</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Speerböden, die im Takt aus dem Boden schießen, und Türen, die sich schließen — ein Zeitfenster, durch das man hindurch muss. Gleich am Anfang eine Gabelung: Der rechte Weg ist leicht, der linke nur mit Slide-Sprung, Doppelsprung und Drehschlag hintereinander erreichbar.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Zwei Wege mit unterschiedlichem Anspruch, die am Ende wieder zusammenlaufen. Dazu ein Geheimnis, das nur findet, wer am Start rückwärts läuft.</p></div>
-      <div class="feldblock"><b>Design</b><p>Warmer ockerfarbener Sandstein, Wände voller bemalter Hieroglyphen in Rot, Türkis und Blau auf Tan. Sandiger Boden mit grün gefasstem Wegband, Fackelorange. Der Boden ist hell, die Wände sind Muster.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Mumien, Flammenwerfer hinter Deckung, Skorpione.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p>Speerböden, die im Takt aus dem Boden schießen, und <strong>Türen, die sich schließen</strong> — ein Zeitfenster, durch das man hindurch muss. Gleich am Anfang eine Gabelung: Der eine Weg ist leicht, der andere nur mit Slide-Sprung, Doppelsprung und Drehschlag hintereinander erreichbar.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Zwei Wege mit unterschiedlichem Anspruch, die am Ende wieder zusammenlaufen. Dazu ein Geheimnis, das nur findet, wer am Start <strong>rückwärts</strong> läuft.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="best">bestätigt</span> Der Boden ist <strong>helle, fast cremefarbene Fliese</strong> mit sichtbaren Fugen — das Hellste im Bild. An beiden Wegrändern läuft ein schmales <strong>rot-grünes Zierband</strong> mit; es sagt auf jeden Blick, wie breit der Weg gerade ist. Die Wände tragen große, flächige Bildfelder in Tan-auf-Tan mit roten, türkisen und blauen Akzenten. In den offenen Abschnitten steht über den Wänden ein kühles blaugraues Nichts.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Wickelgestalten, Flammenwerfer hinter Deckung, Skorpione.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Die Türfenster sind kurz, und dahinter geht es sofort weiter.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Gang mit den bemalten Wänden und dem grünen Wegband.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schließtür</span>, <span class="wz">Wegverzweigung</span>, <span class="wz">Rückwärtsgeheimnis</span>. <em>Vorhanden:</em> <code>Stacheln</code> einfahrbar ist der Speerboden.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Gang mit den bemalten Wänden und dem farbigen Wegband.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Schließtür</span>, <span class="wz">Wegverzweigung</span>, <span class="wz">Rückwärtsgeheimnis</span>, <span class="wz">Wandbildfeld</span>. <em>Vorhanden:</em> <span class="wz">Stacheln</span> einfahrbar ist der Speerboden.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L21 Sandgrab.</b> Das am besten getroffene Level der Reihe — warm 98,1 % gegen 94,1 %, Helligkeit 90 gegen 82. Zwei Kleinigkeiten: Unser Boden ist mittleres Orange, wo das Vorbild fast cremefarben ist; und über den Wänden liegt bei uns orangener Dunst statt des kühlen Nichts.</p></div>
     </div>
   </article>
 
   <article class="level" id="l52">
-    <div class="level-kopf"><span class="nr">5-2</span><h3>Wolkenjagd</h3></div>
-    <p class="vorbild">Vorbild: „Mad Bombers" · Doppeldecker</p>
+    <div class="level-kopf"><span class="nr">5-2</span><h3>Wolkenjagd</h3><span class="ansicht art-f">freier Flug</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Mad Bombers&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#3D4E64"></div><span class="wert">#3D4E64</span></div>
-        <div class="ton"><div class="feld" style="background:#525869"></div><span class="wert">#525869</span></div>
-        <div class="ton"><div class="feld" style="background:#403B3C"></div><span class="wert">#403B3C</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#BCBDC9"></div><span class="wert">#BCBDC9</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#24252C"></div><span class="wert">#24252C</span></div>
-        <div class="ton"><div class="feld" style="background:#8C735F"></div><span class="wert">#8C735F</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#A9BDD7"></div><span class="wert">#A9BDD7 · 23 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#7586A5"></div><span class="wert">#7586A5 · 20 %</span></div>
       </div>
-      <p class="band-bild">Alles Grau. Die Farbe steckt fast nur in den Zielen — der Hintergrund ist absichtlich fast einfarbig.</p>
+      <p class="band-bild">Die Messung findet keine einzige Signalfarbe über der Sättigungsschwelle — genau das ist die Absicht.</p>
+      <p class="messwerte"><span>warm <b>5,8 %</b></span><span>kühl <b>83,3 %</b></span><span>Helligkeit <b>159</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Fliegen und Schießen. Freie Bewegung im Luftraum statt Korridor, Trefferanzeige statt Leben, eine Zielvorgabe („fünf abschießen") statt eines Zielportals.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p><strong>Fliegen und Schießen.</strong> Freie Bewegung im Luftraum, Trefferanzeige statt Leben, eine Zielvorgabe statt eines Zielportals.</p></div>
       <div class="feldblock"><b>Leveldesign</b><p>Kein Weg. Ein offener Raum über Schneebergen, in dem Ziele kreisen. Der Fortschritt ist ein Zähler.</p></div>
-      <div class="feldblock"><b>Design</b><p>Fahlgrauer Dunsthimmel, weiße Wolken und Schneeberge, ein braun-olivfarbener eigener Doppeldecker, rote Feindmaschinen, gelbe und weiße Ballons.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Feindflugzeuge in zwei Größen.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="best">bestätigt</span> Die Palette ist durchgehend Grau in mehreren Helligkeiten. Farbe steckt ausschließlich in den Zielen. Wer im Dunst einen Farbfleck sieht, weiß sofort, dass es ein Ziel ist — das ist der einzige Fall in den fünfzehn, in dem die Abwesenheit von Farbe selbst das Entwurfsmittel ist.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Feindmaschinen in zwei Größen, dazu Ballons als leichtere Ziele.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Zielen im Raum, während man selbst ausweicht.</p></div>
       <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der eigene Flügel am unteren Bildrand.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu und teuer:</em> <span class="wz">Flugmodus</span>, <span class="wz">Trefferanzeige</span>, <span class="wz">Zielzähler</span>. <strong>Der größte Brocken der fünfzehn</strong> — ein eigener Bewegungsmodus wie <code>Reiter</code> und <code>Rennfahrer</code>, aber ohne Kurve.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu und teuer:</em> <span class="wz">Flugmodus</span>, <span class="wz">Trefferanzeige</span> statt Leben, <span class="wz">Zielzähler</span> als Levelabschluss.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L22 Wolkenjagd.</b> Trifft den Steckbrief. Zwei Abweichungen: Unser Level ist mit Helligkeit 201 gegen 159 zu hell, und das normale HUD mit Herzen und Früchtezähler läuft neben der Zieltafel weiter — gefordert war die Trefferanzeige <strong>statt</strong> der Leben.</p></div>
     </div>
   </article>
 
   <article class="level" id="l53">
-    <div class="level-kopf"><span class="nr">5-3</span><h3>Funkenlicht</h3></div>
-    <p class="vorbild">Vorbild: „Bug Lite" · Grab bei Nacht</p>
+    <div class="level-kopf"><span class="nr">5-3</span><h3>Funkenlicht</h3><span class="ansicht art-v">3D-Verfolger</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Bug Lite&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton traegt"><div class="feld" style="background:#120F0C"></div><span class="wert">#120F0C</span></div>
-        <div class="ton"><div class="feld" style="background:#523019"></div><span class="wert">#523019</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#A05524"></div><span class="wert">#A05524</span></div>
-        <div class="ton"><div class="feld" style="background:#61492F"></div><span class="wert">#61492F</span></div>
-        <div class="ton"><div class="feld" style="background:#3F434A"></div><span class="wert">#3F434A</span></div>
-        <div class="ton"><div class="feld" style="background:#6685CA"></div><span class="wert">#6685CA</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#080505"></div><span class="wert">#080505 · 24 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#834313"></div><span class="wert">#834313 · 19 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#B07325"></div><span class="wert">#B07325 · 15 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#D59F3E"></div><span class="wert">#D59F3E · 13 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#A3440B"></div><span class="wert">#A3440B · 3,0 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#A75811"></div><span class="wert">#A75811 · 4,2 %</span></div>
       </div>
-      <p class="band-bild">Das Schwarz füllt das Bild, das Ocker ist der Lichtkreis, das Blau der leuchtende Kristall.</p>
+      <p class="band-bild">Nicht fast schwarz: rund 47 % der Fläche sind warmer Ocker in gut lesbarer Helligkeit.</p>
+      <p class="messwerte"><span>warm <b>76,7 %</b></span><span>kühl <b>0,6 %</b></span><span>Helligkeit <b>60</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Dunkelheit als Regel. Es gibt nur ein mitwanderndes Licht; man sieht wenige Meter weit. Gefahren erscheinen erst im Lichtkreis. Dazu Scheinwerferfelder, die beim Durchqueren Fallen auslösen.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p><strong>Dunkelheit als Regel.</strong> Es gibt nur ein mitwanderndes Licht; man sieht wenige Meter weit. Gefahren erscheinen erst im Lichtkreis. Dazu Felder, die beim Durchqueren Fallen auslösen.</p></div>
       <div class="feldblock"><b>Leveldesign</b><p>Schmaler Grabgang, absichtlich ohne Verzweigung — Orientierung wäre im Dunkeln unfair. Die Länge einer Passage ist durch die Sichtweite begrenzt: Ein Sprung darf nie weiter gehen, als das Licht reicht.</p></div>
-      <div class="feldblock"><b>Design</b><p>Fast schwarz. Ein warmer Lichtkreis um die Figur, Kisten und Edelsteine leuchten von selbst, Wände nur angedeutet in Ocker. Die radikalste Gestaltung der fünfzehn: Fast alles ist nicht zu sehen.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Krokodile, Mumien, Schlangen — alle erst spät sichtbar.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> <strong>Das Level ist nicht fast schwarz.</strong> Rund 47 % der Fläche sind warmer Ocker in gut lesbarer Helligkeit. Man sieht mehrere Meter weit: Säulen mit gemalten Bändern in Türkis, Rot und Schwarz, die Rippelstruktur im Sandboden, einzelne Reliefs. Schwarz ist die <strong>Ferne</strong> und der Himmel, nicht die Umgebung. Der mitgeführte Lichtkreis nimmt dem Level die Weitsicht, nicht die Sichtbarkeit.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Kriechtiere und Wickelgestalten, alle erst spät sichtbar.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Man kann nicht vorausplanen.</p></div>
-      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Lichtkreis im Schwarz.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Lichtkreis</span> (Umgebungslicht aus, mitgeführtes Licht an), <span class="wz">Leuchtmarker</span> (Kisten, Früchte und Kanten leuchten selbst), <span class="wz">Auslösefeld</span>.</p></div>
+      <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Lichtkreis im Schwarz — aber mit lesbaren Wänden darin.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Lichtkreis</span>, <span class="wz">Leuchtmarker</span>, <span class="wz">Auslösefeld</span>. <em>Ergänzt:</em> Der Lichtkreis braucht ein <strong>Restlicht</strong>, das die Nahzone auf rund ein Viertel Helligkeit hält — sonst ist er kein Licht, sondern eine Blende.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L23 Funkenlicht.</b> Helligkeit <strong>4,2 statt 60</strong> — vierzehnmal dunkler als sein Vorbild und damit das am weitesten abgewichene Level der Reihe. Die Figur selbst ist im Bild kaum auszumachen; die Wände sind reines Schwarz statt angedeutetem Ocker.</p></div>
     </div>
   </article>
 
   <article class="level" id="l54">
-    <div class="level-kopf"><span class="nr">5-4</span><h3>Neonhöhe</h3></div>
-    <p class="vorbild">Vorbild: „Future Frenzy" · Zukunftsstadt</p>
+    <div class="level-kopf"><span class="nr">5-4</span><h3>Neonhöhe</h3><span class="ansicht art-m">gemischt: 3D und 2,5D</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Future Frenzy&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton traegt"><div class="feld" style="background:#1B1424"></div><span class="wert">#1B1424</span></div>
-        <div class="ton"><div class="feld" style="background:#2E2C5B"></div><span class="wert">#2E2C5B</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#4E4E9A"></div><span class="wert">#4E4E9A</span></div>
-        <div class="ton"><div class="feld" style="background:#584049"></div><span class="wert">#584049</span></div>
-        <div class="ton"><div class="feld" style="background:#9E7E6A"></div><span class="wert">#9E7E6A</span></div>
-        <div class="ton"><div class="feld" style="background:#3A4AA9"></div><span class="wert">#3A4AA9</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#585078"></div><span class="wert">#585078 · 20 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#1C1C3D"></div><span class="wert">#1C1C3D · 19 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#3C58BD"></div><span class="wert">#3C58BD · 4,9 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#1E4DCC"></div><span class="wert">#1E4DCC · 3,7 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#3D70B6"></div><span class="wert">#3D70B6 · 2,0 %</span></div>
       </div>
-      <p class="band-bild">Tiefes Blau in drei Stufen. Die Neonfarben sind zu kleinflächig für die Messung — bei uns als Leuchtmaterial zu setzen.</p>
+      <p class="band-bild">Nicht durchgehend kalt: kupfer- und bronzefarbene Wandpaneele liefern 31,7 % warmen Gegenpart.</p>
+      <p class="messwerte"><span>warm <b>31,7 %</b></span><span>kühl <b>46,3 %</b></span><span>Helligkeit <b>88</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Laserzäune, die im Takt an- und ausgehen — dieselbe Idee wie die Taktfläche, aber senkrecht und damit als Wand statt als Boden. Dazu schwebende Plattformen auf festen Bahnen hoch über der Stadt.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Hochhausdächer und Stege, senkrecht gestaffelt, mit viel Leere darunter. Die Stadt selbst ist Kulisse und Tiefenmesser zugleich.</p></div>
-      <div class="feldblock"><b>Design</b><p>Tiefblaue und violette Nacht, Neonstreifen in Cyan, Magenta und Grün, blau-weiße Glasfronten, mintgrüne Böden. Kalt, kontrastreich, alles glüht ein wenig — der Gegenentwurf zu jedem Naturlevel.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Stachelpanzer, fliegende Assistenten, Kugelroboter, Laserzäune.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p><strong>Laserzäune</strong>, die im Takt an- und ausgehen — dieselbe Idee wie die Taktfläche, aber senkrecht und damit als Wand statt als Boden. Dazu schwebende Plattformen auf festen Bahnen hoch über der Stadt.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p><span class="korr">korrigiert</span> Hochhausdächer und Stege, senkrecht gestaffelt, mit viel Leere darunter. Die Stadt selbst ist Kulisse und Tiefenmesser zugleich. <strong>Die Ansicht wechselt mitten im Level:</strong> Wo es eng und sprunglastig wird, klappt sie auf die Seite.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Nicht durchgehend kalt. Tiefblaue und violette Nachtflächen tragen das Bild, aber <strong>kupfer- und bronzefarbene Wandpaneele</strong> liefern einen kräftigen warmen Gegenpart. Der Steg ist ein <strong>helles mintgrünes Band mit hellerer Kante</strong>, das Hellste im Bild; die Neonstreifen und Leuchtscheiben liegen <strong>hinter</strong> der Spielebene, nicht darin.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Stachelroboter, fliegende Störer, Kugelroboter, Laserzäune.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Lasertakt und Absturzgefahr zugleich.</p></div>
       <div class="feldblock"><b>Erkennungsmerkmal</b><p>Der Blick nach unten in eine leuchtende Stadt.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Laserzaun</span>, <span class="wz">Neon-Materialsatz</span>. <em>Vorhanden:</em> <code>Wasserplattform</code> mit Kurve ist die Schwebeplattform.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu:</em> <span class="wz">Laserzaun</span>, <span class="wz">Neon-Materialsatz</span>, <span class="wz">Ansichtswechsel im Level</span>. <em>Vorhanden:</em> <span class="wz">Wasserplattform</span> mit Kurve ist die Schwebeplattform.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L24 Neonhöhe.</b> Unser bestes Bild der Reihe (Kontrast 51), aber <strong>warm 0,4 % statt 31,7 %</strong> — die kupferfarbenen Wände fehlen ganz, unser Level ist rein kalt. Dazu sind die Kisten dunkle Kästen auf dunklem Weg und kaum auszumachen, und der Boden liest sich blaugrau statt mintgrün.</p></div>
     </div>
   </article>
 
   <article class="level" id="l55">
-    <div class="level-kopf"><span class="nr">5-5</span><h3>Dächergasse</h3></div>
-    <p class="vorbild">Vorbild: „Hang'em High" · arabische Dächer</p>
+    <div class="level-kopf"><span class="nr">5-5</span><h3>Dächergasse</h3><span class="ansicht art-v">3D-Verfolger</span></div>
+    <p class="vorbild">Vorbild: &bdquo;Hang&rsquo;em High&ldquo;</p>
     <div class="band">
       <div class="band-streifen">
-        <div class="ton"><div class="feld" style="background:#CA6939"></div><span class="wert">#CA6939</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#E8AA5E"></div><span class="wert">#E8AA5E</span></div>
-        <div class="ton"><div class="feld" style="background:#572E1B"></div><span class="wert">#572E1B</span></div>
-        <div class="ton"><div class="feld" style="background:#A45932"></div><span class="wert">#A45932</span></div>
-        <div class="ton traegt"><div class="feld" style="background:#3B6CBA"></div><span class="wert">#3B6CBA</span></div>
-        <div class="ton"><div class="feld" style="background:#A28A93"></div><span class="wert">#A28A93</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#90543A"></div><span class="wert">#90543A · 21 %</span></div>
+        <div class="ton traegt"><div class="feld" style="background:#6D362C"></div><span class="wert">#6D362C · 21 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#C89F70"></div><span class="wert">#C89F70 · 14 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#A44B22"></div><span class="wert">#A44B22 · 4,3 %</span></div>
+        <div class="ton klein"><div class="feld" style="background:#A9260B"></div><span class="wert">#A9260B · 3,3 %</span></div>
       </div>
-      <p class="band-bild">Die farbigste Palette der fünfzehn: Sandwand gegen Himmel, dazu Terrakotta als Mitte.</p>
+      <p class="band-bild">Der Beleg für den Methodenwechsel: die alte Sechs-Ton-Reduktion verschluckt den blauen Himmel restlos.</p>
+      <p class="messwerte"><span>warm <b>80,8 %</b></span><span>kühl <b>14,1 %</b></span><span>Helligkeit <b>89</b></span></p>
     </div>
     <div class="felder">
-      <div class="feldblock kern"><b>Kernmechanik</b><p>Hangeln. Ein Gitter unter der Decke, an dem sich die Figur entlangzieht — eine neue Fortbewegungsart neben Laufen und Springen. Dazu fliegende Teppiche als Plattformen und Sprungteppiche als Trampoline.</p></div>
-      <div class="feldblock"><b>Leveldesign</b><p>Dächer einer Altstadt, viel Auf und Ab, Sprünge zwischen Teppichen. Ein Geheimweg führt über eine Treppe aus Nitro-Kisten, die hier ausnahmsweise nicht explodieren — dieselbe Idee wie die Sackgasse in 4-1: Das Level bricht seine eigene Regel und belohnt den, der es merkt.</p></div>
-      <div class="feldblock"><b>Design</b><p>Warme Terrakotta- und Sandwände, ornamentale Spitzbögen in Rot, Weiß und Türkis, helle Sandböden, blauer Himmel. Hell und freundlich — der Gegenpol zu 5-3.</p></div>
-      <div class="feldblock"><b>Gegner</b><p>Affen mit Töpfen, Skorpione an der Decke (treffen beim Hangeln!), Assistenten mit Krummsäbel, Teppichreiter.</p></div>
+      <div class="feldblock kern"><b>Kernmechanik</b><p><strong>Hangeln.</strong> Ein Gitter unter der Decke, an dem sich die Figur entlangzieht — eine neue Fortbewegungsart neben Laufen und Springen. Dazu fliegende Teppiche als Plattformen und Sprungteppiche als Trampoline.</p></div>
+      <div class="feldblock"><b>Leveldesign</b><p>Dächer einer Altstadt, viel Auf und Ab, Sprünge zwischen Teppichen. Ein Geheimweg führt über eine Treppe aus Nitrokisten, die hier ausnahmsweise nicht explodieren — dieselbe Idee wie die Sackgasse in 4-1: Das Level bricht seine eigene Regel und belohnt den, der es merkt. Der Bonusraum ist ein völlig anders gestalteter dunkler Innenraum; der Bruch ist Absicht.</p></div>
+      <div class="feldblock"><b>Design</b><p><span class="korr">korrigiert</span> Der <strong>kräftig blaue Himmel steht in jeder Außenaufnahme</strong> und trägt 14,1 % der Fläche — er ist das Gegengewicht zur warmen Wand, nicht ein Streifen am Rand. Dazu türkis-weiße Ornamentfelder in den Spitzbögen, dunkle Holzgitterfenster als tiefer Kontrast und ein sehr heller cremefarbener Bodenbelag. Terrakotta liegt dazwischen, nicht über allem.</p></div>
+      <div class="feldblock"><b>Gegner</b><p>Werfer mit Töpfen, Skorpione an der Decke (treffen beim Hangeln!), Angreifer mit Klinge, Teppichreiter.</p></div>
       <div class="feldblock"><b>Was es schwer macht</b><p>Hangeln und Ausweichen gleichzeitig — man hat beim Hangeln kaum Handlungsmöglichkeiten.</p></div>
       <div class="feldblock"><b>Erkennungsmerkmal</b><p>Die Figur, die unter einem Gitter hängt, während unten die Gasse durchläuft.</p></div>
-      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu und groß:</em> <span class="wz">Hangelgitter</span> — neuer Bewegungszustand mit eigener Hitbox und eigenen Clips. <em>Vorhanden:</em> <code>Kiste</code> als <code>FEDER</code>/<code>SPRUNG</code> ist das Trampolin, <code>Wasserplattform</code> der fliegende Teppich.</p></div>
+      <div class="feldblock"><b>Werkzeuge</b><p><em>Neu und groß:</em> <span class="wz">Hangelgitter</span>. <em>Vorhanden:</em> <span class="wz">Kiste</span> in den Arten <code>FEDER</code> und <code>SPRUNG</code> ist das Trampolin; <span class="wz">Wasserplattform</span> ist der fliegende Teppich.</p></div>
+      <div class="abgleich"><b>Abgleich mit unserem Level</b><p><b>L25 Dächergasse.</b> Kühl 0,2 % statt 14,1 % und Helligkeit 171 statt 89 — der Sanddunst hat den Himmel und die Gasse unter dem Gitter weggenommen. Damit fehlt genau das Erkennungsmerkmal. Ornamente in Rot, Weiß und Türkis gibt es bei uns nicht, die Spitzbögen sind glatte Terrakotta.</p></div>
     </div>
   </article>
+
 </section>
 
-<!-- ================================================== WERKZEUGE -->
 <section class="werkzeuge" id="werkzeuge">
   <div class="raum-kopf">
-    <span class="zahl">Ableitung</span>
+    <span class="zahl">Danach</span>
     <h2>Werkzeugliste</h2>
     <p>Zusammengefasst und entdoppelt. Die Reihenfolge ist ein Vorschlag: erst das, was in den meisten Leveln vorkommt und wenig kostet.</p>
   </div>
 
   <h3 class="tabellentitel">Schon vorhanden — nur einsetzen</h3>
-  <p>Neun der Vorbild-Mechaniken lassen sich mit Bauteilen abbilden, die im Projekt schon stehen.</p>
-  <div class="tabellenhuelle">
-    <table>
-      <thead><tr><th>Werkzeug</th><th>Deckt ab</th></tr></thead>
-      <tbody>
-        <tr><td><code>Wasserplattform</code></td><td>Aufzug (3-2), Kolben (4-5), Schwebeplattform (5-4), fliegender Teppich (5-5)</td></tr>
-        <tr><td><code>Stacheln</code> mit <code>einfahrbar</code></td><td>Speersäule (3-3), Speerboden (5-1)</td></tr>
-        <tr><td><code>Eisfläche</code></td><td>rutschige Platte (3-4)</td></tr>
-        <tr><td><code>Kiste</code> (FEDER / SPRUNG)</td><td>Sprungteppich (5-5)</td></tr>
-        <tr><td><code>Gegner.besiegbar_durch</code></td><td>„nur per Slide" (4-4), Grundlage des Haltungsgegners (4-5)</td></tr>
-        <tr><td><code>Gegner.abprall_hoehe</code></td><td>Trampolingegner (3-4)</td></tr>
-        <tr><td><code>Wasser</code> mit <code>toedlich</code></td><td>Kanalrinne (4-1)</td></tr>
-        <tr><td><code>Reiter</code></td><td>Reittier (4-2)</td></tr>
-        <tr><td><code>Treibmine</code></td><td>hängende und schwimmende Hindernisse</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <div class="tabellenhuelle"><table>
+    <thead><tr><th>Werkzeug</th><th>Deckt ab</th></tr></thead>
+    <tbody>
+      <tr><td class="quelle">Wasserplattform</td><td>Aufzug (3-2), Kolben (4-5), Schwebeplattform (5-4), fliegender Teppich (5-5)</td></tr>
+      <tr><td class="quelle">Stacheln · einfahrbar</td><td>Speersäule (3-3), Speerboden (5-1)</td></tr>
+      <tr><td class="quelle">Eisfläche</td><td>rutschige Platte (3-4)</td></tr>
+      <tr><td class="quelle">Kiste FEDER / SPRUNG</td><td>Sprungteppich (5-5)</td></tr>
+      <tr><td class="quelle">Gegner.besiegbar_durch</td><td>&bdquo;nur per Slide&ldquo; (4-4), Haltungsgegner-Grundlage (4-5)</td></tr>
+      <tr><td class="quelle">Gegner.abprall_hoehe</td><td>Trampolingegner (3-4)</td></tr>
+      <tr><td class="quelle">Wasser · toedlich</td><td>Kanalrinne (4-1)</td></tr>
+      <tr><td class="quelle">Reiter</td><td>Reittier (4-2)</td></tr>
+      <tr><td class="quelle">Treibmine</td><td>hängende und schwimmende Hindernisse</td></tr>
+      <tr><td class="quelle">kisten_gesamt + ohne_tod</td><td>die zwei Edelsteine — gebaut, aber von keinem Level gefordert</td></tr>
+    </tbody>
+  </table></div>
 
-  <h3 class="tabellentitel">Neu — kleine Bauteile, große Wirkung</h3>
-  <p>Jedes einzeln überschaubar, jedes in mehreren Vorbildern gebraucht.</p>
-  <div class="tabellenhuelle">
-    <table>
-      <thead><tr><th>Werkzeug</th><th class="quelle">Aus</th><th>Kurz</th></tr></thead>
-      <tbody>
-        <tr><td><span class="wz">Bruchplatte</span></td><td class="quelle">3-4, 4-4</td><td>trägt kurz, dann fällt sie; Vorwarnung durch Wackeln</td></tr>
-        <tr><td><span class="wz">Taktfläche</span></td><td class="quelle">3-5, 4-1</td><td>Fläche, die periodisch tödlich wird; Vorwarnung durch Farbe</td></tr>
-        <tr><td><span class="wz">Rollhindernis</span></td><td class="quelle">3-1, 4-1</td><td>Kugel oder Fass rollt die Kurve entlang</td></tr>
-        <tr><td><span class="wz">Drehplattform</span></td><td class="quelle">4-4</td><td>dreht sich um die Hochachse, nimmt den Spieler mit</td></tr>
-        <tr><td><span class="wz">Feuerspeier</span></td><td class="quelle">3-3, 3-5, 4-4, 5-1</td><td>gerichteter Stoß im Takt, wahlweise schwenkend</td></tr>
-        <tr><td><span class="wz">Werfer</span></td><td class="quelle">3-3, 4-4</td><td>Gegner mit Wurfgeschoss im Bogen</td></tr>
-        <tr><td><span class="wz">Auslöseplatte</span></td><td class="quelle">4-5, 5-3</td><td>Betreten löst etwas aus</td></tr>
-        <tr><td><span class="wz">Schließtür</span></td><td class="quelle">5-1</td><td>Zeitfenster im Weg</td></tr>
-        <tr><td><span class="wz">Laserzaun</span></td><td class="quelle">5-4</td><td>senkrechte Taktbarriere</td></tr>
-        <tr><td><span class="wz">Fließband</span></td><td class="quelle">3-2</td><td>Boden mit Eigengeschwindigkeit</td></tr>
-        <tr><td><span class="wz">Schiebeblock</span></td><td class="quelle">3-5</td><td>drückt den Spieler seitlich</td></tr>
-        <tr><td><span class="wz">Schwarm</span></td><td class="quelle">4-3</td><td>Gruppe, die zusammen verfolgt und zusammen fällt</td></tr>
-        <tr><td><span class="wz">Deckungsfleck</span></td><td class="quelle">4-3</td><td>geduckt unangreifbar — nutzt unser Krabbeln</td></tr>
-        <tr><td><span class="wz">Nische</span></td><td class="quelle">3-1</td><td>Ausweichbucht als Korridor-Bauteil</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h3 class="tabellentitel">Gebaut und im Einsatz — und woher es kommt</h3>
+  <p>Diese zwanzig standen in der ersten Fassung noch auf der Wunschliste und sind inzwischen gebaut. Die Herkunftsspalte bleibt: Sie sagt, gegen welches Vorbild ein Bauteil zu prüfen ist.</p>
+  <div class="tabellenhuelle"><table>
+    <thead><tr><th>Werkzeug</th><th>Aus</th><th>Kurz</th></tr></thead>
+    <tbody>
+      <tr><td class="quelle">Bruchplatte</td><td class="quelle">3-4, 4-4</td><td>trägt kurz, dann fällt sie; Vorwarnung durch Wackeln</td></tr>
+      <tr><td class="quelle">Taktfläche</td><td class="quelle">3-5, 4-1</td><td>Fläche, die periodisch tödlich wird; Vorwarnung durch Farbe</td></tr>
+      <tr><td class="quelle">Rollhindernis</td><td class="quelle">3-1, 4-1</td><td>Kugel oder Fass rollt die Kurve entlang</td></tr>
+      <tr><td class="quelle">Drehplattform</td><td class="quelle">4-4</td><td>dreht sich um die Hochachse, nimmt den Spieler mit</td></tr>
+      <tr><td class="quelle">Feuerspeier</td><td class="quelle">3-3, 3-5, 4-4, 5-1</td><td>gerichteter Stoß im Takt, wahlweise schwenkend</td></tr>
+      <tr><td class="quelle">Werfer</td><td class="quelle">3-3, 4-4</td><td>Gegner mit Wurfgeschoss im Bogen</td></tr>
+      <tr><td class="quelle">Auslöseplatte</td><td class="quelle">4-5, 5-3</td><td>Betreten löst etwas aus</td></tr>
+      <tr><td class="quelle">Schließtür</td><td class="quelle">5-1</td><td>Zeitfenster im Weg</td></tr>
+      <tr><td class="quelle">Laserzaun</td><td class="quelle">5-4</td><td>senkrechte Taktbarriere</td></tr>
+      <tr><td class="quelle">Fließband</td><td class="quelle">3-2</td><td>Boden mit Eigengeschwindigkeit</td></tr>
+      <tr><td class="quelle">Schiebeblock</td><td class="quelle">3-5</td><td>drückt den Spieler seitlich</td></tr>
+      <tr><td class="quelle">Schwarm</td><td class="quelle">4-3</td><td>Gruppe, die zusammen verfolgt und zusammen fällt</td></tr>
+      <tr><td class="quelle">Deckungsfleck</td><td class="quelle">4-3</td><td>geduckt unangreifbar — nutzt unser Krabbeln</td></tr>
+      <tr><td class="quelle">Lichtkreis + Leuchtmarker</td><td class="quelle">5-3</td><td>Dunkellevel: Licht wandert mit, Wichtiges leuchtet selbst</td></tr>
+      <tr><td class="quelle">Stockwerksverlauf</td><td class="quelle">3-5, 3-3</td><td>mehrere Korridorlagen übereinander mit Sichtverbindung</td></tr>
+      <tr><td class="quelle">Wegverzweigung</td><td class="quelle">5-1, 4-1</td><td>zwei Routen mit eigenem Anspruch, die zusammenlaufen</td></tr>
+      <tr><td class="quelle">Spurhindernisse</td><td class="quelle">4-2</td><td>Hindernisse rhythmisch auf Spuren verteilen</td></tr>
+      <tr><td class="quelle">Neon-Materialsatz</td><td class="quelle">5-4</td><td>Leuchtmaterialien und dunkle Grundtöne als Satz</td></tr>
+      <tr><td class="quelle">Hangelgitter</td><td class="quelle">5-5</td><td>neuer Bewegungszustand: eigene Hitbox, eigener Clip, eigene Steuerung</td></tr>
+      <tr><td class="quelle">Flugmodus</td><td class="quelle">5-2</td><td>eigener Controller ohne Levelkurve, Schuss, Trefferanzeige, Zielzähler</td></tr>
+    </tbody>
+  </table></div>
 
-  <h3 class="tabellentitel">Neu — Level-Eigenschaften statt Einzelteile</h3>
-  <p>Diese ändern nicht ein Objekt, sondern die Regeln eines ganzen Levels.</p>
-  <div class="tabellenhuelle">
-    <table>
-      <thead><tr><th>Werkzeug</th><th class="quelle">Aus</th><th>Kurz</th></tr></thead>
-      <tbody>
-        <tr><td><span class="wz">Lichtkreis</span> + <span class="wz">Leuchtmarker</span></td><td class="quelle">5-3</td><td>Dunkellevel: Licht wandert mit, Wichtiges leuchtet selbst</td></tr>
-        <tr><td><span class="wz">Stockwerksverlauf</span></td><td class="quelle">3-5, 3-3</td><td>mehrere Korridorlagen übereinander mit Sichtverbindung</td></tr>
-        <tr><td><span class="wz">Wegverzweigung</span></td><td class="quelle">5-1, 4-1</td><td>zwei Routen mit eigenem Anspruch, die zusammenlaufen</td></tr>
-        <tr><td><span class="wz">Spurhindernisse</span></td><td class="quelle">4-2</td><td>Hindernisse rhythmisch auf Spuren verteilen</td></tr>
-        <tr><td><span class="wz">Neon-Materialsatz</span></td><td class="quelle">5-4</td><td>Leuchtmaterialien und dunkle Grundtöne als Satz</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h3 class="tabellentitel">Offen — aus der ersten Fassung</h3>
+  <div class="tabellenhuelle"><table>
+    <thead><tr><th>Werkzeug</th><th>Aus</th><th>Warum das Fehlen auffällt</th></tr></thead>
+    <tbody>
+      <tr><td class="quelle">Turbo mit Kontrollverlust</td><td class="quelle">4-2</td><td>Der eigentliche Reiz des Vorbilds. Im Bild sogar eigens eingefärbt.</td></tr>
+      <tr><td class="quelle">Haltungsgegner</td><td class="quelle">4-5</td><td>Kernidee des Levels: erst lesen, dann reagieren.</td></tr>
+      <tr><td class="quelle">Verfolger</td><td class="quelle">4-1</td><td>Der Tempomacher, der das Warten erzwingt.</td></tr>
+      <tr><td class="quelle">Strahlfalle</td><td class="quelle">4-5</td><td>Bisher durch Werfer behelfsmäßig abgedeckt.</td></tr>
+      <tr><td class="quelle">Nische</td><td class="quelle">3-1</td><td>Bei uns als Wegverbreiterung gelöst — vertretbar.</td></tr>
+    </tbody>
+  </table></div>
 
-  <h3 class="tabellentitel">Neu — große Brocken, eigene Runde</h3>
-  <p>Diese zwei sind keine Bauteile, sondern Erweiterungen der Figur beziehungsweise ein eigener Spielmodus.</p>
-  <div class="tabellenhuelle">
-    <table>
-      <thead><tr><th>Werkzeug</th><th class="quelle">Aus</th><th>Warum teuer</th></tr></thead>
-      <tbody>
-        <tr><td><span class="wz">Hangelgitter</span></td><td class="quelle">5-5</td><td>neuer Bewegungszustand im Spieler: eigene Hitbox, eigener Clip, eigene Steuerung</td></tr>
-        <tr><td><span class="wz">Flugmodus</span></td><td class="quelle">5-2</td><td>eigener Controller ohne Levelkurve, Schusssystem, Trefferanzeige, Zielzähler</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h3 class="tabellentitel">Offen — neu aus dem Nachscan</h3>
+  <div class="tabellenhuelle"><table>
+    <thead><tr><th>Werkzeug</th><th>Aus</th><th>Kurz</th></tr></thead>
+    <tbody>
+      <tr><td class="quelle">Seitenansicht als Betriebsart</td><td class="quelle">3-2, 3-3, 3-5, 4-5</td><td>Ansicht des ganzen Levels, nicht Zone im 3D-Level</td></tr>
+      <tr><td class="quelle">Ansichtswechsel im Level</td><td class="quelle">5-4</td><td>3D und 2,5D nacheinander</td></tr>
+      <tr><td class="quelle">Frontansicht</td><td class="quelle">3-1</td><td>Figur läuft auf die Kamera zu; die Sicht ist die Aufgabe</td></tr>
+      <tr><td class="quelle">Umrisskiste + Auslöserkiste</td><td class="quelle">4-3, 4-4, 5-5</td><td>Kiste wird erst körperlich, wenn ihr Auslöser fällt</td></tr>
+      <tr><td class="quelle">Bonusraum</td><td class="quelle">3-1, 4-4, 4-5, 5-5</td><td>eigener kleiner Raum, eigene Gestaltung, ohne Todesstrafe</td></tr>
+      <tr><td class="quelle">Nitrowand</td><td class="quelle">4-3, 5-5</td><td>Reihe Nitrokisten als Sperre</td></tr>
+      <tr><td class="quelle">Röhrengang</td><td class="quelle">4-1</td><td>geschlossene Decke, gekrümmte Wände, keine Ferne</td></tr>
+      <tr><td class="quelle">Deckenlampe + Leitband</td><td class="quelle">4-1, 3-2</td><td>Lichtinsel und waagerechter Streifen als Wegmarke</td></tr>
+      <tr><td class="quelle">Silhouettenband</td><td class="quelle">4-4</td><td>Kulisse dunkel vor hellerem Himmel</td></tr>
+      <tr><td class="quelle">Rahmenzacken</td><td class="quelle">3-4</td><td>dunkle Silhouetten am unteren Bildrand als Kontrastanker</td></tr>
+      <tr><td class="quelle">Musterband</td><td class="quelle">3-3</td><td>breites Grafikband als Materialschicht</td></tr>
+      <tr><td class="quelle">Fliesenwand + Rohrbündel</td><td class="quelle">4-5</td><td>flaches Raster mit Fuge; Vordergrunddeko mit Durchblick</td></tr>
+      <tr><td class="quelle">Wandbildfeld</td><td class="quelle">5-1</td><td>großflächige Zeichnung statt Streifen</td></tr>
+      <tr><td class="quelle">Palettenwechsel</td><td class="quelle">3-5</td><td>mehrere Grundpaletten je Level als Entwurfsmittel</td></tr>
+      <tr><td class="quelle">Glührohr</td><td class="quelle">3-2</td><td>Deko, die zugleich Lichtquelle ist</td></tr>
+      <tr><td class="quelle">Unverwundbarkeit</td><td class="quelle">alle</td><td>dritte Schutzladung als Zeitfenster statt als dritter Puffer</td></tr>
+      <tr><td class="quelle">Zeitlauf</td><td class="quelle">Raum 5</td><td>zwingt jedes Level, sauber durchlaufbar zu sein</td></tr>
+    </tbody>
+  </table></div>
 </section>
 
-<!-- ================================================== BEFUNDE -->
+<section class="werkzeuge" id="abgleich">
+  <div class="raum-kopf">
+    <span class="zahl">Nachgemessen</span>
+    <h2>Vorbild gegen unser Level</h2>
+    <p>Gemessen über alle Bildschirmfotos je Vorbild und über je sieben gerenderte Stellen je eigenem Level. Reproduzierbar mit <code>werkzeuge/foto.sh</code>. Markiert ist, wo unser Wert die Absicht des Vorbilds verfehlt.</p>
+  </div>
+  <div class="tabellenhuelle"><table>
+    <thead><tr><th></th><th>Vorbild</th><th>warm</th><th>kühl</th><th>hell</th><th>unser Level</th><th>warm</th><th>kühl</th><th>hell</th></tr></thead>
+    <tbody>
+      <tr><td class="quelle">3-1</td><td>Rolling Stones</td><td class="num">56,5</td><td class="num">21,4</td><td class="num">50</td><td><strong>L11 Steinschlag</strong></td><td class="num zahl-gut">68,0</td><td class="num zahl-gut">8,1</td><td class="num zahl-gut">97</td></tr>
+      <tr><td class="quelle">3-2</td><td>Castle Machinery</td><td class="num">69,0</td><td class="num">10,9</td><td class="num">51</td><td><strong>L12 Kesselwerk</strong></td><td class="num zahl-weg">14,4</td><td class="num zahl-weg">71,3</td><td class="num zahl-gut">43</td></tr>
+      <tr><td class="quelle">3-3</td><td>Native Fortress</td><td class="num">70,7</td><td class="num">18,4</td><td class="num">80</td><td><strong>L13 Pfahlfeste</strong></td><td class="num zahl-gut">98,4</td><td class="num zahl-weg">0,1</td><td class="num zahl-gut">115</td></tr>
+      <tr><td class="quelle">3-4</td><td>The High Road</td><td class="num">14,5</td><td class="num">15,1</td><td class="num">167</td><td><strong>L14 Wolkensteg</strong></td><td class="num zahl-weg">0,1</td><td class="num zahl-weg">0,0</td><td class="num zahl-weg">245</td></tr>
+      <tr><td class="quelle">3-5</td><td>Sunset Vista</td><td class="num">71,3</td><td class="num">16,9</td><td class="num">73</td><td><strong>L15 Abendruinen</strong></td><td class="num zahl-gut">99,4</td><td class="num zahl-weg">0,0</td><td class="num zahl-gut">91</td></tr>
+      <tr><td class="quelle">4-1</td><td>The Eel Deal</td><td class="num">34,3</td><td class="num">41,0</td><td class="num">45</td><td><strong>L16 Kanalgrund</strong></td><td class="num zahl-gut">0,4</td><td class="num zahl-gut">1,0</td><td class="num zahl-weg">2,5</td></tr>
+      <tr><td class="quelle">4-2</td><td>Bear It</td><td class="num">1,2</td><td class="num">94,4</td><td class="num">107</td><td><strong>L17 Frostritt</strong></td><td class="num zahl-gut">0,2</td><td class="num zahl-gut">98,9</td><td class="num zahl-gut">131</td></tr>
+      <tr><td class="quelle">4-3</td><td>Bee-Having</td><td class="num">75,9</td><td class="num">8,1</td><td class="num">77</td><td><strong>L18 Schwarmpfad</strong></td><td class="num zahl-weg">5,8</td><td class="num zahl-gut">0,2</td><td class="num zahl-gut">101</td></tr>
+      <tr><td class="quelle">4-4</td><td>Ruination</td><td class="num">9,4</td><td class="num">74,4</td><td class="num">53</td><td><strong>L19 Sturmruinen</strong></td><td class="num zahl-gut">5,5</td><td class="num zahl-gut">41,5</td><td class="num zahl-weg">9,6</td></tr>
+      <tr><td class="quelle">4-5</td><td>Piston It Away</td><td class="num">62,7</td><td class="num">20,0</td><td class="num">57</td><td><strong>L20 Kolbengang</strong></td><td class="num zahl-gut">95,0</td><td class="num zahl-weg">0,5</td><td class="num zahl-gut">60</td></tr>
+      <tr><td class="quelle">5-1</td><td>Sphynxinator</td><td class="num">94,1</td><td class="num">2,3</td><td class="num">82</td><td><strong>L21 Sandgrab</strong></td><td class="num zahl-gut">98,1</td><td class="num zahl-gut">0,5</td><td class="num zahl-gut">90</td></tr>
+      <tr><td class="quelle">5-2</td><td>Mad Bombers</td><td class="num">5,8</td><td class="num">83,3</td><td class="num">159</td><td><strong>L22 Wolkenjagd</strong></td><td class="num zahl-gut">0,1</td><td class="num zahl-gut">0,0</td><td class="num zahl-gut">201</td></tr>
+      <tr><td class="quelle">5-3</td><td>Bug Lite</td><td class="num">76,7</td><td class="num">0,6</td><td class="num">60</td><td><strong>L23 Funkenlicht</strong></td><td class="num zahl-gut">1,0</td><td class="num zahl-gut">0,3</td><td class="num zahl-weg">4,2</td></tr>
+      <tr><td class="quelle">5-4</td><td>Future Frenzy</td><td class="num">31,7</td><td class="num">46,3</td><td class="num">88</td><td><strong>L24 Neonhöhe</strong></td><td class="num zahl-weg">0,4</td><td class="num zahl-gut">94,4</td><td class="num zahl-gut">41</td></tr>
+      <tr><td class="quelle">5-5</td><td>Hang&rsquo;em High</td><td class="num">80,8</td><td class="num">14,1</td><td class="num">89</td><td><strong>L25 Dächergasse</strong></td><td class="num zahl-gut">95,6</td><td class="num zahl-weg">0,2</td><td class="num zahl-gut">171</td></tr>
+    </tbody>
+  </table></div>
+  <p style="max-width:var(--spalte)">Nah dran: <strong>21</strong> und <strong>17</strong>. Weit weg: <strong>23</strong> (14× zu dunkel), <strong>16</strong> (18× zu dunkel), <strong>14</strong> (Kontrast 6,6 bei einem Vorbild mit dem höchsten der Reihe), <strong>12</strong> (Warm-kühl vertauscht), <strong>24</strong> (der warme Gegenpart fehlt ganz).</p>
+</section>
+
 <section class="befunde" id="befunde">
   <div class="raum-kopf">
-    <span class="zahl">Beim Durchsehen aufgefallen</span>
-    <h2>Drei Muster, die wertvoller sind als jedes Einzelteil</h2>
+    <span class="zahl">Zum Schluss</span>
+    <h2>Befunde</h2>
+    <p>Die drei Muster aus der ersten Fassung gelten weiter — sie waren richtig beobachtet. Vier kommen aus dem Nachscan dazu.</p>
   </div>
 
-  <div class="befund">
-    <b>Ein Hindernis mit zwei Rollen.</b>
-    <p>Der Kolben ist Wand <em>und</em> Aufzug; die Schildkröte ist Feind <em>und</em> Trampolin; die Nitro-Treppe ist Todesfalle <em>und</em> Geheimweg. Das kostet nichts extra und verdoppelt die Fragen, die ein Bauteil stellen kann.</p>
-  </div>
+  <div class="befund"><b>1 · Ein Hindernis mit zwei Rollen.</b>
+    <p>Der Kolben ist Wand <em>und</em> Aufzug; der Kriecher ist Feind <em>und</em> Trampolin; die Nitrotreppe ist Todesfalle <em>und</em> Geheimweg. Das kostet nichts extra und verdoppelt die Fragen, die ein Bauteil stellen kann.</p></div>
 
-  <div class="befund">
-    <b>Das Level bricht einmal seine eigene Regel</b>
-    <p>— und belohnt den, der es merkt. Die Sackgasse, die keine ist (4-1); die Nitro-Kisten, die nicht explodieren (5-5); der Rückweg am Start (5-1). Immer genau einmal pro Level, nie zweimal.</p>
-  </div>
+  <div class="befund"><b>2 · Das Level bricht einmal seine eigene Regel.</b>
+    <p>Und belohnt den, der es merkt. Die Sackgasse, die keine ist (4-1); die Nitrokisten, die nicht explodieren (5-5); der Rückweg am Start (5-1). Immer genau einmal pro Level, nie zweimal.</p></div>
 
-  <div class="befund">
-    <b>Die Signalfarbe kommt sonst nirgends vor.</b>
-    <p>Magenta im roten Dschungelweg (4-3), warmes Holz in der blauen Eisrinne (4-2), Orange im grauen Kanal (4-1). Gefahr und Belohnung sind an der Farbe zu erkennen, bevor man die Form erkennt. Das ist bei uns bisher nur bei den Kisten so.</p>
-  </div>
+  <div class="befund"><b>3 · Die Signalfarbe kommt sonst nirgends vor.</b>
+    <p><em>Präzisiert:</em> Das gilt nicht levelweise, sondern <strong>spielweit</strong>. Dieselbe Farbe bedeutet in allen fünfzehn Leveln dasselbe — siehe Kistenvertrag. Die erste Fassung hat daraus eine levelspezifische Erfindung gemacht.</p></div>
+
+  <div class="befund"><b>4 · Ein Drittel der Vorbilder sind keine Korridore.</b>
+    <p>Vier sind durchgehend Seitenansicht, eines wechselt mitten im Level. Wir haben alle fünfzehn als 3D-Korridor gebaut. Das erklärt auch, warum die Verfolgerkamera in Level 12 und 20 in der Geometrie steckenbleibt: Diese Räume sind für eine Seitenkamera entworfen.</p></div>
+
+  <div class="befund"><b>5 · Unsere Level sind entweder zu hell oder zu dunkel — nie mittig.</b>
+    <p>Sieben der fünfzehn weichen um mehr als das Doppelte von der Helligkeit ihres Vorbilds ab, in beide Richtungen. Der gemeinsame Grund ist immer derselbe: Nebeldichte und Umgebungslicht regeln das <em>ganze</em> Bild, statt nur die Ferne.</p></div>
+
+  <div class="befund"><b>6 · Der Gegenton fehlt fast überall.</b>
+    <p>In acht Leveln liegt unser Kühl-Anteil unter einem Prozent, wo das Vorbild zwischen 14 und 20 Prozent hat. Das Albedo ist im Code jedes Mal richtig gesetzt — es kommt nur nicht durch den Nebel.</p></div>
+
+  <div class="befund"><b>7 · Der Takt ist bei uns kein Takt.</b>
+    <p>Zehn der fünfzehn Vorbilder bauen ihre Schwierigkeit aus Rhythmus. Unsere Taktgeber liefen auf 3,8&nbsp;s, 3,6&nbsp;s, 2,4&nbsp;s und 4,8&nbsp;s — gemeinsames Muster erst nach über einer Minute.</p></div>
 
   <div class="warnung">
-    <b>Warnung an uns selbst</b>
-    <p>Zehn der fünfzehn Level bauen ihre Schwierigkeit aus <strong>Takt</strong>. Wir haben derzeit fast keine Taktgeber — unsere Hindernisse stehen still oder patrouillieren. Die <span class="wz">Taktfläche</span>, der <span class="wz">Feuerspeier</span> und die <span class="wz">Bruchplatte</span> sind deshalb wichtiger als alles andere auf der Liste; mit diesen dreien allein ließe sich die Hälfte der Vorbilder sinngemäß bauen.</p>
+    <b>Wo zuerst ansetzen</b>
+    <p>Der <strong>Taktvertrag</strong> ist die kleinste Änderung mit der größten Wirkung — er betrifft zehn Level und ist eine Zahl je Bauteil. Danach der <strong>Lesbarkeitsvertrag</strong> (Nebel nur in die Ferne), der die sieben Helligkeitsausreißer auf einmal erledigt. Die <strong>Ansichtsart</strong> ist der teuerste Punkt und sollte warten, bis der Rest steht.</p>
   </div>
 
   <p class="fuss">
-    Quelle der Beschreibungen: Bandipedia (crashbandicoot.fandom.com), abgerufen am 25.&nbsp;August&nbsp;2026 über die MediaWiki-Schnittstelle.<br>
-    Farbwerte gemessen aus je einem Referenzbildschirmfoto, reduziert auf sechs Töne. Die Bilder selbst sind bewusst nicht Teil dieser Seite.<br>
+    Zweite Fassung, 26.&nbsp;August&nbsp;2026. Mechanik und Aufbau nachgeschlagen in öffentlichen Spielführern; Ansicht, Aufbau und Farben selbst bestimmt an 76 Bildschirmfotos der fünfzehn Level.<br>
+    Farbwerte: zwei Trägerfarben und Signalfarben unter 6&nbsp;% Fläche, gemessen über alle Bilder eines Levels. Warm-, Kühl-Anteil und Helligkeit nach demselben Maß wie unsere eigenen Level. Die Bilder selbst sind bewusst nicht Teil dieser Seite und liegen nicht im Projekt.<br>
+    Hinweis: gemessen an der Neuauflage, nicht an der PS1-Fassung — Aufbau und Ansicht sind dieselben, die Farben sind heller und satter.<br>
     Arbeitsstand im Projekt: <code>doku/level-vorbilder.md</code> — dort steht dieselbe Fassung als Textdatei.
   </p>
 </section>

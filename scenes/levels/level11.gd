@@ -31,6 +31,18 @@ extends KorridorLevel
 ## Farbe: sandbrauner Weg gegen türkisgrünen Stein, dunkelgrünes Blattwerk
 ## als Rahmen, rosa Blüten als einzige helle Tupfer. Der Stein ist die
 ## einzige kalte Farbe im Bild – und er ist genau das, was einen umbringt.
+##
+## WO EIN AKZENT STEHEN MUSS, DAMIT ER ZÄHLT. Die Blüten lagen anfangs auf
+## dem Talboden, also einen Meter TIEFER als der Weg und damit hinter
+## dessen Kante versteckt – im Bild waren sie nicht ein einziges Mal zu
+## finden. Jetzt stehen sie als Horste auf dem bemoosten Rand des Weges.
+##
+## Der Grundsatz dahinter gilt für jedes Level: Eine Farbe, die das Bild
+## tragen soll, muss dort liegen, wo die Kamera ohnehin hinsieht, nicht
+## dort, wo sie inhaltlich hingehört. Der türkise Stein hält sich
+## umgekehrt bewusst zurück und bleibt bei Torbögen, Bänken und Klippen –
+## nachgemessen ist das Vorbild fast durchgehend warm, und ein Weg mit
+## steinerner Fassung war kühler als die Vorlage, nicht wärmer.
 
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 const SUMPFKROETE := preload("res://scenes/enemies/Sumpfkroete.tscn")
@@ -43,8 +55,12 @@ const GRASFELD := preload("res://scenes/props/Gras.tscn")
 
 # --- Farben, die die Bibliothek nicht führt ---
 ## Türkisgrüner, geschnitzter Stein: die kalte Seite des Warm-kalt-Kontrasts.
-const STEIN_TIEF := Color(0.09, 0.20, 0.19)
-const STEIN_HELL := Color(0.32, 0.51, 0.44)
+## Eine Spur tiefer und türkiser als das erste Gemisch: Unter dem warmen
+## Sonnenlicht des Tals lief der Stein sonst ins Olivgrüne und war von
+## Blattwerk nicht mehr zu unterscheiden. Mehr FLÄCHE bekommt er nicht –
+## nachgemessen ist das Vorbild fast durchgehend warm.
+const STEIN_TIEF := Color(0.07, 0.19, 0.19)
+const STEIN_HELL := Color(0.22, 0.46, 0.41)
 ## Rosa Blüten – die einzigen hellen Tupfer im Blattwerk.
 const BLUETE_ROSA := Color(0.94, 0.58, 0.72)
 ## Talboden unter dem Weg und ferne Hügel.
@@ -194,6 +210,31 @@ func _stein_material() -> StandardMaterial3D:
 	return _stein_stoff
 
 
+## Färbt ein fertiges Blütenmodell rosa.
+##
+## `Kleinzeug` würfelt seine Blütenfarbe nur dann selbst, wenn es die
+## Blume auch selbst baut. Für Blumen liegt aber ein mitgeliefertes Modell
+## im Spiel, und dessen eigener Anstrich gewinnt – `eigene_farbe` bleibt
+## wirkungslos, und heraus kamen rote, gelbe und violette Blumen statt der
+## rosa Tupfer des Steckbriefs. Am Prop selbst ist das nicht zu ändern,
+## ohne es allen anderen Leveln mitzuändern.
+##
+## Also wird nachgestrichen, und zwar nur die Blüte: Was am Modell grüner
+## als rot ist, ist Stiel und Blatt und bleibt, wie es ist.
+func _bluete_faerben(knoten: Node) -> void:
+	for kind in knoten.get_children():
+		_bluete_faerben(kind)
+	var mi := knoten as MeshInstance3D
+	if mi == null or mi.mesh == null:
+		return
+	for i in mi.mesh.get_surface_count():
+		var alt := mi.mesh.surface_get_material(i) as BaseMaterial3D
+		if alt != null and alt.albedo_color.g > alt.albedo_color.r:
+			continue
+		mi.set_surface_override_material(i,
+				Materialbibliothek.leuchtend(BLUETE_ROSA, 0.35))
+
+
 # =========================================================== Verlauf
 
 ## Ein langer, flacher Bogen durch das Tal. Höhenunterschied bleibt unter
@@ -243,7 +284,14 @@ func _talboden_bauen() -> void:
 	# Bewusst Gras statt Waldboden: Der Weg selbst ist sandbraun, und ein
 	# ebenso brauner Untergrund ringsum ließe ihn verschwinden. Erst das
 	# Grün ringsum macht aus dem Sandstreifen einen Pfad.
-	mi.material_override = Materialbibliothek.gras()
+	# Eigene, abgedunkelte Kopie: Die Bibliothek liefert geteilte Materialien,
+	# ein Eingriff daran träfe jedes andere Level mit. Dunkler muss sie sein,
+	# weil der Bodennebel weg ist – ungedämpft liest sich die 420-m-Fläche
+	# als heller Rasen statt als Dschungelgrund, und der Weg verliert seinen
+	# Rahmen. Das Dunkel ist hier der Rahmen (Lesbarkeitsvertrag).
+	var grund := Materialbibliothek.gras().duplicate() as StandardMaterial3D
+	grund.albedo_color = Color(0.42, 0.47, 0.34)
+	mi.material_override = grund
 	mi.position = LevelWerkzeuge.punkt(verlauf, M_ENDE * 0.5, 0.0, 0.0)
 	mi.position.y = TALBODEN_HOEHE
 	geometrie.add_child(mi)
@@ -397,17 +445,24 @@ func _kamerazonen_setzen() -> void:
 ## Offen und hell an den beiden Enden, dumpf und grün in den engen
 ## Abschnitten dazwischen. Im Steinbruch steht Staub in der Luft: dichter
 ## Dunst in einem warmen Ton, damit der Abschnitt sich vom Blattgrün löst.
+##
+## Das Umgebungslicht ist überall abgesenkt. Der Weg war ein gutes
+## Stück heller als im Vorbild, und Helligkeit frisst Farbe: Je mehr Licht
+## auf dem Sand liegt, desto weiter laufen Weg, Stein und Blattwerk auf
+## dasselbe helle Graugrün zu. Kühler dürfen die Töne dabei NICHT werden –
+## der Weg ist die warme Seite des Kontrasts, und ein kühler Dunst darüber
+## dreht das Level ins Grüne, statt den Stein hervorzuholen.
 func _stimmungen_setzen() -> void:
-	stimmung(0.0, 44.0, Color(0.64, 0.64, 0.47), 0.007, 1.05,
-			Color(0.60, 0.61, 0.50), 54.0)
-	stimmung(48.0, 158.0, Color(0.34, 0.42, 0.32), 0.016, 0.80,
-			Color(0.42, 0.47, 0.38), 44.0)
-	stimmung(162.0, 262.0, Color(0.44, 0.49, 0.37), 0.013, 0.90,
-			Color(0.48, 0.52, 0.43), 44.0)
-	stimmung(264.0, 310.0, Color(0.68, 0.60, 0.43), 0.018, 0.95,
-			Color(0.63, 0.58, 0.47), 44.0)
-	stimmung(314.0, M_ENDE, Color(0.64, 0.65, 0.48), 0.007, 1.10,
-			Color(0.61, 0.62, 0.51), 60.0)
+	stimmung(0.0, 44.0, Color(0.62, 0.62, 0.46), 0.007, 0.88,
+			Color(0.58, 0.58, 0.47), 54.0)
+	stimmung(48.0, 158.0, Color(0.32, 0.40, 0.30), 0.016, 0.68,
+			Color(0.41, 0.45, 0.36), 44.0)
+	stimmung(162.0, 262.0, Color(0.42, 0.47, 0.35), 0.013, 0.76,
+			Color(0.47, 0.50, 0.41), 44.0)
+	stimmung(264.0, 310.0, Color(0.64, 0.57, 0.41), 0.018, 0.8,
+			Color(0.60, 0.55, 0.45), 44.0)
+	stimmung(314.0, M_ENDE, Color(0.62, 0.63, 0.46), 0.007, 0.88,
+			Color(0.59, 0.60, 0.49), 60.0)
 
 
 # =========================================================== Portale
@@ -663,19 +718,35 @@ func _deko_bauen() -> void:
 				seite * randf_range(rand * 0.7, rand), 0.0)
 		deko.add_child(kleinzeug)
 
-	for i in 40:
-		var s := randf_range(2.0, M_ENDE - 4.0)
+	# Blütenhorste auf dem bemoosten Rand des Weges.
+	#
+	# Horste statt Einzelblumen: Eine einzelne Blume von einem halben
+	# Meter ist aus der Verfolgerkamera ein Pixel. Drei bis fünf dicht
+	# beieinander sind ein Fleck – und ein Fleck ist das, was der
+	# Steckbrief mit "heller Tupfer" meint.
+	#
+	# Sie stehen INNEN auf dem Weg, knapp neben der Kante. Draußen wäre
+	# kein Boden: Wer den Rand verlässt, hängt in der Luft über dem
+	# Talboden, und genau dort standen sie vorher.
+	for i in 34:
+		var s := randf_range(3.0, M_ENDE - 5.0)
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var bluete := KLEINZEUG.instantiate() as Kleinzeug
-		bluete.art = Kleinzeug.Art.BLUME
-		bluete.groesse = randf_range(0.5, 0.9)
-		bluete.saat = 9100 + i
-		bluete.eigene_farbe = true
-		bluete.farbe = BLUETE_ROSA
-		bluete.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * (breite_bei(s) * 0.5 + randf_range(0.8, 5.0)),
-				TALBODEN_HOEHE + 0.05)
-		deko.add_child(bluete)
+		var halb := breite_bei(s) * 0.5
+		var horst := randi_range(3, 5)
+		for j in horst:
+			var bluete := KLEINZEUG.instantiate() as Kleinzeug
+			bluete.art = Kleinzeug.Art.BLUME
+			bluete.groesse = randf_range(0.7, 1.2)
+			bluete.saat = 9100 + i * 8 + j
+			bluete.eigene_farbe = true
+			bluete.farbe = BLUETE_ROSA
+			bluete.position = LevelWerkzeuge.punkt(verlauf,
+					s + randf_range(-1.6, 1.6),
+					seite * (halb - randf_range(0.15, 1.5)), 0.02)
+			deko.add_child(bluete)
+			# Nachstreichen erst NACH dem Einhängen – vorher gibt es das
+			# Modell noch nicht, das gefärbt werden soll.
+			_bluete_faerben(bluete)
 
 	# Wurzelbögen am Rand der engen Abschnitte.
 	for i in 18:

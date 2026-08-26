@@ -51,6 +51,9 @@ const SANDSTEIN := Color(0.694, 0.565, 0.271)
 const TIEFENHOLZ := Color(0.341, 0.165, 0.031)
 
 # --- Streckenmarken -------------------------------------------------
+## Hoehe des Dschungelbodens tief unter der Feste.
+const GRUNDHOEHE := -34.0
+
 const M_SANDTOR := 0.0
 const M_SPEERTREPPE := 55.0
 const M_FEUERGALERIE := 107.0
@@ -140,6 +143,7 @@ func _bauschritte() -> Array:
 		{"text": "Fackelgrat", "tun": _fackelgrat_bauen},
 		{"text": "Die große Pforte", "tun": _pforte_bauen},
 		{"text": "Licht über der Feste", "tun": _stimmungen_setzen},
+		{"text": "Dschungelgrund", "tun": _dschungelgrund_bauen},
 		{"text": "Dschungel ringsum", "tun": _wald_bauen},
 		{"text": "Gestrüpp und Kleinzeug", "tun": _deko_bauen},
 		{"text": "Portale", "tun": _portale},
@@ -456,7 +460,7 @@ func _werfer_podest(strecke: float, seitlich: float, hoehe: float) -> Werfer:
 			MUSTER_TUERKIS)
 	var w := WERFER.instantiate() as Werfer
 	w.patrouille_weite = 0.0
-	w.wurftakt = 2.8
+	w.wurftakt = 2.0
 	w.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
 	w.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(w)
@@ -537,11 +541,11 @@ func _tor(strecke: float, breite: float, hoehe: float) -> void:
 ## dünner und heller. Das ist der einzige Hinweis darauf, wie weit man
 ## gestiegen ist, der ohne einen Blick nach unten auskommt.
 func _stimmungen_setzen() -> void:
-	stimmung(0.0, 60.0, Color(0.68, 0.52, 0.30), 0.016, 1.0,
+	stimmung(0.0, 60.0, Color(0.68, 0.52, 0.30), 0.016, 1,
 			Color(0.72, 0.58, 0.36), 52.0)
-	stimmung(120.0, 190.0, Color(0.72, 0.60, 0.40), 0.011, 1.1,
+	stimmung(120.0, 190.0, Color(0.72, 0.60, 0.40), 0.011, 1.05,
 			Color(0.78, 0.66, 0.46), 52.0)
-	stimmung(240.0, M_ENDE, Color(0.82, 0.74, 0.56), 0.007, 1.25,
+	stimmung(240.0, M_ENDE, Color(0.82, 0.74, 0.56), 0.007, 1.05,
 			Color(0.86, 0.78, 0.60), 58.0)
 
 
@@ -694,6 +698,25 @@ func _fruechte_setzen() -> void:
 ## Deshalb stehen die Bäume weit draußen und tief: Von oben sieht man auf
 ## ihre Kronen hinunter, und daran misst der Blick die Höhe. Sie tragen
 ## keine Kollision – sie sollen Tiefe zeigen, nicht Boden vortäuschen.
+## Der Dschungelboden tief unter der Feste.
+##
+## Ohne ihn hingen die Baeume des `_wald_bauen()` frei im Dunst: Sie stehen
+## auf fester Hoehe (-16 bis -28), waehrend der Weg von 0 auf 44 Meter
+## steigt. Am Anfang des Levels war darunter schlicht nichts. Die Flaeche
+## traegt keine Kollision - wer neben die Feste tritt, faellt hindurch in
+## die Absturzzone, so wie vorher.
+func _dschungelgrund_bauen() -> void:
+	var flaeche := PlaneMesh.new()
+	flaeche.size = Vector2(360.0, 360.0)
+	var mi := MeshInstance3D.new()
+	mi.name = "Dschungelgrund"
+	mi.mesh = flaeche
+	mi.material_override = Materialbibliothek.gras()
+	mi.position = LevelWerkzeuge.punkt(verlauf, M_ENDE * 0.5, 0.0, 0.0)
+	mi.position.y = GRUNDHOEHE
+	geometrie.add_child(mi)
+
+
 func _wald_bauen() -> void:
 	var wuerfel := randi()
 	seed(13002)

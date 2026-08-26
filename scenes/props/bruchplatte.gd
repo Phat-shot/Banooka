@@ -37,7 +37,10 @@ enum Zustand {
 @export var fallzeit := 1.2
 
 ## Wartezeit im Verborgenen, bevor die Platte zurückkehrt.
-@export var wartezeit := 2.5
+## TAKTVERTRAG (doku/level-vorbilder.md): erlaubt sind nur 1,0 · 2,0 · 4,0,
+## damit mehrere Taktgeber nebeneinander ein lernbares Muster ergeben.
+## Warnzeit + Fallzeit + Wartezeit ergeben 0,6 + 1,2 + 2,2 = 4,0 s.
+@export var wartezeit := 2.2
 
 ## Kommt die Platte zurück? Ohne Rückkehr ist eine verpasste Stelle
 ## endgültig – nur für Wege sinnvoll, die es zweimal gibt.

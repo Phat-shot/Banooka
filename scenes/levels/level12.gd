@@ -20,34 +20,61 @@ extends KorridorLevel
 ## einer, der sich unter den Füßen dreht (Scheibe). Jede Stufe nimmt die
 ## vorige als bekannt an.
 ##
-## Farbe: kaltes blaugraues Mauerwerk gegen rostroten Stahl. Die einzige
-## warme Lichtquelle ist der Ofen bei 222 m – deshalb hat das Level auch
-## keine Sonne, die etwas ausrichtet, sondern lebt von Punktlicht und
-## Nebel. Gelbe Seilzüge ziehen die Linien durch die Hallen.
+## Farbe: Es gibt hier keine Sonne. Jedes Licht im Bild kommt aus der
+## Maschine selbst – aus glühenden Rohrbündeln an den Wänden, aus den
+## Querrohren über dem Weg und aus dem Ofen bei 222 m. Deshalb ist das
+## Werk warm und nicht blaugrau: Rußiges Mauerwerk und rostroter Stahl
+## unter orangem Licht, dazu gelbe Seilzüge als Linienführung.
+##
+## Warum die Rohre Deko UND Beleuchtung sind: Eine Lichtquelle, die man
+## im Bild sehen kann, erklärt sich selbst. Ein Weg, der hell ist, ohne
+## dass etwas leuchtet, sieht aus wie ein Fehler in der Beleuchtung.
 ##
 ## Die Kulisse arbeitet: In den Wänden drehen sich Zahnräder hinter
-## Gittern, die niemand berührt. Sie sind der Grund, warum das Werk wie
-## ein Ort wirkt und nicht wie eine Sammlung von Fallen.
+## Gittern, die niemand berührt; daneben stehen Steigrohre, Ventile,
+## Kohle und Schlacke. Sie sind der Grund, warum das Werk wie ein Ort
+## wirkt und nicht wie eine Sammlung von Fallen.
 
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 const STELZENSPINNE := preload("res://scenes/enemies/Stelzenspinne.tscn")
-const SUMPFKROETE := preload("res://scenes/enemies/Sumpfkroete.tscn")
-const BAUM := preload("res://scenes/props/Baum.tscn")
-const STEIN := preload("res://scenes/props/Stein.tscn")
-const KLEINZEUG := preload("res://scenes/props/Kleinzeug.tscn")
-const GRASFELD := preload("res://scenes/props/Gras.tscn")
+const STAUB := preload("res://scenes/props/Staub.tscn")
 
 # --- Farben, die die Bibliothek nicht führt ---
-## Kaltes Mauerwerk – der Grundton des ganzen Levels.
-const MAUER_TIEF := Color(0.14, 0.18, 0.22)
-const MAUER_HELL := Color(0.38, 0.45, 0.51)
-## Rostroter Stahl: die warme Gegenfarbe, aber nie als Licht.
+## Rußiges Mauerwerk – der Grundton des ganzen Levels. Es ist warm
+## getönt, weil das einzige Licht hier aus der Glut kommt: Eine Wand, die
+## nur von orangem Licht beschienen wird, kann nicht blaugrau aussehen.
+const MAUER_TIEF := Color(0.13, 0.10, 0.09)
+const MAUER_HELL := Color(0.37, 0.28, 0.22)
+## Rostroter Stahl: das zweite Trägermaterial, überall dort, wo gebaut
+## und nicht gemauert wurde.
 const ROSTSTAHL := Color(0.55, 0.24, 0.14)
-## Seilzüge. Sie leuchten schwach, damit sie im Dunst die Linie halten.
-const SEIL_GELB := Color(0.86, 0.74, 0.24)
-## Ofenglut – die einzige warme Lichtquelle im Bild.
+## Ruß, Kohle, Schlacke – das Dunkel, das dem Glühen den Rahmen gibt.
+const RUSS := Color(0.09, 0.07, 0.06)
+const KOHLE := Color(0.13, 0.11, 0.10)
+## Eiserner Wegbelag. Er ist das Hellste im Bild und am wenigsten
+## gesättigt: Wo der Weg aufhört, hört die Helligkeit auf.
+const WEGBLECH := Color(0.86, 0.79, 0.69)
+## Der Burgkeller. Blaugrauer Stein gibt es NUR in der Torhalle – dort
+## steht man noch im Bauwerk, ab dem Bänderschacht in der Maschine. Der
+## kalte Anfang ist es, der das Glühen danach warm aussehen lässt: Ein
+## Bild ohne einen einzigen kühlen Ton verliert seine Wärme.
+const STEIN_TIEF := Color(0.17, 0.21, 0.26)
+const STEIN_HELL := Color(0.44, 0.51, 0.58)
+const FLUR_TIEF := Color(0.34, 0.39, 0.47)
+const FLUR_HELL := Color(0.64, 0.69, 0.76)
+## Tageslicht – es kommt einmal vor, oben in der Torhalle, und nie wieder.
+const TAGLICHT := Color(0.70, 0.80, 0.97)
+## Seilzüge. Messinggelb und stumpf: Sie laufen dicht über der Kamera
+## vorbei, und was dort leuchtet, legt sich als Balken quer übers Bild.
+const SEIL_GELB := Color(0.44, 0.36, 0.12)
+## Ofenglut – das hellste Licht im Bild.
 const GLUT_TIEF := Color(1.0, 0.42, 0.08)
 const GLUT_HELL := Color(1.0, 0.78, 0.34)
+## Der Ton der Rohre. Er ist dunkler als die Ofenglut und strahlt nur
+## schwach ab: Ein Rohr über der Leuchtschwelle brennt im Bild zu Weiß
+## aus und sieht dann aus wie eine Leuchtstoffröhre.
+const ROHRGLUT := Color(0.86, 0.30, 0.05)
+const ROHRGLUT_HELL := Color(0.98, 0.46, 0.11)
 
 # --- Strecken-Marken ---
 const M_TORHALLE := 0.0
@@ -115,6 +142,8 @@ const WAENDE := [
 ]
 
 var _mauer_stoff: StandardMaterial3D
+var _stein_stoff: StandardMaterial3D
+var _flur_stoff: StandardMaterial3D
 
 
 func abschnitte() -> Array:
@@ -145,10 +174,11 @@ func _bauschritte() -> Array:
 		{"text": "Zahnradsteig", "tun": _zahnradsteig_bauen},
 		{"text": "Kesselhalle", "tun": _kesselhalle_bauen},
 		{"text": "Maschinen hinter Gittern", "tun": _maschinenwand_bauen},
+		{"text": "Glührohre werden angefahren", "tun": _gluehrohre_bauen},
 		{"text": "Seilzüge", "tun": _seilzuege_bauen},
 		{"text": "Seitenansicht", "tun": _kamerazonen_setzen},
 		{"text": "Dunst und Punktlicht", "tun": _stimmungen_setzen},
-		{"text": "Schutt und Bewuchs", "tun": _deko_bauen},
+		{"text": "Schutt, Kohle und Rohrwerk", "tun": _deko_bauen},
 		{"text": "Portale", "tun": _portale},
 		{"text": "Kisten werden gestapelt", "tun": _kisten_setzen},
 		{"text": "Gegner beziehen Stellung", "tun": _gegner_setzen},
@@ -179,6 +209,23 @@ func _mauer_material() -> StandardMaterial3D:
 	m.roughness = 0.9
 	_mauer_stoff = m
 	return _mauer_stoff
+
+
+## Blaugrauer Burgstein – nur für die Torhalle.
+func _stein_material() -> StandardMaterial3D:
+	if _stein_stoff != null:
+		return _stein_stoff
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = Materialbibliothek.rauschtextur(1205, 0.018,
+			STEIN_TIEF, STEIN_HELL, 256)
+	m.normal_enabled = true
+	m.normal_texture = Materialbibliothek.normalmap(1206, 0.05, 2.0)
+	m.normal_scale = 0.9
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(0.3, 0.3, 0.3)
+	m.roughness = 0.9
+	_stein_stoff = m
+	return _stein_stoff
 
 
 # =========================================================== Verlauf
@@ -212,24 +259,63 @@ func _verlauf_anlegen() -> void:
 # =========================================================== Grund
 
 ## Der Boden ist überall Eisen, die Kanten sind rostig, und was nach unten
-## abbricht, ist Mauerwerk. Damit stimmt der Warm-kalt-Kontrast schon im
-## Weg selbst, bevor irgendein Bauteil daraufsteht.
+## abbricht, ist Mauerwerk. Das Blech ist bewusst heller als alles andere
+## im Bild: Der Weg soll sich ohne Suchen von seiner Umgebung lösen, und
+## unter orangem Licht ist ein zu dunkles Blech nicht mehr zu lesen.
 func _boden_bauen() -> void:
-	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
-		"oben": Materialbibliothek.metall(Color(0.60, 0.63, 0.68)),
+	var form := {"tiefe": 12.0, "schritt": 1.0, "kante_hoehe": 0.26,
+			"kante_breite": 0.65}
+	# Die Torhalle ist noch gepflasterter Burgkeller, alles danach Blech.
+	# Der Wechsel liegt genau dort, wo das erste Band losfährt – man
+	# betritt die Maschine, und der Boden sagt es einem unter den Füßen.
+	LevelWerkzeuge.korridor(geometrie, verlauf, [STRECKE[0]], {
+		"oben": _flur_material(),
+		"kante": _stein_material(),
+		"klippe": _stein_material(),
+	}, form)
+	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE.slice(1), {
+		"oben": Materialbibliothek.metall(WEGBLECH),
 		"kante": Materialbibliothek.metall(ROSTSTAHL),
 		"klippe": _mauer_material(),
-	}, {"tiefe": 12.0, "schritt": 1.0, "kante_hoehe": 0.26, "kante_breite": 0.65})
+	}, form)
 	luecken_markieren(ROSTSTAHL)
 
 
+## Der helle Plattenboden der Torhalle.
+func _flur_material() -> StandardMaterial3D:
+	if _flur_stoff != null:
+		return _flur_stoff
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = Materialbibliothek.rauschtextur(1207, 0.02,
+			FLUR_TIEF, FLUR_HELL, 256)
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(0.32, 0.32, 0.32)
+	m.roughness = 0.85
+	_flur_stoff = m
+	return _flur_stoff
+
+
 func _waende_bauen() -> void:
-	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE,
+	# Die Torhallenwand ist Burgmauerwerk und bleibt kalt; erst dahinter
+	# beginnt der rußige Teil.
+	LevelWerkzeuge.schluchtwand(geometrie, verlauf, [WAENDE[0]],
+			_stein_material(), {
+		"schritt": 2.6, "lagen": 5, "block": 3.0,
+		"sockel": 14.0, "saat": 1208,
+		"adermaterial": Materialbibliothek.metall(ROSTSTAHL),
+		"deckmaterial": Materialbibliothek.einfarbig(
+				Color(0.30, 0.36, 0.42), 0.95),
+		"aderdichte": 0.28,
+	})
+	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE.slice(1),
 			_mauer_material(), {
 		"schritt": 2.6, "lagen": 5, "block": 3.0,
 		"sockel": 14.0, "saat": 1204,
 		"adermaterial": Materialbibliothek.metall(ROSTSTAHL),
-		"deckmaterial": Materialbibliothek.frostgestein(),
+		# Was oben auf den Mauervorsprüngen liegt, ist Ruß. Hier stand
+		# einmal Frostgestein – ein blauweißer Belag in einem Raum, der
+		# seit Jahren beheizt wird.
+		"deckmaterial": Materialbibliothek.einfarbig(RUSS, 0.95),
 		"aderdichte": 0.22,
 	})
 	# Die Sichtwand ist ein Dreiecksnetz und taugt nicht als Begrenzung –
@@ -268,6 +354,20 @@ func _torhalle_bauen() -> void:
 			0.5)
 	# Ein Balken über dem Ausgang: Wer hinaus will, krabbelt.
 	stachelbalken(38.0, 0.0, KRIECHHOEHE, Vector2(6.0, 1.1))
+
+	# Drei kalte Lichtschächte aus der Burg darüber. Sie sind das einzige
+	# Tageslicht des Levels und stehen nur hier: Ab dem Bänderschacht
+	# leuchtet ausschließlich die Maschine. Der kalte Anfang ist keine
+	# Laune – ohne ihn hat das Glühen danach nichts, wogegen es warm sein
+	# könnte, und das Level kippt ins Einfarbige.
+	for stelle: float in [8.0, 20.0, 32.0]:
+		var schacht := OmniLight3D.new()
+		schacht.light_color = TAGLICHT
+		schacht.light_energy = 2.6
+		schacht.omni_range = 20.0
+		schacht.omni_attenuation = 1.0
+		schacht.position = LevelWerkzeuge.punkt(verlauf, stelle, 0.0, 9.0)
+		deko.add_child(schacht)
 
 
 ## Der Geheimweg gleich am Anfang.
@@ -382,8 +482,11 @@ func _ofengang_bauen() -> void:
 ## Ohne ihn wäre der ganze Abschnitt blaugrau wie der Rest, und die
 ## Flammen der Speier hätten nichts, wovon sie kommen könnten.
 func _ofen_bauen() -> void:
-	var glut := Materialbibliothek.leuchtend(GLUT_TIEF, 2.4)
-	var glut_hell := Materialbibliothek.leuchtend(GLUT_HELL, 3.2)
+	# Die Glut bleibt unter der Schwelle, ab der ein Farbkanal anschlägt:
+	# Ein Ofenmaul, das zu Weiß ausbrennt, ist kein Feuer mehr, sondern
+	# ein Loch in der Wand.
+	var glut := Materialbibliothek.leuchtend(GLUT_TIEF, 0.9)
+	var glut_hell := Materialbibliothek.leuchtend(GLUT_HELL, 1.0)
 	var eisen := Materialbibliothek.metall(ROSTSTAHL)
 
 	for stelle: float in [216.0, 222.0, 228.0]:
@@ -447,6 +550,12 @@ func _zahnradsteig_bauen() -> void:
 				Vector3(3.0, 0.5, 3.0), stoff)
 	plattform(292.0, 0.0, 6.2, Vector3(4.4, 0.6, 3.6), stoff)
 
+	# Der Abschnitt hat kein Querrohr über sich – in der Seitenansicht
+	# liefe es auf die Linse zu. Sein Licht kommt deshalb von der linken
+	# Wand, hoch genug, dass alle drei Ebenen etwas abbekommen.
+	for stelle: float in [252.0, 262.0, 272.0, 282.0, 292.0]:
+		_glutlicht(stelle, -(_wandabstand(stelle) - 1.2), 4.6, 5.0, 20.0)
+
 	# Drehende Walzen zwischen den Ebenen: Sie tragen und schieben zugleich.
 	drehscheibe(266.5, 0.0, 5.7, 3.4, 38.0, -1)
 	drehscheibe(284.5, 0.0, 6.0, 3.4, 38.0, 1)
@@ -495,6 +604,16 @@ func _maschinenwand_bauen() -> void:
 		_gitter_bauen(s, quer + 1.7, eisen)
 
 
+## Darf an dieser Stelle auf dieser Seite Kulisse stehen?
+##
+## Im Zahnradsteig sieht die Kamera von RECHTS auf den Weg. Alles, was
+## dort rechts an der Wand hängt, steht zwischen Linse und Figur und
+## nimmt das halbe Bild – dieselbe Regel, nach der auch die Zahnräder
+## alle links sitzen.
+func _seite_erlaubt(strecke: float, seite: float) -> bool:
+	return seite < 0.0 or strecke < 246.0 or strecke > 296.0
+
+
 ## Abstand der Mauer an dieser Stelle. Außerhalb aller Wandabschnitte
 ## liefert sie den weitesten Wert, damit nichts in den Weg rutscht.
 func _wandabstand(strecke: float) -> float:
@@ -527,7 +646,7 @@ func _gitter_bauen(strecke: float, seitlich: float, stoff: Material) -> void:
 ## dem Auge sonst jede durchgehende Kante. Die Seile laufen paarweise über
 ## dem Weg und hängen zwischen den Aufhängungen leicht durch.
 func _seilzuege_bauen() -> void:
-	var stoff := Materialbibliothek.leuchtend(SEIL_GELB, 0.4)
+	var stoff := Materialbibliothek.metall(SEIL_GELB)
 	for seite: float in [-1.0, 1.0]:
 		var s := 6.0
 		while s < M_ENDE - 8.0:
@@ -547,6 +666,15 @@ func _seilzuege_bauen() -> void:
 
 
 func _seil_stueck(a: Vector3, b: Vector3, stoff: Material) -> void:
+	_rohr_stueck(a, b, 0.055, stoff, 6)
+
+
+## Ein gerader Strang zwischen zwei Punkten im Weltmaßstab.
+##
+## Seile, Glührohre und Ketten sind dieselbe Aufgabe: einen Zylinder so
+## zu drehen, dass er von A nach B zeigt. Deshalb steht das nur einmal da.
+func _rohr_stueck(a: Vector3, b: Vector3, radius: float, stoff: Material,
+		segmente := 8) -> void:
 	var strang := b - a
 	var laenge := strang.length()
 	if laenge < 0.05:
@@ -559,10 +687,10 @@ func _seil_stueck(a: Vector3, b: Vector3, stoff: Material) -> void:
 	var hoch := quer.cross(vor).normalized()
 
 	var zylinder := CylinderMesh.new()
-	zylinder.top_radius = 0.055
-	zylinder.bottom_radius = 0.055
+	zylinder.top_radius = radius
+	zylinder.bottom_radius = radius
 	zylinder.height = laenge
-	zylinder.radial_segments = 6
+	zylinder.radial_segments = segmente
 	var mi := MeshInstance3D.new()
 	mi.mesh = zylinder
 	mi.material_override = stoff
@@ -572,26 +700,151 @@ func _seil_stueck(a: Vector3, b: Vector3, stoff: Material) -> void:
 	deko.add_child(mi)
 
 
+# =========================================================== Glut
+
+
+## Die Glührohre – Kulisse und Beleuchtung in einem.
+##
+## In diesem Werk gibt es keine Sonne und kein Fenster. Alles, was man
+## sieht, sieht man, weil ein Rohr daneben glüht. Darum sind die Rohre
+## nicht Beiwerk, sondern die gesamte Grundbeleuchtung des Levels.
+##
+## Drei Lagen laufen als Bündel an beiden Wänden entlang, hinter der
+## Leitwand – erreichbar ist keins davon. Alle 28 m quert ein einzelnes
+## Rohr über dem Weg; das ist das Bild, an dem man das Level erkennt,
+## und zugleich die Stelle, an der der Boden am wärmsten wird.
+##
+## Warum nicht jedes Rohrstück ein eigenes Licht bekommt: Ein Punktlicht
+## alle 16 m reicht für einen durchgehend hellen Weg. Die Rohre dazwischen
+## leuchten als Fläche mit und kosten nichts.
+func _gluehrohre_bauen() -> void:
+	var glut := Materialbibliothek.leuchtend(ROHRGLUT, 0.85)
+	var glut_hell := Materialbibliothek.leuchtend(ROHRGLUT_HELL, 1.15)
+	var eisen := Materialbibliothek.metall(ROSTSTAHL)
+
+	# --- Wandbündel ---
+	# Sie laufen über Kopfhöhe. Auf Augenhöhe stünde eine glühende Linie
+	# genau dort, wo man die Kante des Weges sucht.
+	# Erst ab dem Bänderschacht. In der Torhalle steht man noch im
+	# Burgkeller: Dort ist der Stein blaugrau und das Licht kalt, und
+	# genau dieser Anfang ist es, an dem man die Maschine danach als
+	# heiß empfindet.
+	var s := 44.0
+	var zaehler := 0
+	while s < M_ENDE - 6.0:
+		# Im Ofengang läuft kein Bündel: Der Gang ist 6,5 m breit, die
+		# Kamera rückt dort dicht heran, und ein Rohr an dieser Wand legt
+		# sich als Balken über den unteren Bildrand. Licht gibt dort
+		# ohnehin der Ofen, und die Wand gehört den Düsen.
+		if s > 194.0 and s < 246.0:
+			s += 8.0
+			zaehler += 1
+			continue
+		for seite: float in [-1.0, 1.0]:
+			if not _seite_erlaubt(s, seite):
+				continue
+			var quer_a := seite * (_wandabstand(s) - 0.5)
+			var quer_b := seite * (_wandabstand(s + 8.0) - 0.5)
+			for i in 2:
+				var h := 2.9 + float(i) * 0.52
+				_rohr_stueck(
+						LevelWerkzeuge.punkt(verlauf, s, quer_a, h),
+						LevelWerkzeuge.punkt(verlauf, s + 8.0, quer_b, h),
+						0.18, glut_hell if i == 0 else glut)
+			# Eine Schelle je Bündelanfang: Ohne sie schwebt das Bündel.
+			_schelle_bauen(s, quer_a, eisen)
+		# Das Licht wechselt von Bündel zu Bündel die Seite. Beidseitig
+		# wäre der Weg schattenlos flach, einseitig wäre eine Levelhälfte
+		# dunkel; im Wechsel stehen die Schatten quer über dem Weg.
+		var lichtseite: float = 1.0 if zaehler % 2 == 0 else -1.0
+		# In den weiten Hallen rückt das Licht von der Wand weg zur Mitte:
+		# Aus elf Metern Abstand käme auf dem Weg nichts mehr an.
+		_glutlicht(s + 4.0,
+				lichtseite * minf(_wandabstand(s + 4.0) - 1.4, 5.5),
+				2.6, 4.6, 17.0)
+		zaehler += 1
+		s += 8.0
+
+	# --- Querrohre über dem Weg ---
+	# Nicht über den Schächten: Dort steht die Kamera tiefer, und ein Rohr
+	# quer im Bild würde genau die Kante verdecken, auf die man springt.
+	# Im Zahnradsteig steht keins: Dort blickt die Kamera von der Seite,
+	# und ein Rohr quer zum Weg läuft dann geradewegs auf die Linse zu.
+	for stelle: float in [46.0, 74.0, 152.0, 194.0, 210.0, 232.0,
+			302.0, 312.0, 322.0]:
+		var weite := _wandabstand(stelle) - 0.6
+		# Der dunklere Ton, obwohl es das auffälligste Rohr des Levels ist:
+		# Beim Durchlaufen schiebt es sich bis dicht vor die Kamera, und
+		# der helle Ton brennt dort zu einem weißen Balken aus.
+		_rohr_stueck(
+				LevelWerkzeuge.punkt(verlauf, stelle, -weite, 5.4),
+				LevelWerkzeuge.punkt(verlauf, stelle, weite, 5.4),
+				0.24, glut, 10)
+		# Zwei Aufhängungen, sonst hängt das Rohr an nichts.
+		for seite: float in [-1.0, 1.0]:
+			_rohr_stueck(
+					LevelWerkzeuge.punkt(verlauf, stelle, seite * weite, 5.4),
+					LevelWerkzeuge.punkt(verlauf, stelle, seite * weite, 7.4),
+					0.09, eisen, 6)
+		_glutlicht(stelle, 0.0, 4.7, 5.0, 18.0)
+
+
+## Ein Punktlicht aus der Glut. Ohne Schatten: Es sind über dreißig davon
+## im Level, und ihre Aufgabe ist Helligkeit, nicht Zeichnung – die
+## Zeichnung machen der Ofen und das Sonnenersatzlicht der Szene.
+func _glutlicht(strecke: float, seitlich: float, hoehe: float,
+		staerke: float, reichweite: float) -> void:
+	var licht := OmniLight3D.new()
+	licht.light_color = GLUT_HELL
+	licht.light_energy = staerke
+	licht.omni_range = reichweite
+	licht.omni_attenuation = 1.2
+	licht.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	deko.add_child(licht)
+
+
+## Schelle: das Blech, mit dem ein Rohrbündel an der Mauer hängt.
+func _schelle_bauen(strecke: float, seitlich: float, stoff: Material) -> void:
+	var gruppe := Node3D.new()
+	gruppe.name = "Schelle"
+	gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.0)
+	gruppe.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(gruppe)
+
+	var blech := MeshInstance3D.new()
+	var form := BoxMesh.new()
+	form.size = Vector3(0.5, 2.1, 0.22)
+	blech.mesh = form
+	blech.material_override = stoff
+	blech.position = Vector3(0.0, 2.05, 0.0)
+	gruppe.add_child(blech)
+
+
 func _kamerazonen_setzen() -> void:
 	kamerazone(252.0, 294.0, 15.0, 4.2)
 
 
 ## Dunst und Grundlicht je Abschnitt.
 ##
-## Das Werk ist durchweg kalt und blaugrau; nur der Ofengang kippt ins
-## Orange, und die Kesselhalle behält einen Rest davon. Die Torhalle ist
-## am hellsten – von dort kommt Tageslicht herein, danach nie wieder.
+## Ab dem Bänderschacht ist der Dunst warm, weil er nur streut, was die
+## Maschine abgibt. Nur die Torhalle bleibt kühl: Dort fällt Licht aus
+## der Burg herein, danach nie wieder. Ein blaugrauer Dunst weiter hinten
+## würde behaupten, dass irgendwo draußen Tageslicht steht.
+##
+## Die Dichte bleibt niedrig: Der Nahbereich bis zwölf Meter darf vom
+## Dunst nicht angefasst werden, sonst verliert der Weg seine Kante.
 func _stimmungen_setzen() -> void:
-	stimmung(0.0, 40.0, Color(0.38, 0.44, 0.51), 0.012, 1.25,
-			Color(0.48, 0.55, 0.63), 46.0)
-	stimmung(42.0, 196.0, Color(0.26, 0.32, 0.39), 0.020, 1.00,
-			Color(0.36, 0.44, 0.54), 40.0)
-	stimmung(198.0, 246.0, Color(0.46, 0.28, 0.17), 0.028, 0.85,
-			Color(0.56, 0.36, 0.22), 32.0)
-	stimmung(248.0, 296.0, Color(0.28, 0.34, 0.41), 0.018, 1.05,
-			Color(0.38, 0.46, 0.56), 44.0)
-	stimmung(298.0, M_ENDE, Color(0.40, 0.35, 0.34), 0.016, 1.15,
-			Color(0.52, 0.46, 0.42), 52.0)
+	# Die Torhalle allein ist kühl: Man steht noch im Bauwerk.
+	stimmung(0.0, 40.0, Color(0.26, 0.33, 0.43), 0.012, 1.3,
+			Color(0.42, 0.54, 0.70), 46.0)
+	stimmung(42.0, 196.0, Color(0.38, 0.22, 0.14), 0.015, 1.35,
+			Color(0.54, 0.36, 0.24), 40.0)
+	stimmung(198.0, 246.0, Color(0.50, 0.27, 0.14), 0.016, 1.25,
+			Color(0.66, 0.41, 0.22), 32.0)
+	stimmung(248.0, 296.0, Color(0.41, 0.25, 0.16), 0.015, 1.4,
+			Color(0.58, 0.40, 0.28), 44.0)
+	stimmung(298.0, M_ENDE, Color(0.47, 0.30, 0.19), 0.014, 1.5,
+			Color(0.64, 0.46, 0.32), 52.0)
 
 
 # =========================================================== Portale
@@ -681,6 +934,11 @@ func _kisten_setzen() -> void:
 
 ## Gegner stehen nur auf festem Boden.
 ##
+## Es laufen nur zwei Arten hier unten: der Panzerkäfer als
+## Maschinenkriecher und die Stelzenspinne als das, was in einem
+## Kesselhaus zwischen den Rohren hängt. Eine Sumpfkröte stand hier
+## einmal – die gehört in Raum 2 und nicht unter eine Burg.
+##
 ## Auf Bändern, Bohlen und Scheiben wäre ein patrouillierender Gegner
 ## unfair: Er stünde still im Raum, während der Boden unter dem Spieler
 ## wegfährt. Dort übernehmen Speier, Blöcke und der Takt.
@@ -692,7 +950,7 @@ func _gegner_setzen() -> void:
 
 	# ---------- Bänderschacht: nur auf den Podesten ----------
 	gegner(PANZERKAEFER, 47.0, 0.0, 2.4, true)
-	gegner(SUMPFKROETE, 68.0, 0.0, 2.2, true)
+	gegner(STELZENSPINNE, 68.0, 0.0, 2.2, true)
 	gegner(STELZENSPINNE, 90.0, 0.0, 2.4, true)
 
 	# ---------- Kolbenwerk ----------
@@ -704,7 +962,7 @@ func _gegner_setzen() -> void:
 	gegner(PANZERKAEFER, 192.0, 0.0, 2.4, true)
 
 	# ---------- Ofengang: einer im Gang, mehr passt nicht ----------
-	gegner(SUMPFKROETE, 207.0, 0.0, 1.6, true)
+	gegner(STELZENSPINNE, 207.0, 0.0, 1.6, true)
 	gegner(PANZERKAEFER, 226.0, 0.0, 1.6, true)
 
 	# ---------- Zahnradsteig: unten, damit oben das Springen zählt ----------
@@ -714,7 +972,7 @@ func _gegner_setzen() -> void:
 
 	# ---------- Kesselhalle ----------
 	gegner(PANZERKAEFER, 303.0, -2.5, 3.5, true)
-	gegner(SUMPFKROETE, 317.0, 2.5, 3.0, true)
+	gegner(PANZERKAEFER, 317.0, 2.5, 3.0, true)
 	schwarm(330.0, 0.0, 11.0)
 	gegner(STELZENSPINNE, 333.0, -3.0, 4.0, true)
 
@@ -745,86 +1003,271 @@ func _fruechte_setzen() -> void:
 
 # =========================================================== Kulisse
 
-## Was in einem verlassenen Werk wächst und was von ihm abfällt.
+## Was in einer arbeitenden Maschinenhalle herumsteht.
 ##
-## Bretterstapel und Streben aus Totholz an den Wänden, Schutt auf dem
-## Boden, Farn und Pilz in den feuchten Ecken, Grasbüschel in den Fugen.
-## Alles ohne Kollision und immer AUSSERHALB des Weges – die Halle soll
-## bewohnt aussehen, aber nichts darf im Weg stehen, wo der Boden ohnehin
-## schon nicht zu trauen ist.
+## Hier unten wächst nichts, hier läuft etwas. Die Kulisse besteht
+## deshalb aus dem, was eine Maschine braucht und was sie abwirft:
+## Steigrohre und Ventile an den Wänden, Nietbleche als Wandhaut, Ketten
+## aus der Höhe, Kohle und Schlacke am Wegrand, Funkenflug über den
+## heißen Stellen.
+##
+## An dieser Stelle standen einmal Totholzbäume, Farn, Pilze und
+## Grasbüschel. Die waren aus dem Wurzelwald übernommen und machten aus
+## der Halle eine Ruine unter freiem Himmel – das Werk hier ist aber in
+## Betrieb, und über ihm liegt eine Burg.
+##
+## Alles ohne Kollision und immer AUSSERHALB des Weges: Wo dem Boden
+## ohnehin nicht zu trauen ist, darf nichts zusätzlich im Weg stehen.
 func _deko_bauen() -> void:
 	var wuerfel := randi()
 	seed(31201)
+	var eisen := Materialbibliothek.metall(ROSTSTAHL)
+	var stahl := Materialbibliothek.metall(Color(0.44, 0.35, 0.30))
+	var kohle := Materialbibliothek.einfarbig(KOHLE, 0.98)
+	var schlacke := Materialbibliothek.einfarbig(Color(0.24, 0.19, 0.16), 0.95)
 
-	# Streben und Gerüsthölzer an den Wänden. Über den Lücken steht nichts:
-	# `breite_bei` liefert dort 0, und ein Rand, den es nicht gibt, taugt
-	# nicht als Standort.
-	for i in 34:
-		var s := randf_range(2.0, M_ENDE - 4.0)
-		if breite_bei(s) < 1.0:
+	# Steigrohre an den Wänden. Sie geben der Mauer ein Maß – ohne sie ist
+	# eine fünfzehn Meter hohe Wand eine Fläche ohne Größe.
+	for i in 26:
+		var s := randf_range(3.0, M_ENDE - 5.0)
+		var seite: float = -1.0 if i % 2 == 0 else 1.0
+		if not _seite_erlaubt(s, seite):
+			continue
+		_steigrohr(s, seite * (_wandabstand(s) - 0.55),
+				randf_range(4.5, 9.5), eisen)
+
+	# Ventilräder. Sie sitzen tief, in Greifhöhe eines Heizers – nicht
+	# oben, wo sie niemand erreichen könnte.
+	for i in 18:
+		var s := randf_range(4.0, M_ENDE - 6.0)
+		var seite: float = -1.0 if i % 3 == 0 else 1.0
+		if not _seite_erlaubt(s, seite):
+			continue
+		_ventil(s, seite * (_wandabstand(s) - 0.6), randf_range(1.3, 2.6),
+				seite, eisen)
+
+	# Nietbleche: die Wandhaut dort, wo nicht gemauert, sondern beplankt
+	# wurde. Die Nietreihe ist der Maßstab, an dem das Auge die Größe
+	# der Halle abliest.
+	for i in 16:
+		var s := randf_range(4.0, M_ENDE - 6.0)
+		var seite: float = 1.0 if i % 2 == 0 else -1.0
+		if not _seite_erlaubt(s, seite):
+			continue
+		_nietblech(s, seite * (_wandabstand(s) - 0.44), seite, stahl)
+
+	# Ketten aus der Höhe. Sie hängen frei und enden im Nichts – genau das
+	# macht eine Decke glaubhaft, die man nie zu sehen bekommt.
+	for i in 14:
+		var s := randf_range(6.0, M_ENDE - 8.0)
+		var seite: float = -1.0 if i % 2 == 0 else 1.0
+		if not _seite_erlaubt(s, seite):
+			continue
+		_kette(s, seite * (_wandabstand(s) - 1.4), 8.2,
+				randf_range(2.0, 4.5), stahl)
+
+	# Kohle am Wegrand: der dunkle Ton, der dem Glühen den Rahmen gibt.
+	# Nur wo der Rand breit genug ist, sonst liegt der Haufen auf der
+	# Laufspur.
+	for i in 22:
+		var s := randf_range(3.0, M_ENDE - 4.0)
+		var rand := rand_bei(s, 1.2)
+		if rand < 2.0:
 			continue
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var holz := BAUM.instantiate() as Baum
-		holz.art = Baum.Art.TOTHOLZ
-		holz.hoehe = randf_range(4.0, 9.0)
-		holz.staerke = randf_range(0.7, 1.4)
-		holz.saat = 9500 + i
-		holz.wind = false
-		holz.kollision = false
-		holz.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * (breite_bei(s) * 0.5 + randf_range(2.0, 4.0)), -0.4)
-		holz.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
-		# Leicht angelehnt statt senkrecht – gebaut sieht zu ordentlich aus.
-		holz.rotation.z = seite * randf_range(0.08, 0.22)
-		deko.add_child(holz)
+		_haufen(s, seite * randf_range(rand * 0.7, rand), 7, 0.22, 0.55,
+				0.8, kohle)
 
-	# Schutt: heruntergefallenes Mauerwerk an den Rändern.
-	for i in 48:
+	# Schlacke: was aus dem Ofen fällt und liegen bleibt. Hier lagen
+	# einmal die fertigen Felsmodelle – die tragen Grasbüschel auf dem
+	# Kopf, und Gras wächst unter einer Burg nicht.
+	for i in 44:
 		var s := randf_range(2.0, M_ENDE - 4.0)
 		var rand := rand_bei(s, 1.0)
 		if rand < 1.6:
 			continue
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var brocken := STEIN.instantiate() as Stein
-		brocken.saat = 9700 + i
-		brocken.groesse = randf_range(0.4, 1.3)
-		brocken.bemoost = false
-		brocken.flach = i % 3 == 0
-		brocken.kollision = false
-		brocken.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * randf_range(rand * 0.8, rand), 0.0)
-		brocken.rotation.y = randf() * TAU
-		deko.add_child(brocken)
+		_haufen(s, seite * randf_range(rand * 0.8, rand), 3, 0.3, 0.85,
+				0.5, schlacke)
 
-	# Farn und Pilz, wo es feucht ist: an den Wänden, nie auf dem Weg.
-	for i in 40:
-		var s := randf_range(2.0, M_ENDE - 4.0)
-		if breite_bei(s) < 1.0:
-			continue
+	# Funkenflug. Er steht nur dort, wo auch Glut ist: über dem Ofengang,
+	# an den Querrohren und am Fuß der Kesselhalle. Ein Funke ohne Feuer
+	# darunter wäre eine Behauptung.
+	var stellen := [46.0, 122.0, 210.0, 222.0, 232.0, 302.0, 322.0]
+	for i in stellen.size():
+		var s: float = stellen[i]
 		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var bewuchs := KLEINZEUG.instantiate() as Kleinzeug
-		bewuchs.art = Kleinzeug.Art.PILZ if i % 5 == 0 else Kleinzeug.Art.FARN
-		bewuchs.groesse = randf_range(0.35, 0.6)
-		bewuchs.saat = 9900 + i
-		bewuchs.wind = false
-		bewuchs.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * (breite_bei(s) * 0.5 + randf_range(0.5, 2.0)), -0.3)
-		deko.add_child(bewuchs)
-
-	# Gras in den Fugen der Randstreifen.
-	for i in 30:
-		var s := randf_range(2.0, M_ENDE - 4.0)
-		if breite_bei(s) < 1.0:
-			continue
-		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var horst := GRASFELD.instantiate() as Grasfeld
-		horst.flaeche = Vector2(1.8, 1.8)
-		horst.halm_hoehe = randf_range(0.25, 0.5)
-		horst.farbe_unten = Farben.MOOS.darkened(0.3)
-		horst.farbe_oben = Farben.FLECHTE
-		horst.wind_staerke = 0.02
-		horst.saat = 10100 + i
-		horst.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * (breite_bei(s) * 0.5 - 0.3), 0.24)
-		deko.add_child(horst)
+		var funken := STAUB.instantiate() as Staubflug
+		funken.raum = Vector3(2.4, 5.0, 3.0)
+		funken.anzahl = 46
+		funken.groesse = 0.07
+		funken.farbe = GLUT_HELL
+		funken.deckkraft = 0.9
+		# Funken steigen, Staub fällt: Das Vorzeichen ist der ganze
+		# Unterschied zwischen einem Kesselhaus und einem Dachboden.
+		funken.steiggeschwindigkeit = 0.85
+		funken.wirbel = 0.5
+		funken.funkeln = 1.0
+		funken.saat = 9300 + i
+		funken.position = LevelWerkzeuge.punkt(verlauf, s,
+				seite * (_wandabstand(s) - 1.6), 1.4)
+		deko.add_child(funken)
 	seed(wuerfel)
+
+
+## Senkrechtes Rohr an der Mauer, mit Flanschen an den Stößen.
+func _steigrohr(strecke: float, seitlich: float, hoehe: float,
+		stoff: Material) -> void:
+	var gruppe := Node3D.new()
+	gruppe.name = "Steigrohr"
+	gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, -0.3)
+	gruppe.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(gruppe)
+
+	var strang := MeshInstance3D.new()
+	var rohr := CylinderMesh.new()
+	rohr.top_radius = 0.22
+	rohr.bottom_radius = 0.22
+	rohr.height = hoehe
+	rohr.radial_segments = 8
+	strang.mesh = rohr
+	strang.material_override = stoff
+	strang.position.y = hoehe * 0.5
+	gruppe.add_child(strang)
+
+	for h: float in [0.9, hoehe * 0.55, hoehe - 0.5]:
+		var flansch := MeshInstance3D.new()
+		var scheibe := CylinderMesh.new()
+		scheibe.top_radius = 0.36
+		scheibe.bottom_radius = 0.36
+		scheibe.height = 0.16
+		scheibe.radial_segments = 8
+		flansch.mesh = scheibe
+		flansch.material_override = stoff
+		flansch.position.y = h
+		gruppe.add_child(flansch)
+
+
+## Handrad auf einem Wandkasten. Die Radachse zeigt quer zum Weg, damit
+## das Rad als Kreis und nicht als Strich im Bild steht.
+func _ventil(strecke: float, seitlich: float, hoehe: float, seite: float,
+		stoff: Material) -> void:
+	var gruppe := Node3D.new()
+	gruppe.name = "Ventil"
+	gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
+	gruppe.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(gruppe)
+
+	var kasten := MeshInstance3D.new()
+	var form := BoxMesh.new()
+	form.size = Vector3(0.24, 0.85, 0.85)
+	kasten.mesh = form
+	kasten.material_override = stoff
+	gruppe.add_child(kasten)
+
+	# Das Rad steht auf der Seite, die zum Weg zeigt – auf der anderen
+	# sähe es niemand.
+	var rad := Node3D.new()
+	rad.position.x = -seite * 0.3
+	rad.rotation.z = PI * 0.5
+	gruppe.add_child(rad)
+
+	var reifen := MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.24
+	ring.outer_radius = 0.34
+	ring.rings = 6
+	ring.ring_segments = 12
+	reifen.mesh = ring
+	reifen.material_override = stoff
+	rad.add_child(reifen)
+
+	for dreh in 2:
+		var speiche := MeshInstance3D.new()
+		var balken := BoxMesh.new()
+		balken.size = Vector3(0.62, 0.06, 0.06) if dreh == 0 \
+				else Vector3(0.06, 0.06, 0.62)
+		speiche.mesh = balken
+		speiche.material_override = stoff
+		rad.add_child(speiche)
+
+
+## Genietetes Wandblech. Ohne die Nietreihe ist es nur eine Platte.
+func _nietblech(strecke: float, seitlich: float, seite: float,
+		stoff: Material) -> void:
+	var gruppe := Node3D.new()
+	gruppe.name = "Nietblech"
+	gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 2.3)
+	gruppe.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(gruppe)
+
+	var platte := MeshInstance3D.new()
+	var form := BoxMesh.new()
+	form.size = Vector3(0.16, 1.7, 2.8)
+	platte.mesh = form
+	platte.material_override = stoff
+	gruppe.add_child(platte)
+
+	for i in 8:
+		var niet := MeshInstance3D.new()
+		var kugel := SphereMesh.new()
+		kugel.radius = 0.06
+		kugel.height = 0.12
+		kugel.radial_segments = 6
+		kugel.rings = 3
+		niet.mesh = kugel
+		niet.material_override = stoff
+		niet.position = Vector3(-seite * 0.1,
+				0.7 if i < 4 else -0.7,
+				-1.05 + float(i % 4) * 0.7)
+		gruppe.add_child(niet)
+
+
+## Hängende Kette. Die Glieder stehen abwechselnd quer – nur daran ist
+## eine Kette von einem Seil zu unterscheiden.
+func _kette(strecke: float, seitlich: float, oben: float, laenge: float,
+		stoff: Material) -> void:
+	var gruppe := Node3D.new()
+	gruppe.name = "Kette"
+	gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.0)
+	gruppe.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(gruppe)
+
+	var glieder := clampi(int(laenge / 0.22), 4, 22)
+	for i in glieder:
+		var glied := MeshInstance3D.new()
+		var form := BoxMesh.new()
+		form.size = Vector3(0.1, 0.26, 0.17)
+		glied.mesh = form
+		glied.material_override = stoff
+		glied.position.y = oben - float(i) * 0.21
+		glied.rotation.y = 0.0 if i % 2 == 0 else PI * 0.5
+		gruppe.add_child(glied)
+
+
+## Ein Haufen kantiger Brocken, wild gedreht.
+##
+## Kohle und Schlacke sind dieselbe Form in zwei Größen und zwei Tönen –
+## rund und gewachsen darf hier unten nichts aussehen.
+func _haufen(strecke: float, seitlich: float, teile: int, kante_min: float,
+		kante_max: float, streuung: float, stoff: Material) -> void:
+	var gruppe := Node3D.new()
+	gruppe.name = "Haufen"
+	gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.0)
+	gruppe.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(gruppe)
+
+	for i in teile:
+		var brocken := MeshInstance3D.new()
+		var form := BoxMesh.new()
+		var kante := randf_range(kante_min, kante_max)
+		form.size = Vector3(kante, kante * randf_range(0.6, 1.0),
+				kante * randf_range(0.7, 1.2))
+		brocken.mesh = form
+		brocken.material_override = stoff
+		brocken.position = Vector3(randf_range(-streuung, streuung),
+				randf_range(0.0, kante * 0.6),
+				randf_range(-streuung * 1.2, streuung * 1.2))
+		brocken.rotation = Vector3(randf() * TAU, randf() * TAU,
+				randf() * TAU)
+		gruppe.add_child(brocken)

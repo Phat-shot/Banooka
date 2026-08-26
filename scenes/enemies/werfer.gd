@@ -28,21 +28,55 @@ const GESCHOSS_SZENE := preload("res://scenes/enemies/Geschoss.tscn")
 
 ## Sekunden zwischen zwei Würfen (gemessen ab dem Wurf, das Ausholen
 ## liegt darin).
-@export var wurftakt := 2.6
+## TAKTVERTRAG (doku/level-vorbilder.md): erlaubt sind nur 1,0 · 2,0 · 4,0,
+## damit mehrere Taktgeber nebeneinander ein lernbares Muster ergeben.
+@export var wurftakt := 2.0
 ## Weiter entfernte Spieler lässt er in Ruhe.
 @export var wurfweite := 14.0
 ## Wie lange er sichtbar ausholt, bevor das Geschoss fliegt.
 @export var vorholzeit := 0.5
 ## Womit er wirft.
 @export var geschossart: Geschoss.Art = Geschoss.Art.STAMM
-## Fellfarbe des Körpers.
-@export var farbe_fell := Farben.RINDE_DUNKEL
+
+# ---------------------------------------------------------- Farben
+#
+# Der Werfer steht in Festung, Ruine und Halle. Die Farben waren schon
+# einstellbar, wirkten aber nur, solange sie VOR dem Einhängen gesetzt
+# wurden – die Optik entsteht in `_baue()`, also in `_ready()`. Jetzt
+# baut jeder Setzer sie neu auf (siehe `_neu_faerben()`).
+#
+# ZEICHENSPRACHE (siehe gegner.gd): Der Brustgurt liegt auf Schlaghöhe
+# und ist die einzige leuchtende Fläche am ganzen Gegner – dorthin zielt
+# der Drehschlag. Er muss HELL gegen das Fell stehen bleiben. Die Dornen
+# auf Kopf und Schultern hängen absichtlich am Fellton (`darkened`) und
+# sind nicht einzeln einstellbar: So können sie nie im Fell verschwinden,
+# egal welche Farbe ein Level wählt.
+
+## Fellfarbe des Körpers. Dornen und Podestkante leiten sich daraus ab.
+@export var farbe_fell := Farben.RINDE_DUNKEL:
+	set(wert):
+		farbe_fell = wert
+		_neu_faerben()
 ## Farbe der freien Bauchseite und des Gesichts.
-@export var farbe_bauch := Farben.ERDE_HELL
+@export var farbe_bauch := Farben.ERDE_HELL:
+	set(wert):
+		farbe_bauch = wert
+		_neu_faerben()
 ## Signalfarbe des Brustgurts – die Stelle, an der der Drehschlag wirkt.
-@export var farbe_gurt := Farben.KISTE_FEDER
+@export var farbe_gurt := Farben.KISTE_FEDER:
+	set(wert):
+		farbe_gurt = wert
+		_neu_faerben()
 ## Steinfarbe des Podests.
-@export var farbe_podest := Farben.FELS
+@export var farbe_podest := Farben.FELS:
+	set(wert):
+		farbe_podest = wert
+		_neu_faerben()
+## Augenpunkte.
+@export var farbe_augen := Farben.WARNUNG:
+	set(wert):
+		farbe_augen = wert
+		_neu_faerben()
 ## Baut das Podest mit. Aus, wenn das Level ihn schon erhöht aufstellt.
 @export var mit_podest := true
 
@@ -108,7 +142,7 @@ func _baue() -> void:
 	var gurt := Materialbibliothek.leuchtend(farbe_gurt, 0.9)
 	var dunkel := Materialbibliothek.einfarbig(farbe_fell.darkened(0.45), 0.6)
 	var stein := Materialbibliothek.einfarbig(farbe_podest, 0.9)
-	var auge := Materialbibliothek.leuchtend(Farben.WARNUNG, 1.2)
+	var auge := Materialbibliothek.leuchtend(farbe_augen, 1.2)
 
 	var fuss := PODEST_HOEHE if mit_podest else 0.0
 
@@ -365,3 +399,30 @@ func _todesanimation(delta: float) -> void:
 		_wurfarm.rotation.x = sin(_zeit * 22.0) * 1.1
 	if is_instance_valid(_haltearm):
 		_haltearm.rotation.x = -sin(_zeit * 22.0) * 1.1
+
+
+# ---------------------------------------------------------- Umfärben
+
+## Baut die Optik neu auf, wenn eine Farbe nach dem Einhängen gesetzt wird.
+##
+## Die Materialien der `Materialbibliothek` sind geteilt und dürfen nicht
+## nachträglich verändert werden; also wird die Optik neu gebaut, wie es
+## auch die Props halten (`baum.gd`, `deckungsfleck.gd`).
+##
+## Ein besiegter Werfer wird nicht angefasst: Sein Podest hängt dann
+## schon im Levelknoten und die Sturzlage steckt im Modell – ein Neubau
+## holte beides zurück.
+func _neu_faerben() -> void:
+	if besiegt or not is_inside_tree() or not is_instance_valid(modell):
+		return
+	for kind in modell.get_children():
+		modell.remove_child(kind)
+		kind.queue_free()
+	_podest = null
+	_rumpf = null
+	_wurfarm = null
+	_haltearm = null
+	_hand = null
+	_kopf = null
+	_baue()
+	_fremdmodell_setzen()

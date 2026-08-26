@@ -524,14 +524,14 @@ func _vorhalle_bauen() -> void:
 	# Auslauf dahinter. Wer ihn erst beim zweiten Anlauf liest, verliert
 	# nichts.
 	var erster := stacheln(28.0, 0.0, Vector2(3.4, 3.0), true, BRONZE)
-	erster.takt = 2.8
+	erster.takt = 4.0
 
 	# Zwei Felder nebeneinander, versetzt getaktet: die erste Stelle, an
 	# der der Takt eine Entscheidung verlangt statt nur Geduld.
 	var links := stacheln(38.0, -2.0, Vector2(2.6, 3.0), true, BRONZE)
-	links.takt = 2.4
+	links.takt = 2.0
 	var rechts := stacheln(38.0, 2.0, Vector2(2.6, 3.0), true, BRONZE)
-	rechts.takt = 2.4
+	rechts.takt = 2.0
 
 	# Das erste Tor, mit weit offenem Fenster – es lehrt, wie ein Tor
 	# aussieht, nicht wie schnell man sein muss.
@@ -623,7 +623,7 @@ func _gabelung_bauen() -> void:
 	for i in 3:
 		var s := 74.0 + float(i) * 14.0
 		var feld := stacheln(s, LEICHT_QUER, Vector2(3.2, 3.4), true, BRONZE)
-		feld.takt = 2.2
+		feld.takt = 2.0
 	schliesstuer(104.0, LEICHT_QUER, 4.2, 2.9, 2.0, 1.6, 0.3)
 	feuerspeier(118.0, LEICHT_QUER + 3.2, 1.1, 180.0, 3.4, 0.0)
 
@@ -668,7 +668,7 @@ func _speergang_bauen() -> void:
 	var eng := [176.5, 179.25, 182.0, 184.75]
 	for s: float in eng:
 		var feld := stacheln(s, 0.0, Vector2(6.2, 2.4), true, BRONZE)
-		feld.takt = 1.7
+		feld.takt = 2.0
 	stachelbalken(190.0, 0.0, KRIECHHOEHE, Vector2(6.5, 1.1))
 	# Eine Deckungsnische kurz vor den Torkammern: hier darf man atmen.
 	deckungsfleck(195.0, -2.2, 1.6)
@@ -700,7 +700,7 @@ func _torkammern_bauen() -> void:
 			# Zwischen den Toren steht je ein Speerboden – man kann also
 			# nicht einfach im Torrahmen warten.
 			var feld := stacheln(s + 4.0, 0.0, Vector2(5.0, 2.4), true, BRONZE)
-			feld.takt = 2.2
+			feld.takt = 2.0
 
 	# Die Grube bei 232, davor der Anlauf.
 	fruechte_bogen(231.0, 238.0, 6, 0.0, 2.2)
@@ -739,9 +739,9 @@ func _hof_bauen() -> void:
 
 	# Zwei Speerböden an den Rändern – sie halten den Kampf in die Mitte.
 	var links := stacheln(284.0, -5.0, Vector2(3.0, 5.0), true, BRONZE)
-	links.takt = 2.6
+	links.takt = 2.0
 	var rechts := stacheln(298.0, 5.0, Vector2(3.0, 5.0), true, BRONZE)
-	rechts.takt = 2.6
+	rechts.takt = 2.0
 
 	feuerspeier(288.0, 0.0, 1.2, 90.0, 4.0, 0.0, true)
 	deckungsfleck(310.0, -3.0, 1.7)
@@ -792,9 +792,9 @@ func _grabkammer_bauen() -> void:
 ## trägt nur noch das Fackellicht. Der Weg ins Grab hinein ist deshalb
 ## auch ein Weg ins Dunklere.
 func _stimmungen_setzen() -> void:
-	stimmung(0.0, 62.0, Color(0.86, 0.70, 0.46), 0.006, 1.15,
+	stimmung(0.0, 62.0, Color(0.86, 0.70, 0.46), 0.006, 1.05,
 			Color(0.86, 0.74, 0.54), 34.0)
-	stimmung(134.0, M_ENDE, Color(0.42, 0.24, 0.14), 0.013, 0.6,
+	stimmung(134.0, M_ENDE, Color(0.42, 0.24, 0.14), 0.013, 0.65,
 			Color(0.62, 0.42, 0.26), 30.0)
 
 
@@ -909,6 +909,24 @@ func _kisten_setzen() -> void:
 ## Gegner: Wo der Takt schon die Aufgabe ist, wäre ein Gegner obendrauf
 ## kein zweiter Takt, sondern nur Pech.
 func _gegner_setzen() -> void:
+	# ORTSFARBEN. Grabkammer: Sandstein und Ocker, Tuerkis nur an den Augen.
+	# Unser Bestiarium kommt aus Wald, Sumpf und Eis; ungefaerbt liefe hier
+	# Getier durchs Bild, das offensichtlich woandershin gehoert. Die
+	# Wirkstellen bleiben hell abgesetzt - Naht, Stacheln, Zapfen und die
+	# dunklen Streifen sagen weiterhin, was gegen wen hilft.
+	gegner_faerbung = {
+		"farbe_panzer": Color(0.6, 0.44, 0.24),
+		"farbe_naht": Color(0.96, 0.93, 0.83),
+		"farbe_chitin": Color(0.34, 0.25, 0.15),
+		"farbe_klingen": Color(0.8, 0.72, 0.54),
+		"farbe_augen": Color(0.16, 0.74, 0.68),
+		"farbe_streifen": Color(0.1, 0.09, 0.08),
+		"farbe_leib": Color(0.42, 0.3, 0.17),
+		"farbe_beine": Color(0.29, 0.21, 0.13),
+		"farbe_stacheln": Color(0.88, 0.82, 0.64),
+		"farbe_fremdmodell": Color(0.52, 0.37, 0.2),
+	}
+
 	# ---------- Vorhalle: einer je Antwort, mit viel Platz ----------
 	gegner(PANZERKAEFER, 22.0, -2.0, 3.5, true)
 	gegner(GLETSCHERKRABBE, 32.0, 2.0, 3.5, true)
