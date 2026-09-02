@@ -96,6 +96,7 @@ allen drei Spielen und in allen fünfzehn Leveln dasselbe:
 | Orange mit gelbem Zeichen | Umrisskiste – erscheint erst, wenn ihr Auslöser fällt |
 | weißer Umriss, körperlos | noch nicht vorhanden, wartet auf den Auslöser |
 | türkisgrün leuchtend | Rettungspunkt oder Ausgang |
+| violett mit Zifferblatt und Zahl | Zeitkiste – hält im Zeitmodus die Uhr an |
 
 Deshalb muss ein Level seine Gefahren nicht selbst erklären. Die erste Fassung
 hat daraus eine levelspezifische Regel gemacht („die Signalfarbe kommt sonst
@@ -171,11 +172,20 @@ Ein Level hat drei Ebenen, nicht eine:
    ohne Level, die ihn fordern.
 3. **Der Bonusraum** – ein eigener kleiner Raum in eigener Gestaltung, betreten
    über gesammelte Marken, **ohne Todesstrafe**. Dort liegt in vielen
-   Vorbildern der größere Teil der Kisten. Fehlt bei uns vollständig.
+   Vorbildern der größere Teil der Kisten. Bei uns gebaut
+   (`scenes/bonus/bonusraum.gd`) und in Level 18 im Einsatz; die übrigen
+   Level haben noch keinen.
 
 Dazu kommt in den späteren Vorbildern der **zweite Ausgang**: ein Weg, der
 nicht ins Ziel führt, sondern woandershin – gedeckelt durch Können oder durch
 einen Gegenstand aus einem anderen Level.
+
+Und eine vierte Ebene, die erst nach dem Durchspielen aufgeht: der **Zeitlauf**.
+Die Vorbilder öffnen ihn über eine Stoppuhr am Levelanfang und legen
+Zeitkisten aus, die die Uhr anhalten. Bei uns ist er ein Schalter in den
+Einstellungen (`autoload/Zeitlauf.gd`); die Zeitkisten treten dann an die
+Stelle jeder dritten Holzkiste, und drei Stufen – Saphir, Gold, Platin –
+hängen als dritter Stein über dem Levelportal.
 
 ---
 
@@ -523,7 +533,10 @@ Rinne – mit violetter Spur, wenn der Turbo läuft.
 **`Turbo mit Kontrollverlust`** samt eigener Einfärbung.
 
 **Abgleich mit Level 17.** Palette trifft (kühl 98,9 % gegen 94,4 %) – eines der
-zwei am besten getroffenen Level. **Der Turbo fehlt jedoch ganz.** Und unsere
+zwei am besten getroffenen Level. **Der Turbo ist inzwischen gebaut** –
+gehaltene ○-Taste, Tempo mal 1,34 gegen eine lose, überschwingende
+Lenkung, violette Spur als sichtbarer Zustand, und ein spürbares Ende,
+wenn der Vorrat leer ist. Und unsere
 Totems sind mit `#965127` warm gesetzt, kommen im Bild aber auf 0,2 % und lesen
 sich schiefergrau; als Gefahrenzeichen taugen sie so nicht.
 
@@ -946,8 +959,6 @@ ein Bauteil zu prüfen ist.
 
 | Werkzeug | Aus | Warum es fehlt auffällt |
 |---|---|---|
-| `Turbo mit Kontrollverlust` | 4-2 | Der eigentliche Reiz des Vorbilds. Im Bild sogar eigens eingefärbt. |
-| `Haltungsgegner` | 4-5 | Kernidee des Levels: erst lesen, dann reagieren. |
 | `Verfolger` | 4-1 | Der Tempomacher, der das Warten erzwingt. |
 | `Strahlfalle` | 4-5 | Bisher durch `Werfer` behelfsmäßig abgedeckt. |
 | `Nische` | 3-1 | Bei uns als Wegverbreiterung gelöst – vertretbar. |

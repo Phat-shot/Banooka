@@ -111,6 +111,8 @@ func _baue_menue() -> void:
 		_neuer_eintrag("Datei wählen …", _datei_waehlen)
 	if not Einstellungen.eigenes_modell.is_empty():
 		_neuer_eintrag("Diese Figur löschen", _figur_loeschen)
+	_neuer_eintrag("Zeitmodus:  %s" % ("an" if Einstellungen.zeitmodus else "aus"),
+			_zeitmodus_umschalten)
 	_neuer_eintrag("Debugmodus:  %s" % ("an" if Einstellungen.debug else "aus"),
 			_debug_umschalten)
 	_neuer_eintrag("Zurück", _zurueck)
@@ -280,6 +282,16 @@ func _figur_loeschen() -> void:
 
 
 ## Debugmodus: unendlich Leben, immer Schutz, alle Räume offen.
+func _zeitmodus_umschalten(_richtung: int = 1) -> void:
+	Einstellungen.zeitmodus = not Einstellungen.zeitmodus
+	Einstellungen.speichern()
+	_baue_menue()
+	if Einstellungen.zeitmodus:
+		_zeige_meldung("Zeitmodus an – Uhr im Level, Zeitkisten halten sie an")
+	else:
+		_zeige_meldung("Zeitmodus aus")
+
+
 func _debug_umschalten(_richtung: int = 1) -> void:
 	Einstellungen.debug = not Einstellungen.debug
 	Einstellungen.speichern()

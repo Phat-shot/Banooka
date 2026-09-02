@@ -216,6 +216,11 @@ func _zustand(schrift: Font, oben: Vector2, breite: float) -> void:
 	if GameState.kisten_gesamt > 0:
 		zeilen.append(["Kisten", "%d / %d"
 				% [GameState.kisten_zerbrochen, GameState.kisten_gesamt]])
+	# Im Zeitlauf ist die Richtzeit die Zahl, die man wissen will – die
+	# Uhr im HUD sagt nur, wo man steht, nicht, wo man hin muss.
+	if Zeitlauf.laeuft:
+		zeilen.append(["Zeit", Zeitlauf.als_text(Zeitlauf.zeit)])
+		zeilen.append(["Richtzeit", Zeitlauf.als_text(Zeitlauf.richtzeit)])
 	zeilen.append(["Freigeschaltet", "%d / %d Level"
 			% [Spielfluss.freigeschaltet, Spielfluss.LEVEL_GESAMT]])
 

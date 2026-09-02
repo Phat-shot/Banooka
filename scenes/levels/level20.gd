@@ -43,6 +43,7 @@ extends KorridorLevel
 const SCHNEEWIESEL := preload("res://scenes/enemies/Schneewiesel.tscn")
 const GLETSCHERKRABBE := preload("res://scenes/enemies/Gletscherkrabbe.tscn")
 const FROSTMOTTE := preload("res://scenes/enemies/Frostmotte.tscn")
+const HALTUNGSGEGNER := preload("res://scenes/enemies/Haltungsgegner.tscn")
 
 # --------------------------------------------------------- Strecken-Marken
 const M_SCHLEUSE := 0.0
@@ -92,11 +93,35 @@ const MESSING := Color(0.92, 0.66, 0.26)
 ## Gebürsteter Stationsstahl für Stege und Stempel – blaugrau statt
 ## graugrün, damit er neben der olivgelben Wand nach Metall aussieht.
 const STAHL := Color(0.62, 0.69, 0.75)
-## Das Deckblech des Ganges. Eigener, wärmerer Ton als der übrige Stahl:
-## Der Boden ist die größte Fläche im Bild, und ein rein grauer Boden
-## nimmt dem Gang alle Farbe – im Vorbild liegt der Steg im warmen
-## Widerschein der Wand, nicht im Neonlicht.
-const DECKBLECH := Color(0.72, 0.66, 0.54)
+## Das Deckblech des Ganges. Eigener Ton als der übrige Stahl: Der Boden
+## ist die größte Fläche im Bild, und ein rein grauer Boden nimmt dem Gang
+## alle Farbe – im Vorbild liegt der Steg im warmen Widerschein der Wand,
+## nicht im Neonlicht. Er trägt deshalb einen Stich ins Warme.
+##
+## Nur einen Stich, und der ist gemessen. Unter dem gebürsteten Schliff
+## las sich der frühere Ton `(0.72, 0.66, 0.54)` als BOHLENWEG: Ein
+## gelbbrauner Grund mit dunkler Maserung ist Holz, ganz gleich, wie
+## metallisch das Material eingestellt ist. Der Blauanteil musste also
+## hoch – aber nur so weit, dass der Boden warm BLEIBT. Ein Versuch mit
+## `(0.67, 0.66, 0.62)` war rechnerisch ein neutrales Grau; die Wegzone
+## fiel damit von 65,9 auf 46,4 % warm, bei einem Vorbild von 60,1 %. Der
+## Boden ist die größte Fläche im Bild, und eine graue Fläche zählt gar
+## nicht mehr mit. Den Rest der Holzwirkung nimmt nicht die Farbe, sondern
+## die Plattennaht im Blech (siehe `_stahlblech()`).
+## Gebuerstetes Stahlblech. Kuehl, nicht warm.
+##
+## Der Wert stand zwischenzeitlich auf einem warmen Braungrau, weil ein
+## echtes Stahlgrau den Warm-Anteil der Wegzonenmessung von 65,9 auf 46,4
+## drueckt - eine graue Flaeche zaehlt dort gar nicht mit, und der Boden ist
+## die groesste Flaeche im Bild. Gemessen war das besser, gesehen falsch:
+## Braun mit Plattennaht liest sich als Bohlenweg, und wir bauen hier eine
+## Raumstation. Der Steckbrief verlangt "Stege aus gebuerstetem Stahl mit
+## hellem Kantenglanz" (4-5).
+##
+## Also Bild vor Zahl - dieselbe Entscheidung wie beim Kupferanteil in
+## Level 24. Wo die Messung und die Vorlage auseinanderlaufen, gewinnt die
+## Vorlage; die Messung ist ein Hilfsmittel, kein Ziel.
+const DECKBLECH := Color(0.60, 0.625, 0.645)
 const STAHL_DUNKEL := Color(0.36, 0.40, 0.45)
 ## Der helle Kantenglanz, den der Steckbrief an jedem Steg verlangt.
 const KANTENGLANZ := Color(0.84, 0.90, 0.97)
@@ -216,11 +241,171 @@ func _verlauf_anlegen() -> void:
 ## ist die einzige Stelle im Bild, an der etwas fast weiß ist.
 func _boden_bauen() -> void:
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
-		"oben": Materialbibliothek.metall(DECKBLECH),
-		"kante": Materialbibliothek.metall(KANTENGLANZ),
-		"klippe": Materialbibliothek.metall(STAHL_DUNKEL),
+		"oben": _stahlblech(DECKBLECH),
+		"kante": _stahlblech(KANTENGLANZ),
+		"klippe": _stahlblech(STAHL_DUNKEL),
 	}, {"tiefe": 6.0, "schritt": 1.0, "kante_hoehe": 0.22, "kante_breite": 0.6})
 	luecken_markieren(MESSING)
+
+
+# =========================================================== Gebürsteter Stahl
+
+## Alle Bleche, auf denen man steht, bekommen dieses Material.
+##
+## `Materialbibliothek.metall()` kann es nicht liefern: Sie streut
+## Rostflecken ein. Auf einem Fass im Kanal ist das genau richtig, auf dem
+## Steg einer Raumstation ist es falsch – der Steckbrief verlangt
+## "gebürsteten Stahl mit hellem Kantenglanz", und Rostsprenkel lesen sich
+## als altes Eisen, nicht als geschliffenes Blech. Die Bibliothek
+## umzubauen kam nicht in Frage: Ihre Materialien sind geteilt, ein
+## Eingriff dort färbte jedes andere Level mit um. Deshalb steht das
+## Material hier, im Level, das es braucht.
+##
+## Der Schliff läuft in EINE Richtung: Der Ton wechselt quer zur
+## Schleifrichtung und bleibt längs davon stehen. Genau daran erkennt man
+## gebürsteten Stahl – bei Rauschen in beide Richtungen sieht Metall
+## gegossen aus, nicht geschliffen.
+##
+## Die Rauheit läuft dem Ton entgegen: Wo der Schliff eine Rille gezogen
+## hat, ist die Fläche matt, auf den Stegen dazwischen glänzt sie. Das ist
+## der Kantenglanz aus dem Steckbrief – er entsteht nicht aus einer
+## helleren Farbe, sondern daraus, dass das Licht auf schmalen Bahnen
+## zurückkommt.
+var _blech_stoffe := {}
+
+
+func _stahlblech(farbe: Color) -> StandardMaterial3D:
+	var schluessel := farbe.to_html()
+	if _blech_stoffe.has(schluessel):
+		return _blech_stoffe[schluessel]
+
+	var kante := 128
+	# Breite der Plattennaht in Pixeln, quer zum Schliff.
+	var nahtbreite := 4
+	# Abstand der Schrauben auf der Naht, in Pixeln.
+	var schraubenraster := 32
+	var wuerfel := RandomNumberGenerator.new()
+	wuerfel.seed = 2010
+
+	# Zwei Strichlagen, je ein Wert pro SPALTE – daher die Richtung.
+	var strich := PackedFloat32Array()
+	strich.resize(kante)
+	var strich_grob := PackedFloat32Array()
+	strich_grob.resize(kante)
+	for x in kante:
+		strich[x] = wuerfel.randf()
+	# Die grobe Lage nur alle acht Spalten neu würfeln und dazwischen
+	# überblenden: Ohne sie ist der Schliff Sandpapier, mit ihr bekommt er
+	# breitere Bahnen, wie sie eine Bürste zieht.
+	var stuetzen := kante / 8
+	var werte := PackedFloat32Array()
+	werte.resize(stuetzen)
+	for i in stuetzen:
+		werte[i] = wuerfel.randf()
+	for x in kante:
+		var f := float(x) / 8.0
+		var a := int(f) % stuetzen
+		var b := (a + 1) % stuetzen
+		strich_grob[x] = lerpf(werte[a], werte[b], f - floorf(f))
+
+	var farben := PackedByteArray()
+	farben.resize(kante * kante * 3)
+	var hoehen := PackedByteArray()
+	hoehen.resize(kante * kante)
+	var rauheit := PackedByteArray()
+	rauheit.resize(kante * kante)
+	var verdeckung := PackedByteArray()
+	verdeckung.resize(kante * kante)
+
+	# Die Spanne ist nicht frei wählbar. Der Boden ist die größte Fläche im
+	# Bild, und die Wegzone von Level 20 liegt mit Helligkeit 59 genau auf
+	# dem Vorbild (59). Ein erster Anlauf mit 0,70 / 0,30 und ohne
+	# Verdeckungskarte trieb sie auf 69 – der Gang las sich als Lichtkammer,
+	# nicht als Station. Wer hier dreht, misst nach.
+	var dunkel := farbe * 0.74
+	var hell := farbe.lightened(0.25)
+
+	for y in kante:
+		# Der Schliff ist nicht schnurgerade: Über die Länge wandert die
+		# grobe Lage um wenige Pixel. Ohne diesen Versatz wäre die Textur
+		# eine Tapete aus senkrechten Strichen, und die sieht man als
+		# Wiederholung, sobald zwei Kacheln nebeneinander liegen.
+		var versatz := int(sin(float(y) / float(kante) * TAU) * 3.0)
+		for x in kante:
+			var g: float = strich_grob[(x + versatz + kante) % kante]
+			var t: float = clampf(0.55 * strich[x] + 0.45 * g, 0.0, 1.0)
+			# Spreizen, sonst liegt alles im Mittelgrau und der Schliff
+			# verschwindet aus zwei Metern Entfernung. Nicht mehr: Mit
+			# härterem Kontrast bekommt der Gang breite helle und dunkle
+			# Bahnen und liest sich als Bohlenweg statt als Blech.
+			t = clampf((t - 0.08) * 1.20, 0.0, 1.0)
+			var c := dunkel.lerp(hell, t)
+			var h := 0.30 + 0.70 * t
+			var ro := 0.55 - 0.30 * t
+
+			# Die Plattennaht. Sie ist der eigentliche Grund, warum das
+			# Blech kein Bohlenweg ist: Eine Maserung, die nur längs läuft,
+			# ist Holz. Erst der Stoß QUER dazu macht daraus eine Platte,
+			# die jemand verlegt hat – mit Schrauben in Abständen, die sich
+			# wiederholen.
+			if y < nahtbreite:
+				c = c.darkened(0.45)
+				h -= 0.28
+				ro += 0.18
+				if (x % schraubenraster) < 3:
+					c = hell.lightened(0.25)
+					h += 0.5
+					ro -= 0.3
+
+			var i := (y * kante + x) * 3
+			farben[i] = int(clampf(c.r, 0.0, 1.0) * 255.0)
+			farben[i + 1] = int(clampf(c.g, 0.0, 1.0) * 255.0)
+			farben[i + 2] = int(clampf(c.b, 0.0, 1.0) * 255.0)
+			hoehen[y * kante + x] = int(clampf(h, 0.0, 1.0) * 255.0)
+			rauheit[y * kante + x] = int(clampf(ro, 0.1, 1.0) * 255.0)
+			verdeckung[y * kante + x] = int((0.66 + 0.34 * t) * 255.0)
+
+	var bild := Image.create_from_data(kante, kante, false,
+			Image.FORMAT_RGB8, farben)
+	bild.generate_mipmaps()
+	var rau := Image.create_from_data(kante, kante, false,
+			Image.FORMAT_L8, rauheit)
+	rau.generate_mipmaps()
+	var ao := Image.create_from_data(kante, kante, false,
+			Image.FORMAT_L8, verdeckung)
+	ao.generate_mipmaps()
+
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(bild)
+	m.normal_enabled = true
+	# Schwach: Ein Schliff ist ein Kratzer, keine Riffelung. Zu viel
+	# Plastik macht aus dem Blech ein Waschbrett.
+	m.normal_texture = _normalkarte(hoehen, kante, 0.9)
+	m.normal_scale = 0.45
+	m.roughness_texture = ImageTexture.create_from_image(rau)
+	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	m.roughness = 1.0
+	# Die Rillen des Schliffs verschatten sich gegenseitig. Ohne diese
+	# Karte wirkt das Blech wie lackiert statt geschliffen – und es wird
+	# spürbar heller, weil ihm die Tiefe fehlt.
+	m.ao_enabled = true
+	m.ao_texture = ImageTexture.create_from_image(ao)
+	m.ao_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	m.ao_light_affect = 0.20
+	# Nicht voll metallisch, aus demselben Grund wie in der Bibliothek:
+	# Der Compatibility-Renderer hat keine Spiegelungssonden, und
+	# vollmetallische Flächen werden dort fast schwarz.
+	m.metallic = 0.58
+	m.metallic_specular = 0.62
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	# 0,85 heißt: Die Textur wiederholt sich alle 1,2 m. Ein gröberes
+	# Raster macht aus dem Schliff Bretter; ein viel feineres flimmert in
+	# der Ferne trotz Mipmaps und anisotroper Filterung.
+	m.uv1_scale = Vector3(0.85, 0.85, 0.85)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_blech_stoffe[schluessel] = m
+	return m
 
 
 # =========================================================== Fliesenwand
@@ -658,7 +843,7 @@ func _stempel_anhaengen(kolben: Wasserplattform, groesse: Vector2,
 	var netz := MeshInstance3D.new()
 	netz.name = "Stempel"
 	netz.mesh = kasten
-	netz.material_override = Materialbibliothek.metall(STAHL)
+	netz.material_override = _stahlblech(STAHL)
 	netz.position.y = mitte
 	kolben.add_child(netz)
 
@@ -728,8 +913,7 @@ func _steigschacht_bauen() -> void:
 	_kolben(88.0, 2.6, GALERIE, 0.3, 0.4, 0.3, Vector2(3.4, 3.0), 2.6, 2.2, 2.0)
 	# Ein Zwischenabsatz, damit der Aufstieg zwei Schritte hat und nicht
 	# einer: Wer den zweiten Kolben verpasst, steht nicht wieder unten.
-	plattform(83.0, 0.0, 3.2, Vector3(3.6, 0.5, 3.6),
-			Materialbibliothek.metall(STAHL))
+	plattform(83.0, 0.0, 3.2, Vector3(3.6, 0.5, 3.6), _stahlblech(STAHL))
 
 
 ## 46–96 · Die Galerie: der erste Rückweg.
@@ -743,7 +927,7 @@ func _steigschacht_bauen() -> void:
 ## Herunter kommt man überall: Darunter liegt fester Gangboden, ein
 ## Fehltritt kostet den Weg und nicht das Leben.
 func _galerie_bauen() -> void:
-	var blech := Materialbibliothek.metall(STAHL)
+	var blech := _stahlblech(STAHL)
 	var stellen := [92.0, 84.0, 76.0, 68.0, 60.0, 52.0]
 	for i in stellen.size():
 		var seitlich: float = 3.0 if i % 2 == 0 else -3.0
@@ -807,7 +991,7 @@ func _strahlengang_bauen() -> void:
 	_kolben(206.5, 0.0, 0.0, -3.4, 0.5, 0.45, Vector2(3.6, 3.4), 3.0, 1.2, 1.2)
 
 	# --- Der Regelbruch: der Wartungssteg mit der Zaunattrappe ---
-	var blech := Materialbibliothek.metall(STAHL)
+	var blech := _stahlblech(STAHL)
 	plattform(190.0, 5.2, 0.0, Vector3(3.0, 0.5, 3.0), blech)
 	plattform(190.0, 9.0, 0.2, Vector3(5.0, 0.5, 4.0), blech)
 	_zaunattrappe(190.0, 6.9, 3.2)
@@ -864,7 +1048,7 @@ func _zaunattrappe(strecke: float, seitlich: float, breite: float) -> void:
 ## sofort losläuft. Das ist der Rückweg, und er ist bezahlt: In der Bucht
 ## liegen sechs Kisten.
 func _frachtbucht_bauen() -> void:
-	var blech := Materialbibliothek.metall(STAHL)
+	var blech := _stahlblech(STAHL)
 
 	# Die Bucht selbst: ein Boden seitlich neben dem Gang.
 	plattform(232.0, 9.0, -0.25, Vector3(8.0, 0.5, 9.0), blech)
@@ -915,8 +1099,7 @@ func _maschinenherz_bauen() -> void:
 	# Ein Aufzug zum Schluss: Er trägt auf einen Absatz, von dem aus man
 	# über den ganzen Gang zurücksieht.
 	_kolben(308.0, -4.0, 4.4, 0.3, 0.4, 0.0, Vector2(3.0, 3.0), 2.4, 2.0, 1.8)
-	plattform(312.0, -4.0, 4.4, Vector3(4.0, 0.6, 5.0),
-			Materialbibliothek.metall(STAHL))
+	plattform(312.0, -4.0, 4.4, Vector3(4.0, 0.6, 5.0), _stahlblech(STAHL))
 
 
 # =========================================================== Ausstattung
@@ -1296,21 +1479,29 @@ func _kisten_setzen() -> void:
 
 # =========================================================== Gegner
 
-## Roboter mit drei Haltungen – drei verschiedene Antworten.
+## Vier Gegnerarten – und eine davon beantwortet die Frage des Levels.
 ##
-## Der Steckbrief verlangt Gegner, deren Zustand man erst LESEN muss, bevor
-## man reagiert. Ein eigener Haltungsgegner, der zwischen zwei Zuständen
-## wechselt, existiert noch nicht (siehe Integrationsnotiz); bis dahin
-## übernehmen drei Gegner mit eindeutiger, unterschiedlicher Silhouette:
+## Drei stehen fest zu ihrer Antwort, und man sieht sie ihnen an:
 ##
-##   Schneewiesel    hohe, dünne Läufe  -> nur der Slide
-##   Gletscherkrabbe flacher Panzer     -> nur von oben
+##   Schneewiesel    hohe, dünne Läufe    -> nur der Slide
+##   Gletscherkrabbe flacher Panzer       -> nur von oben
 ##   Frostmotte      schwebt in Brusthöhe -> nur der Drehschlag
 ##
-## Sie sind schmal, hell und metallisch gezeichnet und passen damit besser
-## in einen Stationsgang als die Waldtiere. Vor jedem Kolben steht nie
-## einer: Wer im Fenster eines Kolbens steht, soll nicht gleichzeitig
-## kämpfen müssen.
+## Der `Haltungsgegner` tut, was der Steckbrief eigentlich verlangt: Er
+## WECHSELT seine Antwort im Takt. Arme unten heißt draufspringen, Arme
+## oben heißt durchsliden, und welche Haltung gerade gilt, sagt die
+## wandernde grüne Wirkstelle – oben auf der Kronplatte oder unten an den
+## Beinbändern. Damit ist er dasselbe Prinzip wie der Kolben: EIN Ding,
+## ZWEI Rollen, und die Rolle liest man ab, statt sie zu raten.
+##
+## Er steht deshalb dort, wo das Level diese Frage sowieso stellt: einmal
+## allein im Schleusengang zum Lernen, dann jeweils dort, wo schon eine
+## zweite Uhr läuft (Tor, Rückweg), und zuletzt als gegenläufiges Paar im
+## Maschinenherz – dort will in jedem Moment der eine gesprungen und der
+## andere geslidet werden.
+##
+## Vor jedem Kolben steht nie einer: Wer im Fenster eines Kolbens steht,
+## soll nicht gleichzeitig kämpfen müssen.
 func _gegner_setzen() -> void:
 	# ORTSFARBEN. Raumstation: Messing, Stahl und das gruene Leuchten der Anlage.
 	# Unser Bestiarium kommt aus Wald, Sumpf und Eis; ungefaerbt liefe hier
@@ -1328,14 +1519,28 @@ func _gegner_setzen() -> void:
 		"farbe_naht": Color(0.94, 0.96, 0.92),
 		"farbe_chitin": Color(0.32, 0.34, 0.33),
 		"farbe_klingen": Color(0.72, 0.76, 0.74),
+		# Die Haltungswache: Schilde in Stationsstahl, und als Wirkstelle
+		# das gruene Leuchten der Anlage. Es ist dieselbe Farbe wie an den
+		# Ventilraedern - was hier hilft, gehoert zur Maschine.
+		#
+		# Ihr Rumpf bleibt dunkel und nimmt ABSICHTLICH nicht das Messing
+		# von "farbe_panzer" an: Vor der olivgelben Fliesenwand verschwand
+		# eine messingfarbene Wache, und mit ihr das Leuchten, das ihre
+		# Haltung ansagt. Dunkel vor hell ist hier keine Geschmacksfrage.
+		"farbe_rumpf": Color(0.20, 0.23, 0.26),
+		"farbe_schild": STAHL,
+		"farbe_wirkstelle": SCHIRM_GRUEN,
 		"farbe_pelz": Color(0.38, 0.4, 0.42),
 		"farbe_fluegel": Color(0.72, 0.8, 0.74),
 		"farbe_fuehler": Color(0.55, 0.45, 0.22),
 	}
 
 	# ---------- Schleusengang: einer je Kolbenpause ----------
+	# Die erste Haltungswache steht allein zwischen zwei Kolben, in der
+	# breitesten Pause des Abschnitts. Hier gibt es sonst nichts zu tun –
+	# man kann ihr eine ganze Runde lang zusehen, bevor man hingeht.
 	gegner(GLETSCHERKRABBE, 8.0, -2.0, 3.5, true)
-	gegner(SCHNEEWIESEL, 20.0, 2.0, 3.0, true)
+	_haltungswache(20.0, 0.0, 3.0, 0.0)
 	gegner(FROSTMOTTE, 32.0, 0.0, 3.0, true)
 
 	# ---------- Steigschacht ----------
@@ -1344,8 +1549,11 @@ func _gegner_setzen() -> void:
 	gegner(FROSTMOTTE, 96.0, 0.0, 2.6, true)
 
 	# ---------- Plattenkammer: zwischen den Toren ----------
+	# Zwei Uhren gleichzeitig: Die Platte hält das Tor, die Wache wechselt
+	# die Haltung. Ihr Versatz ist ein Viertel, damit sich beides nicht auf
+	# denselben Schlag legt – sonst wäre es wieder nur EINE Frage.
 	gegner(SCHNEEWIESEL, 118.0, -2.4, 3.0, true)
-	gegner(GLETSCHERKRABBE, 130.0, 2.4, 3.0, true)
+	_haltungswache(130.0, 2.4, 3.0, 0.25)
 	werfer(144.0, -3.4)
 	gegner(FROSTMOTTE, 152.0, 0.0, 2.6, true)
 
@@ -1354,15 +1562,36 @@ func _gegner_setzen() -> void:
 	gegner(FROSTMOTTE, 190.0, 2.2, 2.6, true)
 
 	# ---------- Frachtbucht: der Rückweg wird bewacht ----------
+	# Sie steht auf dem Stück, das man ZWEIMAL geht. Beim zweiten Mal
+	# kommt man aus der anderen Richtung und trifft sie in der anderen
+	# Haltung an – derselbe Gegner, andere Antwort.
 	gegner(GLETSCHERKRABBE, 226.0, -3.0, 3.5, true)
+	_haltungswache(244.0, -3.0, 3.0, 0.5)
 	werfer(248.0, 4.2)
 	gegner(SCHNEEWIESEL, 260.0, -3.0, 3.4, true)
 
 	# ---------- Maschinenherz: die dichteste Stelle ----------
+	# Das gegenläufige Paar. Auf derselben Uhr, aber um eine halbe Runde
+	# versetzt: Wer den ersten gesprungen hat, muss beim zweiten sliden –
+	# und vier Meter später ist es umgekehrt.
 	gegner(GLETSCHERKRABBE, 276.0, 3.0, 3.4, true)
-	gegner(FROSTMOTTE, 288.0, -3.0, 3.0, true)
+	_haltungswache(286.0, -3.0, 3.0, 0.0)
+	_haltungswache(290.0, 3.0, 3.0, 0.5)
 	werfer(298.0, 4.0)
 	gegner(SCHNEEWIESEL, 310.0, 2.6, 3.4, true)
+
+
+## Stellt eine Haltungswache auf.
+##
+## `takt` bleibt bei der Vorgabe 4,0 s – dieselbe Uhr, auf der auch
+## Taktfläche, Feuerspeier und die Tore dieses Levels laufen
+## (Taktvertrag, `doku/level-vorbilder.md`). Gesetzt wird nur der
+## `versatz`: Er ist der Anteil einer Runde, um den die Wache gegenüber
+## den anderen verschoben schlägt. 0,0 und 0,5 stehen immer gegenläufig.
+func _haltungswache(strecke: float, seitlich: float, weite: float,
+		versatz: float) -> void:
+	var wache := gegner(HALTUNGSGEGNER, strecke, seitlich, weite, true) as Haltungsgegner
+	wache.phase = versatz
 
 
 # =========================================================== Früchte

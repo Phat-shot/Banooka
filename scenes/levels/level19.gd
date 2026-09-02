@@ -64,6 +64,11 @@ const ABSTURZ := -5.0
 const SCHEIBE_HOEHE := 0.0
 ## Höhe, in der ein Balken das Gehen sperrt, das Krabbeln aber nicht.
 const KRIECHHOEHE := 0.95
+## Die Kanzel im Säulengang: Ziel des Umriss-Wegs, weit draußen im Nichts.
+const KANZEL_STRECKE := 79.0
+const KANZEL_SEITE := 12.4
+## Oberkante der Kanzel – die Platte ist 0,7 dick und sitzt auf Weghöhe.
+const KANZEL_OBEN := 0.35
 
 # ------------------------------------------------------------ Leitfarben
 # Gemessen: `#41364F` (Sturmstein) gegen `#6E44B7` (Violett) und `#953720`
@@ -345,7 +350,8 @@ func _scheibe(strecke: float, seitlich: float, hoehe: float,
 ## Deshalb drehen benachbarte Scheiben gegenläufig: Wer den Takt einer
 ## Scheibe gelernt hat, muss ihn auf der nächsten neu lernen. Und die
 ## mittlere hält an – sie ist die Verschnaufstelle, ohne die die Reihe
-## eine Geduldsprobe wäre.
+## eine Geduldsprobe wäre. Genau von ihr zweigt der Umriss-Weg zur Kanzel
+## ab: Wer stehen bleiben darf, hat auch Zeit, sich umzusehen.
 func _saeulengang_bauen() -> void:
 	var stellen := [63.0, 70.4, 77.8, 85.2, 92.6]
 	var seiten := [0.0, -1.4, 1.4, -1.2, 0.0]
@@ -356,6 +362,17 @@ func _saeulengang_bauen() -> void:
 		_scheibe(stellen[i], seiten[i], SCHEIBE_HOEHE, 4.2,
 				30.0 + float(i) * 4.0, 1 if i % 2 == 0 else -1,
 				90.0 if haelt else 0.0, 1.1 if haelt else 0.0, 6.5)
+
+	# --- Die Kanzel über dem Nichts ---
+	#
+	# Ein Mauerrest weit draußen in der Lücke, ohne Weg dorthin. Von der
+	# haltenden Scheibe in der Mitte sieht man ihn und die weißen
+	# Umrisse, die zu ihm führen – aber es gibt sie noch nicht. Erst der
+	# Auslöser am Rand der Lücke macht sie fest (siehe `_kisten_setzen`).
+	# Das ist "ein Hindernis, zwei Rollen" aus den Befunden: Dieselben
+	# Kisten sind erst Kulisse über dem Abgrund und dann der Weg dorthin.
+	plattform(KANZEL_STRECKE, KANZEL_SEITE, 0.0, Vector3(4.6, 0.7, 4.6),
+			_steinstoff(STURMSTEIN))
 
 
 ## 110–168 · Götzengang. EINE Frage: Kannst du einen Takt lesen, statt zu
@@ -641,12 +658,45 @@ func _kisten_setzen() -> void:
 	kiste(Kiste.Art.NORMAL, 55.0, 2.4)
 	kiste(Kiste.Art.FRUCHT_MEHRFACH, 54.0, -3.8)
 
+	# ---------- Der Auslöser an der Abbruchkante ----------
+	#
+	# Er steht mitten auf dem letzten festen Meter, wo ohnehin jeder
+	# stehenbleibt, um den ersten Sprung zu messen. Die Umrisskiste
+	# gleich daneben ist die Lehrstunde: Man schlägt den Auslöser und
+	# sieht im selben Moment, was das bewirkt – bevor man zwanzig Meter
+	# weiter darauf angewiesen ist.
+	#
+	# Er steht mit Absicht HINTER dem Checkpoint bei 52 m: Wer nach dem
+	# Auslösen abstürzt, findet ihn wieder aufgebaut vor, und die Umrisse
+	# warten wieder – der Weg zur Kanzel bleibt also immer verdienbar
+	# (siehe `Kiste._umrissstand_pruefen`).
+	kiste(Kiste.Art.AUSLOESER, 56.6, 0.0)
+	kiste(Kiste.Art.UMRISS, 57.8, 2.8)
+
 	# ---------- Säulengang: alles auf den Scheiben ----------
 	kiste(Kiste.Art.NORMAL, 63.0, 0.0)
 	kiste(Kiste.Art.NORMAL, 70.4, -1.4)
 	kiste(Kiste.Art.SCHUTZ, 77.8, 1.4)
 	kiste(Kiste.Art.NORMAL, 85.2, -1.2)
 	kiste(Kiste.Art.NORMAL, 92.6, 0.0)
+
+	# ---------- Der Weg zur Kanzel ----------
+	#
+	# Zwei Trittsteine über dem Nichts, von der haltenden mittleren
+	# Scheibe (77,8 m) seitwärts hinaus. Die Scheibe hört bei 3,5 m auf,
+	# die Kanzel fängt bei 10,1 m an – dazwischen ist nur, was der
+	# Auslöser hergibt. Die Weiten sind mit 1,0 und 1,9 m klein: Die
+	# Aufgabe ist nicht der Sprung, sondern der Mut, auf eine Kiste zu
+	# treten, die eben noch Luft war.
+	kiste(Kiste.Art.UMRISS, 78.2, 5.0, 0.5, true)
+	kiste(Kiste.Art.UMRISS, 78.6, 7.9, 0.5, true)
+	# Der Lohn steht oben auf der Kanzel.
+	kiste(Kiste.Art.FRUCHT_MEHRFACH, KANZEL_STRECKE, KANZEL_SEITE,
+			KANZEL_OBEN + 0.5)
+	# Kein Extraleben: Der beste Preis des Levels liegt hinter dem
+	# ausgebrannten Götzenkopf, und zwei größte Preise gibt es nicht.
+	kiste(Kiste.Art.SCHUTZ, KANZEL_STRECKE + 1.2, KANZEL_SEITE + 0.9,
+			KANZEL_OBEN + 0.5)
 
 	# ---------- Götzengang ----------
 	kiste(Kiste.Art.NORMAL, 104.0, -2.6)

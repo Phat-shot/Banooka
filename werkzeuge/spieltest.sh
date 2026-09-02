@@ -23,7 +23,22 @@ PROJEKT="${3:-$(cd "$WERKZEUGE/.." && pwd)}"
 
 mkdir -p "$TEST_ZIEL"
 ZIEL="$(mktemp -d "${TMPDIR:-/tmp}/banooka_spieltest_XXXXXX")"
-trap 'rm -rf "$ZIEL"' EXIT
+# Der Bot braucht einen frischen Spielstand, damit er bei Level 01 beginnt.
+# Der ECHTE Spielstand darf dabei nicht draufgehen: Er wird zur Seite
+# gelegt und am Ende zurückgeholt – auch wenn der Lauf abstürzt oder
+# abgebrochen wird. Vorher hat dieses Skript ihn gelöscht.
+STAND="$HOME/.local/share/godot/app_userdata/Banooka"
+SICHERUNG="$(mktemp -d "${TMPDIR:-/tmp}/banooka_stand_XXXXXX")"
+aufraeumen() {
+	rm -rf "$ZIEL"
+	rm -f "$STAND"/spielstand_*.cfg 2>/dev/null
+	if compgen -G "$SICHERUNG/spielstand_*.cfg" >/dev/null 2>&1; then
+		cp "$SICHERUNG"/spielstand_*.cfg "$STAND"/ 2>/dev/null
+		echo "Spielstand wiederhergestellt."
+	fi
+	rm -rf "$SICHERUNG"
+}
+trap aufraeumen EXIT
 cp -r "$PROJEKT"/. "$ZIEL"/ 2>/dev/null
 rm -rf "$ZIEL/.godot" "$ZIEL/.git" "$ZIEL/export"
 # Den Bot immer aus diesem Werkzeugordner nehmen, auch wenn das geprüfte
@@ -47,8 +62,13 @@ if neu not in zeilen:
 open(pfad, "w", encoding="utf-8").write("\n".join(zeilen))
 PY
 
-# Frischer Spielstand, damit der Test immer bei Level 01 beginnt
-rm -f "$HOME/.local/share/godot/app_userdata/Banooka/spielstand"*.cfg 2>/dev/null
+# Frischer Spielstand, damit der Test immer bei Level 01 beginnt –
+# der echte wandert so lange in die Sicherung (siehe `aufraeumen`).
+if compgen -G "$STAND/spielstand_*.cfg" >/dev/null 2>&1; then
+	cp "$STAND"/spielstand_*.cfg "$SICHERUNG"/ 2>/dev/null
+	echo "Spielstand gesichert nach $SICHERUNG"
+fi
+rm -f "$STAND"/spielstand_*.cfg 2>/dev/null
 
 timeout 300 godot --headless --path "$ZIEL" --import >/dev/null 2>&1
 timeout $((TEST_DAUER + 90)) godot --path "$ZIEL" \

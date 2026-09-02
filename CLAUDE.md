@@ -40,9 +40,11 @@ Raum 1 (Wurzelwald): 01 Wurzelschlucht (Wald) · 02 Frostgrat (Schnee) ·
 03 Treibgut (Sumpffluss mit Treibflößen) · 04 Katzensprung (Ritt auf der
 Wildkatze) · 05 Hauerjagd (Flucht vor dem Keiler).
 Raum 2 (Nebelsümpfe): 06 Wettrennen (Karts, drei Runden) ·
-07 Moorbrücken (Bohlenweg im Moor) · 10 Hebewerk (Tech-Demo: Hafen, führt
-senkrecht nach oben – 3D vorwärts, über Kisten hinauf, oben 2D in eine
-Richtung, weiter hoch, wieder 3D). 08 und 09 offen.
+07 Moorbrücken (Bohlenweg im Moor) · 08 Torfstich (Torfabbau: Förder-
+bänder, Pressen, Förderbrücke zum Hangeln) · 09 Sumpfgeysir (Gasfontänen
+und blubbernde Schlammlöcher im Takt) · 10 Hebewerk (Tech-Demo: Hafen,
+führt senkrecht nach oben – 3D vorwärts, über Kisten hinauf, oben 2D in
+eine Richtung, weiter hoch, wieder 3D).
 Raum 3 (Steinfeste): 11 Steinschlag (rollende Brocken) · 12 Kesselwerk
 (Maschinenhalle) · 13 Pfahlfeste (Feste auf Pfählen) · 14 Wolkensteg
 (Weg in großer Höhe) · 15 Abendruinen (Ruinen im Abendlicht).
@@ -71,6 +73,11 @@ auf der Levelkurve (`Reiter`, `Fluechtling`, `Rennfahrer` – alle erben von
 - **Sammeln:** Früchte (100 ⇒ Extraleben), Kisten-Zähler pro Level (alle ⇒ Edelstein-Äquivalent)
 - **Leben/Respawn:** Tod ⇒ letzter Checkpoint; 0 Leben ⇒ Levelanfang
 - **Hub:** Raum mit Portalen, 5 Level pro Abschnitt freischalten
+- **Zeitmodus:** in den Einstellungen schaltbar. Jedes Level wird dann auf
+  Zeit gespielt; jede dritte Holzkiste ist eine **Zeitkiste**, die die Uhr
+  um ihre Zahl (1–3 s) anhält. Drei Stufen – Saphir (Richtzeit), Gold
+  (85 %), Platin (72 %) –, Bestzeit und Stufe stehen am Levelportal. Ein
+  Tod beendet den Lauf.
 
 ## Projektstruktur (Godot)
 ```
@@ -99,6 +106,7 @@ res://
 | jump | Leertaste | Kreuz ✕ (JOY_BUTTON_A) | Taste ✕ (2× tippen = Doppelsprung) |
 | spin | J / Strg | Viereck □ (JOY_BUTTON_X) | Taste □ |
 | slide/slam | Shift | Kreis ○ (JOY_BUTTON_B) | Taste ○ (in der Luft = Bauchplatscher) |
+| turbo (Ritt) | Shift **gehalten** | Kreis ○ gehalten | Taste ○ gehalten |
 | status | Tab | Dreieck △ (JOY_BUTTON_Y) | Taste △ |
 
 Die Slide-Taste macht dreierlei, je nach Lage: mit Richtung am Boden den

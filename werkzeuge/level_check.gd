@@ -8,11 +8,29 @@ extends Node
 ## Patrouillen-Endpunkte der Gegner noch auf dem Weg liegen und ob die
 ## Absturzzone einen Sturz neben dem Pfad tatsächlich abfängt.
 ## Beendet sich mit Rückgabewert 1, wenn Fehler gefunden wurden.
-## Bodenstrahlen ignorieren Kisten und Gegner, damit gestapelte Kisten
-## nicht fälschlich als "Boden" zählen.
+## Der Bodenstrahl einer Kiste schließt nur die Kiste SELBST aus, nicht
+## alle Kisten. Vorher tat er das, und jede Kiste auf einer Kiste – eine
+## Stufe, wie sie in fast jedem Level steht – wurde als "schwebt 1,10 m"
+## gemeldet. Das waren über dreißig Warnungen, die alle nichts bedeuteten,
+## und in denen die wenigen echten untergingen. Eine Kiste, die auf einer
+## Kiste steht, steht. Ob der Stapel über einer Lücke hängt, sagt dagegen
+## die Gruppe `schwebende_kisten` – dafür gibt es sie.
+##
+## Für die Bäume bleibt es beim alten Ausschluss: Ein Baum, der neben
+## einer Kiste steht, soll nicht auf ihr zu stehen scheinen.
 
 const MAX_SCHWEBE := 0.7
 const MAX_VERSUNKEN := 0.35
+## Ab dieser Höhe über dem Objekt gilt ein Treffer als "über mir" und
+## damit nicht als Boden.
+##
+## Nicht knapp über null: Der Boden unter einem Gegner am Hang oder an
+## der Wegkante liegt gern ein paar Zentimeter ÜBER seinem Ursprung, und
+## eine zu enge Schranke wirft genau diesen Boden weg – der Gegner stünde
+## dann laut Prüfung über dem Nichts. Eine Kiste ist einen Meter hoch,
+## ihre Oberkante liegt also 1,5 m über dem Ursprung der Kiste darunter;
+## 0,6 m trennt beides sauber.
+const UEBER_MIR := 0.6
 
 var _level: Node3D
 var _raum: PhysicsDirectSpaceState3D
@@ -27,6 +45,12 @@ func _ready() -> void:
 			pfad = arg
 	if OS.get_environment("PRUEF_ASSETS") == "0":
 		Einstellungen.fremde_modelle = false
+	# Der Zeitmodus tauscht jede dritte Holzkiste gegen eine Zeitkiste aus.
+	# Die Geometrieprüfung soll aber immer dieselbe Fassung messen und
+	# nicht die, die der Spieler zuletzt eingeschaltet hat – die
+	# Einstellung liegt in `user://` und gilt auch für die Prüfkopie.
+	# PRUEF_ZEITMODUS=1 misst ausdrücklich die Zeitmodus-Fassung.
+	Zeitlauf.aktiv = OS.get_environment("PRUEF_ZEITMODUS") == "1"
 	print("Level: ", pfad, "  fremde Modelle: ",
 			"an" if Einstellungen.fremde_modelle else "aus")
 	_level = load(pfad).instantiate()
@@ -69,7 +93,10 @@ func _pruefe_objekte(gruppe: String, soll: float) -> void:
 		if n.is_in_group("schwebende_kisten"):
 			absichtlich += 1
 			continue
-		var treffer := _boden_unter(n.global_position)
+		# Nur den eigenen Körper ausschließen – was sonst unter der Kiste
+		# liegt, ist ihr Boden, auch wenn es selbst eine Kiste ist.
+		var eigene: Array[RID] = _alle_koerper(n)
+		var treffer := _boden_unter_ausser(n.global_position, eigene)
 		if treffer.is_empty():
 			print("  FEHLER  %s bei Strecke %.0f m (%s) hat keinen Boden darunter"
 					% [gruppe, _strecke(n.global_position), str(n.global_position.snappedf(0.1))])
@@ -127,8 +154,13 @@ func _pruefe_baeume() -> void:
 					baum.get_parent().name, baum.global_position.y])
 			_warnungen += 1; schlecht += 1
 		elif abstand < -1.2:
-			print("  steckt %.2f m im Boden: Baum bei Strecke %.0f m"
-					% [-abstand, _strecke(baum.global_position)])
+			# Mit Elternknoten und Weltposition: Ein Baum steht selten dort,
+			# wo seine Strecke ihn vermuten lässt – er steht weit neben dem
+			# Weg, und die Strecke ist nur der nächste Punkt auf der Kurve.
+			# Ohne den Platz sucht man ihn im falschen Bauschritt.
+			print("  steckt %.2f m im Boden: Baum bei Strecke %.0f m (unter %s, %s)"
+					% [-abstand, _strecke(baum.global_position),
+					baum.get_parent().name, str(baum.global_position.snappedf(0.1))])
 			_warnungen += 1; schlecht += 1
 	print("  baeume: %d geprüft, %d auffällig (%d Kulisse in der Wand, %d auf dem Waldboden)"
 			% [baeume.size(), schlecht, kulisse, ohne_boden])
@@ -257,9 +289,30 @@ func _strecke(pos: Vector3) -> float:
 
 
 func _boden_unter(pos: Vector3) -> Dictionary:
-	var abfrage := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 2.0,
-			pos + Vector3.DOWN * 14.0)
-	abfrage.collision_mask = 1
-	abfrage.collide_with_areas = false
-	abfrage.exclude = _ausschluss
-	return _raum.intersect_ray(abfrage)
+	return _boden_unter_ausser(pos, _ausschluss)
+
+
+## Bodenstrahl, der genau die übergebenen Körper ignoriert.
+##
+## Der Strahl beginnt ZWEI METER ÜBER dem Objekt, damit auch ein halb
+## eingesunkenes noch einen Boden findet. Damit fängt er aber auch alles
+## ein, was ÜBER dem Objekt liegt – die Kiste, die auf ihm steht, das
+## Podest darüber. Nichts davon ist sein Boden. Solche Treffer werden
+## deshalb der Reihe nach ausgeschlossen und der Strahl erneut geschickt,
+## bis der erste Treffer wirklich unter dem Objekt liegt.
+func _boden_unter_ausser(pos: Vector3, ausser: Array[RID]) -> Dictionary:
+	var sperre := ausser.duplicate()
+	for versuch in 8:
+		var abfrage := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 2.0,
+				pos + Vector3.DOWN * 14.0)
+		abfrage.collision_mask = 1
+		abfrage.collide_with_areas = false
+		abfrage.exclude = sperre
+		var treffer := _raum.intersect_ray(abfrage)
+		if treffer.is_empty():
+			return treffer
+		var hoehe: float = (treffer["position"] as Vector3).y
+		if hoehe <= pos.y + UEBER_MIR:
+			return treffer
+		sperre.append(treffer["rid"] as RID)
+	return {}

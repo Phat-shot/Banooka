@@ -37,7 +37,24 @@ const HALLE_RADIUS := 33.5      ## hub.gd: START_R
 const VORAUS := 5.0             ## Zielpunkt so viele Meter voraus
 const LUECKE_VORAUS := 4.2      ## so weit voraus wird auf Boden geprüft
 const BILD_ABSTAND := 4.0       ## Sekunden zwischen zwei Spielbildern
-const LEVEL_DAUER := 150.0      ## Höchstdauer je Level
+const LEVEL_DAUER := 260.0      ## Höchstdauer je Level
+const FLUG_DAUER := 40.0        ## so lange wird im Flugniveau geflogen
+
+## Reichweite, in der der Bot einen Gegner überhaupt beachtet.
+const GEGNER_SICHT := 6.0
+## Abstände, bei denen der jeweilige Angriff ausgelöst wird.
+const SPIN_ABSTAND := 2.6
+const SLIDE_ABSTAND := 3.4
+const SPRUNG_ABSTAND := 3.2
+## Pause zwischen zwei gezielten Angriffen.
+const ANGRIFF_PAUSE := 0.45
+## So viele Tode je Level, bevor abgebrochen wird.
+const TODE_GRENZE := 20
+## So lange darf die Figur stehen bleiben, bevor es als Hänger zählt.
+## Großzügig, weil Warten hier oft richtig ist: auf ein Treibfloß, auf
+## eine Wehrbohle, auf die Lücke in einem Taktfeld.
+const HAENGER_ZEIT := 8.0
+const HAENGER_GRENZE := 8
 
 var _ziel := ""
 var _nr := 0
@@ -46,6 +63,8 @@ var _ergebnisse: Array[Dictionary] = []
 var _fehler: Array[String] = []
 var _tote := 0
 var _aktuelles_bild := ""
+## Zeitpunkt des letzten gezielten Angriffs.
+var _letzter_angriff := -9.0
 
 
 func _ready() -> void:
@@ -183,11 +202,13 @@ func _spiele(nummer: int) -> void:
 	if not await _warte_szene("Level%02d" % nummer, 30.0):
 		_fehler.append("Level %02d: Szene wurde nicht geladen" % nummer)
 		_ergebnisse.append({"nummer": nummer, "stand": "nicht geladen"})
+		_zurueck_in_den_hub()
 		return
 	var start_aufbau := _uhr
 	if not await _warte_aufbau(90.0):
 		_fehler.append("Level %02d: Aufbau nicht fertig geworden" % nummer)
 		_ergebnisse.append({"nummer": nummer, "stand": "Aufbau hängt"})
+		_zurueck_in_den_hub()
 		return
 	_notiz("Level %02d steht (Aufbau %.1f s)" % [nummer, _uhr - start_aufbau])
 	await _warte(0.8)
@@ -197,13 +218,27 @@ func _spiele(nummer: int) -> void:
 	_ergebnisse.append(ergebnis)
 
 
+## Zurück in den Portalraum, wenn ein Level abgebrochen wurde.
+##
+## Ohne das blieb der Bot in der Levelszene stehen, der nächste Durchgang
+## wartete vergebens auf den Portalraum, und der Rest des Laufs fiel aus.
+## Ein Abbruch darf immer nur EIN Level kosten.
+func _zurueck_in_den_hub() -> void:
+	InputHub.touch_bewegung = Vector2.ZERO
+	if get_tree().current_scene != null \
+			and get_tree().current_scene.name != "Hub":
+		Spielfluss.zum_hub()
+
+
 ## Läuft ein Level bis zum Ende ab.
 func _durchlaufen(nummer: int) -> Dictionary:
 	var szene := get_tree().current_scene
 	var verlauf: Curve3D = szene.get("verlauf")
 	if verlauf == null:
-		_fehler.append("Level %02d: kein Verlauf vorhanden" % nummer)
-		return {"nummer": nummer, "stand": "kein Verlauf"}
+		# Das Flugniveau hat keine Kurve. Messen lässt sich hier nichts,
+		# aber es lässt sich fliegen: vorwärts halten und zählen, was
+		# dabei passiert. Das findet immerhin einen sofortigen Tod.
+		return await _fliegen(nummer)
 	var laenge := verlauf.get_baked_length()
 	var spieler := _spieler()
 	var schiene: bool = spieler != null and spieler.get("strecke") != null
@@ -246,7 +281,9 @@ func _durchlaufen(nummer: int) -> Dictionary:
 		else:
 			djump = _laufen(spieler, szene, verlauf, s, laenge, djump)
 
-		if _uhr - letzter_spin > 0.7:
+		# Erst der gezielte Angriff auf den nächsten Gegner, dann – falls
+		# keiner in Reichweite ist – der Spin für die Kisten am Weg.
+		if not _kampf(spieler, verlauf, s) and _uhr - letzter_spin > 1.1:
 			letzter_spin = _uhr
 			_tippe(KEY_J)
 
@@ -254,12 +291,16 @@ func _durchlaufen(nummer: int) -> Dictionary:
 			if GameState.leben < leben_vorher:
 				tode += 1
 				_tote += 1
+				# Wer war schuld? Ohne diese Zeile steht im Bericht nur
+				# "gestorben bei 34 m", und man sucht die Ursache im Bild.
+				_notiz("Level %02d: Tod %d bei %.0f m – %s"
+						% [nummer, tode, s, _todesumstand(spieler, verlauf, s)])
 				if tode <= 6:
 					await _bild("level%02d_tod%d_bei_%dm" % [nummer, tode, int(s)])
 			leben_vorher = GameState.leben
-			if tode >= 12:
-				_fehler.append("Level %02d: 12 Tode bei %.0f von %.0f m - abgebrochen"
-						% [nummer, s, laenge])
+			if tode >= TODE_GRENZE:
+				_fehler.append("Level %02d: %d Tode bei %.0f von %.0f m - abgebrochen"
+						% [nummer, TODE_GRENZE, s, laenge])
 				stand = "zu viele Tode"
 				break
 
@@ -269,13 +310,13 @@ func _durchlaufen(nummer: int) -> Dictionary:
 		if spieler.global_position.distance_to(letzte_pos) > 1.5:
 			letzte_pos = spieler.global_position
 			letzter_fortschritt = _uhr
-		if _uhr - letzter_fortschritt > 5.0:
+		if _uhr - letzter_fortschritt > HAENGER_ZEIT:
 			haenger += 1
 			_notiz("Level %02d: Hänger bei %.0f m (%d.)" % [nummer, s, haenger])
 			_taste_ab(KEY_SPACE)
 			_sprung_halten(0.25)
 			letzter_fortschritt = _uhr
-			if haenger >= 5:
+			if haenger >= HAENGER_GRENZE:
 				await _bild("level%02d_haenger_bei_%dm" % [nummer, int(s)])
 				_fehler.append("Level %02d: bei %.0f m von %.0f m festgehangen"
 						% [nummer, s, laenge])
@@ -301,7 +342,133 @@ func _durchlaufen(nummer: int) -> Dictionary:
 		"nummer": nummer, "stand": stand, "weit": beste, "laenge": laenge,
 		"tode": tode, "kisten": GameState.kisten_zerbrochen,
 		"kisten_gesamt": GameState.kisten_gesamt, "fruechte": GameState.fruechte,
+		# Die reine Spielzeit im Level, ohne Aufbau und ohne Portalraum.
+		# Sie ist die einzige Zahl im Projekt, die sagt, wie lange ein
+		# Level WIRKLICH dauert – daraus kommen die Richtzeiten des
+		# Zeitmodus (`LevelBasis.zielzeit()`).
+		"dauer": _uhr - start,
 	}
+
+
+## Wählt gegen den nächsten Gegner voraus den Angriff, der bei ihm wirkt.
+## Gibt true zurück, wenn gerade ein Gegner behandelt wird.
+##
+## Das war die größte Lücke des Bots: Er lief mit Dauerspin vorwärts, und
+## jeder Gegner, der NICHT auf Spin hört – der Panzerkäfer will einen
+## Sprung von oben, die Stelzenspinne einen Slide –, kostete ihn ein
+## Leben. Zwölf Tode am selben Fleck waren dann kein Levelfehler, sondern
+## ein Botfehler. Welcher Angriff wirkt, steht am Gegner selbst
+## (`besiegbar_durch`, siehe `scenes/enemies/gegner.gd`); der Bot muss es
+## nur lesen.
+func _kampf(spieler: Node3D, verlauf: Curve3D, s: float) -> bool:
+	var gegner := _naechster_gegner(spieler, verlauf, s)
+	if gegner == null:
+		return false
+	if _uhr - _letzter_angriff < ANGRIFF_PAUSE:
+		return true
+	var abstand := spieler.global_position.distance_to(gegner.global_position)
+	var maske := int(gegner.get("besiegbar_durch"))
+
+	# Reihenfolge nach Sicherheit: Der Spin trifft rundum, der Slide
+	# braucht nur die Richtung, der Sprung von oben das genaueste Timing.
+	if (maske & Angriff.SPIN) != 0 and abstand < SPIN_ABSTAND:
+		_letzter_angriff = _uhr
+		_tippe(KEY_J)
+		return true
+	if (maske & Angriff.SLIDE) != 0 and abstand < SLIDE_ABSTAND:
+		_letzter_angriff = _uhr
+		_taste_ab(KEY_SHIFT)
+		_spaeter(0.4, func() -> void: _taste_auf(KEY_SHIFT))
+		return true
+	if (maske & (Angriff.FALLEN | Angriff.SLAM)) != 0 and spieler.is_on_floor() \
+			and abstand < SPRUNG_ABSTAND and abstand > SPRUNG_ABSTAND - 1.4:
+		_letzter_angriff = _uhr
+		_taste_ab(KEY_SPACE)
+		_sprung_halten(0.3)
+		return true
+	return true
+
+
+## Was in Reichweite stand, als die Figur starb. Nennt den nächsten
+## Gegner mit seiner verwundbaren Stelle und die nächste gefährliche
+## Kiste – das reicht fast immer, um die Ursache zu benennen.
+func _todesumstand(spieler: Node3D, verlauf: Curve3D, s: float) -> String:
+	var teile: Array[String] = []
+	var g := _naechster_gegner(spieler, verlauf, s)
+	if g != null:
+		teile.append("Gegner %s in %.1f m (besiegbar durch %s)"
+				% [g.get_class() if g.get_script() == null
+				else String(g.get_script().resource_path.get_file().get_basename()),
+				spieler.global_position.distance_to(g.global_position),
+				Angriff.als_text(int(g.get("besiegbar_durch")))])
+	for knoten in get_tree().get_nodes_in_group("kisten"):
+		var k := knoten as Kiste
+		if k == null or not is_instance_valid(k):
+			continue
+		if k.art != Kiste.Art.NITRO and k.art != Kiste.Art.TNT:
+			continue
+		var abstand := spieler.global_position.distance_to(k.global_position)
+		if abstand < 4.0:
+			teile.append("%s-Kiste in %.1f m"
+					% ["Nitro" if k.art == Kiste.Art.NITRO else "TNT", abstand])
+	if not spieler.is_on_floor():
+		teile.append("in der Luft")
+	if teile.is_empty():
+		teile.append("nichts in Reichweite – vermutlich Sturz")
+	return ", ".join(teile)
+
+
+## Der nächste Gegner voraus auf unserer Bahn.
+func _naechster_gegner(spieler: Node3D, verlauf: Curve3D, s: float) -> Node3D:
+	var bester: Node3D = null
+	var beste := 1.0e9
+	for knoten in get_tree().get_nodes_in_group("gegner"):
+		var g := knoten as Node3D
+		if g == null or not is_instance_valid(g) or g.is_queued_for_deletion():
+			continue
+		if g.get("besiegbar_durch") == null:
+			continue
+		var gs: float = verlauf.get_closest_offset(g.global_position)
+		if gs < s - 1.5 or gs > s + GEGNER_SICHT:
+			continue
+		var abstand := spieler.global_position.distance_to(g.global_position)
+		# Nur was wirklich im Weg steht, nicht der Gegner drei Meter neben
+		# dem Steg.
+		if abstand > GEGNER_SICHT or abstand > beste:
+			continue
+		beste = abstand
+		bester = g
+	return bester
+
+
+## Level ohne Levelkurve (Flugniveau): eine Weile vorwärts halten.
+func _fliegen(nummer: int) -> Dictionary:
+	_notiz("Level %02d: kein Verlauf – Flugniveau, es wird nur geflogen" % nummer)
+	var szene := get_tree().current_scene
+	var start := _uhr
+	var leben_vorher := GameState.leben
+	var tode := 0
+	var letztes_bild := _uhr
+	while _uhr - start < FLUG_DAUER:
+		await get_tree().physics_frame
+		if get_tree().current_scene != szene:
+			break
+		InputHub.touch_bewegung = Vector2(0.0, -1.0)
+		if GameState.leben != leben_vorher:
+			if GameState.leben < leben_vorher:
+				tode += 1
+				_tote += 1
+			leben_vorher = GameState.leben
+		if _uhr - letztes_bild > BILD_ABSTAND:
+			letztes_bild = _uhr
+			await _bild("level%02d_flug_%03ds" % [nummer, int(_uhr - start)])
+	InputHub.touch_bewegung = Vector2.ZERO
+	_notiz("Level %02d: Flug geprüft, Tode %d" % [nummer, tode])
+	_zurueck_in_den_hub()
+	return {"nummer": nummer, "stand": "Flug geprüft", "weit": 0.0,
+			"laenge": 0.0, "tode": tode, "kisten": GameState.kisten_zerbrochen,
+			"kisten_gesamt": GameState.kisten_gesamt,
+			"fruechte": GameState.fruechte, "dauer": _uhr - start}
 
 
 # ------------------------------------------------------------- Steuerung
@@ -631,7 +798,13 @@ func _warte_szene(bezeichnung: String, hoechstdauer: float) -> bool:
 	return false
 
 
-## Wartet, bis der Ladebildschirm weg ist und ein Weg vorhanden ist.
+## Wartet, bis der Ladebildschirm weg ist und die Figur in der Welt steht.
+##
+## Früher wurde zusätzlich ein `verlauf` verlangt. Das ist für 24 der 25
+## Level richtig und für eines falsch: Das Flugniveau (Level 22) hat gar
+## keine Kurve, wartete deshalb neunzig Sekunden vergebens und riss den
+## ganzen Rest des Laufs mit sich – der Bot kam nie in den Portalraum
+## zurück, und die Level 23 bis 25 fielen still aus dem Bericht.
 func _warte_aufbau(hoechstdauer: float) -> bool:
 	var start := _uhr
 	while _uhr - start < hoechstdauer:
@@ -639,7 +812,7 @@ func _warte_aufbau(hoechstdauer: float) -> bool:
 		var szene := get_tree().current_scene
 		if szene == null:
 			continue
-		if not Ladeschirm.ist_sichtbar() and szene.get("verlauf") != null:
+		if not Ladeschirm.ist_sichtbar() and _spieler() != null:
 			return true
 	return false
 
@@ -675,8 +848,9 @@ func _ende() -> void:
 	print("Gesamtzeit: %.0f s, Tode insgesamt: %d, Bilder: %d" % [_uhr, _tote, _nr])
 	for e in _ergebnisse:
 		if e.has("laenge"):
-			print("Level %02d: %-16s %4.0f / %4.0f m | Tode %d | Kisten %d/%d | Früchte %d"
-					% [e["nummer"], e["stand"], e["weit"], e["laenge"], e["tode"],
+			print("Level %02d: %-16s %4.0f / %4.0f m | %5.1f s | Tode %d | Kisten %d/%d | Früchte %d"
+					% [e["nummer"], e["stand"], e["weit"], e["laenge"],
+					float(e.get("dauer", 0.0)), e["tode"],
 					e["kisten"], e["kisten_gesamt"], e["fruechte"]])
 		else:
 			print("Level %02d: %s" % [e["nummer"], e["stand"]])

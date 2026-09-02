@@ -370,7 +370,7 @@ func _kisten_setzen() -> void:
 	_kiste(Kiste.Art.NORMAL, 53.5, 1.6)
 	# Eisenkisten als Trittstufen über die zweite Lücke
 	_kiste(Kiste.Art.EISEN, 64.5, -1.0)
-	_kiste(Kiste.Art.EISEN, 66.5, -1.0, 1.5)
+	_kiste(Kiste.Art.EISEN, 66.5, -1.0, 1.5, true)
 	_kiste(Kiste.Art.NORMAL, 66.5, -1.0, 2.5)
 	_kiste(Kiste.Art.NORMAL, 70.0, 1.4)
 	# TNT-Kette: die TNT reißt die Nachbarn mit
@@ -393,8 +393,8 @@ func _kisten_setzen() -> void:
 
 	# ---------- Baumkronen: Sprungfedern und Nitro auf dem Grat ----------
 	_kiste(Kiste.Art.SPRUNG, 162.0, 0.0)
-	_kiste(Kiste.Art.NORMAL, 162.0, 0.0, 4.0)
-	_kiste(Kiste.Art.NORMAL, 163.4, 0.0, 4.0)
+	_kiste(Kiste.Art.NORMAL, 162.0, 0.0, 4.0, true)
+	_kiste(Kiste.Art.NORMAL, 163.4, 0.0, 4.0, true)
 	_kiste(Kiste.Art.NITRO, 186.0, 1.4)
 	_kiste(Kiste.Art.NITRO, 187.4, 1.4)
 	_kiste(Kiste.Art.NORMAL, 186.7, -1.2)
@@ -411,10 +411,17 @@ func _kisten_setzen() -> void:
 	_kiste(Kiste.Art.FRUCHT_MEHRFACH, 224.0, 0.0)
 
 
+## `schwebt = true` heißt: Diese Kiste steht ABSICHTLICH in der Luft und
+## ist selbst der Boden – eine Trittstufe über der Lücke, eine Belohnung
+## über der Sprungfeder. Dieselbe Abmachung wie in `KorridorLevel.kiste()`;
+## ohne sie meldet das Prüfwerkzeug jede solche Kiste als Versehen, und in
+## neun von zehn Fällen hat es damit recht.
 func _kiste(art: Kiste.Art, strecke: float, seitlich: float,
-		hoehe: float = 0.5) -> Kiste:
+		hoehe: float = 0.5, schwebt := false) -> Kiste:
 	var k := KISTE.instantiate() as Kiste
 	k.art = art
+	if schwebt:
+		k.add_to_group("schwebende_kisten")
 	k.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
 	k.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(k)
@@ -604,6 +611,12 @@ func _bestand_setzen(nummer: int) -> void:
 		streuer.gras_dichte = 90
 		streuer.gras_feldgroesse = 8.0
 		streuer.hoehen_streuung = 0.6
+		# Der Waldboden liegt 14 m unter dem Weg, die Absturzzone bei -6 m:
+		# Niemand kommt dort je an. Kollision an diesen Beständen wäre
+		# also Physik für einen Ort, den es für den Spieler nicht gibt –
+		# rund zweihundert Körper, die nur Rechenzeit kosten. Ohne sie
+		# gelten die Stämme als das, was sie sind: Kulisse.
+		streuer.kollision = false
 		streuer.position = LevelWerkzeuge.punkt(verlauf, s, 0.0, WALDBODEN_HOEHE)
 		streuer.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 		deko.add_child(streuer)

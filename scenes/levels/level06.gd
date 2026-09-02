@@ -62,6 +62,17 @@ func ende() -> float:
 	return _rundenlaenge
 
 
+## Richtzeit des Zeitmodus, von Hand gesetzt.
+##
+## Die abgeleitete Formel misst die LEVELKURVE, und die ist hier genau
+## eine Runde – gefahren werden aber drei. Ohne diese Zeile bekäme das
+## Rennen ein Drittel der Zeit, die es braucht, und wäre als einziges
+## Level nicht zu schaffen. Die Zahl stammt aus einem gemessenen Lauf:
+## Der Spieltest-Bot fuhr die drei Runden ohne Fehler in 59 Sekunden.
+func zielzeit() -> float:
+	return 78.0
+
+
 func absturz_hoehe() -> float:
 	# Es gibt keine Absturzzone: In ein Loch zu fallen kostet Zeit, nicht
 	# ein Leben. Der Wert steht nur da, damit die Basis etwas hat.

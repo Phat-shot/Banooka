@@ -30,6 +30,28 @@ extends KorridorLevel
 ## erkennen, bevor man die Form erkennt. Genau darum darf sonst nichts
 ## warm sein, auch nicht die Kulisse.
 ##
+## **Der Turbo.** Die Slide-Taste (○) gehalten gibt Schub und nimmt
+## Kontrolle: schneller geradeaus, dafür eine Querlenkung, die überschwingt
+## (siehe `scenes/player/reiter.gd`). Er ist der Grund, warum dieses Level
+## nicht nur eine Reaktionsübung ist – man entscheidet laufend, wie viel
+## Risiko man will. Damit diese Entscheidung überhaupt eine ist, braucht es
+## beides im Level:
+##
+##   * **Wo er sich lohnt: die Eistore.** Ein Tor aus Eis, das sich quer
+##     zuschiebt, sobald man das violette Turbo-Tor 60 m davor passiert.
+##     Es schließt schneller, als das Reittier von allein läuft – ohne
+##     Turbo steht man davor. Der Anlauf ist der ruhigste Teil seines
+##     Abschnitts, und weil das Tor nur in der Mitte zuletzt offen bleibt,
+##     muss man beim Durchfahren mittig liegen: genau das, was die lose
+##     Lenkung im Turbo schwer macht.
+##   * **Wo er bestraft wird: der Tiefschnee.** Ein breites Feld loser
+##     Wehen. Im Galopp ist es nichts; mit Turbo gräbt man sich ein. Wer
+##     darüber will, geht vorher vom Gas – oder springt.
+##
+## Beide tragen Violett, die Farbe des Turbos. Ein Bogen darüber heißt
+## „jetzt", ein Streifen am Boden heißt „jetzt nicht". Sonst kommt Violett
+## in diesem Level nicht vor.
+##
 ## Gegner zum Besiegen gibt es keine – bei 18 m/s ist ein patrouillierender
 ## Gegner keine Aufgabe mehr, sondern Zufall. Es wird nur ausgewichen.
 
@@ -86,6 +108,47 @@ const SPUR_RECHTS := 3.4
 ## zwischen zwei besetzten Spuren immer noch eine Gasse bleibt.
 const SPURBREITE := 3.2
 
+# --------------------------------------------------------- Turbo im Weg
+
+## Die Farbe des Turbos. Sie ist kühl und stört die Blaupalette nicht –
+## anders als das Totemholz, das seinen Vorrang als einziger warmer Ton
+## behält. Violett heißt in diesem Level immer: Hier geht es ums Tempo.
+##
+## Satter als das Violett der Turbospur am Reittier
+## (`Farben.KRISTALL_VIOLETT`), und mit schwacher Glut: Der erste Anlauf
+## mit 1,6 brannte im Bild zu Weißrosa aus, von der Farbe blieb nichts.
+## Auf einem Level, das fast weiß ist, muss ein Signal dunkler sein als
+## sein Grund, nicht heller.
+const TURBO_VIOLETT := Color(0.45, 0.20, 0.88)
+## Glut der violetten Zeichen. Genug, um durch den Nebel zu tragen, zu
+## wenig, um die Farbe wegzubrennen.
+const TURBO_GLUT := 0.55
+
+## Anlauf zwischen Turbo-Tor und Eistor. Kürzer wäre es kein Anlauf,
+## sondern ein Schrecken: Bei dieser Sichtweite sieht man das Tor erst auf
+## den letzten 40 m, die Entscheidung muss vorher gefallen sein.
+const TOR_ANLAUF := 60.0
+## Tempo, das ein Eistor verlangt – als Faktor auf das Tempo, mit dem der
+## Reiter das Turbo-Tor passiert. Ein Faktor und keine feste Sekundenzahl:
+## Nach einem Tod fängt das Reittier wieder langsam an, und ein festes
+## Zeitfenster wäre dann unschaffbar. So verlangt das Tor immer dasselbe,
+## nämlich zwölf Prozent mehr, als von allein zusammenkommt.
+const TOR_ANSPRUCH := 1.08
+## Freie Gasse in der Mitte, offen und geschlossen. Offen ist sie breiter
+## als der Weg selbst – ein Tor, das schon im Ruhezustand streift, wäre
+## kein Zeitfenster, sondern ein Hindernis.
+const TOR_OFFEN := 10.2
+const TOR_ZU := 0.5
+## Breite eines Torflügels.
+const TOR_FLUEGEL := 6.0
+## Höhe eines Torflügels.
+const TOR_HOEHE := 2.8
+
+## Länge eines Tiefschneefeldes. Kürzer als ein Sprung (bei Vollgas rund
+## 20 m) – wer sich traut, kann es also überspringen, statt vom Gas zu
+## gehen.
+const SCHNEE_LAENGE := 9.0
+
 
 const STRECKE := [
 	# --- Anlauf: weit, damit sich das Auge an das Tempo gewöhnt ---
@@ -116,6 +179,13 @@ const WAENDE := [
 ]
 
 var _reiter: Reiter
+## Die Eistore mit ihrem Zustand (siehe `_eistor` und `_tor_takten`).
+var _eistore: Array = []
+## Die Tiefschneefelder als Strecken auf der Kurve.
+var _schneefelder: Array = []
+## Strecke des vorigen Bildes – läuft sie zurück, ist gestorben worden.
+var _letzte_strecke := 0.0
+var _tiefschnee_erklaert := false
 ## Die beiden Totemmaterialien. Einmal gebaut und an alle Totems verteilt –
 ## es sind rund dreißig, und jedes bekäme sonst seine eigene Kopie.
 var _totem_holz: StandardMaterial3D
@@ -142,6 +212,8 @@ func _bauschritte() -> Array:
 		{"text": "Schnee legt sich", "tun": _boden_bauen},
 		{"text": "Absturzzone", "tun": _absturz_spannen},
 		{"text": "Hindernisse auf drei Spuren", "tun": _spuren_setzen},
+		{"text": "Turbo-Tore und Eistore", "tun": _tore_setzen},
+		{"text": "Tiefschnee weht ein", "tun": _tiefschnee_setzen},
 		{"text": "Kisten werden gestapelt", "tun": _kisten_setzen},
 		{"text": "Früchte werden verteilt", "tun": _fruechte_setzen},
 		{"text": "Rastplätze", "tun": _checkpoints_setzen},
@@ -452,22 +524,305 @@ func _spuren_setzen() -> void:
 	_spurreihe(15.0, 53.0, [[-1], [1], [0]])
 
 	# ---------- Eisspur: zwei Spuren zu, die Gasse wandert ----------
-	_spurreihe(70.0, 118.0, [[-1, 0], [0, 1], [-1, 1], [0, 1]])
+	# Die Reihe endet bei 102 und nicht mehr bei 118: Die letzten 16 m
+	# gehören dem Eistor. Wer im Anlauf darauf noch ausweichen müsste,
+	# entscheidet nicht mehr über Tempo, sondern würfelt.
+	_spurreihe(70.0, 102.0, [[-1, 0], [0, 1], [-1, 1]])
 
 	# ---------- Totemgang: Lücken im Boden, Hindernisse davor ----------
 	# Vor jeder Lücke steht ein Hindernis: Man muss die Spur schon
 	# gewechselt haben, wenn man abspringt.
-	_spurreihe(132.0, 144.0, [[1], [-1, 0]], false)
+	# Nur noch eines statt zweier: Zwischen dem Eistor bei 118 und der Lücke
+	# bei 148 liegt jetzt das erste Tiefschneefeld, und das braucht Platz.
+	_spurreihe(144.0, 144.0, [[-1, 0]], false)
 	_spurreihe(158.0, 170.0, [[-1], [0, 1]])
 	_spurreihe(182.0, 194.0, [[1], [-1, 0]], false)
 
 	# ---------- Sturmstück: dichteste Folge, Wechseltakt ----------
 	_spurreihe(205.0, 216.0, [[-1, 0], [0, 1]])
-	_spurreihe(234.0, 256.0, [[-1, 1], [0, 1], [-1, 0]])
+	# Bis 245 statt bis 256 – die letzten 13 m vor dem zweiten Eistor
+	# bleiben frei.
+	_spurreihe(234.0, 245.0, [[-1, 1], [0, 1]])
 
 	# ---------- Auslauf: es wird wieder ruhiger ----------
-	_spurreihe(272.0, 304.0, [[0], [-1], [1]], false)
+	# Erst ab 282: davor liegt das zweite Tiefschneefeld.
+	_spurreihe(282.0, 304.0, [[0], [-1], [1]], false)
 	seed(wuerfel)
+
+
+# =========================================================== Turbo im Weg
+
+## Die zwei Anläufe: violettes Tor, 60 m Weg, Eistor.
+##
+## Beide liegen unmittelbar hinter einem Rastplatz. Das ist kein Zufall:
+## Wer am Eistor scheitert, muss den Anlauf wieder von vorn fahren, sonst
+## stünde er beim zweiten Versuch hinter dem Auslöser und käme geschenkt
+## durch ein Tor, das nie wieder zugeht.
+func _tore_setzen() -> void:
+	# Erster Anlauf: in der Eisspur, dem ruhigsten Stück nach dem Rastplatz.
+	# Er ist die Lehrstunde – zwischen Auslöser und Tor liegen drei
+	# Hindernisse und eine Lücke, und die letzten 16 m sind frei.
+	_turbo_tor(M_EISSPUR + 2.0)
+	_eistor(M_EISSPUR + 2.0, M_EISSPUR + 2.0 + TOR_ANLAUF)
+
+	# Zweiter Anlauf: derselbe Anspruch, aber der Weg dahin ist das
+	# Sturmstück – zwei dichte Folgen und eine Lücke, alles bei Vollgas.
+	_turbo_tor(M_STURM + 2.0)
+	_eistor(M_STURM + 2.0, M_STURM + 2.0 + TOR_ANLAUF)
+
+
+## Das violette Turbo-Tor: ein Bogen über dem Weg, der nichts tut, außer
+## eine Ansage zu machen. Genau deshalb ist er leuchtend und violett – bei
+## dieser Sichtweite muss ein Zeichen aus der Ferne lesbar sein, und diese
+## Farbe kommt sonst nur an der Spur des Reittiers vor.
+func _turbo_tor(strecke: float) -> void:
+	var stoff := Materialbibliothek.leuchtend(TURBO_VIOLETT, TURBO_GLUT)
+	var halb := breite_bei(strecke) * 0.5 - 0.3
+	var st := PropWerkzeug.bauer()
+	for seite: float in [-1.0, 1.0]:
+		PropWerkzeug.anfuegen(st, PropWerkzeug.stumpf(0.26, 0.20, 4.4, 6, true),
+				Transform3D(Basis(), Vector3(seite * halb, 2.2, 0.0)))
+	PropWerkzeug.anfuegen(st, PropWerkzeug.kasten(Vector3(halb * 2.0, 0.28, 0.30)),
+			Transform3D(Basis(), Vector3(0.0, 4.3, 0.0)))
+	# Drei Zapfen am Balken: Sie geben dem Bogen aus der Ferne eine Form,
+	# wenn vom Balken selbst nur noch ein Strich übrig ist.
+	for i in 3:
+		var t := (float(i) + 0.5) / 3.0
+		PropWerkzeug.anfuegen(st, PropWerkzeug.stumpf(0.22, 0.0, 0.7, 6, true),
+				Transform3D(Basis(Vector3.RIGHT, PI),
+						Vector3(lerpf(-halb * 0.6, halb * 0.6, t), 3.8, 0.0)))
+	var knoten := PropWerkzeug.mesh_knoten("TurboTor", PropWerkzeug.fertig(st), stoff)
+	if knoten == null:
+		return
+	knoten.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.0)
+	knoten.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(knoten)
+
+	# Ein eigenes Licht, sonst schluckt der Nebel die Farbe auf halbem Weg.
+	var licht := OmniLight3D.new()
+	licht.light_color = TURBO_VIOLETT
+	licht.light_energy = 1.3
+	licht.omni_range = 12.0
+	licht.shadow_enabled = false
+	licht.position = Vector3(0.0, 3.4, 0.0)
+	knoten.add_child(licht)
+
+
+## Das Eistor: zwei Flügel, die sich quer zuschieben.
+##
+## Es steht offen, bis der Reiter das zugehörige Turbo-Tor passiert; von
+## da an schließt es in der Zeit, die `TOR_ANSPRUCH` vorgibt. Zuletzt
+## bleibt nur in der Mitte eine Handbreit – wer durchwill, muss also
+## schnell UND mittig sein, und mittig ist im Turbo das Schwere.
+func _eistor(ausloeser: float, strecke: float) -> void:
+	var knoten := Node3D.new()
+	knoten.name = "Eistor"
+	knoten.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.0)
+	knoten.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	objekte.add_child(knoten)
+
+	var fluegel: Array[Area3D] = []
+	for seite: float in [-1.0, 1.0]:
+		var teil := Area3D.new()
+		teil.collision_layer = 0
+		teil.collision_mask = 2
+		teil.body_entered.connect(_auf_hindernis)
+		knoten.add_child(teil)
+
+		var form := CollisionShape3D.new()
+		var kasten := BoxShape3D.new()
+		kasten.size = Vector3(TOR_FLUEGEL, TOR_HOEHE, 1.2)
+		form.shape = kasten
+		form.position.y = TOR_HOEHE * 0.5
+		teil.add_child(form)
+
+		_torfluegel(teil, seite)
+		fluegel.append(teil)
+
+	_eistore.append({
+		"knoten": knoten, "links": fluegel[0], "rechts": fluegel[1],
+		"ausloeser": ausloeser, "strecke": strecke,
+		"rest": 0.0, "dauer": 1.0, "laeuft": false,
+	})
+	_tor_stellen(_eistore[-1], 0.0)
+
+
+## Ein Torflügel: gestaffelte Eisblöcke mit gezackter Oberkante, an der
+## Innenkante ein violetter Streifen. Der Streifen ist der Punkt – er
+## zeigt, wo die Gasse aufhört, und er sagt zugleich, dass es hier um
+## Tempo geht.
+func _torfluegel(eltern: Node3D, seite: float) -> void:
+	var st := PropWerkzeug.bauer()
+	for i in 5:
+		var t := (float(i) + 0.5) / 5.0
+		# Innen hoch, außen niedriger: So bleibt die Gasse in der Mitte die
+		# auffälligste Stelle des Tores.
+		var h := TOR_HOEHE * lerpf(1.0, 0.62, t)
+		PropWerkzeug.anfuegen(st, PropWerkzeug.kasten(
+				Vector3(TOR_FLUEGEL / 5.0 + 0.06, h, 1.1)),
+				Transform3D(Basis(), Vector3(
+						seite * (-TOR_FLUEGEL * 0.5 + TOR_FLUEGEL * t),
+						h * 0.5, 0.0)))
+	# Gletscherblau statt klarem Eis: Reines `eis()` verschwand vor der
+	# weißen Rinne fast, und ein Tor, das zugeht, muss man zugehen sehen.
+	var netz := PropWerkzeug.mesh_knoten("Flügel", PropWerkzeug.fertig(st),
+			Materialbibliothek.eisfels())
+	if netz != null:
+		eltern.add_child(netz)
+
+	var kante := MeshInstance3D.new()
+	kante.mesh = PropWerkzeug.kasten(Vector3(0.22, TOR_HOEHE * 0.98, 1.25))
+	kante.material_override = Materialbibliothek.leuchtend(TURBO_VIOLETT, TURBO_GLUT)
+	kante.position = Vector3(seite * -TOR_FLUEGEL * 0.5, TOR_HOEHE * 0.5, 0.0)
+	eltern.add_child(kante)
+
+
+## Stellt die Flügel auf einen Schließgrad zwischen 0 (offen) und 1 (zu).
+##
+## Quadratisch und nicht gleichmäßig: Bei gleichmäßigem Zuschieben liegt
+## fast die ganze brauchbare Gasse in den letzten Zehnteln, und der
+## Unterschied zwischen "mit Turbo" und "ohne" war eine Handbreit gegen
+## nichts. So bleibt das Tor lange weit, kriecht zu und schlägt am Ende
+## zu – wer Tempo gemacht hat, fährt bequem durch, wer nicht, steht davor.
+func _tor_stellen(tor: Dictionary, zu: float) -> void:
+	var anteil := clampf(zu, 0.0, 1.0)
+	var frei := lerpf(TOR_OFFEN, TOR_ZU, anteil * anteil)
+	var x := frei * 0.5 + TOR_FLUEGEL * 0.5
+	(tor["links"] as Area3D).position.x = -x
+	(tor["rechts"] as Area3D).position.x = x
+
+
+## Ein Bild lang die Tore und den Tiefschnee prüfen.
+##
+## Beides hängt an der Strecke des Reiters und nicht an Zonen: Ein Tor
+## muss auslösen, bevor man es sieht, und ein Schneefeld muss den Turbo
+## die ganze Zeit über prüfen, nicht nur beim Hineinfahren.
+func _process(delta: float) -> void:
+	if _reiter == null or verlauf == null or _reiter.gesperrt:
+		return
+	# Läuft die Strecke zurück, ist gestorben worden – dann fängt jedes Tor
+	# von vorn an. Ohne das stünde man nach einem Tod vor einem Tor, das
+	# längst zu ist, und käme nie wieder daran vorbei.
+	if _reiter.strecke < _letzte_strecke - 2.0:
+		for tor: Dictionary in _eistore:
+			tor["laeuft"] = false
+			_tor_stellen(tor, 0.0)
+	_letzte_strecke = _reiter.strecke
+
+	for tor: Dictionary in _eistore:
+		_tor_takten(tor, delta)
+	_tiefschnee_pruefen()
+
+
+func _tor_takten(tor: Dictionary, delta: float) -> void:
+	if not bool(tor["laeuft"]):
+		if _reiter.strecke < float(tor["ausloeser"]) \
+				or _reiter.strecke >= float(tor["strecke"]):
+			return
+		tor["laeuft"] = true
+		# Die Schließzeit wird beim Auslösen aus dem aktuellen Tempo
+		# gerechnet, nicht fest gesetzt: Nach einem Tod ist das Reittier
+		# wieder langsam, und ein festes Fenster wäre dann unschaffbar.
+		var weg: float = float(tor["strecke"]) - _reiter.strecke
+		tor["dauer"] = maxf(weg / maxf(_reiter.tempo * TOR_ANSPRUCH, 1.0), 0.8)
+		tor["rest"] = tor["dauer"]
+		GameState.zeige_nachricht("Das Eistor schließt – Turbo!", 1.6)
+		return
+
+	tor["rest"] = maxf(float(tor["rest"]) - delta, 0.0)
+	_tor_stellen(tor, 1.0 - float(tor["rest"]) / maxf(float(tor["dauer"]), 0.01))
+	# Hinter dem Reiter geht das Tor wieder auf. Wer vorbei ist, hat es
+	# geschafft; stehen bliebe sonst ein Riegel, der beim nächsten Anlauf
+	# schon zu wäre, bevor der Auslöser überhaupt greift.
+	if _reiter.strecke > float(tor["strecke"]) + 6.0:
+		tor["laeuft"] = false
+		_tor_stellen(tor, 0.0)
+
+
+# ------------------------------------------------------------ Tiefschnee
+
+## Zwei Felder loser Wehen – beide unmittelbar hinter einem Eistor.
+##
+## Das ist die Pointe des Turbos in diesem Level: Er wird nicht dort
+## bestraft, wo man ihn nie zünden würde, sondern genau dort, wo man ihn
+## gerade gebraucht hat und der Daumen noch auf der Taste liegt. Elf Meter
+## hinter dem Tor ist Schluss mit Vollgas.
+func _tiefschnee_setzen() -> void:
+	for s: float in [134.0, 274.0]:
+		_tiefschnee(s)
+		_schneefelder.append(s)
+
+
+func _tiefschnee(strecke: float) -> void:
+	var breite := breite_bei(strecke)
+	var wuerfel := randi()
+	seed(17700 + int(strecke))
+
+	# Die Wehen selbst: flach gedrückte Kugeln, dicht an dicht. Sie liegen
+	# kaum höher als der Boden – ein Wall wäre ein Hindernis, und genau
+	# das ist Tiefschnee nicht. Er lässt einen durch, er hält nur fest.
+	var st := PropWerkzeug.bauer()
+	for i in 26:
+		# Flache Kugel als MESH und nicht als gestauchte Kugel: Beim
+		# Stauchen über die Transformation kippen die Normalen mit, und die
+		# Wehen lasen sich im Bild als dunkle Flecken statt als Schnee.
+		var kugel := SphereMesh.new()
+		kugel.radius = randf_range(0.8, 1.7)
+		kugel.height = kugel.radius * 0.5
+		kugel.radial_segments = 8
+		kugel.rings = 3
+		PropWerkzeug.anfuegen(st, kugel, Transform3D(Basis(), Vector3(
+				randf_range(-breite * 0.46, breite * 0.46), 0.04,
+				randf_range(-SCHNEE_LAENGE * 0.5, SCHNEE_LAENGE * 0.5))))
+	var knoten := PropWerkzeug.mesh_knoten("Tiefschnee", PropWerkzeug.fertig(st),
+			Materialbibliothek.firn())
+	seed(wuerfel)
+	if knoten == null:
+		return
+	knoten.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.0)
+	knoten.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	deko.add_child(knoten)
+
+	# Zwei violette Streifen quer über den Weg: Anfang und Ende des Feldes.
+	# Am Boden statt in der Luft – ein Bogen hieße "jetzt Turbo", ein
+	# Streifen heißt "jetzt nicht".
+	for kante: float in [-1.0, 1.0]:
+		var strich := MeshInstance3D.new()
+		strich.mesh = PropWerkzeug.kasten(Vector3(breite * 0.94, 0.14, 0.4))
+		strich.material_override = Materialbibliothek.leuchtend(TURBO_VIOLETT, TURBO_GLUT)
+		strich.position = Vector3(0.0, 0.09, kante * SCHNEE_LAENGE * 0.5)
+		knoten.add_child(strich)
+
+	# Und die Regel des Levels: Wo etwas gefährlich ist, steht ein Totem.
+	for seite: float in [-1.0, 1.0]:
+		var pfosten := Node3D.new()
+		deko.add_child(pfosten)
+		pfosten.position = LevelWerkzeuge.punkt(verlauf,
+				strecke - SCHNEE_LAENGE * 0.5, seite * (breite * 0.5 - 0.9), 0.0)
+		pfosten.rotation.y = LevelWerkzeuge.drehung(verlauf,
+				strecke - SCHNEE_LAENGE * 0.5)
+		_totem(pfosten, 0.0)
+
+
+## Im Tiefschnee zählt nur eines: ob der Turbo läuft.
+##
+## Im Galopp trägt der Firn, mit Turbo bricht man ein. Wer im Sprung
+## darüber hinweggeht, kommt ebenfalls durch – das Feld ist kürzer als ein
+## Sprung, und diese Möglichkeit soll bleiben.
+func _tiefschnee_pruefen() -> void:
+	for s: float in _schneefelder:
+		# Einmal im Spiel angesagt, und zwar rechtzeitig: Bei dieser
+		# Sichtweite käme die Erklärung sonst zusammen mit dem Einbruch.
+		if not _tiefschnee_erklaert and _reiter.strecke > s - 32.0 \
+				and _reiter.strecke < s - SCHNEE_LAENGE:
+			_tiefschnee_erklaert = true
+			GameState.zeige_nachricht("Tiefschnee – Turbo loslassen!", 2.0)
+		if absf(_reiter.strecke - s) > SCHNEE_LAENGE * 0.5 \
+				or _reiter.hoehe() > 0.35 or not _reiter.turbo_laeuft():
+			continue
+		GameState.zeige_nachricht("Eingegraben!", 1.2)
+		_reiter.schaden_nehmen()
+		return
 
 
 # =========================================================== Kisten
@@ -493,7 +848,9 @@ func _kisten_setzen() -> void:
 	kiste(Kiste.Art.TNT, 88.0, SPUR_LINKS)
 	kiste(Kiste.Art.NORMAL, 89.6, SPUR_LINKS)
 	_kistenreihe(106.0, 4, SPUR_LINKS)
-	kiste(Kiste.Art.TNT, 112.0, SPUR_RECHTS)
+	# Der Lohn des ersten Eistors steht dahinter, mittig in der Gasse: Wer
+	# es schafft, nimmt sie im Vorbeifahren mit.
+	_kistenreihe(120.0, 4, SPUR_MITTE)
 
 	# ---------- Totemgang ----------
 	_kistenreihe(126.0, 4, SPUR_MITTE)
@@ -510,7 +867,7 @@ func _kisten_setzen() -> void:
 	kiste(Kiste.Art.NORMAL, 251.6, SPUR_RECHTS)
 
 	# ---------- Auslauf ----------
-	_kistenreihe(264.0, 5, SPUR_LINKS)
+	_kistenreihe(261.0, 5, SPUR_MITTE)
 	_kistenreihe(286.0, 6, SPUR_MITTE)
 	_kistenreihe(304.0, 5, SPUR_MITTE)
 

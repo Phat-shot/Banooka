@@ -6,6 +6,7 @@ extends CanvasLayer
 
 @onready var _anzeige: Control = $Anzeige
 @onready var _tafel: Control = $Anzeige/Tafel
+@onready var _zeittafel: Control = $Anzeige/Zeittafel
 @onready var _nachricht: Label = $Anzeige/Nachricht
 @onready var _touch: Control = $TouchControls
 
@@ -17,6 +18,10 @@ var _leben := GameState.START_LEBEN
 var _kisten := 0
 var _kisten_gesamt := 0
 
+## Uhr des Zeitmodus. `_zeit_frost` > 0 heißt: Die Uhr steht gerade.
+var _zeit := 0.0
+var _zeit_frost := 0.0
+
 var _nachricht_timer := 0.0
 var _puls := 0.0          ## kurzes Aufblitzen beim Einsammeln
 var _puls_leben := 0.0
@@ -27,6 +32,8 @@ func _ready() -> void:
 	GameState.leben_geaendert.connect(_auf_leben)
 	GameState.kisten_geaendert.connect(_auf_kisten)
 	GameState.nachricht.connect(_auf_nachricht)
+	Zeitlauf.zeit_geaendert.connect(_auf_zeit)
+	Zeitlauf.lauf_geaendert.connect(_auf_lauf)
 
 	_fruechte = GameState.fruechte
 	_leben = GameState.leben
@@ -34,6 +41,10 @@ func _ready() -> void:
 	_kisten_gesamt = GameState.kisten_gesamt
 
 	_tafel.draw.connect(_zeichne_tafel)
+	_zeittafel.draw.connect(_zeichne_zeit)
+	_zeittafel.visible = Zeitlauf.laeuft
+	_zeit = Zeitlauf.zeit
+	_zeit_frost = Zeitlauf.frost
 	_nachricht.modulate.a = 0.0
 
 	_status = Statustafel.new()
@@ -105,6 +116,42 @@ func _zeichne_tafel() -> void:
 	_text(schrift, Vector2(46, y + 6), "%d / %d" % [_kisten, _kisten_gesamt], 17, farbe)
 
 
+## Die Uhr des Zeitmodus: oben in der Mitte, groß genug, um sie im
+## Vorbeilaufen zu lesen.
+##
+## Sie steht bewusst NICHT bei Früchten und Leben in der Ecke. Im Zeitlauf
+## ist sie die einzige Zahl, auf die es ankommt, und der Blick liegt beim
+## Laufen in der Bildmitte.
+func _zeichne_zeit() -> void:
+	var schrift := _zeittafel.get_theme_default_font()
+	if schrift == null:
+		return
+	var steht := _zeit_frost > 0.0
+	var breite := _zeittafel.size.x
+	_runde_flaeche_auf(_zeittafel, Rect2(0, 0, breite, 62.0),
+			Color(0.04, 0.07, 0.06, 0.55), 14.0)
+	_runde_rahmen_auf(_zeittafel, Rect2(0, 0, breite, 62.0),
+			Farben.KISTE_ZEIT if steht else Color(1, 1, 1, 0.13), 14.0, 2.0)
+
+	var text := Zeitlauf.als_text(_zeit)
+	var farbe := Farben.KISTE_ZEIT.lightened(0.35) if steht \
+			else Color(1.0, 0.97, 0.90)
+	var groesse := 34
+	var breite_text := _breite(schrift, text, groesse)
+	_text_auf(_zeittafel, schrift, Vector2((breite - breite_text) * 0.5, 44.0),
+			text, groesse, farbe)
+
+	# Zweite Zeile: entweder die Standzeit oder die Richtzeit.
+	var unten := "Ziel %s" % Zeitlauf.als_text(Zeitlauf.richtzeit)
+	var unten_farbe := Color(1, 1, 1, 0.5)
+	if steht:
+		unten = "Uhr steht  %.1f s" % _zeit_frost
+		unten_farbe = Farben.KISTE_ZEIT.lightened(0.5)
+	var breite_unten := _breite(schrift, unten, 14)
+	_text_auf(_zeittafel, schrift, Vector2((breite - breite_unten) * 0.5, 58.0),
+			unten, 14, unten_farbe)
+
+
 func _text(schrift: Font, pos: Vector2, inhalt: String, groesse: int, farbe: Color) -> void:
 	if schrift == null:
 		return
@@ -155,19 +202,37 @@ func _kisten_symbol(mitte: Vector2, r: float) -> void:
 
 
 func _runde_flaeche(feld: Rect2, farbe: Color, radius: float) -> void:
-	var stil := StyleBoxFlat.new()
-	stil.bg_color = farbe
-	stil.set_corner_radius_all(int(radius))
-	stil.draw(_tafel.get_canvas_item(), feld)
+	_runde_flaeche_auf(_tafel, feld, farbe, radius)
 
 
 func _runde_rahmen(feld: Rect2, farbe: Color, radius: float, staerke: float) -> void:
+	_runde_rahmen_auf(_tafel, feld, farbe, radius, staerke)
+
+
+func _runde_flaeche_auf(auf: Control, feld: Rect2, farbe: Color,
+		radius: float) -> void:
+	var stil := StyleBoxFlat.new()
+	stil.bg_color = farbe
+	stil.set_corner_radius_all(int(radius))
+	stil.draw(auf.get_canvas_item(), feld)
+
+
+func _runde_rahmen_auf(auf: Control, feld: Rect2, farbe: Color, radius: float,
+		staerke: float) -> void:
 	var stil := StyleBoxFlat.new()
 	stil.bg_color = Color(0, 0, 0, 0)
 	stil.border_color = farbe
 	stil.set_border_width_all(int(staerke))
 	stil.set_corner_radius_all(int(radius))
-	stil.draw(_tafel.get_canvas_item(), feld)
+	stil.draw(auf.get_canvas_item(), feld)
+
+
+func _text_auf(auf: Control, schrift: Font, pos: Vector2, inhalt: String,
+		groesse: int, farbe: Color) -> void:
+	auf.draw_string(schrift, pos + Vector2(1.5, 1.5), inhalt,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, groesse, Color(0, 0, 0, 0.6))
+	auf.draw_string(schrift, pos, inhalt, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			groesse, farbe)
 
 
 # ------------------------------------------------------------- Signale
@@ -195,6 +260,17 @@ func _auf_kisten(zerbrochen: int, gesamt: int) -> void:
 	_kisten = zerbrochen
 	_kisten_gesamt = gesamt
 	_tafel.queue_redraw()
+
+
+func _auf_zeit(sekunden: float, frost: float) -> void:
+	_zeit = sekunden
+	_zeit_frost = frost
+	_zeittafel.queue_redraw()
+
+
+func _auf_lauf(laeuft: bool) -> void:
+	_zeittafel.visible = laeuft
+	_zeittafel.queue_redraw()
 
 
 func _auf_nachricht(text: String, dauer: float) -> void:

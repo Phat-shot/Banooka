@@ -25,6 +25,7 @@ export FOTO_ZIEL="${1:?Zielverzeichnis angeben}"
 export FOTO_MODUS="${2:-verfolger}"
 export FOTO_STELLEN="${3:-}"
 export FOTO_LEVEL="${FOTO_LEVEL:-res://scenes/levels/Level01.tscn}"
+export FOTO_ZEITMODUS="${FOTO_ZEITMODUS:-0}"
 
 mkdir -p "$FOTO_ZIEL"
 ZIEL="$(mktemp -d "${TMPDIR:-/tmp}/banooka_foto_XXXXXX")"

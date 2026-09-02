@@ -6,8 +6,9 @@ Charaktere oder Assets.
 
 ## Stand
 
-Der erste Abschnitt ist spielbar: Portalraum und die Level 01–05.
-Die Level 06–25 folgen.
+Alle 25 Level und der Portalraum sind gebaut und spielbar. Der Portalraum
+gliedert sie in fünf Räume zu je fünf Leveln; ein Raum öffnet, wenn der
+vorige abgeschlossen ist.
 
 | Bereich | Status |
 |---|---|
@@ -16,23 +17,35 @@ Die Level 06–25 folgen.
 | Beuteldachs-Modell mit Animationen | fertig |
 | Korridor-Kamera (folgt auch Kurven) | fertig |
 | HUD + virtuelle Touch-Steuerung | fertig |
-| Kisten (9 Arten), Früchte | fertig |
-| Gegner (3 Arten) | fertig |
-| Wasser, Stacheln, Start-/Zielportal | fertig |
-| Wald-Props, prozedurale Texturen | fertig |
-| Level 01 "Wurzelschlucht" | fertig |
-| Level 02 "Frostgrat" (Schnee) | fertig |
-| Level 03 "Moorbrücken" (Sumpf) | fertig |
-| Level 04 "Katzensprung" (Ritt) | fertig |
-| Level 05 "Wettrennen" (Karts) | fertig |
+| Kisten (13 Arten), Früchte | fertig |
+| Gegner (8 Arten) | fertig |
+| Wasser, Stacheln, Taktgeber, Portale | fertig |
+| Props und prozedurale Texturen | fertig |
+| Portalraum mit vier Speicherplätzen | fertig |
+| Level 01–25 | fertig |
+| Zeitmodus mit Zeitkisten und Zeitrelikten | fertig |
 | Eigene Spielfigur in den Einstellungen | fertig |
-| Level 06–25 | offen |
+
+## Die 25 Level
+
+| Raum | Level |
+|---|---|
+| 1 · Wurzelwald | 01 Wurzelschlucht (Wald) · 02 Frostgrat (Schnee) · 03 Treibgut (Treibflöße) · 04 Katzensprung (Ritt) · 05 Hauerjagd (Flucht) |
+| 2 · Nebelsümpfe | 06 Wettrennen (Karts) · 07 Moorbrücken (Bohlenweg) · 08 Torfstich (Bänder und Pressen) · 09 Sumpfgeysir (Gasfontänen) · 10 Hebewerk (senkrecht, 2D-Abschnitt) |
+| 3 · Steinfeste | 11 Steinschlag · 12 Kesselwerk · 13 Pfahlfeste · 14 Wolkensteg · 15 Abendruinen |
+| 4 · Rost und Ranken | 16 Kanalgrund · 17 Frostritt (Schiene) · 18 Schwarmpfad (Deckung) · 19 Sturmruinen (Drehscheiben) · 20 Kolbengang (Laserzäune) |
+| 5 · Sand und Neon | 21 Sandgrab (Gabelung) · 22 Wolkenjagd (Flug) · 23 Funkenlicht (Dunkellevel) · 24 Neonhöhe (Dächer) · 25 Dächergasse (Hangeln) |
+
+Vier Level laufen nicht über den normalen Controller, sondern kleben auf
+der Levelkurve: die beiden Ritt-Level 04 und 05, das Rennen 06 und der
+Flug 22.
 
 ## Level 01 – Wurzelschlucht
 
 Ein 236 m langer Waldpfad auf einem Grat, in fünf Abschnitten. Der Verlauf
 steckt in einer `Curve3D`; alle Objekte werden relativ dazu platziert, ein
-geänderter Verlauf verschiebt also alles mit.
+geänderter Verlauf verschiebt also alles mit. So ist jedes Korridorlevel
+gebaut.
 
 | Strecke | Abschnitt | Inhalt |
 |---|---|---|
@@ -42,10 +55,14 @@ geänderter Verlauf verschiebt also alles mit.
 | 158–208 m | Baumkronen | Anstieg, schmaler Grat, Sprungfeder, Nitro |
 | 208–236 m | Lichtung | Extraleben, Zielportal |
 
-43 Kisten (37 zählen für den Edelstein), 14 Gegner, 82 Früchte, drei
-Checkpoints. Wer neben den Pfad fällt, landet in der Absturzzone.
+45 Kisten, 14 Gegner, drei Checkpoints. Wer neben den Pfad fällt, landet
+in der Absturzzone.
 
 ### Gegner
+
+Acht Tiere bespielen die fünfundzwanzig Level. Die drei aus Level 01
+zeigen die Regel: Jeder Gegner ist nur durch **einen** Angriff zu
+besiegen, und die Stelle, an der er wirkt, ist hell abgesetzt.
 
 | Gegner | Nur besiegbar durch |
 |---|---|
@@ -59,54 +76,32 @@ Der Bauchplatscher wirkt bei allen dreien.
 
 `NORMAL` (1 Frucht) · `FRUCHT_MEHRFACH` (5) · `LEBEN` · `FEDER` (10 Absprünge,
 je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (3 s Countdown) ·
-`NITRO` (explodiert bei Berührung) · `EISEN` (unzerbrechlich) · `CHECKPOINT`
+`NITRO` (explodiert bei Berührung) · `EISEN` (unzerbrechlich) · `CHECKPOINT` ·
+`SCHUTZ` (fängt einen Treffer ab) · `UMRISS` und `AUSLOESER` (das Gerippe
+wird fest, wenn sein Auslöser fällt) · `ZEIT` (hält im Zeitmodus die Uhr an)
 
-## Level 02 – Frostgrat
+## Zeitmodus
 
-Ein verschneiter Grat über 212 m, der um 14 m zum Gipfel ansteigt.
-Eisplatten in den Lücken, Eiszapfenfelder, tief darunter ein gefrorener
-See als Kulisse. 35 Kisten, 11 Gegner, drei Rastpunkte.
+In den Einstellungen schaltbar. Jedes betretene Level wird dann auf Zeit
+gespielt: Oben in der Bildmitte läuft eine Uhr, und jede dritte Holzkiste
+ist eine **Zeitkiste** – violett, mit Zifferblatt und Zahl. Wer sie
+zerschlägt, hält die Uhr für so viele Sekunden an. Sie zählt und gibt
+eine Frucht wie jede Holzkiste, der Kistenzähler bleibt also derselbe.
 
-## Level 03 – Moorbrücken
+Drei Stufen hängen an der Richtzeit des Levels: **Saphir** bis zur
+Richtzeit, **Gold** bis 85 %, **Platin** bis 72 %. Bestzeit und Stufe
+stehen danach am Levelportal im Portalraum.
 
-Ein Bohlenweg durchs Moor, 212 m. Unter dem Weg liegt kein Abgrund,
-sondern tödliches Wasser – derselbe Fehltritt endet hier mit einem
-Platsch statt im Nichts. Schmale Stege, Wurzelinseln, Schilfgürtel.
-35 Kisten, 13 Gegner.
-
-## Level 04 – Katzensprung
-
-Ein Ritt-Level: Der Beuteldachs sitzt auf einer Wildkatze, die von selbst
-rennt und dabei von 11 auf 19 m/s beschleunigt. Gelenkt wird nur quer,
-gesprungen wie gewohnt; anhalten oder umkehren geht nicht. Steine und
-Stämme stehen abwechselnd links, rechts und in der Mitte – es bleibt
-immer genau eine Lücke, die Aufgabe ist, sie früh genug zu sehen.
-Kisten zerbrechen im Vorbeirennen. Vier Rastplätze auf 320 m.
-
-Die Lücken im Weg sind 5 m breit: ein Sprung trägt bei Anfangstempo
-7,1 m. Nach einem Sturz beginnt das Tempo wieder unten, eine breitere
-Lücke wäre dort zur Sackgasse geworden.
-
-## Level 05 – Wettrennen
-
-Drei Runden auf einem geschlossenen Rundkurs gegen vier Gegner-Karts.
-
-| Element | Wirkung |
-|---|---|
-| Schubfeld | sofortiger Schub, liegt auf der Ideallinie |
-| Schubkiste | sammelt eine Ladung, □ zündet sie (bis zu drei) |
-| Loch | wer nicht springt, dreht sich und verliert Zeit |
-
-Ein Rennen kennt keinen Tod: In ein Loch zu fallen kostet Zeit, kein
-Leben. Die Gegner fahren mit unterschiedlichem Können und einem
-Gummiband, das nur nach vorn zieht – ein Führender wird nicht gebremst,
-sonst wäre der eigene Vorsprung wertlos.
+Ein Tod beendet den Lauf – er setzt ihn nicht zurück. Sonst wäre ein Tod
+kurz vor dem Ziel die schnellste Abkürzung.
 
 ## Starten
 
 Projektordner in Godot 4.3+ öffnen und F5 drücken. Die Hauptszene ist
-`scenes/levels/Level01.tscn`. `scenes/levels/Testlevel.tscn` bleibt als
-schlichter Testkorridor für den Controller erhalten.
+`scenes/ui/Splash.tscn` – Startbildschirm, Speicherplatz wählen,
+Portalraum. `scenes/levels/Testlevel.tscn` bleibt als schlichter
+Testkorridor für den Controller erhalten, `scenes/levels/Werkstatt.tscn`
+zeigt alle Bauteile einzeln.
 
 ## Prüfen
 
@@ -114,11 +109,35 @@ schlichter Testkorridor für den Controller erhalten.
 bash werkzeuge/pruefe.sh
 ```
 
-Läuft auf einer Kopie des Projekts und prüft drei Dinge: GDScript-Parse-Fehler,
-das Laden und Instanziieren jeder Szene (findet auch Fehler in `_ready()`), und
-die Geometrie von Level 01 – ob alle Kisten und Gegner auf festem Boden stehen,
-ob Patrouillen nicht ins Leere laufen und ob die Absturzzone greift. Muss
+Läuft auf einer Kopie des Projekts und prüft in vier Stufen: GDScript-Parse-
+Fehler; das Laden und Instanziieren jeder Szene (findet auch Fehler in
+`_ready()`); die Geometrie **jedes** Levels – ob Kisten und Gegner auf festem
+Boden stehen, ob Patrouillen nicht ins Leere laufen, ob die Absturzzone greift;
+und zuletzt alles, was nur in Bewegung zu prüfen ist: Krabbeln, Treibflöße,
+Hangeln, Deckungsflecken, Dunkellevel, Umrisskisten und den Zeitmodus. Muss
 `ERGEBNIS: SAUBER` melden.
+
+`PRUEF_LEVEL=08,09 bash werkzeuge/pruefe.sh` grenzt die Geometrieprüfung auf
+einzelne Level ein – der volle Lauf dauert einige Minuten.
+
+Zwei Werkzeuge daneben, die nicht prüfen, sondern **messen** und deshalb
+nicht in `pruefe.sh` stecken:
+
+```bash
+bash werkzeuge/spieltest.sh /tmp/spieltest 3000   # Bot spielt selbst
+bash werkzeuge/lauf.sh res://werkzeuge/Zeittafel.tscn   # Richtzeiten
+```
+
+Der Spieltest-Bot geht denselben Weg wie ein Spieler – Startbildschirm,
+Portalraum, Level – und legt dabei Bilder ab; `TEST_LEVEL=8,9` grenzt ihn
+ein. Er sichert den echten Spielstand vorher und holt ihn danach zurück.
+Er spielt allerdings deutlich schlechter als ein Mensch: Er findet keine
+Deckung, verpasst Absprünge und stürzt in Lücken. Sein Bericht taugt als
+Rauchtest ("kommt das Level überhaupt zustande, tötet es sofort?"), nicht
+als Schwierigkeitsurteil.
+
+`Zeittafel` druckt für jedes Level die Richtzeit des Zeitmodus samt ihrer
+Herkunft.
 
 ## Im Browser starten
 
@@ -362,7 +381,8 @@ scripts/                   angriff, farben, materialbibliothek, level_werkzeuge,
                            pad_symbole (Controller-Zeichen ✕ ○ □ △),
                            modell_lader (eigene glTF-Figur einpassen)
 shaders/                   wasser.gdshader
-werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Webserver
+werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Spieltest-Bot,
+                           Bild- und Messwerkzeuge, Webserver
 assets/CREDITS.md          Quellen und Lizenzen
 ARCHITEKTUR.md             verbindliche Schnittstellen
 ```

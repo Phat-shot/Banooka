@@ -1,6 +1,6 @@
 extends StaticBody3D
 class_name Kiste
-## Kiste in neun Ausführungen – ein Skript für alle Arten.
+## Kiste in dreizehn Ausführungen – ein Skript für alle Arten.
 ##
 ## Die Art wird im Inspektor über `art` eingestellt, die Optik baut das
 ## Skript in `_ready()` prozedural auf (Holzkorpus, Kantenstreben, Symbol).
@@ -9,8 +9,18 @@ class_name Kiste
 ## Physikschritt `spieler.angriffe()` ab (siehe scripts/angriff.gd).
 ## Zusätzlich ruft die Schockwelle des Bauchplatschers bei allen Kisten
 ## im Umkreis `zerbrechen(Angriff.SLAM)` auf.
+##
+## UMRISS und AUSLOESER gehören zusammen – das einzige Paar, bei dem eine
+## Kiste eine andere schaltet (Kistenvertrag, `doku/level-vorbilder.md`):
+## Der Umriss ist ein weißes Gerippe, durch das man hindurchgeht; fällt
+## irgendwo im Level der Auslöser, werden ALLE Umrisse zu echten Kisten,
+## auf denen man steht. Damit ist ein und dieselbe Kiste erst Kulisse und
+## dann Weg – das Muster „ein Hindernis, zwei Rollen".
 
-## Die neun Kistenarten.
+## Die dreizehn Kistenarten.
+##
+## Neue Arten kommen ANS ENDE: `LevelBasis` merkt sich im Bauplan den
+## Zahlenwert von `art`, und der darf sich nicht verschieben.
 enum Art {
 	NORMAL,           ## Holzkiste, gibt 1 Frucht
 	FRUCHT_MEHRFACH,  ## Holzkiste, gibt 5 Früchte
@@ -22,6 +32,9 @@ enum Art {
 	EISEN,            ## unzerbrechlich, reine Plattform
 	CHECKPOINT,       ## setzt den Respawn-Punkt
 	SCHUTZ,           ## gibt eine Schutzladung (bis zu drei stapelbar)
+	UMRISS,           ## weißer Umriss, körperlos – wartet auf den Auslöser
+	AUSLOESER,        ## Ausrufezeichen: macht alle Umrisse des Levels echt
+	ZEIT,             ## Zeitkiste: hält im Zeitmodus die Uhr an
 }
 
 # --- Kennwerte ---
@@ -34,10 +47,23 @@ const TNT_RADIUS := 3.0           ## Wirkradius der TNT-Explosion
 const NITRO_RADIUS := 2.5         ## Wirkradius der Nitro-Explosion
 const FRUECHTE_MEHRFACH := 5      ## Früchte der Mehrfachkiste
 
+# --- Farben des Umriss-Paares ---
+# Sie stehen hier und nicht in `Farben`, weil sie nur für dieses Paar
+# gelten und der Kistenvertrag sie wörtlich vorgibt: „weißer Umriss,
+# körperlos" und „Orange mit gelbem Zeichen".
+const UMRISS_WEISS := Color(0.90, 0.96, 1.0)
+const AUSLOESER_ORANGE := Color(0.98, 0.38, 0.02)
+const AUSLOESER_ZEICHEN := Color(1.0, 0.86, 0.16)
+## Halbe Dicke der zwölf Umrisskanten.
+const UMRISS_KANTE := 0.05
+
 ## Angriffsarten, die eine Holzkiste direkt zerbrechen.
 const ZERBRECHENDE_ANGRIFFE := Angriff.SPIN | Angriff.SLIDE | Angriff.SLAM
 
 @export var art: Art = Art.NORMAL
+## Standzeit der Zeitkiste in Sekunden – die Zahl, die auf ihr steht.
+## Nur für `Art.ZEIT`.
+@export_range(1, 9, 1) var zeit_wert := 2
 
 @onready var _modell: Node3D = $Modell
 @onready var _trefferzone: Area3D = $Trefferzone
@@ -55,6 +81,15 @@ var _beschriftungen: Array[Label3D] = []
 ## Material des Korpus (bei Nitro eine eigene Kopie zum Pulsieren).
 var _korpus_material: StandardMaterial3D = null
 var _zeit := 0.0
+## Umrisskiste: Steht sie schon körperlich da?
+##
+## Bewusst KEIN @export: `LevelBasis` sichert im Bauplan nur die
+## Exportwerte, dieser Zustand würde einen Tod also ohnehin nicht
+## überleben. Er soll es auch nicht – siehe `_umrissstand_pruefen()`.
+var _koerperlich := false
+## Das weiße Gerippe der Umrisskiste und sein eigenes Material.
+var _umriss: MeshInstance3D = null
+var _umriss_stoff: StandardMaterial3D = null
 
 ## Gemeinsame Metallkopien mit gedämpftem Metallanteil (siehe _mattes_metall).
 static var _metall_kopien: Dictionary = {}
@@ -73,6 +108,20 @@ func _ready() -> void:
 		set_physics_process(false)
 	# Nur diese drei Arten bewegen sich pro Bild.
 	set_process(art == Art.NITRO or art == Art.TNT or art == Art.FEDER)
+	if art == Art.UMRISS:
+		add_to_group("umrisskisten")
+		_koerperlich_setzen(false)
+		# Ob sie das bleibt, hängt am Auslöser – und der steht in diesem
+		# Moment vielleicht noch gar nicht in der Welt. Deshalb erst am
+		# Ende des Bildes nachsehen.
+		_umrissstand_pruefen.call_deferred()
+	elif art == Art.AUSLOESER:
+		# Ein Auslöser, der neu entsteht, ist ein Auslöser, der noch nicht
+		# gefallen ist: Nach einem Tod stellt `LevelBasis` ihn wieder hin,
+		# und dann müssen auch die Umrisse wieder verschwinden – auch die,
+		# die niemand zerschlagen hat und die deshalb nicht neu gebaut
+		# werden. Sonst bliebe ein Weg offen, den man nicht bezahlt hat.
+		_umrisse_verbergen.call_deferred()
 
 
 # ---------------------------------------------------------------- Optik
@@ -160,6 +209,54 @@ func _baue_optik() -> void:
 	_modell.add_child(korpus)
 
 	_baue_beschriftung()
+	if art == Art.UMRISS:
+		_baue_umriss()
+
+
+## Das weiße Gerippe: zwölf dünne Kanten, sonst nichts.
+##
+## Es steht NEBEN dem fertigen Korpus, nicht an seiner Stelle. Beides wird
+## einmal gebaut und beim Auslösen nur umgeschaltet – eine Kiste, die
+## mitten im Spiel ihr Mesh neu aufbaut, würde genau in dem Moment
+## stocken, in dem der Spieler hinschaut.
+func _baue_umriss() -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for achse in 3:
+		var u := (achse + 1) % 3
+		var w := (achse + 2) % 3
+		var halb := Vector3.ONE * UMRISS_KANTE
+		# Die senkrechten Pfosten laufen durch, die Querriegel stoßen an –
+		# sonst überlagern sich an jeder Ecke zwei durchscheinende Körper
+		# und die Ecken leuchten heller als die Kanten.
+		halb[achse] = 0.5 if achse == 1 else 0.5 - UMRISS_KANTE * 2.0
+		for su: float in [-1.0, 1.0]:
+			for sw: float in [-1.0, 1.0]:
+				var mitte := Vector3.ZERO
+				mitte[u] = su * (0.5 - UMRISS_KANTE)
+				mitte[w] = sw * (0.5 - UMRISS_KANTE)
+				Kistengeometrie.quader(st, mitte, halb, 0.0, 1.0)
+	st.index()
+
+	var mi := MeshInstance3D.new()
+	mi.name = "Umriss"
+	mi.mesh = st.commit()
+	_umriss_stoff = _umriss_material()
+	mi.material_override = _umriss_stoff
+	# Was nicht da ist, wirft keinen Schatten.
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	_umriss = mi
+
+
+## Weiß, durchscheinend, selbstleuchtend – auch im Gewitterlevel lesbar.
+## Eigene Kopie, weil der Umriss atmet (siehe `_process`) und die
+## Bibliothek ihre Materialien an alle austeilt.
+func _umriss_material() -> StandardMaterial3D:
+	var m := Materialbibliothek.transparent(
+			UMRISS_WEISS, 1.1).duplicate() as StandardMaterial3D
+	m.albedo_color.a = 0.55
+	return m
 
 
 ## Dunkler Innenkasten – man sieht ihn durch die Fugen zwischen den Brettern.
@@ -249,7 +346,9 @@ func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool)
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_sprung(akzent, tf))
 			_sym_sprungteller(metall, akzent)
 		Art.TNT:
-			_beschriften("TNT", 0.20, Color(1.0, 0.97, 0.90))
+			# Der Schriftzug kommt aus `_baue_beschriftung()`, weil er im
+			# Countdown zur Zahl wird. Ein zweites, festes "TNT" stand
+			# früher davor und verdeckte genau diese Zahl.
 			_sym_zuendschnur(rahmen, metall)
 		Art.NITRO:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_totenkopf(akzent, rahmen, tf))
@@ -263,6 +362,17 @@ func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool)
 			_sym_fahne(akzent, rahmen)
 		Art.SCHUTZ:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_schutz(akzent, tf))
+		Art.AUSLOESER:
+			# Dasselbe Verfahren wie beim Fragezeichen: eine echte Schrift
+			# statt eines Reliefs aus Balken (Begründung bei `_beschriften`).
+			_beschriften("!", 0.44, AUSLOESER_ZEICHEN)
+			_sym_ausloeser(akzent, metall)
+		Art.ZEIT:
+			# Die Zahl steht im eingelassenen Feld (siehe `_symboltext()`),
+			# das Zifferblatt obenauf – wie bei der Auslöserkiste, weil die
+			# Kamera von schräg oben schaut und man im Lauf keine Zeit hat,
+			# die Seitenflächen zu lesen.
+			_sym_zifferblatt(metall, akzent)
 		_:
 			pass
 
@@ -385,6 +495,49 @@ func _sym_zuendschnur(rahmen: SurfaceTool, metall: SurfaceTool) -> void:
 	Kistengeometrie.kuppel(rahmen, Vector3(0.0, 0.14, 0.0), 0.05, 0.05, 10, 3, UV_METALL, dreh)
 
 
+## Gelbe Signalkuppel oben auf der Auslöserkiste.
+##
+## Die Kamera schaut von schräg oben auf den Korridor – ein Zeichen, das
+## nur an den vier Seiten steht, sieht man dort am schlechtesten. Deshalb
+## trägt gerade diese Kiste ihr Signal auch obenauf.
+func _sym_ausloeser(akzent: SurfaceTool, metall: SurfaceTool) -> void:
+	Kistengeometrie.zylinder(metall, Vector3(0.0, 0.525, 0.0), 0.17, 0.15,
+			0.05, 12, UV_METALL)
+	Kistengeometrie.kuppel(akzent, Vector3(0.0, 0.55, 0.0), 0.13, 0.11, 12, 3,
+			UV_METALL)
+
+
+## Zifferblatt oben auf der Zeitkiste: heller Teller, zwölf Marken auf
+## dem Rand und zwei Zeiger. Der große Zeiger steht auf zwei Uhr, der
+## kleine auf zwölf – eine stehende Uhr, und genau das tut die Kiste.
+func _sym_zifferblatt(metall: SurfaceTool, akzent: SurfaceTool) -> void:
+	Kistengeometrie.zylinder(metall, Vector3(0.0, 0.515, 0.0), 0.30, 0.30,
+			0.03, 16, UV_METALL)
+	Kistengeometrie.zylinder(akzent, Vector3(0.0, 0.545, 0.0), 0.265, 0.265,
+			0.022, 16, UV_METALL)
+	# Stundenmarken auf dem Rand
+	for i in 12:
+		var winkel := TAU * float(i) / 12.0
+		var lang := i % 3 == 0
+		var r := 0.215
+		# Ort UND Ausrichtung kommen aus derselben Drehung: `quader` legt
+		# `mitte` durch `tf`, die Marke muss also im gedrehten System
+		# stehen (0, y, r) und nicht schon selbst um den Kreis gerechnet
+		# sein – sonst dreht sie zweimal und sitzt beim doppelten Winkel.
+		Kistengeometrie.quader(metall, Vector3(0.0, 0.560, r),
+				Vector3(0.016, 0.008, 0.040 if lang else 0.024),
+				0.004, UV_METALL,
+				Transform3D(Basis(Vector3.UP, winkel), Vector3.ZERO))
+	# Zeiger: lang auf zwei Uhr, kurz auf zwölf
+	Kistengeometrie.quader(metall, Vector3(0.0, 0.566, 0.085),
+			Vector3(0.014, 0.010, 0.090), 0.004, UV_METALL,
+			Transform3D(Basis(Vector3.UP, TAU / 6.0), Vector3.ZERO))
+	Kistengeometrie.quader(metall, Vector3(0.0, 0.566, 0.055),
+			Vector3(0.016, 0.010, 0.060), 0.004, UV_METALL)
+	Kistengeometrie.kuppel(metall, Vector3(0.0, 0.566, 0.0), 0.030, 0.020,
+			10, 2, UV_METALL)
+
+
 ## Ventilstutzen oben auf der Nitrokiste.
 func _sym_ventil(akzent: SurfaceTool, metall: SurfaceTool) -> void:
 	Kistengeometrie.zylinder(metall, Vector3(0.0, 0.53, 0.0), 0.11, 0.09, 0.06, 10, UV_METALL)
@@ -450,7 +603,14 @@ func _material_fuer_art() -> StandardMaterial3D:
 			return _mattes_metall(Farben.KISTE_SPRUNG)
 		Art.EISEN:
 			return _mattes_metall(Farben.KISTE_EISEN)
+		Art.AUSLOESER:
+			return Materialbibliothek.kistenholz(AUSLOESER_ORANGE)
+		Art.ZEIT:
+			return Materialbibliothek.kistenholz(Farben.KISTE_ZEIT)
 		_:
+			# Auch die ausgelöste Umrisskiste landet hier: Sobald sie da
+			# ist, ist sie eine gewöhnliche Holzkiste, und sie soll auch
+			# so aussehen. Das Weiß gehört dem Zustand, nicht der Kiste.
 			return Materialbibliothek.kistenholz(Farben.HOLZ)
 
 
@@ -473,6 +633,10 @@ func _rahmen_material() -> StandardMaterial3D:
 			return Materialbibliothek.kistenholz(Farben.KISTE_NITRO.darkened(0.55))
 		Art.FEDER:
 			return Materialbibliothek.kistenholz(Farben.KISTE_FEDER.darkened(0.5))
+		Art.AUSLOESER:
+			return Materialbibliothek.kistenholz(AUSLOESER_ORANGE.darkened(0.55))
+		Art.ZEIT:
+			return Materialbibliothek.kistenholz(Farben.KISTE_ZEIT.darkened(0.55))
 		_:
 			return Materialbibliothek.kistenholz(Farben.HOLZ_DUNKEL)
 
@@ -523,6 +687,14 @@ func _akzent_material() -> StandardMaterial3D:
 			return Materialbibliothek.einfarbig(Color(0.94, 0.96, 0.90), 0.5)
 		Art.CHECKPOINT:
 			return Materialbibliothek.einfarbig(Color(0.96, 0.98, 0.94), 0.7)
+		Art.AUSLOESER:
+			# Die Kuppel leuchtet leicht: Sie ist der einzige Knopf im
+			# Spiel, und man soll sie auch im Regen und im Dunkeln finden.
+			return Materialbibliothek.leuchtend(AUSLOESER_ZEICHEN, 0.55)
+		Art.ZEIT:
+			# Helles Zifferblatt: Im Zeitlauf sieht man die Kiste meist nur
+			# im Vorbeilaufen, und dann muss der Teller obenauf tragen.
+			return Materialbibliothek.leuchtend(Color(0.96, 0.98, 1.0), 0.5)
 		_:
 			return Materialbibliothek.einfarbig(Farben.HOLZ_DUNKEL, 0.8)
 
@@ -554,7 +726,8 @@ func _baue_beschriftung() -> void:
 ## Kisten mit eingelassener Fläche in der mittleren Brettreihe.
 func _hat_feld() -> bool:
 	return art == Art.TNT or art == Art.FEDER or art == Art.NITRO \
-			or art == Art.FRUCHT_MEHRFACH
+			or art == Art.FRUCHT_MEHRFACH or art == Art.AUSLOESER \
+			or art == Art.ZEIT
 
 
 ## Symbol je Art. Leerer Text = keine Beschriftung.
@@ -564,6 +737,8 @@ func _symboltext() -> String:
 			return str(_spruenge_uebrig)
 		Art.TNT:
 			return "TNT"
+		Art.ZEIT:
+			return str(zeit_wert)
 		_:
 			return ""
 
@@ -572,6 +747,8 @@ func _symbolfarbe() -> Color:
 	match art:
 		Art.TNT:
 			return Color(1.0, 0.94, 0.85)
+		Art.ZEIT:
+			return Color(1.0, 0.98, 0.92)
 		_:
 			return Color(0.99, 0.95, 0.86)
 
@@ -604,6 +781,14 @@ func _process(delta: float) -> void:
 						sin(_zeit * 47.0) * heftig, 0.0, cos(_zeit * 39.0) * heftig)
 		Art.FEDER:
 			_modell.position.y = sin(_zeit * 3.0) * 0.02
+		Art.UMRISS:
+			# Der Umriss atmet. Ein weißes Gerippe, das still steht, liest
+			# sich als Deko; eines, das langsam heller und dunkler wird,
+			# als etwas, das noch aussteht.
+			if _umriss_stoff != null:
+				var atem := 0.5 + 0.5 * sin(_zeit * 2.4)
+				_umriss_stoff.emission_energy_multiplier = 0.7 + atem * 0.9
+				_umriss_stoff.albedo_color.a = 0.40 + atem * 0.30
 
 
 func _physics_process(delta: float) -> void:
@@ -689,21 +874,131 @@ func _feder_absprung(spieler: Spieler) -> void:
 
 # ---------------------------------------------------------------- Schnittstelle
 
-## Von außen aufgerufen (z. B. Schockwelle des Bauchplatschers oder eine
-## Explosion). `art_treffer` ist eine Angriff-Konstante, 0 = Umgebung.
-## Jede Kistenart entscheidet selbst, ob sie darauf reagiert.
 ## True, wenn diese Kiste im Kistenzähler des Levels mitzählt.
 ## Checkpoint-, Sprung- und Eisenkisten zählen nicht.
+##
+## DIE UMRISSKISTE ZÄHLT MIT, UND ZWAR VON ANFANG AN – auch solange sie
+## nur ein Gerippe ist. Nachgesehen in `LevelBasis._kisten_zaehlen()`:
+## Die Gesamtzahl wird EINMAL beim Aufbau ermittelt und danach nie wieder;
+## `GameState.kisten_gesamt` ist für den Rest des Levels eine feste Zahl.
+## Eine Kiste, die erst später mitzählte, hätte also zwei Folgen: Der
+## Zähler in der Anzeige spränge mitten im Level von „40" auf „44", und
+## wer vorher alle übrigen Kisten geholt hat, bekäme „Alle Kisten!"
+## gemeldet, das ihm gleich darauf wieder abhandenkäme. Zählt sie dagegen
+## von Anfang an mit, steht die Zahl fest und sagt genau das, was das
+## Vorbild sagen will: Ohne den Auslöser gibt es keine hundert Prozent.
 func zaehlt_mit() -> bool:
 	return art != Art.CHECKPOINT and art != Art.SPRUNG and art != Art.EISEN
 
 
+# ------------------------------------------------- Umriss und Auslöser
+
+## Aus dem Umriss wird eine echte Kiste. Ruft die Auslöserkiste.
+func erscheinen() -> void:
+	if art != Art.UMRISS or _koerperlich or _zerstoert:
+		return
+	_koerperlich_setzen(true)
+	# Kurzes Aufploppen: Der Spieler steht oft weit weg vom Auslöser und
+	# soll die Bewegung im Augenwinkel mitbekommen.
+	_modell.scale = Vector3.ONE * 0.55
+	var t := create_tween()
+	t.tween_property(_modell, "scale", Vector3.ONE, 0.22) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Zurück zum Gerippe. Ruft ein Auslöser, der neu in die Welt kommt.
+func verbergen() -> void:
+	if art != Art.UMRISS or not _koerperlich or _zerstoert:
+		return
+	_koerperlich_setzen(false)
+	# Falls das Aufploppen noch läuft: Die Kiste soll nicht in halber
+	# Größe wieder auftauchen, wenn sie das nächste Mal erscheint.
+	_modell.scale = Vector3.ONE
+
+
+## Schaltet zwischen „noch nicht da" und „echte Kiste".
+##
+## Körperlos heißt hier `collision_layer = 0`: Der Spieler prüft Schicht 1,
+## und was auf keiner Schicht liegt, ist für ihn Luft. Die Kollisionsform
+## bleibt dabei unangetastet – sie abzuschalten hieße, mitten in einer
+## laufenden Physikabfrage am Physikserver zu drehen, und genau dorthin
+## fällt der Neuaufbau nach einem Tod.
+func _koerperlich_setzen(an: bool) -> void:
+	_koerperlich = an
+	collision_layer = 1 if an else 0
+	set_physics_process(an)      # körperlos gibt es nichts zu treffen
+	set_process(not an)          # dafür atmet der Umriss
+	_modell.visible = an
+	if _umriss != null:
+		_umriss.visible = not an
+
+
+## Der Auslöser ist gefallen – alle Umrisse des Levels werden echt.
+func _umrisse_ausloesen() -> void:
+	for knoten in get_tree().get_nodes_in_group("umrisskisten"):
+		var k := knoten as Kiste
+		if k != null and is_instance_valid(k) and not k.is_queued_for_deletion():
+			k.erscheinen()
+
+
+## Alle Umrisse des Levels warten wieder.
+func _umrisse_verbergen() -> void:
+	for knoten in get_tree().get_nodes_in_group("umrisskisten"):
+		var k := knoten as Kiste
+		if k != null and is_instance_valid(k) and not k.is_queued_for_deletion():
+			k.verbergen()
+
+
+## Sieht nach, ob dieser Umriss überhaupt noch auf etwas wartet.
+##
+## Nach einem Tod baut `LevelBasis` Kisten und Gegner aus dem Bauplan NEU
+## auf – die frische Kiste weiß nichts davon, dass ihr Auslöser längst
+## zerschlagen ist. Ein gemerkter Schalter wäre hier die falsche Lösung:
+## Der Neuaufbau stellt je nach Stand beim letzten Checkpoint auch den
+## Auslöser wieder hin, und dann müsste der Schalter wieder zurück.
+##
+## Der Auslöser IST der Zustand. Steht er noch irgendwo im Level, wartet
+## der Umriss; ist er fort, ist der Umriss körperlich – und zwar still,
+## ohne Ploppen, weil er in dieser Welt nie etwas anderes war. Damit
+## stimmt beides: Wer nach dem Auslösen stirbt, findet seinen Weg wieder
+## vor; wer davor stirbt, muss den Auslöser erneut suchen.
+##
+## Eine Umrisskiste ohne jeden Auslöser im Level steht deshalb sofort
+## körperlich da. Das ist Absicht: Sonst hinge im Level eine Kiste, die
+## niemand je erreichen kann, und die hundert Prozent wären unmöglich.
+func _umrissstand_pruefen() -> void:
+	if art != Art.UMRISS or _koerperlich or _zerstoert:
+		return
+	if not _ausloeser_steht_noch():
+		_koerperlich_setzen(true)
+
+
+func _ausloeser_steht_noch() -> bool:
+	for knoten in get_tree().get_nodes_in_group("kisten"):
+		var k := knoten as Kiste
+		if k == null or not is_instance_valid(k) or k.is_queued_for_deletion():
+			continue
+		if k.art == Art.AUSLOESER:
+			return true
+	return false
+
+
+## Von außen aufgerufen (z. B. Schockwelle des Bauchplatschers oder eine
+## Explosion). `art_treffer` ist eine Angriff-Konstante, 0 = Umgebung.
+## Jede Kistenart entscheidet selbst, ob sie darauf reagiert.
 func zerbrechen(art_treffer: int = 0) -> void:
 	if _zerstoert:
 		return
 	match art:
 		Art.EISEN, Art.SPRUNG:
 			return                       # unzerstörbar
+		Art.UMRISS:
+			# Was nicht da ist, zerbricht auch nicht – weder durch die
+			# Schockwelle des Bauchplatschers noch durch die Explosion
+			# nebenan. Sonst räumte eine TNT-Kette Kisten fort, die der
+			# Spieler nie hätte anfassen können.
+			if _koerperlich:
+				_zerbrechen_ausfuehren(art_treffer)
 		Art.NITRO:
 			# Aus der Ferne gezündet: gefahrlos für den Spieler.
 			_explodieren(NITRO_RADIUS, Farben.KISTE_NITRO, false)
@@ -734,6 +1029,11 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 		Art.LEBEN, Art.SCHUTZ:
 			Klang.spiele("kiste")
 			Klang.spiele("frucht", 1.35)
+		Art.AUSLOESER:
+			# Tiefes Glöckchen unter dem Holzknacken: Es passiert etwas
+			# weiter weg, und man soll hinsehen.
+			Klang.spiele("kiste")
+			Klang.spiele("frucht", 0.7)
 		_:
 			Klang.spiele("kiste")
 
@@ -757,6 +1057,21 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 			# Noch nicht abgeholte Früchte gibt es beim Zerbrechen dazu.
 			if _spruenge_uebrig > 0:
 				Frucht.streuen(get_parent(), global_position, _spruenge_uebrig)
+		Art.ZEIT:
+			# Sie zählt und gibt eine Frucht wie jede Holzkiste – ihr
+			# eigentlicher Wert ist die Standzeit der Uhr. Außerhalb des
+			# Zeitmodus steht sie gar nicht erst im Level.
+			GameState.kiste_zerbrochen()
+			Frucht.streuen(get_parent(), global_position, 1)
+			Zeitlauf.einfrieren(float(zeit_wert))
+			GameState.zeige_nachricht("+%d s" % zeit_wert, 0.9)
+		Art.AUSLOESER:
+			GameState.kiste_zerbrochen()
+			Frucht.streuen(get_parent(), global_position, 1)
+			# VOR dem `queue_free()` weiter unten – danach hinge der Aufruf
+			# an einem Knoten, der schon aus dem Baum genommen wird.
+			_umrisse_ausloesen()
+			GameState.zeige_nachricht("Die Umrisse werden fest!", 1.8)
 		_:
 			GameState.kiste_zerbrochen()
 			Frucht.streuen(get_parent(), global_position, 1)

@@ -12,6 +12,13 @@ class_name LevelBasis
 ## das fertige Level warten muss, hängt sich hier an.
 signal aufbau_fertig
 
+const KISTE_SZENE := preload("res://scenes/crates/Kiste.tscn")
+
+## Jede so-und-so-vielte Holzkiste wird im Zeitmodus zur Zeitkiste.
+const ZEITKISTE_ABSTAND := 3
+## Die Zahlen, die der Reihe nach auf den Zeitkisten stehen.
+const ZEITKISTE_WERTE := [2, 1, 3]
+
 ## Startpunkt des Spielers relativ zum Verlauf (Strecke auf der Kurve).
 @export var start_strecke := 2.0
 ## Hilfslinien und Zahlen ausgeben (nur zum Bauen des Levels).
@@ -77,6 +84,11 @@ func _ready() -> void:
 			(_spieler as CharacterBody3D).velocity = Vector3.ZERO
 		_spieler.set_physics_process(true)
 	_portale_verbinden()
+	# VOR dem Zählen und vor dem Bauplan: Die Zeitkisten treten an die
+	# Stelle gewöhnlicher Holzkisten, und beides – der Kistenzähler wie
+	# der Neuaufbau nach einem Tod – soll die Kiste sehen, die wirklich
+	# dasteht.
+	_zeitkisten_setzen()
 	_kisten_zaehlen()
 	_bauplan_erfassen()
 	# Zweites Aufräumen: Der Wechsel setzt den Touch-Zustand schon zurück,
@@ -85,6 +97,9 @@ func _ready() -> void:
 	GameState.level_zuruecksetzen.connect(_auf_zuruecksetzen)
 	GameState.checkpoint_gesetzt.connect(_stand_sichern)
 	_nach_aufbau()
+	# Ganz zuletzt, wenn wirklich alles steht: Die Uhr darf keine
+	# Ladezeit mitzählen.
+	Zeitlauf.beginnen(Spielfluss.aktuelles_level, _richtzeit())
 	Ladeschirm.fortschritt(1.0, "Fertig")
 	Ladeschirm.verbergen()
 	aufbau_fertig.emit()
@@ -124,6 +139,95 @@ func _bauschritte() -> Array:
 ## Haken: Wird ganz am Schluss aufgerufen, wenn alles steht.
 func _nach_aufbau() -> void:
 	pass
+
+
+## Haken: Richtzeit des Levels für den Zeitmodus, in Sekunden.
+## 0 heißt: aus der Länge des Verlaufs ableiten.
+func zielzeit() -> float:
+	return 0.0
+
+
+## Richtzeit, auf die sich die drei Stufen des Zeitlaufs beziehen.
+##
+## Die Ableitung aus der Streckenlänge ist grob, aber sie ist ehrlich
+## grob: Ein doppelt so langes Level bekommt doppelt so viel Zeit, und
+## kein Level fällt durchs Raster, nur weil jemand vergessen hat, eine
+## Zahl einzutragen. Wer es genauer will, überschreibt `zielzeit()`.
+func _richtzeit() -> float:
+	var eigen := zielzeit()
+	if eigen > 0.0:
+		return eigen
+	if verlauf == null or verlauf.get_baked_length() <= 1.0:
+		return Zeitlauf.RICHTZEIT_ERSATZ
+	var laenge := verlauf.get_baked_length()
+	if _auf_schiene():
+		return laenge / Zeitlauf.RITTTEMPO * Zeitlauf.RITT_FAKTOR
+	return laenge / Zeitlauf.LAUFTEMPO * Zeitlauf.ZEITFAKTOR
+
+
+## Klebt die Figur auf der Levelkurve (Ritt, Flucht, Rennen)?
+##
+## Erkannt an der Eigenschaft `strecke`, die nur diese Figuren haben –
+## dieselbe Prüfung nutzt der Spieltest-Bot. Ein Rittlevel rennt von
+## selbst und deutlich schneller; seine Richtzeit kommt deshalb aus einer
+## anderen Rechnung.
+func _auf_schiene() -> bool:
+	return _spieler != null and _spieler.get("strecke") != null
+
+
+## Setzt im Zeitmodus Zeitkisten an die Stelle gewöhnlicher Holzkisten.
+##
+## WARUM ERSETZEN UND NICHT DAZUSTELLEN. Eine zusätzliche Kiste bräuchte
+## einen Platz, und den kennt nur, wer das Level gebaut hat: Der Weg ist
+## an manchen Stellen zwei Meter breit, an anderen ist er ein Steg über
+## Wasser. Eine Holzkiste dagegen steht bereits an einer geprüften
+## Stelle, auf dem Weg und in Reichweite. Damit stimmt zugleich der
+## Kistenzähler weiter: Es kommt keine Kiste dazu, es geht keine
+## verloren, und "alle Kisten" bleibt im Zeitmodus dieselbe Aufgabe.
+##
+## Außerhalb des Zeitmodus passiert hier gar nichts – die Level sehen
+## dann aus wie zuvor.
+func _zeitkisten_setzen() -> void:
+	if not Zeitlauf.aktiv:
+		return
+	var umgebaut := 0
+	var gezaehlt := 0
+	for knoten in get_tree().get_nodes_in_group("kisten"):
+		var alt := knoten as Kiste
+		if alt == null or not is_instance_valid(alt) or alt.art != Kiste.Art.NORMAL:
+			continue
+		gezaehlt += 1
+		if gezaehlt % ZEITKISTE_ABSTAND != 0:
+			continue
+		if _zeitkiste_tauschen(alt, ZEITKISTE_WERTE[umgebaut % ZEITKISTE_WERTE.size()]):
+			umgebaut += 1
+	if debug:
+		print("Zeitkisten gesetzt: ", umgebaut)
+
+
+## Tauscht eine Holzkiste gegen eine Zeitkiste am selben Platz.
+## Die Optik entsteht in `_ready()`, deshalb muss die neue Kiste wirklich
+## eine neue sein – ein Umsetzen von `art` käme zu spät.
+func _zeitkiste_tauschen(alt: Kiste, wert: int) -> bool:
+	var eltern := alt.get_parent()
+	if eltern == null:
+		return false
+	var neu := KISTE_SZENE.instantiate() as Kiste
+	if neu == null:
+		return false
+	neu.art = Kiste.Art.ZEIT
+	neu.zeit_wert = wert
+	if alt.is_in_group("schwebende_kisten"):
+		neu.add_to_group("schwebende_kisten")
+	var lage := alt.transform
+	# Erst aus dem Baum nehmen, dann freigeben: `queue_free()` allein
+	# räumt erst am Ende des Bildes, und bis dahin stünde die alte Kiste
+	# noch in der Gruppe – der Kistenzähler zählte sie mit.
+	eltern.remove_child(alt)
+	alt.queue_free()
+	eltern.add_child(neu)
+	neu.transform = lage
+	return true
 
 
 func _gruppe(bezeichnung: String) -> Node3D:
@@ -177,9 +281,32 @@ func _auf_level_geschafft() -> void:
 	var alle_kisten := GameState.kisten_gesamt > 0 \
 			and GameState.kisten_zerbrochen >= GameState.kisten_gesamt
 	Spielfluss.level_abschliessen(alle_kisten, GameState.ohne_tod)
+	var warten := 4.5
+	if await _zeitlauf_werten():
+		warten = 3.0
 	# Kurz die Schlussmeldung stehen lassen, dann zurück in den Portalraum
-	await get_tree().create_timer(4.5).timeout
+	await get_tree().create_timer(warten).timeout
 	Spielfluss.zum_hub()
+
+
+## Schließt einen laufenden Zeitlauf ab und meldet das Ergebnis.
+## Rückgabe: true, wenn ein Lauf gewertet wurde.
+func _zeitlauf_werten() -> bool:
+	var gelaufen := Zeitlauf.beenden()
+	if gelaufen < 0.0:
+		return false
+	var stufe := Zeitlauf.stufe_fuer(gelaufen, Zeitlauf.richtzeit)
+	var bestzeit := Spielfluss.zeit_eintragen(Spielfluss.aktuelles_level,
+			gelaufen, stufe)
+	# Erst die Meldung des Portals stehen lassen, dann die Zeit.
+	await get_tree().create_timer(2.6).timeout
+	var text := "Zeit %s" % Zeitlauf.als_text(gelaufen)
+	if stufe != Zeitlauf.Stufe.KEINE:
+		text += " – %s!" % Zeitlauf.stufen_name(stufe)
+	if bestzeit:
+		text += "  (Bestzeit)"
+	GameState.zeige_nachricht(text, 3.0)
+	return true
 
 
 ## Zählt alle zählenden Kisten im Level und meldet sie dem Spielstand.

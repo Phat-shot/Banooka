@@ -64,6 +64,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
 tempo_start = 10.5
 tempo_max = 18.0
 tempo_anstieg = 0.26
+turbo_moeglich = true
 
 [node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
 hoehe = 6.0

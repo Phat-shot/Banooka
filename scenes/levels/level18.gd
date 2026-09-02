@@ -146,6 +146,7 @@ func _bauschritte() -> Array:
 		{"text": "Stimmung unter dem Blätterdach", "tun": _stimmungen_setzen},
 		{"text": "Portale", "tun": _portale},
 		{"text": "Kisten werden gestapelt", "tun": _kisten_setzen},
+		{"text": "Marken und Wurzelgewölbe", "tun": _bonus_bauen},
 		{"text": "Schwärme steigen auf", "tun": _gegner_setzen},
 		{"text": "Früchte werden verteilt", "tun": _fruechte_setzen},
 		{"text": "Regenwald", "tun": _wald_bauen},
@@ -455,6 +456,42 @@ func _stimmungen_setzen() -> void:
 
 func _portale() -> void:
 	portale_setzen(1.0, 4.0)
+
+
+# =========================================================== Bonusraum
+
+## Drei Marken und das Tor ins Wurzelgewölbe.
+##
+## Der Belohnungsvertrag verlangt eine dritte Ebene neben "ankommen" und
+## "alle Kisten": einen eigenen Raum, betreten über gesammelte Marken.
+## Level 18 ist das erste Level, das sie hat.
+##
+## DIE DREI MARKEN LIEGEN AUF DEN DREI FRAGEN, DIE DAS LEVEL SCHON STELLT –
+## sie erfinden keine neue Aufgabe, sie bezahlen die vorhandenen:
+##
+##   44 m   Wegkunde   · offen neben dem Sandstreifen. Die erste soll man finden,
+##                       nicht suchen; sonst lernt niemand, was sie ist.
+##  195 m   Wurzelsteg · auf der Wurzelinsel abseits über dem Abgrund –
+##                       auf dem einen Regelbruch des Levels. Wer den
+##                       Sprung ins Leere wagt, bekommt den Sammelpreis
+##                       UND den Schlüssel.
+##  254 m   Dickicht   · vier Meter über der Federkiste. Nur mit ihrem
+##                       Absprung zu holen, und das mitten in der Bahn
+##                       der Rollnuss.
+##
+## Das Tor steht bei 316 m im Nest, SEITLICH neben dem Weg: Solange
+## Marken fehlen, hat es einen Riegel, und ein Riegel darf nie im
+## Hauptweg stehen. Wer die Marken nicht hat, läuft daran vorbei und
+## verliert nichts.
+##
+## Wie das System arbeitet und was ein weiteres Level dafür tun muss,
+## steht in `scenes/bonus/bonusraum.gd`.
+func _bonus_bauen() -> void:
+	Bonusraum.einbauen(self, [
+		Vector3(44.0, 3.0, 1.2),
+		Vector3(195.0, 8.6, 1.4),
+		Vector3(254.0, 3.0, 4.0),
+	], 316.0, -5.0, "Wurzelgewölbe")
 
 
 # =========================================================== Kisten

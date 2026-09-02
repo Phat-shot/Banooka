@@ -37,7 +37,8 @@ const LEVEL_SZENEN := [
 	"res://scenes/levels/Level05.tscn",
 	"res://scenes/levels/Level06.tscn",
 	"res://scenes/levels/Level07.tscn",
-	"", "",
+	"res://scenes/levels/Level08.tscn",
+	"res://scenes/levels/Level09.tscn",
 	"res://scenes/levels/Level10.tscn",
 	"res://scenes/levels/Level11.tscn",
 	"res://scenes/levels/Level12.tscn",
@@ -76,6 +77,10 @@ signal fortschritt_geaendert
 var freigeschaltet := 1
 ## Abgeschlossene Level: Nummer -> {"kisten": bool, "fruechte": int}
 var geschafft := {}
+## Bestzeiten des Zeitmodus: Nummer -> {"zeit": float, "stufe": int}
+## Die Stufe ist die BESTE je erreichte, nicht die der letzten Zeit –
+## beide wachsen nur, keine geht durch einen schlechteren Lauf verloren.
+var zeiten := {}
 ## Gerade gespieltes Level (0 = keins).
 var aktuelles_level := 0
 ## Gewählter Speicherplatz (1..SLOTS); 0 = noch keiner gewählt.
@@ -185,6 +190,33 @@ func level_abschliessen(alle_kisten: bool, ohne_tod: bool = false) -> void:
 	fortschritt_geaendert.emit()
 
 
+## Trägt das Ergebnis eines Zeitlaufs ein.
+## Rückgabe: true, wenn es eine neue Bestzeit ist.
+func zeit_eintragen(nummer: int, gelaufen: float, stufe: int) -> bool:
+	if nummer < 1 or gelaufen <= 0.0:
+		return false
+	var eintrag: Dictionary = zeiten.get(nummer, {})
+	var alt := float(eintrag.get("zeit", 0.0))
+	var besser := alt <= 0.0 or gelaufen < alt
+	if besser:
+		eintrag["zeit"] = gelaufen
+	eintrag["stufe"] = maxi(int(eintrag.get("stufe", 0)), stufe)
+	zeiten[nummer] = eintrag
+	# Geschrieben wird wie der übrige Fortschritt erst im Portalraum.
+	fortschritt_geaendert.emit()
+	return besser
+
+
+## Bestzeit und beste Stufe eines Levels.
+## Rückgabe: {"zeit": float, "stufe": int}; Zeit 0 heißt "noch keine".
+func zeit_von(nummer: int) -> Dictionary:
+	var eintrag: Dictionary = zeiten.get(nummer, {})
+	return {
+		"zeit": float(eintrag.get("zeit", 0.0)),
+		"stufe": int(eintrag.get("stufe", 0)),
+	}
+
+
 ## Wechselt die Szene. Mit Titel wird vorher der Ladebildschirm
 ## eingeblendet – erst wenn er tatsächlich gezeichnet ist, beginnt der
 ## Wechsel, sonst sähe man während des Aufbaus die alte Szene einfrieren.
@@ -195,6 +227,10 @@ func _wechseln(pfad: String, ladetitel: String = "") -> void:
 	# Touch-Zustand aufräumen, sonst nimmt die neue Szene den Daumen vom
 	# Portal-Eingang als dauerhaften Steuerbefehl mit.
 	InputHub.zuruecksetzen()
+	# Ein Zeitlauf endet mit der Szene, in der er lief. Ohne das liefe die
+	# Uhr im Portalraum weiter – und zählte die Zeit mit, die jemand dort
+	# beim Aussuchen des nächsten Levels verbringt.
+	Zeitlauf.abbrechen()
 	if ladetitel.is_empty():
 		get_tree().change_scene_to_file.call_deferred(pfad)
 		return
@@ -222,7 +258,7 @@ func slot_pfad(slot: int) -> String:
 ##            "fruechte": int, "raum": String}
 func slot_daten(slot: int) -> Dictionary:
 	var leer := {"belegt": false, "freigeschaltet": 1, "geschafft": 0,
-			"fruechte": 0, "raum": RAUM_NAMEN[0]}
+			"fruechte": 0, "relikte": 0, "raum": RAUM_NAMEN[0]}
 	if slot < 1 or slot > SLOTS:
 		return leer
 	var datei := ConfigFile.new()
@@ -230,12 +266,18 @@ func slot_daten(slot: int) -> Dictionary:
 		return leer
 	var frei := int(datei.get_value("fortschritt", "freigeschaltet", 1))
 	var fertig: Dictionary = datei.get_value("fortschritt", "geschafft", {})
+	var laeufe: Dictionary = datei.get_value("fortschritt", "zeiten", {})
+	var relikte := 0
+	for nummer in laeufe:
+		if int((laeufe[nummer] as Dictionary).get("stufe", 0)) > 0:
+			relikte += 1
 	var raum := raum_von_level(clampi(frei, 1, LEVEL_GESAMT))
 	return {
 		"belegt": true,
 		"freigeschaltet": frei,
 		"geschafft": fertig.size(),
 		"fruechte": int(datei.get_value("fortschritt", "fruechte", 0)),
+		"relikte": relikte,
 		"raum": RAUM_NAMEN[clampi(raum - 1, 0, RAUM_NAMEN.size() - 1)],
 	}
 
@@ -262,6 +304,7 @@ func neues_spiel(slot: int) -> void:
 	aktueller_slot = clampi(slot, 1, SLOTS)
 	freigeschaltet = 1
 	geschafft = {}
+	zeiten = {}
 	fruechte_gesamt = 0
 	GameState.neu_beginnen()
 	speichern()
@@ -279,6 +322,7 @@ func spiel_laden(slot: int) -> bool:
 	aktueller_slot = slot
 	freigeschaltet = int(datei.get_value("fortschritt", "freigeschaltet", 1))
 	geschafft = datei.get_value("fortschritt", "geschafft", {})
+	zeiten = datei.get_value("fortschritt", "zeiten", {})
 	fruechte_gesamt = int(datei.get_value("fortschritt", "fruechte", 0))
 	GameState.neu_beginnen()
 	fortschritt_geaendert.emit()
@@ -294,6 +338,7 @@ func speichern() -> void:
 	var datei := ConfigFile.new()
 	datei.set_value("fortschritt", "freigeschaltet", freigeschaltet)
 	datei.set_value("fortschritt", "geschafft", geschafft)
+	datei.set_value("fortschritt", "zeiten", zeiten)
 	datei.set_value("fortschritt", "fruechte", fruechte_gesamt)
 	datei.save(slot_pfad(aktueller_slot))
 
@@ -307,6 +352,7 @@ func slot_loeschen(slot: int) -> void:
 		aktueller_slot = 0
 		freigeschaltet = 1
 		geschafft = {}
+		zeiten = {}
 		fruechte_gesamt = 0
 	fortschritt_geaendert.emit()
 

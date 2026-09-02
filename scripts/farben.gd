@@ -68,6 +68,9 @@ const KISTE_SPRUNG := Color(0.30, 0.55, 0.95)
 const KISTE_EISEN := Color(0.55, 0.57, 0.62)
 const KISTE_CHECKPOINT := Color(0.27, 0.80, 0.42)
 const KISTE_SCHUTZ := Color(0.30, 0.68, 0.95)
+## Zeitkiste: Violett ist die einzige Farbe, die im Kistenregal noch frei
+## war – Gelb gehört der Feder, Blau dem Schutz, Grün dem Checkpoint.
+const KISTE_ZEIT := Color(0.62, 0.40, 0.85)
 const ROST := Color(0.46, 0.24, 0.11)
 const ROST_HELL := Color(0.66, 0.38, 0.16)
 

@@ -12,9 +12,11 @@ class_name Levelportal
 ## musste hinsehen, um ihn zu bemerken. Der Schein wirkt schon aus dem
 ## Augenwinkel und über den halben Raum hinweg.
 ##
-## Darüber schweben bis zu zwei Edelsteine:
+## Darüber schweben bis zu drei Steine:
 ##   blau  – alle Kisten zerbrochen
 ##   rot   – Level ohne einen einzigen Tod geschafft
+##   Zeitrelikt – im Zeitmodus die Richtzeit unterboten; seine Farbe sagt
+##   welche Stufe (Saphir, Gold, Platin). Darunter steht die Bestzeit.
 ##
 ## `nummer` muss VOR `add_child()` gesetzt werden – `_ready()` baut daraus
 ## die gesamte Optik auf.
@@ -272,10 +274,16 @@ func _baue_erfolg() -> void:
 		steine.append(Farben.EDELSTEIN_KISTEN)
 	if bool(eintrag.get("ohne_tod", false)):
 		steine.append(Farben.EDELSTEIN_OHNE_TOD)
+	var zeitstand := Spielfluss.zeit_von(nummer)
+	var stufe := int(zeitstand["stufe"])
+	if stufe > 0:
+		steine.append(Zeitlauf.stufen_farbe(stufe))
 	for i in steine.size():
-		# Bei zwei Steinen rücken sie auseinander, bei einem steht er mittig.
-		var x := 0.0 if steine.size() == 1 else (float(i) - 0.5) * 0.86
+		# Ein Stein steht mittig, mehrere rücken gleichmäßig auseinander.
+		var x := (float(i) - float(steine.size() - 1) * 0.5) * 0.86
 		_edelsteine.append(_baue_edelstein(steine[i], x))
+	if float(zeitstand["zeit"]) > 0.0:
+		_baue_bestzeit(float(zeitstand["zeit"]), stufe)
 
 
 ## Warmer Schein um das ganze Tor: ein Licht in der Toröffnung und ein
@@ -316,6 +324,26 @@ func _baue_schein() -> void:
 	_schein.shadow_enabled = false
 	_schein.position = Vector3(0.0, MITTE_Y, 0.2)
 	add_child(_schein)
+
+
+## Die Bestzeit unter der Levelnummer. Sie steht klein und matt da: Wer
+## sie sucht, findet sie; wer nur zum nächsten Tor läuft, wird von ihr
+## nicht aufgehalten.
+func _baue_bestzeit(sekunden: float, stufe: int) -> void:
+	var schild := Label3D.new()
+	schild.name = "Bestzeit"
+	schild.text = Zeitlauf.als_text(sekunden)
+	schild.font_size = 44
+	schild.pixel_size = 0.0032
+	schild.modulate = Zeitlauf.stufen_farbe(stufe) if stufe > 0 \
+			else Color(0.82, 0.80, 0.74)
+	schild.outline_size = 12
+	schild.outline_modulate = Color(0.05, 0.04, 0.03, 0.92)
+	schild.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Zwischen Torbogen und Levelnummer. Unter den Ring gehört sie nicht:
+	# Dort ist der Boden, und die Schrift steckte darin.
+	schild.position = Vector3(0.0, MITTE_Y + RADIUS + 0.32, 0.0)
+	add_child(schild)
 
 
 func _baue_edelstein(ton: Color, seitlich: float) -> Node3D:

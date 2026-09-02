@@ -80,6 +80,16 @@ ob sie darauf reagiert (Eisenkisten z. B. nicht).
 Zerbricht eine zählende Kiste, ruft sie `GameState.kiste_zerbrochen()`.
 Früchte erzeugt sie über `Frucht.streuen(get_parent(), position, anzahl)`.
 
+Dreizehn Arten, eingestellt über `art`. Neue Arten kommen **ans Ende der
+Aufzählung**: `LevelBasis` merkt sich im Bauplan den Zahlenwert, und der
+darf sich nicht verschieben.
+
+Die **Zeitkiste** (`Art.ZEIT`, `zeit_wert` = 1 bis 9) gehört zum
+Zeitmodus. Sie zählt und gibt eine Frucht wie eine Holzkiste; zusätzlich
+hält sie die Uhr `zeit_wert` Sekunden an. Level setzen sie nicht selbst:
+`LevelBasis._zeitkisten_setzen()` tauscht im Zeitmodus jede dritte
+Holzkiste gegen eine – so steht sie immer auf einem geprüften Platz.
+
 ## Gegner (`scenes/enemies/gegner.gd`, `class_name Gegner`)
 
 Gruppe: `gegner`.
@@ -114,6 +124,49 @@ func leben_verlieren()
 func zeige_nachricht(text: String, dauer := 1.8)
 ```
 
+## Zeitmodus (`autoload/Zeitlauf.gd`)
+
+In den Einstellungen schaltbar (`Einstellungen.zeitmodus`), gilt dann für
+jedes betretene Level.
+
+```gdscript
+var aktiv: bool                     # Modus gewählt
+var laeuft: bool                    # Uhr läuft im aktuellen Level
+var zeit: float                     # verstrichene Zeit
+var frost: float                    # Reststandzeit aus Zeitkisten
+var richtzeit: float                # Saphirgrenze des Levels
+
+func beginnen(level_nummer: int, richt: float) -> void
+func beenden() -> float             # < 0 = es lief kein Lauf
+func abbrechen() -> void
+func einfrieren(sekunden: float) -> void
+func stufe_fuer(gelaufen: float, richt: float) -> Stufe
+static func als_text(sekunden: float) -> String
+```
+
+Drei Stufen: **Saphir** bis zur Richtzeit, **Gold** bis 85 %, **Platin**
+bis 72 %. Die Richtzeit liefert das Level über `LevelBasis.zielzeit()`;
+0 heißt „ableiten", und abgeleitet wird auf zwei Arten:
+
+* **Lauflevel:** Streckenlänge ÷ 8,5 m/s × 2,8. Der Faktor ist geschätzt,
+  nicht erspielt – wer ein Level durchmisst, trägt die Zahl mit
+  `zielzeit()` ein.
+* **Ritt-, Flucht- und Rennlevel** (die Figur klebt auf der Kurve, erkannt
+  an ihrer Eigenschaft `strecke`): Streckenlänge ÷ 15 m/s × 1,5. Sie
+  laufen von selbst und deutlich schneller, und Umwege gibt es dort nicht.
+
+Zwei Level setzen ihre Richtzeit von Hand, weil beide Ableitungen sie
+verfehlen: **Level 06** (die Kurve ist eine Runde, gefahren werden drei)
+und **Level 22** (gar keine Kurve). Der **Tod beendet den Lauf** – er setzt ihn weder zurück (ein
+Tod kurz vor dem Ziel wäre sonst die schnellste Abkürzung) noch lässt er
+ihn weiterlaufen.
+
+Gewertet wird in `LevelBasis._zeitlauf_werten()`; die Bestzeit landet
+über `Spielfluss.zeit_eintragen()` im Spielstand und erscheint im
+Portalraum als dritter Stein über dem Tor, mit der Zeit darunter.
+
+Geprüft von `werkzeuge/Zeitprobe.tscn`.
+
 ## Speicherplätze (`autoload/Spielfluss.gd`)
 
 Vier Plätze, jeder eine eigene Datei `user://spielstand_<n>.cfg`.
@@ -131,6 +184,8 @@ func spiel_laden(slot: int) -> bool        # Platz laden und in den Hub
 func speichern() -> void                   # nur mit gewähltem Platz
 func slot_loeschen(slot: int) -> void
 func bester_stand() -> Dictionary          # weitester Stand aller Plätze
+func zeit_eintragen(nummer, gelaufen, stufe) -> bool   # true = Bestzeit
+func zeit_von(nummer: int) -> Dictionary   # {"zeit": float, "stufe": int}
 ```
 
 Das Startmenü (`scenes/ui/splash.gd`) hat genau drei Einträge – Neues

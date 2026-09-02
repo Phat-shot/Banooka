@@ -318,6 +318,13 @@ func _wald_bauen() -> void:
 
 ## Schilf am Wegrand, Farne auf dem Ufer, Wurzeln über den Inseln.
 func _deko_bauen() -> void:
+	# Ferne Hügelkette. Ohne sie endet das Moor an einer kerzengeraden
+	# Linie – der Moorgrund hört auf, und darüber steht der Himmel. Die
+	# beiden Farben liegen dicht am Nebel, sonst zieht der Ring den Blick
+	# auf sich, statt die Welt nur zu schließen (siehe `horizont.gd`).
+	horizont(185.0, 15.0, Color(0.44, 0.50, 0.42), Color(0.53, 0.58, 0.48),
+			false, -4.5)
+
 	var wuerfel := randi()
 	seed(30302)
 

@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/bonus/marke.gd" id="1_marke"]
+
+[sub_resource type="SphereShape3D" id="FormMarke"]
+radius = 0.7
+
+[node name="Marke" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_marke")
+
+[node name="Kollision" type="CollisionShape3D" parent="."]
+shape = SubResource("FormMarke")
+
+[node name="Modell" type="Node3D" parent="."]

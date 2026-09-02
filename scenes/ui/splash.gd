@@ -310,9 +310,15 @@ func _slot_zeile(daten: Dictionary) -> String:
 	if not bool(daten.get("belegt", false)):
 		return "leer"
 	var frei: int = mini(int(daten.get("freigeschaltet", 1)), Spielfluss.LEVEL_GESAMT)
-	return "%s  ·  Level %02d  ·  %d geschafft  ·  %d Früchte" % [
+	var zeile := "%s  ·  Level %02d  ·  %d geschafft  ·  %d Früchte" % [
 			String(daten.get("raum", "")), frei,
 			int(daten.get("geschafft", 0)), int(daten.get("fruechte", 0))]
+	# Zeitrelikte nur nennen, wenn es welche gibt: Wer den Zeitmodus nie
+	# eingeschaltet hat, soll auf dem Platz keine Null lesen müssen.
+	var relikte := int(daten.get("relikte", 0))
+	if relikte > 0:
+		zeile += "  ·  %d Zeitrelikte" % relikte
+	return zeile
 
 
 func _slots_fuer_neues_spiel() -> void:

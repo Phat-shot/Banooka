@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/enemies/haltungsgegner.gd" id="1_haltung"]
+
+[sub_resource type="BoxShape3D" id="FormHaltung"]
+size = Vector3(0.9, 1.55, 0.9)
+
+[node name="Haltungsgegner" type="Node3D" groups=["gegner"]]
+script = ExtResource("1_haltung")
+
+[node name="Trefferzone" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Kollision" type="CollisionShape3D" parent="Trefferzone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.775, 0)
+shape = SubResource("FormHaltung")

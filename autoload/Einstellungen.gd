@@ -56,12 +56,21 @@ var debug := false:
 		debug = an
 		GameState.debug = an
 		geaendert.emit()
+## Zeitmodus: Jedes betretene Level wird auf Zeit gespielt, im Level
+## stehen Zeitkisten. Bleibt über Sitzungen erhalten – wer auf Zeit
+## spielt, tut das meist einen Abend lang.
+var zeitmodus := false:
+	set(an):
+		zeitmodus = an
+		Zeitlauf.aktiv = an
+		geaendert.emit()
 
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ORDNER)
 	laden()
 	GameState.debug = debug
+	Zeitlauf.aktiv = zeitmodus
 
 
 ## Pfad des gewählten Modells, oder "" für den Beuteldachs.
@@ -206,6 +215,7 @@ func speichern() -> void:
 	datei.set_value("figur", "groesse", modell_groesse)
 	datei.set_value("figur", "drehung", modell_drehung)
 	datei.set_value("spiel", "debug", debug)
+	datei.set_value("spiel", "zeitmodus", zeitmodus)
 	datei.set_value("spiel", "fremde_modelle", fremde_modelle)
 	datei.save(SPEICHERPFAD)
 
@@ -219,4 +229,5 @@ func laden() -> void:
 	modell_drehung = fposmod(float(datei.get_value("figur", "drehung",
 			ModellLader.STANDARDDREHUNG)), 360.0)
 	debug = bool(datei.get_value("spiel", "debug", false))
+	zeitmodus = bool(datei.get_value("spiel", "zeitmodus", false))
 	fremde_modelle = bool(datei.get_value("spiel", "fremde_modelle", true))

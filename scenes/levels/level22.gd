@@ -91,6 +91,19 @@ var _zeile_panzer: Label
 
 # =========================================================== Aufbau
 
+## Richtzeit des Zeitmodus, von Hand gesetzt.
+##
+## Dieses Level hat keine Levelkurve, aus der sich etwas ableiten ließe –
+## die Formel in `LevelBasis` fiele auf ihren Ersatzwert zurück. Gerechnet
+## ist stattdessen aus dem, was das Level verlangt: fünf Abschüsse in
+## einem Luftraum von 120 m Kante, den man bei Reisetempo in siebeneinhalb
+## Sekunden durchquert. Ein Ziel zu finden und zu treffen dauert im Dunst
+## rund eine halbe Minute, fünf also zweieinhalb; 180 Sekunden lassen für
+## Saphir Luft, für Platin (72 %) nicht mehr viel.
+func zielzeit() -> float:
+	return 180.0
+
+
 func _bauschritte() -> Array:
 	return [
 		{"text": "Der Dunst zieht auf", "tun": _anzeige_bauen},
