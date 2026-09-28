@@ -329,6 +329,84 @@ auf Ebene 1, Gras und Kleinzeug nicht.
 Das Zielportal sperrt den Spieler, zieht ihn ein und löst
 `level_geschafft` aus.
 
+## Effekte (`scripts/effekte.gd`)
+
+`Effekte` bündelt alle kurzen Spielrückmeldungen: Staub, Funken, Blitz, Kistensplitter, Rauch, Druckwellenring, Lichtsäule, Blitzlicht, Kamerawackeln, Trefferpause und Bildblitz. Dazu kommen einige dauerhafte Bausteine: Bodenfleck, Lauf- und Slidestaub sowie Zündschnurglut. Wie `Leuchtmarker` besteht die Klasse nur aus statischen Funktionen: `Effekte.funken(self, pos, Farben.KISTE_LEBEN, 16, 5.0)`. Die vollständige Schnittstelle steht im Kopfkommentar der Datei.
+
+**Regeln**
+- **Farben nie ins Material.** Die Teilchenmaterialien (`Effekte.stoff()`) sind geteilt. Die Farbe jedes Stoßes steckt in `color` des Emitters und kommt als Scheitelfarbe im Shader an.
+- **Effekte hängen an `current_scene`**, nie an Kisten oder Früchten. Der `Leuchtmarker` kopiert die Materialien des ganzen Unterbaums der Gruppen „kisten" und „fruechte". Eine eingesammelte Frucht nähme ihre Funken außerdem mit, wenn sie sich freigibt. Ein Szenenwechsel räumt die Effekte von selbst ab.
+- **`CPUParticles3D`, nicht `GPUParticles3D`**, aus demselben Grund wie beim `Staubflug`. Jeder Stoß ist `one_shot` und `top_level`, hat keine Physikinterpolation und räumt sich selbst ab: über `finished` und zusätzlich über einen Zeitgeber.
+- **Grenzen:** höchstens 24 Stöße gleichzeitig, 8 neue je Bild und 2 Blitzlichter. Wer einen Stoß anfordert, muss `null` als Rückgabe vertragen.
+- **`Effekte.staubfarbe` überlebt den Szenenwechsel.** Jedes Level setzt sie deshalb beim Aufbau, auch auf die Vorgabe `Effekte.STAUBFARBE_VORGABE`.
+- **`Effekte.reduziert`** halbiert die Mengen und schaltet Wackeln, Trefferpause, Bildblitz und Blitzlicht ab. Vorbelegt ist es nur in Handy-Browsern.
+- **Trefferpause:** `Engine.time_scale` wird für höchstens 0,2 s auf 0,05 gesetzt. Im Headless-Betrieb ist sie aus, damit die Messungen der Prüfwerkzeuge stimmen. Für den Zeitmodus ist sie fair, weil die Uhr mit dem verlangsamten Delta zählt.
+- **Bildblitz** liegt auf CanvasLayer-Ebene 0, also unter dem HUD (Ebene 1).
+
+**Kameravertrag.** Eine Kamera, die wackeln kann, bietet `func erschuettern(staerke: float) -> void` an. `staerke` ist ein „Trauma"-Wert von 0 bis 1. Die Kamera nimmt das Maximum aus altem und neuem Wert, nicht die Summe. Sie lässt den Wert selbst abklingen (etwa 2 je Sekunde), macht den Ausschlag proportional zu staerke² und setzt ihn in `sofort_ausrichten` auf 0. `Effekte` spricht die Kamera nur per `has_method` an. Abstand und `reduziert` sind dabei schon verrechnet.
+
+Übliche Stärken:
+
+| Ereignis | Stärke |
+|---|---|
+| Bauchplatscher | 0,45 |
+| TNT (mit Position) | 0,7 |
+| Schutz verloren | 0,35 |
+| Gegner besiegt | 0,2 |
+| gewöhnlicher Kistenbruch | kein Wackeln |
+
+**Portalscheibe.** `shaders/portal_wirbel.gdshader` ist für ein QuadMesh von 2r × 2r gebaut. Es arbeitet mit `blend_mix`: Additiv brennt die Scheibe vor hellem Grund zu Weiß aus. `Effekte.wirbelstoff(farbe)` liefert je Portal ein eigenes ShaderMaterial. Das Skript setzt pro Bild nur `puls` (0..1).
+
+**Stolperfallen in Godot 4.7** (gemessen im Prüfstand):
+- `CPUParticles3D.emitting` ist von Haus aus `true`. Ohne `emitting = false` vor `add_child` entstehen alle Teilchen, bevor Tempo und Größe gesetzt sind.
+- `BILLBOARD_PARTICLES` braucht `billboard_keep_scale = true`, sonst ist jedes Teilchen 1 m groß.
+- Bei Weltkoordinaten geht die Drehung des Emitters nicht auf die Teilchen über. Aufgerichtete Ringe brauchen deshalb `local_coords = true`.
+
+**Prüfstand:** `werkzeuge/Effektprobe.tscn` zeigt jeden Effekt an seiner Station und prüft Grenzen, Aufräumen, Kameravertrag und Trefferpause. Headless läuft nur diese Logik. Unter Xvfb mit `EFFEKTPROBE_ZIEL=<Verzeichnis>` und `--fixed-fps 30` entstehen zusätzlich Fotos. Den Aufruf zeigt der Kopfkommentar von `werkzeuge/effektprobe.gd`.
+
+## UI-Stil (`scripts/ui_stil.gd`, `class_name UiStil`)
+
+Eine Stelle für das Aussehen aller Menüs und Anzeigen, im Code gebaut wie
+`Materialbibliothek` – ohne `.tres` und ohne Schriftdateien. Farben stehen
+in `Farben` im Abschnitt `UI_*` (Gold, Hell, Matt, Kontur, Grund, Nacht,
+Treffer, Herz, Silber, Bronze). Für Früchte, Kisten, Warnung und
+Edelsteine gelten die Spielfarben, damit ein HUD-Symbol so aussieht wie das
+Ding in der Welt.
+
+- **Schriften:** `UiStil.schrift(&"text" | &"fett" | &"zahl" | &"titel" | &"logo" | &"sperr" | &"schwung")`
+  – FontVariations der eingebauten Schrift. `&"zahl"` hat gleich breite
+  Ziffern, `&"logo"` ist der alte Schriftzug des Startbildschirms.
+- **Flächen:** `UiStil.flaeche(art)` / `UiStil.zeichne(auf, feld, art)` mit
+  `&"tafel"`, `&"kachel"`, `&"chip"`, `&"knopf"`, `&"knopf_gewaehlt"`, `&"balken"`,
+  `&"balken_voll"`, `&"pille"`, `&"band"`, `&"schalter"`, `&"mulde"`. **Geteilt,
+  nie verändern.** Feste Abwandlungen über `getoent()`, `gerahmt()` und
+  `variante()` (ebenfalls geteilt). Für animierte Werte `eigene()`: Die Kopie
+  gehört dem Aufrufer. Kapselformen nur breiter als hoch – ein Quadrat mit
+  voller Rundung zeigt in StyleBoxFlat eine Naht, Kreise zeichnet
+  `fassung()`.
+- **Text:** `UiStil.text(auf, pos, inhalt, groesse, farbe, art, kontur, ausrichtung, breite)`
+  zeichnet mit Kontur (`Farben.UI_KONTUR`) und weichem Schatten. Ohne
+  `breite` ist `pos.x` der Anker für links, Mitte oder rechts. Dazu
+  `absatz()`, `textbreite()`, `passend()` (Schriftgröße, die in eine Breite
+  passt) und `kuerzen()` (mit „…").
+- **Theme:** `theme = UiStil.thema()` an **jeder** UI-Wurzel selbst setzen.
+  Ein CanvasLayer unterbricht die Vererbung, deshalb reicht es nicht, das
+  Theme einmal an der Wurzel des Baums zu setzen.
+- **Symbole:** `frucht()`, `herz()`, `kiste()`, `edelstein()`, `raute()`,
+  `fassung()`, `balken()`, `verlauf()`, `vignette()`, `radialverlauf()`.
+- **Bewegung:** `pop()`, `einblenden()`, `ausblenden()`, `einschweben()`,
+  `ausschweben()`, `zaehle_hoch()` und `vollenden()` liefern Tweens. Pro
+  Knoten und Kanal läuft immer nur einer; ein neuer bricht den alten ab.
+  Das beseitigt die Wettläufe, bei denen ein altes Ausblenden einen gerade
+  gezeigten Knoten wieder versteckte. Für `_process` gibt es `annaehern()`
+  und `federkurve()`.
+- **Blende:** `UiStil.Blende` ist ein Vollbild-ColorRect für Übergänge mit
+  `zu()`, `auf()`, `blitz(farbe, dauer, halten)`, `iris_zu(mitte)` und
+  `iris_auf(mitte)`. Jede Oberfläche (HUD, Startbildschirm, Ladeschirm) legt
+  sich ihre eigene an. Die Blende läuft auch bei angehaltenem Spiel und ist
+  unsichtbar, solange sie nichts deckt. Die Iris ist ein einfacher
+  canvas_item-Shader und läuft auch auf WebGL2.
+
 **Renderer:** Das Projekt läuft auf `gl_compatibility` (Web-Export).
 Keine `SCREEN_TEXTURE`/`DEPTH_TEXTURE`, keine Compute-Shader, kein
 SDFGI oder Volumetric Fog.

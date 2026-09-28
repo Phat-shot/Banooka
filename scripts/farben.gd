@@ -135,3 +135,53 @@ const FROSTTIER_BAUCH := Color(0.62, 0.70, 0.82)
 const HIMMEL_OBEN := Color(0.29, 0.51, 0.72)
 const HIMMEL_UNTEN := Color(0.62, 0.74, 0.78)
 const NEBEL := Color(0.55, 0.66, 0.66)
+
+# --- Bedienoberfläche (Menüs, HUD, Tafeln) ---
+# Eine Stelle für alle UI-Farben. Vorher stand dasselbe Gold in fünf
+# Dateien, das Cremeweiß in dreien mit leicht verschiedenen Werten – beim
+# Nebeneinander von HUD und Statustafel sah man den Unterschied. Gebaut
+# wird damit in `UiStil` (scripts/ui_stil.gd). Für Früchte, Kisten,
+# Warnung und Edelsteine gelten die Spielfarben oben, damit ein Symbol im
+# HUD dieselbe Farbe hat wie das Ding in der Welt.
+
+## Bernsteingold: Auswahl, Überschriften, Akzente.
+const UI_GOLD := Color(1.0, 0.78, 0.32)
+## Helles Gold: gewählte Einträge, Titelzeilen auf dunklem Grund.
+const UI_GOLD_HELL := Color(1.0, 0.93, 0.74)
+## Cremeweiß für Text und Zahlen – reines Weiß wirkt neben dem warmen
+## Gold kalt und grell.
+const UI_HELL := Color(0.96, 0.95, 0.90)
+## Schrift ruhender (nicht gewählter) Menüeinträge.
+const UI_TEXT_RUHE := Color(0.86, 0.85, 0.79)
+## Zweitrangiger Text: Beschriftungen, Hinweise, Fußzeilen. Nur auf
+## dunklem Grund (Tafeln, Chips) – direkt über hellem Himmel wird das
+## halbdurchsichtige Weiß himmelblau und ist kaum noch zu lesen.
+const UI_MATT := Color(1, 1, 1, 0.55)
+## Kontur um Schrift und Symbole. Warmes Dunkelbraun statt Schwarz: Auf
+## dem Grün und Ocker von Level 01 wirkt Schwarz wie ausgestanzt, das
+## Braun gehört zum Bild.
+const UI_KONTUR := Color(0.09, 0.05, 0.02, 0.92)
+## Tafelgrund: dunkles Moos, fast deckend.
+const UI_GRUND := Color(0.05, 0.08, 0.07, 0.92)
+## Leichter Grund für HUD-Chips: Die Welt soll durchscheinen.
+const UI_GRUND_LEICHT := Color(0.04, 0.07, 0.06, 0.58)
+## Menüknopf in Ruhe und gewählt (Werte aus `MenueEintrag`).
+const UI_KNOPF := Color(0.05, 0.06, 0.05, 0.52)
+const UI_KNOPF_GEWAEHLT := Color(0.10, 0.09, 0.06, 0.86)
+## Schleier hinter Overlays (Statustafel, Speicherplätze).
+const UI_ABDUNKELN := Color(0.02, 0.03, 0.03, 0.72)
+## Blendenfarbe für Übergänge: fast schwarz, mit einem Hauch Waldgrün,
+## damit der Wechsel zum dunkelgrünen Ladeschirm nicht springt.
+const UI_NACHT := Color(0.02, 0.03, 0.03)
+## Treffer- und Todesblitz: tiefes Rot, nicht grell – er liegt über dem
+## ganzen Bild.
+const UI_TREFFER := Color(0.10, 0.02, 0.02)
+## Leben (Herz im HUD).
+const UI_HERZ := Color(1.0, 0.32, 0.36)
+## Siegerpodest: Gold ist UI_GOLD, dazu Silber und Bronze.
+const UI_SILBER := Color(0.82, 0.85, 0.92)
+const UI_BRONZE := Color(0.80, 0.52, 0.28)
+## Schriftzug des Startbildschirms: helle Fläche, braune Tiefe, dunkle Kante.
+const UI_TITEL_FUELLUNG := Color(1.0, 0.90, 0.66)
+const UI_TITEL_TIEFE := Color(0.55, 0.24, 0.06)
+const UI_TITEL_KONTUR := Color(0.11, 0.06, 0.03)

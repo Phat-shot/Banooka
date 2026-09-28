@@ -97,7 +97,7 @@ kurz vor dem Ziel die schnellste Abkürzung.
 
 ## Starten
 
-Projektordner in Godot 4.3+ öffnen und F5 drücken. Die Hauptszene ist
+Projektordner in Godot 4.7.2 öffnen und F5 drücken. Die Hauptszene ist
 `scenes/ui/Splash.tscn` – Startbildschirm, Speicherplatz wählen,
 Portalraum. `scenes/levels/Testlevel.tscn` bleibt als schlichter
 Testkorridor für den Controller erhalten, `scenes/levels/Werkstatt.tscn`
@@ -138,6 +138,62 @@ als Schwierigkeitsurteil.
 
 `Zeittafel` druckt für jedes Level die Richtzeit des Zeitmodus samt ihrer
 Herkunft.
+
+### Bildvergleich und Kostenmessung (`werkzeuge/schaufenster.sh`, `foto.sh`, `kontaktbogen.py`)
+
+Jede sichtbare Änderung wird an Bild UND Preis gemessen. Der Preis zählt, weil das Spiel im Browser und auf Mobilgeräten läuft (WebGL2, Compatibility-Renderer). Das Werkzeug dafür ist ein fester Bildersatz, das „Schaufenster“: Splash, Hub und Level 01, immer aus denselben Blickwinkeln.
+
+```
+export PATH=~/godot-bin:$PATH
+VORHER=HEAD bash werkzeuge/schaufenster.sh /tmp/schau   # Stand von HEAD  -> /tmp/schau/vorher/
+bash werkzeuge/schaufenster.sh /tmp/schau               # Arbeitsstand     -> /tmp/schau/jetzt/
+SCHAUFENSTER_TEILE=l01 bash werkzeuge/schaufenster.sh /tmp/schau   # nur ein Teil
+```
+
+- **Teile:**
+  - `splash`: Splash, zwei Aufnahmen im Abstand von 70 Bildern
+  - `hub`: verfolger 0, 14, 60
+  - `l01`: verfolger 4, 30, 50, 75, 112, 136, 170, 192, 216, 233
+  - `l01seite`: seite 50, 170
+  - `l01nah`: nah 30
+- **Ausgabe je Seite:**
+  - `<teil>/*.png` mit den Aufnahmen
+  - `<teil>/werte.tsv` mit den Kosten je Bild
+  - `werte.tsv` mit allen Teilen zusammen
+  - `<teil>.png` als Kontaktbogen
+
+  Sobald beide Seiten da sind, kommen `vergleich_<teil>.png` dazu (vorher | jetzt | Differenz × 4) und die Tabelle „Draw-Calls vorher -> jetzt“.
+- **Vergleichbarkeit:** Godot läuft mit `--fixed-fps 30`. Jedes Bild ist damit genau 1/30 s Spielzeit, auf einer Grafikkarte wie unter llvmpipe. FOTO_*-Variablen aus der Shell werden verworfen. Gemessenes Rauschen zwischen zwei gleichen Läufen:
+  - Splash und Hub: pixelgleich.
+  - Level 01: mittlere Abweichung 0,1–1,0 (Skala 0–255), Draw-Calls ±2. Ursache sind bewegte Gegner.
+
+  Kleinere Unterschiede als diese sind also kein Befund.
+- **`VORHER=<ref>`** rendert aus `git archive`, das Arbeitsverzeichnis bleibt unberührt. Werkzeug von heute, Spiel von damals: `foto.gd` und `Foto.tscn` kommen aus dem Arbeitsstand, damit auch alte Stände Kostenwerte liefern.
+- **Ohne Bildschirm:** Ohne `DISPLAY` startet `foto.sh` selbst einen unsichtbaren X-Server (`xvfb-run`). Gezeichnet wird dann mit Mesa/llvmpipe, langsam (2–3 Bilder/s), aber pixelgenau. Der ganze Satz dauert rund 4 min.
+- **Kostenzeile je Aufnahme** (`foto.gd`): `draw 2025  obj 2043  prim 859k  vram 94.4 MB  knoten 3555`. Das sind Zählwerte, keine Zeiten; sie sind also zwischen Rechnern vergleichbar. `draw` schließt die Schattenkarten der Sonne ein. Getrennt ausweisen kann der Compatibility-Renderer sie nicht.
+  - Gemessen an Level 01: Ohne Sonnenschatten sind es bei 4 m 1286 statt 2026 Draw-Calls, bei 170 m 480 statt 1027.
+  - Die Sonne läuft dort mit vier Schattenstufen. `cast_shadow` aus bei Kleinkram spart deshalb bis zu vier Draw-Calls je Objekt.
+
+  `FOTO_BUDGET_DRAW=N` warnt, wenn ein Bild das Budget überschreitet.
+- **Neu in `foto.sh`** (Aufruf wie bisher):
+  - `GODOT` wird beachtet.
+  - `FOTO_ARGS` reicht weitere Godot-Argumente durch (z. B. `"--fixed-fps 30"`).
+  - `FOTO_KOPIE` nimmt eine schon importierte Kopie.
+  - `FOTO_ZEITLIMIT` begrenzt die Laufzeit.
+  - `FOTO_WERTE` ist die Datei für die Kostentabelle.
+  - Skriptfehler aus dem Import werden angezeigt, statt nur als fehlende Bilder aufzufallen.
+- **Kontaktbogen einzeln:** `uvx --with pillow python werkzeuge/kontaktbogen.py <ordner>` oder `… --vergleich --diff <vorher> <jetzt> -o out.png`. Die Beschriftung zeigt die Kosten und die Farbwerte `hell` (mittlere Luma 0–255), `warm` (Farbton 330–60°) und `kühl` (180–260°), jeweils in % der kräftigen Pixel.
+
+**Ausgangswerte vor der Verschönerung** (HEAD 612b7de, Draw-Calls je Aufnahme):
+
+| Teil | Werte |
+|---|---|
+| Splash | 214 / 216 |
+| Hub | 662 / 671 / 654 |
+| Level 01, verfolger | 4 m 2025 · 30 m 2005 · 50 m 1912 · 75 m 2151 · 112 m 1717 · 136 m 1559 · 170 m 1027 · 192 m 833 · 216 m 566 · 233 m 302 |
+| Level 01, seite | 50 m 1026 · 170 m 2916 |
+| Level 01, nah | 30 m 382 |
+| VRAM | Level 01 94,4 MB, Hub 59,6 MB, Splash 63,7 MB |
 
 ## Im Browser starten
 

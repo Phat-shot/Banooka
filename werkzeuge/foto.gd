@@ -1,10 +1,12 @@
 extends Node
 ## Rendert Bilder einer Szene und legt sie als PNG ab.
 ##
-## Aufruf über werkzeuge/foto.sh – dort stehen auch die Parameter.
+## Aufruf über werkzeuge/foto.sh (einzelne Szene) oder
+## werkzeuge/schaufenster.sh (fester Bildersatz für Vorher/Nachher).
 ## Godot kann im Headless-Modus nicht zeichnen; das Skript braucht daher
 ## einen echten Bildschirm (X11/Wayland). foto.sh legt das Fenster
-## außerhalb des sichtbaren Bereichs ab.
+## außerhalb des sichtbaren Bereichs ab und startet ohne DISPLAY selbst
+## einen unsichtbaren X-Server (xvfb-run).
 ##
 ## Umgebungsvariablen:
 ##   FOTO_ZIEL     Ausgabeverzeichnis (Pflicht)
@@ -26,6 +28,28 @@ extends Node
 ##                 (nur verfolger/seite/nah) – zeigt, wie stark die Kamera
 ##                 seitliche Bewegungen mitnimmt
 ##   FOTO_SEITENFAKTOR  überschreibt `seiten_faktor` der Korridorkamera
+##   FOTO_WERTE    Datei (absoluter Pfad), an die je Aufnahme eine
+##                 Tab-getrennte Zeile mit den Kosten angehängt wird;
+##                 Kopfzeile beim Anlegen:
+##                 bild  draw  objekte  primitive  vram_mb  knoten
+##   FOTO_BUDGET_DRAW  Draw-Calls je Bild; darüber gibt es eine WARNUNG
+##
+## Ausgabe je Aufnahme, eine Zeile – Bild und Kosten stehen zusammen, damit
+## jede Verschönerung zugleich nach Aussehen UND Preis beurteilt wird:
+##   ok   <pfad>  draw 2026  obj 2044  prim 859k  vram 94.4 MB  knoten 3555
+## draw      Draw-Calls des ganzen Bildes, die Schattenkarten der Sonne
+##           eingerechnet. Getrennt ausweisen kann der Compatibility-
+##           Renderer sie nicht (seine Schatten-Zählung bleibt immer 0),
+##           deshalb fehlt eine eigene Spalte. Gemessen an Level 01: ohne
+##           Sonnenschatten 1286 statt 2026 Draw-Calls bei 4 m, 480 statt
+##           1027 bei 170 m – die Schatten kosten dort also gut ein Drittel
+##           bis die Hälfte. Die Sonne läuft mit vier Schattenstufen; ein
+##           Objekt mit `cast_shadow` aus spart bis zu vier Draw-Calls.
+## obj/prim  gezeichnete Objekte und Primitive (Dreiecke), ebenfalls gesamt
+## vram      belegter Grafikspeicher, knoten = Knoten im Baum
+## Das sind Zählwerte, keine Zeiten: Sie stimmen unter llvmpipe (Xvfb)
+## und auf einer echten Grafikkarte überein, sind also zwischen Rechnern
+## vergleichbar. Headless (Dummy-Renderer) stehen dort nur Nullen.
 
 const STANDARD_STELLEN := "4,24,50,60,86,112,136,162,192,216,233"
 const STANDARD_WINKEL := "0,72,144,216,288"
@@ -209,4 +233,43 @@ func _fotografiere(stellen: PackedStringArray, modus: String) -> void:
 		await RenderingServer.frame_post_draw
 		var name := "%s/%s_%02d_%03d.png" % [ziel, modus, i, int(wert)]
 		var fehler := get_viewport().get_texture().get_image().save_png(name)
-		print("  %s  %s" % ["ok " if fehler == OK else "FEHLER", name])
+		_melde_aufnahme(name, fehler == OK)
+
+
+## Druckt die Aufnahmezeile mit den Kosten des Bildes und hängt sie auf
+## Wunsch an FOTO_WERTE an.
+##
+## Muss direkt nach `frame_post_draw` laufen: Die Zähler gelten für das
+## zuletzt gezeichnete Bild und fangen beim nächsten wieder bei null an.
+## Ein einziges `await` dazwischen, und die Werte gehörten schon zu einem
+## anderen Bild als dem gespeicherten.
+func _melde_aufnahme(pfad: String, gespeichert: bool) -> void:
+	var draw := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	var objekte := int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME))
+	var primitive := int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
+	var vram_mb := Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0
+	var knoten := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+
+	print("  %s  %s  draw %d  obj %d  prim %dk  vram %.1f MB  knoten %d" % [
+			"ok " if gespeichert else "FEHLER", pfad, draw, objekte,
+			roundi(primitive / 1000.0), vram_mb, knoten])
+
+	var budget := OS.get_environment("FOTO_BUDGET_DRAW")
+	if budget.is_valid_int() and draw > int(budget):
+		print("  WARNUNG: %d Draw-Calls, Budget %s" % [draw, budget])
+
+	var werte := OS.get_environment("FOTO_WERTE")
+	if werte.is_empty():
+		return
+	# READ_WRITE statt WRITE: WRITE leert die Datei, und mehrere Läufe
+	# (ein Aufruf je Szene) sammeln in dieselbe Tabelle.
+	var neu := not FileAccess.file_exists(werte)
+	var datei := FileAccess.open(werte, FileAccess.WRITE if neu else FileAccess.READ_WRITE)
+	if datei == null:
+		print("HINWEIS: FOTO_WERTE nicht schreibbar: %s" % werte)
+		return
+	if neu:
+		datei.store_line("bild\tdraw\tobjekte\tprimitive\tvram_mb\tknoten")
+	datei.seek_end()
+	datei.store_line("%s\t%d\t%d\t%d\t%.1f\t%d" % [
+			pfad.get_file(), draw, objekte, primitive, vram_mb, knoten])
