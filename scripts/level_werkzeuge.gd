@@ -324,6 +324,8 @@ static func kurve_aus_punkten(punkte: Array, glaettung: float = 0.45) -> Curve3D
 ##                    Angabe die des Materials. Waagerecht feiner als
 ##                    senkrecht gestreckt, liegen die Schichten flacher.
 ##   helligkeit       Vector2(unten, oben) für den Verlauf in `_wandfarbe`.
+##                    Ein Abschnitt kann ihn mit eigenem "helligkeit"
+##                    überschreiben.
 ##   kronen_merken    legt je Wandsäule Lagen und Krone als Metadatum
 ##                    "kronen" an der Wurzel ab – für Bewuchs, der der Wand
 ##                    folgen muss (`Schluchtsaum`).
@@ -380,6 +382,12 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		var abstand: float = eintrag.get("abstand", 8.0)
 		var hoehe: float = eintrag.get("hoehe", 12.0)
 		var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+		# Ein Abschnitt darf seinen eigenen Helligkeitsverlauf haben: Eine
+		# niedrige Wand in praller Sonne braucht einen dunkleren als eine
+		# hohe im Schatten. Ohne Angabe gilt der der ganzen Wand.
+		var eigene: Vector2 = eintrag.get("helligkeit", helligkeit)
+		for seite: float in [-1.0, 1.0]:
+			je_seite[seite]["helligkeit"] = eigene
 		for i in anzahl:
 			var s := lerpf(von, bis, (float(i) + 0.5) / float(anzahl))
 			# Zwei Wellen mit unterschiedlicher Länge: das Band wandert

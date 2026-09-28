@@ -146,12 +146,20 @@ const ABSCHNITTE := [
 ## Die Abschnitte überlappen sich um gut einen Meter. Stießen sie genau
 ## aneinander, klaffte in der Kurve dort, wo der Abstand wechselt, ein
 ## senkrechter Schlitz, durch den helles Grün von draußen hereinschien.
+##
+## Die niedrigen Wände der Kronen und der Lichtung stehen in der Sonne statt
+## im Schatten der Schlucht. Mit dem Helligkeitsverlauf der hohen Wände
+## waren ihre Blockköpfe die hellsten, buntesten Flächen im Bild – heller
+## als der Weg und wieder wie Pappkartons. Sie bekommen einen eigenen,
+## dunkleren Verlauf.
 const WAENDE := [
 	{"von": -8.0, "bis": 43.2, "abstand": 5.9, "hoehe": 9.5},
 	{"von": 40.8, "bis": 101.2, "abstand": 5.2, "hoehe": 11.0},
 	{"von": 98.8, "bis": 159.2, "abstand": 5.6, "hoehe": 10.0},
-	{"von": 156.8, "bis": 209.2, "abstand": 12.5, "hoehe": 6.0},
-	{"von": 206.8, "bis": 247.0, "abstand": 7.2, "hoehe": 6.5},
+	{"von": 156.8, "bis": 209.2, "abstand": 12.5, "hoehe": 6.0,
+			"helligkeit": Vector2(0.55, 0.84)},
+	{"von": 206.8, "bis": 247.0, "abstand": 7.2, "hoehe": 6.5,
+			"helligkeit": Vector2(0.55, 0.84)},
 ]
 
 ## Abschnitte, in denen die Wand am Weg steht und deshalb eine glatte
@@ -229,34 +237,73 @@ func _waende_bauen() -> void:
 ## genau der Wand, die `_waende_bauen()` gesetzt hat.
 func _bewuchs_bauen() -> void:
 	var kronen: Array = _wand.get_meta("kronen", [])
-	# Auf der Lichtung blüht es üppiger: Sie ist die Belohnung am Ende, und
-	# nach der Schlucht ist sie der erste Ort mit Farbe. Dafür zwei Aufrufe
-	# über getrennte Säulen – die Stücke sind ohnehin nach Strecke geteilt.
+	# Drei Aufrufe über getrennte Säulen – die Stücke sind ohnehin nach
+	# Strecke geteilt:
+	#   Schlucht  kaum Blüten. Jeder helle Tupfer auf dem dunklen Fels zog
+	#             den Blick vom Weg weg, und in Massen las es sich als
+	#             Konfetti.
+	#   Kronen    niedrige Wände in der Sonne: dichter Blattsaum, der die
+	#             Blockköpfe bricht.
+	#   Lichtung  blüht üppig und auch hell – sie ist die Belohnung am Ende
+	#             und nach der Schlucht der erste Ort mit Farbe.
 	var schlucht: Array = []
+	var grat: Array = []
 	var lichtung: Array = []
 	for eintrag in kronen:
 		var e: Dictionary = eintrag
-		if float(e["s"]) < M_LICHTUNG - 2.0:
-			schlucht.append(e)
-		else:
+		var s: float = e["s"]
+		# Bis wohin die Pflanzen am Wandfuß reichen dürfen: bis kurz vor die
+		# Außenkante des Weges, über die äußere Hälfte der Rasenkante, nie
+		# darüber hinaus. An einer Lücke gilt der Weg daneben.
+		var breite := maxf(_breite_bei(s), maxf(_breite_bei(s - 3.0), _breite_bei(s + 3.0)))
+		e["weg_rand"] = breite * 0.5 - 0.3 if breite > 0.0 else float(e["abstand"]) - 1.0
+		if s >= M_LICHTUNG - 2.0:
 			lichtung.append(e)
+		elif float(e["abstand"]) > 8.0:
+			grat.append(e)
+		else:
+			schlucht.append(e)
 	var bewuchs := {
 		"saat": 1802,
 		"saum": 2.0,
 		"ranken": 2.4,
 		"simse": 0.8,
-		"fuss": 0.7,
-		"blueten": 1.5,
+		"fuss": 0.45,
+		"blueten": 0.4,
 	}
 	Schluchtsaum.bauen(deko, verlauf, schlucht, bewuchs)
+	bewuchs["saat"] = 1804
+	bewuchs["saum"] = 3.0
+	Schluchtsaum.bauen(deko, verlauf, grat, bewuchs)
 	bewuchs["saat"] = 1803
-	bewuchs["blueten"] = 4.0
+	bewuchs["blueten"] = 2.0
+	bewuchs["helle_blueten"] = true
 	Schluchtsaum.bauen(deko, verlauf, lichtung, bewuchs)
+
 	# Der Wasserfall am Ende der ersten langen Geraden: Wer aus dem
 	# Waldrand kommt, schaut in der Rechtskurve genau auf diese Wand. Er
-	# stürzt in die erste Lücke über dem Bach – der Abgrund bekommt damit
-	# eine Tiefe, die man sieht, und die Lücke ist von Weitem als Lücke da.
-	Wasserfall.an_schluchtwand(deko, verlauf, kronen, 58.5, -1.0, 3.2, -12.0)
+	# stürzt mitten in die erste Lücke über dem Bach – der Abgrund bekommt
+	# damit eine Tiefe, die man sieht, und die Lücke ist von Weitem als
+	# Lücke da. Stand er an ihrem Anfang, schien er auf der Wegkante neben
+	# der Kiste aufzuschlagen.
+	const FALL_STRECKE := 59.5
+	Wasserfall.an_schluchtwand(deko, verlauf, kronen, FALL_STRECKE, -1.0, 4.2, -12.0)
+	# Gischt, wo er unten aufschlägt: Wer über die Lücke springt, sieht
+	# hinab in Dunst statt auf das Ende eines Bandes.
+	var gischt := STAUB.instantiate() as Staubflug
+	gischt.raum = Vector3(4.0, 8.0, 4.0)
+	gischt.anzahl = 26
+	gischt.groesse = 0.45
+	gischt.groessen_streuung = 0.4
+	gischt.farbe = Color(0.78, 0.88, 0.9)
+	gischt.deckkraft = 0.16
+	gischt.steiggeschwindigkeit = 0.9
+	gischt.wirbel = 0.6
+	gischt.funkeln = 0.0
+	gischt.saat = 5960
+	gischt.position = LevelWerkzeuge.punkt(verlauf, FALL_STRECKE,
+			-(float(_wand_bei(FALL_STRECKE)["abstand"]) - 1.4), -12.5)
+	deko.add_child(gischt)
 
 	# Wurzeltore an den Abschnittswechseln: Sie geben dem Weg einen Takt,
 	# und jedes kündigt an, dass danach etwas Neues kommt.
@@ -314,6 +361,7 @@ func _boden_bauen() -> void:
 ## Vertex-Shader auf MultiMesh-Knoten – je Bild kostet es zwei Zuweisungen.
 func _bewegung_setzen() -> void:
 	var fall := _lichtrichtung()
+	var seite := 1.0
 	for stelle: float in [18.0, 58.0, 96.0, 132.0, 178.0, 214.0]:
 		var staub := STAUB.instantiate() as Staubflug
 		staub.raum = Vector3(7.0, 12.0, 7.0)
@@ -323,18 +371,32 @@ func _bewegung_setzen() -> void:
 		deko.add_child(staub)
 
 		# Der Staub hieß von Anfang an "Lichtschacht" – nur gab es den
-		# Schacht nicht, und die Flusen trieben im Schatten. Jetzt fällt an
-		# jeder Säule ein Bündel Strahlen schräg durch das Blätterdach, in
-		# der Richtung der Sonne, damit Strahl und Schatten zusammenpassen.
-		# Über dem offenen Blätterdach der Kronen und der Lichtung heller.
+		# Schacht nicht, und die Flusen trieben im Schatten. Jetzt fällt in
+		# der Schlucht an jeder Säule ein Bündel Strahlen schräg über die
+		# Kante, in der Richtung der Sonne, damit Strahl und Schatten
+		# zusammenpassen. Sichtbar nur unterhalb der Wandkrone (`decke`).
+		#
+		# Nicht über den Kronen und der Lichtung: Dort ist kein Dach, durch
+		# das Licht fallen könnte, und die Strahlen standen als Such-
+		# scheinwerfer vor dem Himmel – Konkurrenz für das Zielportal.
+		#
+		# Das Bündel steht seitlich an der Wand, abwechselnd links und
+		# rechts: In der Wegmitte fuhr die Kamera mitten hindurch, und jede
+		# Bahn kostet Füllrate, auch dort, wo sie ausgeblendet ist.
+		if stelle >= M_KRONEN:
+			continue
+		var wand := _wand_bei(stelle)
+		seite = -seite
 		var schacht := Lichtschacht.new()
 		schacht.richtung = fall
 		schacht.laenge = 22.0
-		schacht.breite = 2.4
-		schacht.anzahl = 5 if stelle > M_KRONEN else 4
-		schacht.staerke = 0.14 if stelle > M_KRONEN else 0.1
+		schacht.breite = 2.2
+		schacht.anzahl = 4
+		schacht.streuung = 1.2
+		schacht.staerke = 0.1
 		schacht.saat = int(stelle) + 7
-		schacht.position = LevelWerkzeuge.punkt(verlauf, stelle, 0.0, -0.5)
+		schacht.position = LevelWerkzeuge.punkt(verlauf, stelle, seite * 2.6, -0.5)
+		schacht.decke = LevelWerkzeuge.punkt(verlauf, stelle).y + float(wand["hoehe"])
 		deko.add_child(schacht)
 
 	for stelle: float in [30.0, 84.0, 140.0, 196.0]:
@@ -783,41 +845,65 @@ func _kronenwald() -> void:
 		for seite: float in [-1.0, 1.0]:
 			var strecke := s + wuerfel.randf_range(-1.2, 1.2)
 			var rand := maxf(_breite_bei(strecke) * 0.5, 3.0)
-			# An den Lücken tiefer: Wer dort hinabschaut, soll den Absturz
-			# sehen und nicht ein Polster, auf dem er landen könnte.
+			# An den Lücken deutlich tiefer, unter der Absturzzone: Wer dort
+			# hinabschaut, soll den Absturz sehen und nicht ein Polster, auf
+			# dem er landen könnte. Auch neben dem Grat liegen die Wipfel ein
+			# gutes Stück unter der Kante – knapp darunter standen sie aus
+			# der Kamera wie Büsche am Wegrand.
 			var tiefer := 0.0 if _breite_bei(strecke) > 0.0 \
 					and _breite_bei(strecke - 2.5) > 0.0 \
-					and _breite_bei(strecke + 2.5) > 0.0 else 3.0
+					and _breite_bei(strecke + 2.5) > 0.0 else 6.0
 			dach.append({
 				"fuss": LevelWerkzeuge.punkt(verlauf, strecke,
 						seite * (rand + wuerfel.randf_range(1.6, 4.8)), WALDBODEN_HOEHE),
-				"hoehe": -WALDBODEN_HOEHE - wuerfel.randf_range(2.4, 4.4) - tiefer,
+				"hoehe": -WALDBODEN_HOEHE - wuerfel.randf_range(3.2, 5.0) - tiefer,
 				"breite": wuerfel.randf_range(2.6, 3.8),
+			})
+			# Ein zweiter, tieferer Ring bis an die Wand: Ohne ihn sah man
+			# zwischen Wipfeln und Fels auf den kahlen Waldboden hinab.
+			var aussen := s + wuerfel.randf_range(-1.8, 1.8)
+			dach.append({
+				"fuss": LevelWerkzeuge.punkt(verlauf, aussen,
+						seite * wuerfel.randf_range(9.0, 11.5), WALDBODEN_HOEHE),
+				"hoehe": -WALDBODEN_HOEHE - wuerfel.randf_range(5.0, 7.0),
+				"breite": wuerfel.randf_range(3.0, 4.2),
 			})
 		s += wuerfel.randf_range(3.2, 4.4)
 	Schluchtsaum.blaetterdach(deko, dach, 15804)
 
 	# --- fern: Riesen neben dem Grat ---
-	s = M_KRONEN + 3.0
+	# Zwischen Blättermeer und Wand, locker gestellt und nur wenig über die
+	# Wegkante ragend: Sie sollen den ersten offenen Blick des Levels rahmen,
+	# nicht verstellen. Standen sie dichter und höher, füllten gestapelte
+	# Kronen das linke und rechte Bilddrittel. Weiter hinaus geht es nicht –
+	# ab 12,5 m steht die Kronenwand, und dahinter wären sie verschwunden.
+	s = M_KRONEN + 4.0
 	var seite_fern := 1.0
 	while s < M_LICHTUNG - 2.0:
+		# Nicht neben eine Lücke: Dort soll der Blick hinab frei sein, und
+		# eine Krone auf Weghöhe gleich daneben sah aus wie ein Busch, auf
+		# dem man landen könnte.
+		if _breite_bei(s) <= 0.0 or _breite_bei(s - 3.0) <= 0.0 \
+				or _breite_bei(s + 3.0) <= 0.0:
+			s += 2.0
+			continue
 		var b := BAUM.instantiate() as Baum
 		b.eigenbau = true
 		b.kollision = false
 		b.kronenform = Baum.Kronenform.HOCH
 		b.kronenfuelle = 1.5
 		b.hoechsthoehe = 22.0
-		b.hoehe = -WALDBODEN_HOEHE + wuerfel.randf_range(2.5, 6.0)
+		b.hoehe = -WALDBODEN_HOEHE + wuerfel.randf_range(0.0, 3.0)
 		b.staerke = wuerfel.randf_range(1.2, 1.6)
 		b.laubfarbe = toene[nummer % toene.size()]
 		b.saat = 5900 + nummer
 		b.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite_fern * wuerfel.randf_range(10.0, 12.0), WALDBODEN_HOEHE)
+				seite_fern * wuerfel.randf_range(9.5, 11.0), WALDBODEN_HOEHE)
 		b.rotation.y = wuerfel.randf() * TAU
 		deko.add_child(b)
 		nummer += 1
 		seite_fern = -seite_fern
-		s += wuerfel.randf_range(5.0, 7.5)
+		s += wuerfel.randf_range(8.0, 11.0)
 
 	# Ein abgestorbener Riese, der aus dem Blättermeer ragt: kahles Holz als
 	# Silhouette zwischen all dem Grün.
@@ -840,20 +926,24 @@ func _kronenwald() -> void:
 ## Weltenbaum aus dem Tal herauf; seine Krone schließt das Bild nach oben,
 ## ein Wurzelbogen rahmt das Portal, und unten wächst Wald.
 func _ausblick() -> void:
-	# Der Weltenbaum. Sein Stamm steigt aus dem Tal, die Krone breitet sich
-	# über dem Ende des Grats aus – aus der Kamera sieht man den Stamm und
-	# die Unterseite des Laubdachs, nicht mehr.
+	# Der Weltenbaum. Sein Stamm steigt hinter dem Ende des Grats aus dem
+	# Tal, links neben dem Portal, und die Krone sitzt so hoch, dass die
+	# Kamera sie nur am oberen Bildrand anschneidet: Man sieht eine Säule
+	# von Stamm, und das Übrige denkt sich jeder selbst größer, als man es
+	# bauen könnte. Vorher stand er genau auf der Achse und niedriger – die
+	# Krone deckte als dunkler Schirm das Tal zu, das der Wurzelbogen rahmen
+	# soll.
 	var riese := BAUM.instantiate() as Baum
 	riese.eigenbau = true
 	riese.kollision = false
 	riese.hoechsthoehe = 40.0
-	riese.hoehe = 33.0
-	riese.staerke = 3.0
-	riese.kronenfuelle = 2.6
+	riese.hoehe = 40.0
+	riese.staerke = 3.5
+	riese.kronenfuelle = 1.8
 	riese.kronenform = Baum.Kronenform.SCHIRM
 	riese.laubfarbe = Farben.LAUB
 	riese.saat = 2501
-	riese.position = LevelWerkzeuge.punkt(verlauf, 250.0, 0.5, WALDBODEN_HOEHE)
+	riese.position = LevelWerkzeuge.punkt(verlauf, 257.0, -6.5, WALDBODEN_HOEHE)
 	riese.rotation.y = 0.6
 	deko.add_child(riese)
 	# Sein Schatten fiele ins Tal, vom Weg weg – gezeichnet würde er
@@ -865,6 +955,10 @@ func _ausblick() -> void:
 	# Wegkante, und der Weg endet ohnehin an ihm.
 	var bogen := WURZEL.instantiate() as Wurzel
 	bogen.kollision = false
+	# Ohne Nebenwurzeln: Bei knapp sieben Metern Bogenhöhe liefen sie als
+	# lange dünne Stäbe vom Scheitel zum Boden und kreuzten sich genau
+	# hinter dem Portal.
+	bogen.nebenwurzeln = false
 	bogen.spannweite = 13.6
 	bogen.hoehe = 6.8
 	bogen.dicke = 1.05
@@ -922,9 +1016,11 @@ func _ausblick() -> void:
 ## die Abschnitte unterschieden sich nur durch die Wegbreite.
 ##
 ## Die Zonen rechnen RELATIV zur Grundstimmung der Szene (Faktor auf Dichte
-## und Umgebungslicht, halber Weg zur Zonenfarbe): So bleibt der
-## Unterschied bestehen, auch wenn das Grundlicht des Levels neu gestimmt
-## wird. Die Nahzone bleibt davon unberührt – Nebel liegt hinter dem Spiel.
+## und Umgebungslicht, halber Weg zur Zonenfarbe; im Tiefennebel verkürzt
+## oder verlängert der Faktor die Nebelstrecke, siehe `Stimmungszone`): So
+## bleibt der Unterschied bestehen, auch wenn das Grundlicht des Levels neu
+## gestimmt wird. Die Nahzone bleibt davon unberührt – Nebel liegt hinter
+## dem Spiel.
 func _stimmungen() -> void:
 	_stimmung(M_SCHLUCHT + 6.0, M_STACHELN, Color(0.30, 0.42, 0.40), 1.3,
 			0.9, Color(0.44, 0.56, 0.62))
@@ -1135,10 +1231,13 @@ func _luecken_markieren() -> void:
 		if knoten != null:
 			deko.add_child(knoten)
 		# Die Schwelle liegt flach am Boden, ihr Schatten wäre nicht zu sehen.
+		# Verschmolzen wie der Bewuchs (siehe `Schluchtsaum._blattnetz`).
+		platten.index()
 		knoten = PropWerkzeug.mesh_knoten("Kantenschwelle",
 				PropWerkzeug.fertig_mit_tangenten(platten), plattenstoff, false)
 		if knoten != null:
 			deko.add_child(knoten)
+		pilze.index()
 		knoten = PropWerkzeug.mesh_knoten("Kantenpilze",
 				PropWerkzeug.fertig_mit_tangenten(pilze), pilzstoff, false)
 		if knoten != null:
@@ -1185,16 +1284,19 @@ func _kantenmarke(holz: SurfaceTool, pilze: SurfaceTool, platten: SurfaceTool,
 		var t := (float(k) + 0.5) / float(anzahl)
 		var quer := lerpf(-halb - 0.2, halb + 0.2, t) + wuerfel.randf_range(-0.12, 0.12)
 		var laengs := -zur_luecke * wuerfel.randf_range(0.05, 0.3)
-		var ort := LevelWerkzeuge.punkt(verlauf, strecke + laengs, quer, 0.03)
-		var r := Vector3(wuerfel.randf_range(0.42, 0.56), wuerfel.randf_range(0.05, 0.08),
-				wuerfel.randf_range(0.3, 0.42))
-		var hell := wuerfel.randf_range(0.82, 1.0)
+		# Eingesunken und fast gleich groß, in einem warmen Kalkton: Kühl,
+		# hoch und verschieden groß lasen sich die Platten aus der Nähe als
+		# Trittsteine, die jemand auf den Weg gelegt hat.
+		var ort := LevelWerkzeuge.punkt(verlauf, strecke + laengs, quer, 0.0)
+		var r := Vector3(wuerfel.randf_range(0.45, 0.52), wuerfel.randf_range(0.045, 0.065),
+				wuerfel.randf_range(0.32, 0.4))
+		var hell := wuerfel.randf_range(0.86, 1.0)
 		PropWerkzeug.klumpen(platten, wuerfel, ort, r,
 				Vector3(wuerfel.randf_range(-0.05, 0.05),
 						LevelWerkzeuge.drehung(verlauf, strecke) + wuerfel.randf_range(-0.5, 0.5),
 						wuerfel.randf_range(-0.05, 0.05)),
-				7, 3, 0.18, true, Color(0.78, 0.77, 0.74) * hell,
-				Color(1.0, 1.0, 0.97) * hell, ort.y - r.y, ort.y + r.y)
+				7, 3, 0.26, true, Color(0.76, 0.72, 0.64) * hell,
+				Color(0.94, 0.9, 0.82) * hell, ort.y - r.y, ort.y + r.y)
 
 
 ## Leuchtstoff der Kantenpilze: warmes Weiß, deutlich schwächer und weniger

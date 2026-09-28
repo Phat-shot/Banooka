@@ -13,6 +13,11 @@ class_name Wasserfall
 ## Schlucht wäre ein beleuchtetes Band ein graues Tuch. Kein Bildschirm-
 ## und kein Tiefenpuffer, also auch im Web und auf dem Handy dasselbe.
 ##
+## Gedeckt und nie ganz deckend: Unbeleuchtet leuchtet das Band gegen die
+## schattige Wand – in reinem Gischtweiß und Türkis war es das Grellste in
+## der ganzen Schlucht und zog den Blick von Weg und Kisten ab. Die Ränder
+## franst das Rauschen aus; ein Wasserfall hat keine Linealkanten.
+##
 ## Keine Kollision: Es steht an der Wand, nie im Weg.
 ##
 ## Aufbau: `Wasserfall.an_schluchtwand(...)` legt den Knoten an und baut das
@@ -23,8 +28,8 @@ shader_type spatial;
 render_mode blend_mix, unshaded, cull_disabled, depth_draw_never,
 		shadows_disabled;
 
-uniform vec4 farbe_tief : source_color = vec4(0.24, 0.52, 0.58, 1.0);
-uniform vec4 farbe_schaum : source_color = vec4(0.90, 0.97, 1.0, 1.0);
+uniform vec4 farbe_tief : source_color = vec4(0.18, 0.38, 0.42, 1.0);
+uniform vec4 farbe_schaum : source_color = vec4(0.74, 0.84, 0.87, 1.0);
 uniform float tempo = 5.5;
 uniform float laenge = 20.0;
 
@@ -50,10 +55,13 @@ void fragment() {
 	// Unten und an der Kante oben mehr Gischt.
 	schaum = max(schaum, smoothstep(0.7, 1.0, m / laenge) * 0.8);
 	schaum = max(schaum, (1.0 - smoothstep(0.0, 1.2, m)) * 0.7);
-	float rand = smoothstep(0.0, 0.2, quer) * smoothstep(1.0, 0.8, quer);
+	// Ausgefranste Ränder: Das grobe Rauschen verschiebt die Kante hin und
+	// her, das feine löst sie in Strähnen auf – beides fließt mit.
+	float rand = smoothstep(0.0, 0.25, quer + (grob - 0.5) * 0.3)
+			* smoothstep(1.0, 0.75, quer - (fein - 0.5) * 0.3);
 	float enden = smoothstep(0.0, 0.4, m) * (1.0 - smoothstep(laenge * 0.8, laenge, m));
 	ALBEDO = mix(farbe_tief.rgb, farbe_schaum.rgb, schaum);
-	ALPHA = rand * enden * mix(0.5, 0.95, schaum);
+	ALPHA = rand * enden * mix(0.45, 0.85, schaum);
 }
 """
 
@@ -132,6 +140,7 @@ static func an_schluchtwand(eltern: Node3D, kurve: Curve3D, kronen: Array,
 
 	var fall := Wasserfall.new()
 	fall.name = "Wasserfall"
+	st.index()
 	fall.mesh = st.commit()
 	fall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if _shader == null:

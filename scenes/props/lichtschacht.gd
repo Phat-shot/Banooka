@@ -18,7 +18,9 @@ class_name Lichtschacht
 ##
 ## Keine Kollision, kein Schatten. Nahe an der Kamera blendet der Shader
 ## die Bahnen aus, damit die Verfolgerkamera nie durch eine harte Fläche
-## fährt.
+## fährt. Unsichtbar ist dann aber nur die Farbe: Jedes Pixel, das eine
+## Bahn bedeckt, wird trotzdem gezeichnet. Das Bündel deshalb neben die
+## Bahn der Kamera stellen, an die Wand, nicht in die Wegmitte.
 
 ## Richtung, in die das Licht fällt (Welt). Am besten die der Sonne
 ## (`-sonne.global_transform.basis.z`), dann passen die Strahlen zu den
@@ -39,6 +41,12 @@ class_name Lichtschacht
 @export_range(0.0, 0.4, 0.005) var staerke: float = 0.1
 ## Feste Saat: gleicher Wert ⇒ gleiches Bündel. 0 = jedes Mal neu würfeln.
 @export var saat: int = 0
+## Höhe (Welt-Y) der Öffnung, durch die das Licht fällt – etwa die Krone
+## der Schluchtwand. Darüber blenden die Bahnen aus: Ein Strahl ist nur
+## zu sehen, wo er im Schatten steht. Über der Kante stand er sonst vor
+## hellem Himmel und las sich als Suchscheinwerfer. Die Vorgabe schaltet
+## das Ausblenden ab.
+@export var decke: float = 100000.0
 
 ## Die Bahn dreht sich im Vertex-Teil um ihre Achse zur Kamera. Die Achse
 ## steckt in der zweiten Spalte der Instanzmatrix (Länge inklusive), die
@@ -53,10 +61,12 @@ uniform vec4 farbe : source_color = vec4(1.0, 0.88, 0.62, 1.0);
 uniform float staerke = 0.1;
 uniform float nah = 7.0;
 uniform float fern = 110.0;
+uniform float decke = 100000.0;
 
 varying float quer;
 varying float laengs;
 varying float phase;
+varying float welt_y;
 
 void vertex() {
 	phase = COLOR.a;
@@ -69,8 +79,9 @@ void vertex() {
 	vec3 zur_kamera = INV_VIEW_MATRIX[3].xyz - mitte;
 	vec3 seite = normalize(cross(normalize(achse), zur_kamera));
 	vec3 n = normalize(cross(seite, achse));
-	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(
-			vec4(seite * length(MODEL_MATRIX[0].xyz) * weite, 0.0),
+	vec3 breit = seite * length(MODEL_MATRIX[0].xyz) * weite;
+	welt_y = mitte.y + breit.y * VERTEX.x + achse.y * VERTEX.y;
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(vec4(breit, 0.0),
 			vec4(achse, 0.0), vec4(n, 0.0), vec4(mitte, 1.0));
 }
 
@@ -80,8 +91,10 @@ void fragment() {
 	float d = length(VERTEX);
 	float sicht = smoothstep(nah * 0.5, nah, d) * (1.0 - smoothstep(fern * 0.6, fern, d));
 	float atmen = 0.72 + 0.28 * sin(TIME * 0.55 + phase * 40.0 + quer * 1.3);
+	// Über der Öffnung steht der Strahl im Freien – dort sieht man ihn nicht.
+	float innen = 1.0 - smoothstep(decke - 2.5, decke + 0.5, welt_y);
 	ALBEDO = farbe.rgb;
-	ALPHA = staerke * kante * kante * enden * sicht * atmen;
+	ALPHA = staerke * kante * kante * enden * sicht * atmen * innen;
 }
 """
 
@@ -99,19 +112,22 @@ func _baue(rng: RandomNumberGenerator) -> void:
 	var fall := richtung.normalized()
 	if fall.length_squared() < 0.5 or fall.y > -0.1:
 		fall = Vector3(-0.36, -0.89, -0.27).normalized()
+	# Mit reduzierten Effekten weniger Bahnen: Sie kosten fast nur Füllrate,
+	# und die ist auf schwachen Geräten das Erste, was ausgeht.
+	var bahnen := mini(anzahl, 3) if Effekte.reduziert else anzahl
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	var q := QuadMesh.new()
 	q.size = Vector2.ONE
 	mm.mesh = q
-	mm.instance_count = anzahl
+	mm.instance_count = bahnen
 
 	# Lokale Richtung: Der Knoten kann gedreht im Level hängen.
 	var hoch := -(global_basis.inverse() * fall).normalized() if is_inside_tree() \
 			else -fall
 	var groesste := 0.0
-	for i in anzahl:
+	for i in bahnen:
 		var b := breite * rng.randf_range(0.55, 1.2)
 		var l := laenge * rng.randf_range(0.8, 1.1)
 		var fuss := Vector3(rng.randf_range(-streuung, streuung), 0.0,
@@ -144,4 +160,5 @@ func _material() -> ShaderMaterial:
 	mat.shader = _shader
 	mat.set_shader_parameter("farbe", farbe)
 	mat.set_shader_parameter("staerke", staerke)
+	mat.set_shader_parameter("decke", decke)
 	return mat

@@ -29,15 +29,20 @@ class_name Schluchtsaum
 ##     var wand := LevelWerkzeuge.schluchtwand(..., {"kronen_merken": true})
 ##     Schluchtsaum.bauen(deko, verlauf, wand.get_meta("kronen"), {...})
 ## `optionen`: {"saat", "laubfarbe", "saum", "ranken", "wurzeln",
-##              "vorhaenge", "simse", "fuss", "blueten"}
+##              "vorhaenge", "simse", "fuss", "blueten", "helle_blueten"}
 ##   saum       Blattballen je Säule auf der Krone (Vorgabe 1.6)
 ##   ranken     Ranken je Säule von der Kante (Vorgabe 1.6)
 ##   wurzeln    Anteil der Säulen, an denen eine Wurzel herabwächst (0.22)
 ##   vorhaenge  Anteil der Säulen mit einem Vorhang aus Luftwurzeln (0.1)
 ##   simse      Anteil der Simse mit Farn oder kurzer Ranke (0.55)
 ##   fuss       Anteil der Säulen mit einer großen Pflanze am Wandfuß (0.6)
-##   blueten    wie viel blüht, 0 = nichts (Vorgabe), 1 = Tupfer an Ranken
-##              und Farnen; die Blüten sind ein drittes Netz je Stück
+##   blueten    wie viel blüht, 0 = nichts (Vorgabe), 1 = Tupfer in den
+##              Farnen; die Blüten sind ein drittes Netz je Stück
+##   helle_blueten  auch weiße und gelbe Blüten (Vorgabe aus)
+##
+## Je Säule darf der Eintrag in `kronen` ein "weg_rand" tragen: den
+## Querabstand, bis zu dem die Pflanzen am Wandfuß höchstens reichen. Ohne
+## ihn bleiben sie einen Meter vor der Wand.
 
 ## Länge der Stücke, in die das Laub geschnitten wird. Kürzer wird es mehr
 ## Zeichenaufrufe, länger zeichnet die Karte mehr, als im Bild ist.
@@ -72,6 +77,7 @@ static func bauen(eltern: Node3D, kurve: Curve3D, kronen: Array,
 	var simse: float = optionen.get("simse", 0.55)
 	var fussdichte: float = optionen.get("fuss", 0.6)
 	var blueten: float = optionen.get("blueten", 0.0)
+	var helle: bool = optionen.get("helle_blueten", false)
 	var rng := PropWerkzeug.zufall(saat)
 
 	var wurzel := Node3D.new()
@@ -95,6 +101,7 @@ static func bauen(eltern: Node3D, kurve: Curve3D, kronen: Array,
 		if blueten > 0.0:
 			rahmen["blueten"] = stueck["blueten"]
 			rahmen["bluetenanteil"] = blueten
+			rahmen["bluetenfarben"] = BLUETEN_HELL.size() if helle else BLUETEN.size()
 
 		var n_saum := _anzahl(saum, rng)
 		for i in n_saum:
@@ -128,7 +135,7 @@ static func bauen(eltern: Node3D, kurve: Curve3D, kronen: Array,
 	for schluessel: String in stuecke:
 		var stueck: Dictionary = stuecke[schluessel]
 		var laub_knoten := PropWerkzeug.mesh_knoten("Laub_" + schluessel,
-				PropWerkzeug.fertig_mit_tangenten(stueck["laub"]),
+				_blattnetz(stueck["laub"]),
 				PropWerkzeug.mit_scheitelfarben(Materialbibliothek.laub(laubfarbe)),
 				false)
 		if laub_knoten != null:
@@ -140,8 +147,10 @@ static func bauen(eltern: Node3D, kurve: Curve3D, kronen: Array,
 				PropWerkzeug.fertig(stueck["holz"]), holzstoff, false)
 		if holz_knoten != null:
 			wurzel.add_child(holz_knoten)
+		var bluetenbauer: SurfaceTool = stueck["blueten"]
+		bluetenbauer.index()
 		var bluete_knoten := PropWerkzeug.mesh_knoten("Blueten_" + schluessel,
-				PropWerkzeug.fertig(stueck["blueten"]), bluetenstoff(), false)
+				PropWerkzeug.fertig(bluetenbauer), bluetenstoff(), false)
 		if bluete_knoten != null:
 			wurzel.add_child(bluete_knoten)
 	return wurzel
@@ -152,13 +161,21 @@ static var _bluetenstoff: StandardMaterial3D = null
 
 ## Blütenfarben: Tupfer zwischen dem Grün, wie in den Vorbildern. Kein
 ## Orange – das ist die Farbe der Früchte, und eine Blüte, die man für eine
-## Frucht hält, ist ein kleiner Betrug.
+## Frucht hält, ist ein kleiner Betrug. Auch kein Weiß und Gelb in der
+## Schlucht: Vor dunklem Fels lasen sich helle Tupfer als Funkeln oder als
+## etwas zum Aufsammeln. Die gibt es nur, wo es ohnehin hell ist
+## (`helle_blueten`); `BLUETEN` sind die ersten, gedeckten Einträge.
 const BLUETEN: Array[Color] = [
 	Color(0.90, 0.28, 0.62),
 	Color(0.98, 0.62, 0.80),
+	Color(0.72, 0.56, 0.98),
+]
+const BLUETEN_HELL: Array[Color] = [
+	Color(0.90, 0.28, 0.62),
+	Color(0.98, 0.62, 0.80),
+	Color(0.72, 0.56, 0.98),
 	Color(0.98, 0.92, 0.45),
 	Color(0.96, 0.96, 0.92),
-	Color(0.72, 0.56, 0.98),
 ]
 
 ## Wurzelholz, heller als das der Bibliothek: Dunkles Holz auf dunklem Fels
@@ -172,7 +189,9 @@ static func wurzelholz() -> StandardMaterial3D:
 
 
 ## Stoff der Blüten: Farbe aus den Scheitelfarben, ein Hauch Eigenleuchten,
-## damit die Tupfer auch im Schatten der Schlucht noch Farbe haben.
+## damit die Tupfer auch im Schatten der Schlucht noch Farbe haben. Nur ein
+## Hauch: Stärker glommen sie wie Lämpchen, und das Auge suchte die Wand ab
+## statt den Weg.
 static func bluetenstoff() -> StandardMaterial3D:
 	if _bluetenstoff == null:
 		_bluetenstoff = StandardMaterial3D.new()
@@ -181,7 +200,7 @@ static func bluetenstoff() -> StandardMaterial3D:
 		_bluetenstoff.roughness = 0.75
 		_bluetenstoff.emission_enabled = true
 		_bluetenstoff.emission = Color(0.42, 0.36, 0.38)
-		_bluetenstoff.emission_energy_multiplier = 0.45
+		_bluetenstoff.emission_energy_multiplier = 0.15
 	return _bluetenstoff
 
 
@@ -201,7 +220,8 @@ static func _bluete(rahmen: Dictionary, rng: RandomNumberGenerator, p: Vector3,
 		a = vor
 	a = a.normalized()
 	var b := n.cross(a).normalized()
-	var farbe := BLUETEN[rng.randi_range(0, BLUETEN.size() - 1)]
+	var farben: int = rahmen.get("bluetenfarben", BLUETEN.size())
+	var farbe := BLUETEN_HELL[rng.randi_range(0, farben - 1)]
 	var dreh := rng.randf() * TAU
 	for k in 5:
 		var w := dreh + TAU * float(k) / 5.0
@@ -214,6 +234,16 @@ static func _bluete(rahmen: Dictionary, rng: RandomNumberGenerator, p: Vector3,
 	var m := r * 0.24
 	var q := p + n * r * 0.08
 	PropWerkzeug.blatt(st, q - a * m, q - b * m, q + a * m, q + b * m, n, mitte, mitte)
+
+
+## Schließt einen Sammler aus Blättern und Ballen ab: erst verschmelzen,
+## dann Tangenten. Blatt und Ballen schreiben jede Ecke so oft, wie
+## Dreiecke an ihr hängen – beim Ballen bis zu sechsmal. Verschmolzen
+## trägt das Netz jede Ecke einmal, und das spart einen guten Teil des
+## Grafikspeichers, den der Bewuchs belegt.
+static func _blattnetz(st: SurfaceTool) -> ArrayMesh:
+	st.index()
+	return PropWerkzeug.fertig_mit_tangenten(st)
 
 
 ## Ganzzahl mit dem Mittelwert `wert`: 1.6 heißt mal 1, mal 2.
@@ -320,8 +350,6 @@ static func _ranke(st: SurfaceTool, rng: RandomNumberGenerator, rahmen: Dictiona
 		var seit := laengs + sin(q_y.y * takt + phase) * schwung
 		var p := _punkt(rahmen, q_y.x, q_y.y, seit)
 		_blatt_an(st, rng, p, links, anteil, ton, groesse, vor, hinein)
-		if rahmen.has("blueten") and rng.randf() < float(rahmen["bluetenanteil"]) * 0.07:
-			_bluete(rahmen, rng, p + hinein * 0.08, rng.randf_range(0.08, 0.13))
 		links = not links
 		t += abstand_blatt * rng.randf_range(0.8, 1.2)
 
@@ -431,9 +459,11 @@ static func _simse(st: SurfaceTool, rng: RandomNumberGenerator, rahmen: Dictiona
 		# Kein Busch aus Ballen: Auf dem schmalen Sims las sich der als
 		# grünes Kissen. Ein Farn dagegen ist aus jeder Richtung ein Farn.
 		if rng.randf() < 0.65:
+			# Hoch oben sieht man die Farne nur von Weitem: Dort genügen
+			# vier Stufen je Wedel statt sechs.
 			_farn(st, rng, _punkt(rahmen, innen + breite * 0.45, y,
 					rng.randf_range(-1.0, 1.0)), rng.randf_range(0.8, 1.4), rahmen,
-					false)
+					false, 4 if y > 4.0 else 6)
 		else:
 			_ranke(st, rng, rahmen, e, innen, y, rng.randf_range(0.8, 2.2),
 					rng.randf_range(-1.0, 1.0))
@@ -448,17 +478,31 @@ static func _simse(st: SurfaceTool, rng: RandomNumberGenerator, rahmen: Dictiona
 ##
 ## Nur wo die Wand dicht am Weg steht (`abstand` unter 8 m): Weiter draußen
 ## stünden sie über dem Abgrund.
+##
+## Sie neigen sich zum Weg, aber nie über ihn: Ohne Kollision liefe die
+## Figur am Rand sonst durch ein Blatt, und die Blätter verdeckten Füße
+## und Wegkante. Wie weit sie reichen dürfen, sagt "weg_rand" der Säule;
+## die Größe wird so gewählt, dass die Spitze davor endet.
 static func _wandfuss(st: SurfaceTool, rng: RandomNumberGenerator,
 		rahmen: Dictionary, e: Dictionary) -> void:
 	var abstand: float = e["abstand"]
 	if abstand > 8.0:
 		return
-	var fuss := _punkt(rahmen, abstand + rng.randf_range(0.0, 0.25),
+	var quer := abstand + rng.randf_range(0.0, 0.25)
+	var reichweite := quer - float(e.get("weg_rand", abstand - 1.0))
+	var fuss := _punkt(rahmen, quer,
 			rng.randf_range(0.2, 0.5), rng.randf_range(-1.1, 1.1))
-	if rng.randf() < 0.6:
-		_farn(st, rng, fuss, rng.randf_range(1.2, 1.9), rahmen, false)
+	var farn := rng.randf() < 0.6
+	var groesse := rng.randf_range(1.2, 1.9) if farn else rng.randf_range(0.7, 1.1)
+	# Größe -> Reichweite: Ein Farnwedel reicht gut seine Länge weit, ein
+	# Großblatt mit Stiel und hängender Spreite das Anderthalbfache.
+	groesse = minf(groesse, reichweite / (1.1 if farn else 1.6))
+	if groesse < 0.45:
+		return
+	if farn:
+		_farn(st, rng, fuss, groesse, rahmen, false)
 	else:
-		_grossblatt(st, rng, fuss, rng.randf_range(0.9, 1.4), rahmen)
+		_grossblatt(st, rng, fuss, groesse, rahmen)
 
 
 ## Eine Staude mit wenigen großen, herzförmigen Blättern an langen Stielen
@@ -469,8 +513,11 @@ static func _grossblatt(st: SurfaceTool, rng: RandomNumberGenerator, fuss: Vecto
 	var hinein: Vector3 = rahmen["hinein"]
 	var vor: Vector3 = rahmen["laengs"]
 	var ton := TOENE[rng.randi_range(2, TOENE.size() - 1)]
-	var dunkel := Color(ton.r * 0.4, ton.g * 0.48, ton.b * 0.4)
-	for i in rng.randi_range(3, 5):
+	# Nicht zu dunkel am Stiel, und wenige schmale Blätter statt vieler
+	# breiter: Nah an der Kamera standen sie sonst als große schwarze
+	# Dreiecke in den unteren Bildecken.
+	var dunkel := Color(ton.r * 0.6, ton.g * 0.66, ton.b * 0.6)
+	for i in rng.randi_range(2, 4):
 		var winkel := rng.randf_range(-1.3, 1.3)
 		var flach := (hinein * cos(winkel) + vor * sin(winkel)).normalized()
 		# Stiel: schräg hinauf, dann hängt das Blatt über
@@ -483,7 +530,7 @@ static func _grossblatt(st: SurfaceTool, rng: RandomNumberGenerator, fuss: Vecto
 		# Blattspreite: zwei Hälften, an der Mittelrippe leicht geknickt,
 		# vorn zur Spitze hin hängend.
 		var lang := groesse * rng.randf_range(0.7, 1.0)
-		var breit := lang * rng.randf_range(0.34, 0.44)
+		var breit := lang * rng.randf_range(0.26, 0.34)
 		var mitte := stiel_ende + flach * lang * 0.5 + Vector3.DOWN * lang * 0.12
 		var spitze := stiel_ende + flach * lang + Vector3.DOWN * lang * 0.45
 		var hinten := stiel_ende - flach * lang * 0.12 + Vector3.UP * lang * 0.05
@@ -507,7 +554,7 @@ static func _grossblatt(st: SurfaceTool, rng: RandomNumberGenerator, fuss: Vecto
 ## Gebaut wie der Farn im `Kleinzeug`, nur ohne eigenen Knoten und
 ## Windtakt: Hier stehen Hunderte, und alle landen im selben Netz.
 static func _farn(st: SurfaceTool, rng: RandomNumberGenerator, fuss: Vector3,
-		groesse: float, rahmen: Dictionary, haengend: bool) -> void:
+		groesse: float, rahmen: Dictionary, haengend: bool, stufen: int = 6) -> void:
 	var hinein: Vector3 = rahmen["hinein"]
 	var vor: Vector3 = rahmen["laengs"]
 	var ton := TOENE[rng.randi_range(1, TOENE.size() - 1)]
@@ -525,7 +572,7 @@ static func _farn(st: SurfaceTool, rng: RandomNumberGenerator, fuss: Vector3,
 					+ Vector3.UP * rng.randf_range(0.7, 1.3)
 		_wedel(st, fuss, richtung.normalized(),
 				groesse * rng.randf_range(0.7, 1.1), ton,
-				0.34 if haengend else 0.22)
+				0.34 if haengend else 0.22, stufen)
 	# Zwischen den Wedeln blüht es manchmal.
 	if not haengend and rahmen.has("blueten") \
 			and rng.randf() < float(rahmen["bluetenanteil"]) * 0.45:
@@ -537,11 +584,13 @@ static func _farn(st: SurfaceTool, rng: RandomNumberGenerator, fuss: Vector3,
 
 
 ## Ein Wedel: Mittelrippe mit paarweisen Fiederblättern, die zur Spitze hin
-## kürzer werden. `schwere` biegt ihn je Stufe nach unten.
+## kürzer werden. `schwere` biegt ihn je Stufe nach unten (gemessen an
+## sechs Stufen – mit weniger biegt jede Stufe entsprechend mehr, die Form
+## bleibt dieselbe).
 static func _wedel(st: SurfaceTool, fuss: Vector3, richtung: Vector3,
-		laenge: float, ton: Color, schwere: float) -> void:
-	var stufen := 6
+		laenge: float, ton: Color, schwere: float, stufen: int = 6) -> void:
 	var schritt := laenge / float(stufen)
+	schwere *= 6.0 / float(stufen)
 	var quer := richtung.cross(Vector3.UP)
 	if quer.length_squared() < 0.01:
 		quer = Vector3.RIGHT
@@ -700,8 +749,11 @@ static func wurzeltor(eltern: Node3D, kurve: Curve3D, strecke: float,
 	for strang in 3:
 		var phase := TAU * float(strang) / 3.0 + rng.randf_range(-0.3, 0.3)
 		var windung := rng.randf_range(2.2, 3.2)
-		var r := rng.randf_range(0.26, 0.38)
-		var aus := rng.randf_range(0.25, 0.4)
+		# Unterschiedlich dick und weiter auseinander: Eng und gleich stark
+		# verschmolzen die drei zu einem glatten Rohr, und das Tor las sich
+		# von Weitem als Steinbogen.
+		var r := rng.randf_range(0.2, 0.42)
+		var aus := rng.randf_range(0.45, 0.6)
 		for haelfte: float in [-1.0, 1.0]:
 			var punkte := PackedVector3Array()
 			for i in 13:
@@ -737,7 +789,7 @@ static func wurzeltor(eltern: Node3D, kurve: Curve3D, strecke: float,
 				+ vor * rng.randf_range(-0.3, 0.3), laenge, vor, -vor)
 
 	_knoten(tor, "Holz", PropWerkzeug.fertig(holz), wurzelholz(), true)
-	_knoten(tor, "Laub", PropWerkzeug.fertig_mit_tangenten(laub),
+	_knoten(tor, "Laub", _blattnetz(laub),
 			PropWerkzeug.mit_scheitelfarben(Materialbibliothek.laub(Farben.LAUB_HELL)),
 			false)
 
@@ -814,7 +866,7 @@ static func baumstamm(eltern: Node3D, a: Vector3, b: Vector3, dicke: float,
 				achse, quer)
 
 	_knoten(stamm, "Holz", PropWerkzeug.fertig(holz), Materialbibliothek.rinde(), true)
-	_knoten(stamm, "Laub", PropWerkzeug.fertig_mit_tangenten(laub),
+	_knoten(stamm, "Laub", _blattnetz(laub),
 			PropWerkzeug.mit_scheitelfarben(Materialbibliothek.laub(Farben.LAUB_HELL)),
 			false)
 	return stamm
@@ -868,7 +920,7 @@ static func blaetterdach(eltern: Node3D, baeume: Array, saat: int,
 							ball * rng.randf_range(1.0, 1.25)),
 					Vector3(rng.randf_range(-0.2, 0.2), rng.randf() * TAU, 0.0),
 					9, 5, 0.3, false, unten, ton, mitte.y - breite * 0.75, wipfel.y)
-	_knoten(dach, "Kronen", PropWerkzeug.fertig_mit_tangenten(laub),
+	_knoten(dach, "Kronen", _blattnetz(laub),
 			PropWerkzeug.mit_scheitelfarben(Materialbibliothek.laub(laubfarbe)), false)
 	_knoten(dach, "Staemme", PropWerkzeug.fertig(holz), Materialbibliothek.rinde(), false)
 	return dach

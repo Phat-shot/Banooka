@@ -276,6 +276,11 @@ func _baue_krone(ballen: Array, kronen_ort: Vector3) -> void:
 		var fein := kronenfuelle > 1.0
 		PropWerkzeug.klumpen(st, _rng, b["pos"], b["radien"], b["dreh"],
 				12 if fein else 9, 7 if fein else 5, 0.3, false, unten, oben, von, bis)
+	# Die feine Krone der Riesen trägt viele Ecken, und jede stand bis zu
+	# sechsmal im Netz. Verschmolzen einmal. Nur für sie: Alle anderen Bäume
+	# bleiben Scheitel für Scheitel, wie sie waren.
+	if kronenfuelle > 1.0:
+		st.index()
 	_setze_krone(st, kronen_ort)
 
 
