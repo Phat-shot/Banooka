@@ -150,7 +150,7 @@ func _bewegung(delta: float) -> void:
 	_patrouille_schritt(tempo * delta)
 	if is_instance_valid(modell):
 		var d := achse() * richtung
-		var ziel := atan2(-d.x, -d.z) + PI * 0.5
+		var ziel := _blickwinkel(d) + PI * 0.5
 		modell.rotation.y = lerp_angle(modell.rotation.y, ziel, minf(delta * 6.0, 1.0))
 
 	for i in _beine.size():

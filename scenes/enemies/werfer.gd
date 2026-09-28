@@ -152,12 +152,14 @@ func _baue() -> void:
 		_podest = Node3D.new()
 		_podest.name = "Podest"
 		modell.add_child(_podest)
+		# Stein blitzt nicht mit, wenn der Werfer getroffen wird: Das
+		# Podest bleibt als Teil des Levels stehen (`Gegner._glanz_anlegen`).
 		_teil(_podest, _quader(Vector3(1.5, PODEST_HOEHE, 1.5)), stein,
 				Vector3(0.0, PODEST_HOEHE * 0.5, 0.0), Vector3.ZERO,
-				Vector3.ONE, "Block")
+				Vector3.ONE, "Block").set_meta("kein_blitz", true)
 		_teil(_podest, _quader(Vector3(1.66, 0.1, 1.66)), dunkel,
 				Vector3(0.0, PODEST_HOEHE, 0.0), Vector3.ZERO,
-				Vector3.ONE, "Deckplatte")
+				Vector3.ONE, "Deckplatte").set_meta("kein_blitz", true)
 
 	# --- Beine: kurz und breit, damit er wie festgewachsen wirkt ---
 	for seite: float in [-1.0, 1.0]:
@@ -288,7 +290,9 @@ func _zum_spieler_drehen(delta: float, spieler: Node3D) -> void:
 	d.y = 0.0
 	if d.length() < 0.2:
 		return
-	var ziel := atan2(-d.x, -d.z)
+	# Weltrichtung in die Drehung des Modells umrechnen (siehe
+	# `Gegner._blickwinkel`): Der Werfer selbst ist auf den Korridor gedreht.
+	var ziel := _blickwinkel(d)
 	modell.rotation.y = lerp_angle(modell.rotation.y, ziel, minf(delta * 4.0, 1.0))
 
 

@@ -12,6 +12,7 @@ class_name Panzerkaefer
 ## prallt ab.
 
 const DREH_DAUER := 0.55     ## So lange braucht er zum Umdrehen
+const HOPS_DAUER := 0.3      ## Hopser zu Beginn des Umdrehens (nur Optik)
 const SCHRITT_TEMPO := 5.0   ## Taktrate des Sechsbeinlaufs
 
 # ---------------------------------------------------------- Farben
@@ -57,19 +58,28 @@ const SCHRITT_TEMPO := 5.0   ## Taktrate des Sechsbeinlaufs
 ## Eigener Wert und nicht `farbe_panzer`: Das fremde Modell hat für den
 ## ganzen Rücken nur EIN Material. Was hier auf Panzer, Naht und Streifen
 ## verteilt ist, muss dort ein einziger Ton tragen, und der liegt deshalb
-## etwas wärmer. Wer den Käfer umfärbt, setzt beide.
-@export var farbe_fremdmodell: Color = Color(0.19, 0.14, 0.10):
+## etwas wärmer: ein dunkles Mahagoni. Fast schwarz (wie früher) lag der
+## Käfer als Loch auf dem dunklen Weg; so bleibt er dunkel, zeigt aber
+## Form und Glanz. Wer den Käfer umfärbt, setzt beide.
+@export var farbe_fremdmodell: Color = Color(0.34, 0.17, 0.10):
 	set(wert):
 		farbe_fremdmodell = wert
 		_neu_faerben()
 
 
 var _dreht := 0.0
+## Wurde er von oben geknackt (Draufspringen, Bauchplatscher)?
+var _geknackt := false
 
 var _panzer: MeshInstance3D
 var _kopf: Node3D
 var _beine: Array[Node3D] = []
 var _fuehler: Array[Node3D] = []
+## Material des sichtbaren Panzers – die Scherben beim Knacken tragen es.
+var _panzerstoff: Material
+
+## Bemalungen des mitgelieferten Modells, je Farbsatz einmal gebaut.
+static var _zeichnungen: Dictionary[String, ArrayMesh] = {}
 
 
 func _init() -> void:
@@ -91,16 +101,75 @@ func fremdmodell() -> Dictionary:
 	# Die Form stimmt – ein gewölbter Panzer ist genau das, worauf man
 	# springt. Die Farbe stimmte nicht: Ein Marienkäfer ist kein Gegner,
 	# den man zertritt. Der Panzer wird deshalb dunkel umgefärbt, die
-	# schwarzen Flecken bleiben als Zeichnung stehen. CC0 erlaubt das;
+	# schwarzen Flecken bleiben als Zeichnung stehen (und werden in
+	# `_zeichen_am_fremdmodell` zur Warnzeichnung). CC0 erlaubt das;
 	# die Änderung ist in assets/CREDITS.md vermerkt.
+	#
+	# Oberfläche: Die matte Vorgabe der Fremdmodelle (für Laub und Fels)
+	# ließ den Panzer aussehen wie Ton. Chitin glänzt – und ein Glanzlicht
+	# oben auf der Wölbung zeigt zugleich, wo man landet. Die schwarzen
+	# Teile (Beine, Kopf, Flecken) lagen unter der Grenze, ab der
+	# `_struktur_geben` Oberfläche verleiht, und standen als flache Löcher
+	# im Bild; ein warmes Fastschwarz hebt sie knapp darüber.
 	return {
 		"datei": "kaefer", "groesse": 1.30, "drehung": PI,
 		"farben": {"red": farbe_fremdmodell},
+		"stoff": {
+			"red": {"rauheit": 0.4, "glanz": 0.3},
+			"black": {"farbe": Color(0.10, 0.08, 0.06), "rauheit": 0.5, "glanz": 0.25},
+		},
 	}
+
+
+## Die Zeichnung des Marienkäfers wird zur Anleitung umgedeutet: Die
+## dunkle Mittelnaht der Flügeldecken leuchtet in `farbe_naht` – das ist
+## die Bruchstelle, auf die man springt –, die Flecken tragen
+## `farbe_streifen` als Warnfarbe. Beides liegt genau oben auf dem Panzer,
+## also dort, wo das Draufspringen wirkt (ZEICHENSPRACHE in gegner.gd).
+func _zeichen_am_fremdmodell(figur: Node3D) -> void:
+	var netz := _hauptnetz(figur)
+	if netz == null:
+		return
+	var panzer_nr := _flaeche_nach_name(netz.mesh, "red")
+	if panzer_nr >= 0:
+		_panzerstoff = netz.get_surface_override_material(panzer_nr)
+	var schluessel := "%s|%s" % [farbe_naht.to_html(), farbe_streifen.to_html()]
+	if not _zeichnungen.has(schluessel):
+		var naht := farbe_naht
+		var flecken := farbe_streifen
+		# Netzraum des Käfers: x quer, y längs (negativ = Kopf), z oben.
+		# Der Panzer reicht von y -0,004 bis 0,030 und bis z 0,013.
+		var auswahl := func(mitte: Vector3, normale: Vector3) -> Color:
+			if mitte.z < NAHT_UNTERKANTE or normale.z < 0.3 or mitte.y < PANZER_VORNE:
+				return Effekte.KEINE_FARBE
+			return naht if absf(mitte.x) < NAHT_BREITE else flecken
+		var bild := _bemalung(netz.mesh, _flaeche_nach_name(netz.mesh, "black"),
+				auswahl, 0.0005)
+		if bild == null:
+			return
+		_zeichnungen[schluessel] = bild
+	var zeichnung := _bemalung_zeigen(figur, _zeichnungen[schluessel])
+	if zeichnung != null:
+		zeichnung.set_meta("ohne_glanz", true)
+
+
+## Grenzen der Bemalung im Netzraum des Käfermodells (siehe oben).
+const NAHT_BREITE := 0.0016
+const NAHT_UNTERKANTE := 0.0035
+const PANZER_VORNE := -0.0035
+
+
+func _trefferfarbe() -> Color:
+	return farbe_streifen if farbe_streifen.get_luminance() > 0.3 else farbe_naht
+
+
+func _klanghoehe() -> float:
+	return 0.8
 
 
 func _baue() -> void:
 	var panzer_mat := Materialbibliothek.einfarbig(farbe_panzer, 0.35, 0.25)
+	_panzerstoff = panzer_mat
 	var chitin := Materialbibliothek.einfarbig(farbe_chitin, 0.55)
 	var streifen_mat := Materialbibliothek.einfarbig(farbe_streifen, 0.5)
 	var naht_mat := Materialbibliothek.einfarbig(farbe_naht, 0.4, 0.3)
@@ -211,12 +280,45 @@ func _animiere() -> void:
 	if is_instance_valid(_kopf):
 		_kopf.rotation.y = sin(_zeit * 1.6) * 0.12
 
+	# Das mitgelieferte Modell hat kein Skelett: Laufen heißt hier
+	# Watscheln und Wippen des ganzen Körpers, im Takt der eigenen Beine.
+	# Beim Umdrehen ein kleiner Hopser – das "umständliche" Wenden.
+	if fremdhalter != null:
+		if laeuft:
+			fremdhalter.rotation.z = sin(_phase) * 0.06
+			fremdhalter.rotation.x = sin(_phase * 2.0) * 0.025
+			fremdhalter.position.y = absf(sin(_phase * 2.0)) * 0.025
+			fremdhalter.scale = Vector3.ONE
+		else:
+			var t := clampf((DREH_DAUER - _dreht) / HOPS_DAUER, 0.0, 1.0)
+			var hops := sin(t * PI)
+			fremdhalter.rotation.z = 0.0
+			fremdhalter.rotation.x = -hops * 0.12
+			fremdhalter.position.y = hops * 0.09
+			fremdhalter.scale = Vector3(1.0 - hops * 0.05, 1.0 + hops * 0.1, 1.0 - hops * 0.05)
+
 
 # ---------------------------------------------------------- Tod
 
-func _todesstart(_art: int) -> void:
+func _todesstart(art: int) -> void:
 	# Er wird an Ort und Stelle plattgetreten, nicht weggeschleudert.
 	_wegflug = Vector3.ZERO
+	_geknackt = (art & (Angriff.FALLEN | Angriff.SLAM)) != 0
+	if not _geknackt:
+		return
+	# Der Panzer springt: Scherben in seinem eigenen Material fliegen
+	# davon, flach über den Boden läuft ein Ring. Die Splitter der Kisten
+	# sind Bretter; kleiner skaliert lesen sie sich als Panzerstücke.
+	var mitte := global_position + Vector3.UP * 0.3
+	if _panzerstoff != null:
+		var scherben := Effekte.splitter(self, mitte, _panzerstoff, 7)
+		if scherben != null:
+			scherben.emission_box_extents = Vector3(0.35, 0.1, 0.45)
+			scherben.scale_amount_min = 0.3
+			scherben.scale_amount_max = 0.5
+			scherben.initial_velocity_min = 3.5
+			scherben.initial_velocity_max = 6.0
+	Effekte.ring(self, global_position + Vector3.UP * 0.06, _trefferfarbe(), 1.0, 0.25)
 
 
 func _todesanimation(delta: float) -> void:
@@ -226,6 +328,13 @@ func _todesanimation(delta: float) -> void:
 	for bein in _beine:
 		if is_instance_valid(bein):
 			bein.rotation.x = sin(_zeit * 26.0) * 0.8
+	# Das Modell hat keine Beine zum Zappeln – dafür zittert der ganze
+	# Körper, und das Zittern klingt ab.
+	if fremdhalter != null:
+		var rest := clampf(_tot_zeit / TODES_DAUER, 0.0, 1.0)
+		fremdhalter.rotation = Vector3(0.0, 0.0, sin(_zeit * 30.0) * 0.08 * rest)
+		fremdhalter.position.y = 0.0
+		fremdhalter.scale = Vector3.ONE
 
 
 # ---------------------------------------------------------- Umfärben

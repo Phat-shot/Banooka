@@ -92,24 +92,32 @@ static func nimm(bezeichnung: String, ziel_hoehe: float = 0.0) -> Node3D:
 ## Material einmal auf normale Beleuchtung umgestellt und danach
 ## wiederverwendet – ein Wald hat hunderte Instanzen, aber nur eine Handvoll
 ## verschiedener Materialien.
-static func _beleuchtung_anpassen(knoten: Node, farben: Dictionary = {}) -> void:
+static func _beleuchtung_anpassen(knoten: Node, farben: Dictionary = {},
+		stoff: Dictionary = {}) -> void:
 	var netz := knoten as MeshInstance3D
 	if netz != null and netz.mesh != null:
 		for i in netz.mesh.get_surface_count():
 			var roh := netz.mesh.surface_get_material(i)
-			var fertig := _angepasst(roh, farben)
+			var fertig := _angepasst(roh, farben, stoff)
 			if fertig != null:
 				netz.set_surface_override_material(i, fertig)
 	for kind in knoten.get_children():
-		_beleuchtung_anpassen(kind, farben)
+		_beleuchtung_anpassen(kind, farben, stoff)
 
 
-static func _angepasst(roh: Material, farben: Dictionary = {}) -> Material:
+static func _angepasst(roh: Material, farben: Dictionary = {},
+		stoff: Dictionary = {}) -> Material:
 	if roh == null:
 		return null
 	var wunschfarbe: Variant = farben.get(roh.resource_name)
 	if wunschfarbe == null:
 		wunschfarbe = PALETTE.get(roh.resource_name)
+	# Oberflächenwünsche für genau dieses Material (siehe `gegner()`).
+	var wunsch: Dictionary = {}
+	if stoff.has(roh.resource_name):
+		wunsch = stoff[roh.resource_name] as Dictionary
+	if wunsch.has("farbe"):
+		wunschfarbe = wunsch["farbe"]
 	# ACHTUNG: Als Schlüssel diente hier einmal `get_instance_id()`. Das war
 	# falsch – Godot vergibt die IDs freigegebener Objekte neu. Ein später
 	# geladenes Modell bekam dadurch die Materialien eines früheren, und
@@ -123,6 +131,11 @@ static func _angepasst(roh: Material, farben: Dictionary = {}) -> Material:
 		# Umgefärbte Fassungen brauchen einen eigenen Platz, sonst bekäme
 		# jedes andere Modell mit demselben Material die neue Farbe.
 		schluessel = "%s#%s" % [str(schluessel), Color(wunschfarbe).to_html()]
+	if not wunsch.is_empty():
+		# Dasselbe für Glanz und Leuchten: Ein glänzender Käferpanzer darf
+		# nicht in ein anderes Modell durchsickern, das zufällig ein
+		# gleichnamiges Material hat.
+		schluessel = "%s#%s" % [str(schluessel), var_to_str(wunsch)]
 	if _materialien.has(schluessel):
 		return _materialien[schluessel]["fertig"]
 	var standard := roh as StandardMaterial3D
@@ -137,6 +150,16 @@ static func _angepasst(roh: Material, farben: Dictionary = {}) -> Material:
 	neu_stoff.metallic_specular = 0.12
 	if wunschfarbe != null:
 		neu_stoff.albedo_color = wunschfarbe
+	if wunsch.has("rauheit"):
+		neu_stoff.roughness = float(wunsch["rauheit"])
+	if wunsch.has("glanz"):
+		neu_stoff.metallic_specular = float(wunsch["glanz"])
+	if wunsch.has("leuchten"):
+		# Leuchten in der eigenen Farbe – VOR `_struktur_geben`, das die
+		# Farbe in die Textur verlegt und `albedo_color` auf Weiß stellt.
+		neu_stoff.emission_enabled = true
+		neu_stoff.emission = neu_stoff.albedo_color
+		neu_stoff.emission_energy_multiplier = float(wunsch["leuchten"])
 	_struktur_geben(neu_stoff)
 	_materialien[schluessel] = {"quelle": roh, "fertig": neu_stoff}
 	return neu_stoff
@@ -171,9 +194,20 @@ static func waehle(namen: Array, rng: RandomNumberGenerator,
 ## aus der glTF-Datei (z. B. {"red": Color(...)}). CC0 erlaubt Änderungen –
 ## so wird aus einem Marienkäfer ein Panzerkäfer, ohne die gute Form zu
 ## verlieren.
+##
+## `stoff` stellt die Oberfläche einzelner Materialien ein, ebenfalls über
+## den Namen: {"red": {"rauheit": 0.3, "glanz": 0.6}}. Schlüssel:
+##   rauheit   roughness (Vorgabe hier matt: 0.92)
+##   glanz     metallic_specular (Vorgabe 0.12)
+##   leuchten  Eigenleuchten in der Materialfarbe, Stärke
+##   farbe     Grundfarbe (wie `farben`)
+## Nötig, weil die matte Vorgabe für Laub und Fels gedacht ist: Auf einem
+## Käferpanzer sah sie aus wie Ton, und die roten Spinnenaugen blieben
+## stumpf. Ohne Angabe ändert sich nichts – Bäume, Steine und Kleinzeug
+## teilen diese Funktionen und bleiben matt.
 static func gegner(bezeichnung: String, ziel_groesse: float,
 		nach_hoehe: bool = false, drehung: float = 0.0,
-		farben: Dictionary = {}) -> Node3D:
+		farben: Dictionary = {}, stoff: Dictionary = {}) -> Node3D:
 	if not aktiv():
 		return null
 	var pfad := "%s/%s.glb" % [ORDNER_GEGNER, bezeichnung]
@@ -188,7 +222,7 @@ static func gegner(bezeichnung: String, ziel_groesse: float,
 		# Füße auf den Boden: die Hülle liegt selten schon auf y = 0.
 		knoten.position.y = -_unterkante(pfad, knoten) * faktor
 	knoten.rotation.y = drehung
-	_beleuchtung_anpassen(knoten, farben)
+	_beleuchtung_anpassen(knoten, farben, stoff)
 	return knoten
 
 
