@@ -32,6 +32,19 @@ class_name Stimmungszone
 ## Wie schnell übergeblendet wird (Anteil je Sekunde).
 @export var wechsel := 0.8
 
+@export_group("Relativ zur Grundstimmung")
+## Die Werte oben sind absolut: Sie passen nur zu der Umgebung, für die sie
+## eingetragen wurden. Ein Level, dessen Licht noch gestimmt wird, gibt
+## besser an, wie sehr es vom Grundwert abweichen soll – dann bleibt der
+## Abschnitt ein Stück kühler oder wärmer, was immer der Grundwert ist.
+## Nebeldichte als Vielfaches der Grunddichte. Negativ = nicht verwenden.
+@export var nebel_faktor := -1.0
+## Umgebungslicht als Vielfaches des Grundwerts. Negativ = nicht verwenden.
+@export var licht_faktor := -1.0
+## Wie weit Nebel- und Umgebungsfarbe von der Grundfarbe zur Zonenfarbe
+## gehen: 1 = ganz (wie bisher), 0.3 = ein Hauch.
+@export_range(0.0, 1.0, 0.05) var farbanteil := 1.0
+
 ## Die Zone, die gerade regelt. Ohne diesen gemeinsamen Zeiger zerrten
 ## mehrere Zonen gleichzeitig an denselben Werten.
 static var _fuehrend: Stimmungszone = null
@@ -55,14 +68,24 @@ func _process(delta: float) -> void:
 	if _fuehrend != self or _umgebung == null:
 		return
 	var anteil := clampf(delta * wechsel, 0.0, 1.0)
-	var ziel_farbe: Color = nebelfarbe if _drin and nebelfarbe.a > 0.0 \
-			else _grund["nebelfarbe"]
-	var ziel_dichte: float = nebeldichte if _drin and nebeldichte >= 0.0 \
-			else float(_grund["nebeldichte"])
-	var ziel_licht: float = umgebungslicht if _drin and umgebungslicht >= 0.0 \
-			else float(_grund["umgebungslicht"])
-	var ziel_umgebung: Color = umgebungsfarbe if _drin and umgebungsfarbe.a > 0.0 \
-			else _grund["umgebungsfarbe"]
+	var grund_farbe: Color = _grund["nebelfarbe"]
+	var grund_dichte: float = _grund["nebeldichte"]
+	var grund_licht: float = _grund["umgebungslicht"]
+	var grund_umgebung: Color = _grund["umgebungsfarbe"]
+	var ziel_farbe: Color = grund_farbe.lerp(nebelfarbe, farbanteil) \
+			if _drin and nebelfarbe.a > 0.0 else grund_farbe
+	var ziel_dichte := grund_dichte
+	if _drin and nebel_faktor >= 0.0:
+		ziel_dichte = grund_dichte * nebel_faktor
+	elif _drin and nebeldichte >= 0.0:
+		ziel_dichte = nebeldichte
+	var ziel_licht := grund_licht
+	if _drin and licht_faktor >= 0.0:
+		ziel_licht = grund_licht * licht_faktor
+	elif _drin and umgebungslicht >= 0.0:
+		ziel_licht = umgebungslicht
+	var ziel_umgebung: Color = grund_umgebung.lerp(umgebungsfarbe, farbanteil) \
+			if _drin and umgebungsfarbe.a > 0.0 else grund_umgebung
 
 	_umgebung.fog_light_color = _umgebung.fog_light_color.lerp(ziel_farbe, anteil)
 	_umgebung.fog_density = lerpf(_umgebung.fog_density, ziel_dichte, anteil)
