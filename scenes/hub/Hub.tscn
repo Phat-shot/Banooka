@@ -6,11 +6,11 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
 [sub_resource type="ProceduralSkyMaterial" id="Himmel"]
-sky_top_color = Color(0.19, 0.32, 0.58, 1)
-sky_horizon_color = Color(0.72, 0.7, 0.66, 1)
-sky_curve = 0.14
-ground_bottom_color = Color(0.42, 0.45, 0.47, 1)
-ground_horizon_color = Color(0.72, 0.7, 0.66, 1)
+sky_top_color = Color(0.24, 0.4, 0.66, 1)
+sky_horizon_color = Color(0.9, 0.78, 0.62, 1)
+sky_curve = 0.12
+ground_bottom_color = Color(0.3, 0.31, 0.26, 1)
+ground_horizon_color = Color(0.84, 0.75, 0.62, 1)
 sun_angle_max = 22.0
 sun_curve = 0.2
 
@@ -21,21 +21,28 @@ sky_material = SubResource("Himmel")
 background_mode = 2
 sky = SubResource("SkyRes")
 ambient_light_source = 2
-ambient_light_color = Color(0.58, 0.63, 0.72, 1)
-ambient_light_energy = 0.95
+ambient_light_color = Color(0.52, 0.58, 0.7, 1)
+ambient_light_energy = 0.62
 tonemap_mode = 3
 tonemap_exposure = 1.05
 tonemap_white = 6.0
+glow_enabled = true
+glow_intensity = 0.8
+glow_bloom = 0.0
+glow_hdr_threshold = 0.95
+glow_hdr_scale = 1.0
 fog_enabled = true
-fog_mode = 0
-fog_light_color = Color(0.55, 0.6, 0.64, 1)
-fog_light_energy = 0.8
-fog_density = 0.0028
-fog_aerial_perspective = 0.2
-fog_sky_affect = 0.05
+fog_mode = 1
+fog_light_color = Color(0.74, 0.68, 0.6, 1)
+fog_light_energy = 1.0
+fog_sun_scatter = 0.25
+fog_density = 0.35
+fog_sky_affect = 0.4
+fog_depth_begin = 22.0
+fog_depth_end = 110.0
 adjustment_enabled = true
-adjustment_contrast = 1.06
-adjustment_saturation = 1.18
+adjustment_contrast = 1.1
+adjustment_saturation = 1.1
 
 [node name="Hub" type="Node3D"]
 script = ExtResource("1_hub")
@@ -44,17 +51,23 @@ script = ExtResource("1_hub")
 environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
-light_color = Color(1, 0.949, 0.878, 1)
-light_energy = 1.5
+transform = Transform3D(-0.70711, 0, 0.70711, 0.52548, 0.66913, 0.52548, -0.47315, 0.74314, -0.47315, 0, 30, 0)
+light_color = Color(1, 0.88, 0.7, 1)
+light_energy = 2.1
 light_specular = 0.4
 shadow_enabled = true
 shadow_bias = 0.04
 shadow_normal_bias = 1.5
-directional_shadow_mode = 2
-directional_shadow_max_distance = 70.0
-directional_shadow_split_1 = 0.1
-directional_shadow_split_2 = 0.26
+directional_shadow_mode = 1
+directional_shadow_max_distance = 60.0
+directional_shadow_split_1 = 0.25
+
+[node name="Himmelslicht" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.70711, 0, -0.70711, -0.54168, 0.64279, -0.54168, 0.45452, 0.76604, 0.45452, 0, 30, 0)
+light_color = Color(0.62, 0.72, 0.95, 1)
+light_energy = 0.42
+light_specular = 0.0
+sky_mode = 1
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 2.5)
