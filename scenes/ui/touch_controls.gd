@@ -73,6 +73,9 @@ var _joy_zentrum := Vector2.ZERO
 var _joy_stick := Vector2.ZERO
 var _btn_touches := {}      ## Touch-Index -> Tastenname
 var _btn_aktiv := {}        ## Tastenname -> gedrückt
+## Nachglühen nach dem Loslassen: Tastenname -> 1..0. Nur Optik – ein
+## kurzer Tipp soll sichtbar sein, auch wenn er kürzer als ein Bild war.
+var _nachglimmen := {}
 
 
 func _ready() -> void:
@@ -80,6 +83,7 @@ func _ready() -> void:
 	# Auch bei angehaltenem Baum bedienbar, sonst käme man mit dem Finger
 	# nicht mehr aus der Statustafel heraus.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_process(false)
 	resized.connect(_vermessen)
 	InputHub.eingabeart_geaendert.connect(_auf_eingabeart)
 	_vermessen()
@@ -177,6 +181,8 @@ func _input(event: InputEvent) -> void:
 				_btn_touches.erase(beruehrung.index)
 				_btn_aktiv[taste] = false
 				_melde(taste, false)
+				_nachglimmen[taste] = 1.0
+				set_process(true)
 				verbraucht = true
 			if beruehrung.index == _joy_index:
 				_joy_index = -1
@@ -249,6 +255,17 @@ func _draw() -> void:
 	_zeichne_tasten()
 
 
+func _process(delta: float) -> void:
+	var noch := false
+	for taste: String in _nachglimmen:
+		var wert := maxf(float(_nachglimmen[taste]) - delta / 0.15, 0.0)
+		_nachglimmen[taste] = wert
+		noch = noch or wert > 0.0
+	queue_redraw()
+	if not noch:
+		set_process(false)
+
+
 func _zeichne_joystick() -> void:
 	if gesperrt:
 		return
@@ -256,17 +273,31 @@ func _zeichne_joystick() -> void:
 	# Daumen hingehört; beim Berühren wandert der Ring unter den Finger.
 	var zentrum := _joy_zentrum if _joy_index != -1 else _joy_heimat
 	var deckung := 1.0 if _joy_index != -1 else 0.45
-	draw_circle(zentrum, _joy_basis, Color(1, 1, 1, 0.10 * deckung))
-	draw_arc(zentrum, _joy_basis, 0.0, TAU, 48, Color(1, 1, 1, 0.28 * deckung),
-			maxf(2.0, _radius * 0.045))
+	var strich := maxf(2.0, _radius * 0.045)
+	# Dunkler Hof außen: der Ring bleibt auch über Schnee lesbar
+	draw_circle(zentrum, _joy_basis + strich * 1.5, Color(0.02, 0.03, 0.04, 0.30 * deckung),
+			true, -1.0, true)
+	draw_circle(zentrum, _joy_basis, Color(1, 1, 1, 0.10 * deckung), true, -1.0, true)
+	draw_arc(zentrum, _joy_basis, 0.0, TAU, 48, Color(1, 1, 1, 0.28 * deckung), strich, true)
 	var knauf := _joy_stick if _joy_index != -1 else _joy_heimat
-	draw_circle(knauf, _joy_knauf, Color(1, 1, 1, 0.42 * deckung))
-	draw_arc(knauf, _joy_knauf, 0.0, TAU, 32, Color(1, 1, 1, 0.5 * deckung),
-			maxf(1.5, _radius * 0.03))
+	draw_circle(knauf, _joy_knauf, Color(0.02, 0.03, 0.04, 0.25 * deckung), true, -1.0, true)
+	draw_circle(knauf, _joy_knauf * 0.94, Color(1, 1, 1, 0.40 * deckung), true, -1.0, true)
+	draw_circle(knauf, _joy_knauf * 0.7, Color(1, 1, 1, 0.08 * deckung), true, -1.0, true)
+	draw_arc(knauf, _joy_knauf * 0.94, 0.0, TAU, 32, Color(1, 1, 1, 0.5 * deckung),
+			maxf(1.5, _radius * 0.03), true)
+	# Richtungskeil außen am Ring: zeigt, wohin der Daumen gerade schiebt
+	var zug := knauf - zentrum
+	if _joy_index != -1 and zug.length() > 0.2 * _joy_max:
+		var richtung := zug.normalized()
+		var quer := Vector2(-richtung.y, richtung.x)
+		var b := _radius * 0.17
+		var fuss := zentrum + richtung * (_joy_basis + strich * 1.5)
+		var spitze := fuss + richtung * b * 1.4
+		draw_colored_polygon(PackedVector2Array([spitze, fuss + quer * b, fuss - quer * b]),
+				Color(1, 1, 1, 0.75))
 
 
 func _zeichne_tasten() -> void:
-	var schrift := get_theme_default_font()
 	var punkte := _tastenpunkte()
 	var strich := maxf(2.0, _radius * 0.075)
 	var schriftgroesse := maxi(10, int(_radius * 0.26))
@@ -279,27 +310,31 @@ func _zeichne_tasten() -> void:
 		var mitte: Vector2 = punkte[taste]
 		var farbe := PadSymbole.farbe(taste)
 		var gedrueckt: bool = _btn_aktiv.get(taste, false)
+		# 1 = gedrückt, danach kurz nachglühend
+		var druck := 1.0 if gedrueckt else float(_nachglimmen.get(taste, 0.0))
+		# Gedrückt wirkt die Taste eingedrückt: etwas kleiner, farbig gefüllt.
+		var r := _radius * (1.0 - 0.08 * druck)
 
-		var fuellung := Color(0.05, 0.06, 0.08, 0.34)
-		if gedrueckt:
-			fuellung = Color(farbe.r, farbe.g, farbe.b, 0.55)
-		draw_circle(mitte, _radius, fuellung)
+		if druck > 0.0:
+			draw_arc(mitte, _radius + strich * 1.6, 0.0, TAU, 48,
+					Color(farbe, 0.28 * druck), strich * 1.4, true)
+		# Fase: dunkler Außenring, heller Innenring – eine Taste, kein Loch
+		draw_circle(mitte, r + strich * 0.5, Color(0.02, 0.03, 0.04, 0.40), true, -1.0, true)
+		var fuellung := Color(0.05, 0.06, 0.08, 0.34).lerp(Color(farbe, 0.55), druck)
+		draw_circle(mitte, r, fuellung, true, -1.0, true)
+		draw_circle(mitte, r * 0.86, Color(1, 1, 1, 0.05), true, -1.0, true)
 		var ring := farbe
-		ring.a = 0.95 if gedrueckt else 0.7
-		draw_arc(mitte, _radius, 0.0, TAU, 48, ring, strich)
+		ring.a = lerpf(0.7, 0.95, druck)
+		draw_arc(mitte, r, 0.0, TAU, 48, ring, strich, true)
 
-		PadSymbole.zeichne(self, taste, mitte, _radius * 0.44, farbe, strich)
+		PadSymbole.zeichne(self, taste, mitte, r * 0.44,
+				farbe.lerp(Color.WHITE, 0.5 * druck), strich)
 
-		if schrift != null:
-			var text: String = BESCHRIFTUNG[taste]
-			var breite := schrift.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT,
-					-1, schriftgroesse).x
-			# Die Beschriftung liegt außerhalb der Raute: bei der oberen
-			# Taste darüber, sonst darunter – sonst stünde sie zwischen den
-			# Nachbartasten.
-			var oben: bool = (PLATZ[taste] as Vector2).y < 0.0
-			var abstand := _radius + schriftgroesse * (0.5 if oben else 1.15)
-			draw_string(schrift,
-					mitte + Vector2(-breite * 0.5, -abstand if oben else abstand),
-					text, HORIZONTAL_ALIGNMENT_LEFT, -1, schriftgroesse,
-					Color(1, 1, 1, 0.65))
+		var text: String = BESCHRIFTUNG[taste]
+		# Die Beschriftung liegt außerhalb der Raute: bei der oberen
+		# Taste darüber, sonst darunter – sonst stünde sie zwischen den
+		# Nachbartasten.
+		var oben: bool = (PLATZ[taste] as Vector2).y < 0.0
+		var abstand := _radius + schriftgroesse * (0.5 if oben else 1.15)
+		UiStil.text(self, mitte + Vector2(0.0, -abstand if oben else abstand), text,
+				schriftgroesse, Color(1, 1, 1, 0.8), &"fett", 3, HORIZONTAL_ALIGNMENT_CENTER)
