@@ -1,43 +1,75 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scenes/levels/level01.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/camera/CorridorCamera.tscn" id="3_cam"]
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
+[ext_resource type="Shader" path="res://shaders/himmel.gdshader" id="5_himmel"]
+[ext_resource type="Script" path="res://scripts/bildrahmen.gd" id="6_rahmen"]
 
-[sub_resource type="ProceduralSkyMaterial" id="Himmel"]
-sky_top_color = Color(0.25, 0.45, 0.68, 1)
-sky_horizon_color = Color(0.66, 0.76, 0.76, 1)
-sky_curve = 0.12
-ground_bottom_color = Color(0.16, 0.2, 0.16, 1)
-ground_horizon_color = Color(0.66, 0.76, 0.76, 1)
-sun_angle_max = 25.0
-sun_curve = 0.2
+[sub_resource type="FastNoiseLite" id="Wolkenrauschen"]
+seed = 101
+frequency = 0.008
+fractal_octaves = 5
+fractal_gain = 0.55
+
+[sub_resource type="NoiseTexture2D" id="Wolken"]
+width = 512
+height = 512
+seamless = true
+noise = SubResource("Wolkenrauschen")
+
+[sub_resource type="ShaderMaterial" id="Himmel"]
+shader = ExtResource("5_himmel")
+shader_parameter/zenit = Color(0.24, 0.46, 0.74, 1)
+shader_parameter/horizont = Color(0.7, 0.8, 0.84, 1)
+shader_parameter/dunst = Color(0.46, 0.54, 0.54, 1)
+shader_parameter/boden = Color(0.4, 0.46, 0.46, 1)
+shader_parameter/verlauf_kurve = 0.42
+shader_parameter/dunst_hoehe = 0.07
+shader_parameter/schein_farbe = Color(1, 0.74, 0.45, 1)
+shader_parameter/schein_breite = 4.0
+shader_parameter/schein_staerke = 0.5
+shader_parameter/hof_staerke = 0.3
+shader_parameter/scheibe_staerke = 0.0
+shader_parameter/huegel_hoehe = 0.085
+shader_parameter/wolken = SubResource("Wolken")
+shader_parameter/wolken_menge = 0.52
+shader_parameter/wolken_weich = 0.2
+shader_parameter/wolken_skala = 0.2
+shader_parameter/wolken_deckung = 0.85
 
 [sub_resource type="Sky" id="SkyRes"]
 sky_material = SubResource("Himmel")
+radiance_size = 1
 
 [sub_resource type="Environment" id="Umgebung"]
 background_mode = 2
 sky = SubResource("SkyRes")
 ambient_light_source = 2
-ambient_light_color = Color(0.52, 0.58, 0.48, 1)
-ambient_light_energy = 0.48
+ambient_light_color = Color(0.44, 0.54, 0.64, 1)
+ambient_light_energy = 0.45
 tonemap_mode = 3
-tonemap_exposure = 1.05
+tonemap_exposure = 0.95
 tonemap_white = 6.0
+glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.0
+glow_hdr_threshold = 1.0
+glow_hdr_scale = 1.2
 fog_enabled = true
-fog_mode = 0
-fog_light_color = Color(0.26, 0.33, 0.20, 1)
-fog_light_energy = 0.9
-fog_density = 0.0055
-fog_aerial_perspective = 0.45
-fog_sky_affect = 0.05
-fog_height = 1.0
-fog_height_density = 0.11
+fog_mode = 1
+fog_light_color = Color(0.46, 0.54, 0.54, 1)
+fog_light_energy = 1.0
+fog_sun_scatter = 1.6
+fog_density = 0.9
+fog_sky_affect = 0.0
+fog_depth_curve = 1.1
+fog_depth_begin = 12.0
+fog_depth_end = 140.0
 adjustment_enabled = true
 adjustment_brightness = 1.0
-adjustment_contrast = 1.03
+adjustment_contrast = 1.06
 adjustment_saturation = 1.06
 
 [node name="Level01" type="Node3D"]
@@ -47,33 +79,47 @@ script = ExtResource("1_level")
 environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
-light_color = Color(1, 0.941, 0.855, 1)
-light_energy = 1.8
+transform = Transform3D(0.965926, -0.224144, 0.12941, 0, 0.5, 0.866025, -0.258819, -0.836516, 0.482963, 0, 30, 0)
+light_color = Color(1, 0.93, 0.8, 1)
+light_energy = 0.55
 light_specular = 0.4
 shadow_enabled = true
 shadow_bias = 0.04
 shadow_normal_bias = 1.5
-directional_shadow_mode = 2
-directional_shadow_max_distance = 90.0
-directional_shadow_split_1 = 0.08
-directional_shadow_split_2 = 0.22
+directional_shadow_mode = 1
+directional_shadow_max_distance = 70.0
+directional_shadow_split_1 = 0.25
+sky_mode = 1
+
+[node name="Gegenlicht" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.9848, 0, -0.1736, -0.042, 0.9703, 0.2382, 0.1684, 0.2419, -0.9556, 0, 30, 0)
+light_color = Color(1, 0.82, 0.6, 1)
+light_energy = 0.14
+light_specular = 0.3
 
 [node name="Himmelslicht" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.86603, 0.00000, -0.50000, -0.44147, 0.46947, 0.76466, 0.23474, 0.88295, -0.40657, 0, 30, 0)
-light_color = Color(0.62, 0.74, 0.95, 1)
-light_energy = 0.34
+transform = Transform3D(-0.86603, 0, -0.5, -0.44147, 0.46947, 0.76466, 0.23474, 0.88295, -0.40657, 0, 30, 0)
+light_color = Color(0.6, 0.72, 1, 1)
+light_energy = 0.3
 light_specular = 0.0
+sky_mode = 1
 
 [node name="Bodenlicht" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.93969, 0.00000, -0.34202, 0.21057, 0.78801, 0.57853, 0.26952, -0.61566, 0.74049, 0, 2, 0)
+transform = Transform3D(1, 0, 0, 0, 0.819152, -0.573576, 0, 0.573576, 0.819152, 0, 2, 0)
 light_color = Color(0.86, 0.66, 0.42, 1)
-light_energy = 0.16
+light_energy = 0.12
 light_specular = 0.0
+sky_mode = 1
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
 
 [node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
+
+[node name="Bildrahmen" type="CanvasLayer" parent="."]
+script = ExtResource("6_rahmen")
+staerke = 0.35
+farbe = Color(0.02, 0.035, 0.02, 1)
+licht = 0.04
 
 [node name="HUD" parent="." instance=ExtResource("4_hud")]
