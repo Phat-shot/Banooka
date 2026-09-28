@@ -120,11 +120,26 @@ var _kein_jump_cut := false
 ## und nicht ein einzelner Wert.
 var _eisflaechen := {}
 
+# --- Nur Optik: Bodenfleck, Staub, Auftauchen nach dem Tod ---
+# Gelesen wird hier nur, geschrieben nie: Nichts davon wirkt auf Tempo,
+# Hitbox oder Zustand der Figur zurück.
+var _bodenschatten: Bodenschatten = null
+var _laufstaub: CPUParticles3D = null
+var _slidestaub: CPUParticles3D = null
+var _auftritt: Tween = null
+
 
 func _ready() -> void:
 	add_to_group("spieler")
 	# Die Schutzladungen kreisen als Masken um die Figur.
 	add_child(Schutzmaske.new())
+	# Den harten Schnitt beim Tod kaschieren – für jede Figur, die stirbt,
+	# auch für Reiter und Flieger (sie senden dasselbe Signal).
+	gestorben.connect(_tod_optik)
+	if _mit_bodeneffekten():
+		_bodenschatten = Bodenschatten.new()
+		_bodenschatten.name = "Bodenschatten"
+		add_child(_bodenschatten)
 	GameState.level_starten(global_position)
 
 
@@ -204,6 +219,8 @@ func _physics_process(delta: float) -> void:
 			# Bewusst still: Bei SLAM_V dauert der Sturz oft nur ein paar
 			# Zehntelsekunden. Ein Zischen dazu würde noch dröhnen, wenn
 			# der Aufschlag längst zu hören ist.
+			# Zu sehen ist er dafür: gestreckt wie ein Pfeil nach unten.
+			_stoss(-0.25)
 
 	# --- Krabbeln ---
 	_kriechen_pruefen(am_boden, staerke)
@@ -224,12 +241,14 @@ func _physics_process(delta: float) -> void:
 			_fall_rest = 0.0
 			# Der Slide-Jump klingt eine Spur heller, weil er höher trägt.
 			Klang.spiele("sprung", 1.12 if aus_slide else 1.0)
+			_absprung_optik(aus_slide)
 		elif can_djump and not slamming:
 			velocity.y = DJUMP_V
 			can_djump = false
 			spinning = maxf(spinning, DJUMP_SPIN_TIME)
 			_kein_jump_cut = false
 			Klang.spiele("doppelsprung")
+			_doppelsprung_optik()
 
 	# --- Variable Sprunghöhe: Taste losgelassen => kappen ---
 	# Abprallen von Feder-/Sprungkisten und Gegnern wird nicht gekappt.
@@ -243,6 +262,8 @@ func _physics_process(delta: float) -> void:
 		_spin_geprueft = false
 		spin_gestartet.emit()
 		Klang.spiele("drehschlag")
+		if am_boden:
+			_wirbel_optik()
 	if spinning > 0.0:
 		_spin_treffer()
 
@@ -257,6 +278,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		_fall_rest = maxf(_fall_rest - delta, 0.0)
 
+	# Nur für die Optik gemerkt: `move_and_slide` zieht vel.y beim
+	# Aufsetzen auf 0, die Wucht der Landung steckt im Wert davor.
+	var fall_v := velocity.y
 	move_and_slide()
 
 	# --- Landung ---
@@ -266,6 +290,8 @@ func _physics_process(delta: float) -> void:
 		# nicht jedes Bild, in dem die Figur schon steht.
 		if not am_boden:
 			Klang.spiele("aufschlag" if slamming else "landung")
+			if not slamming:
+				_landung_optik(fall_v)
 		can_djump = false
 		_kein_jump_cut = false
 		if slamming:
@@ -283,6 +309,7 @@ func _process(delta: float) -> void:
 		_modell.aktualisiere(delta, _tempo, not is_on_floor(), sliding, spinning,
 				haltung())
 		_modell.sichtbarkeit(invuln <= 0.0 or fmod(invuln, 0.2) > 0.1)
+	_bodeneffekte_takten()
 
 
 # ---------------------------------------------------------- Schnittstelle
@@ -363,6 +390,7 @@ func abprallen(hoehe: float = ABPRALL_V) -> void:
 	_kein_jump_cut = true
 	abgeprallt.emit()
 	Klang.spiele("abprall")
+	_stoss(-0.3)
 
 
 ## Schaden nehmen. Während der Unverwundbarkeit wirkungslos.
@@ -381,6 +409,7 @@ func schaden_nehmen() -> void:
 	if GameState.schutz_verbrauchen():
 		invuln = INVULN_ZEIT
 		Klang.spiele("schaden")
+		_schutzbruch_optik()
 		return
 	sterben()
 
@@ -447,6 +476,8 @@ func _einhaengen(gitter: Hangelgitter) -> void:
 	global_position = gitter.naechster_punkt(global_position)
 	reset_physics_interpolation()
 	Klang.spiele("landung", 1.3, 0.7)
+	# Die Arme fangen den Schwung ab: kurz gestreckt, dann federt es aus.
+	_stoss(-0.12)
 
 
 ## Hangeln: ein vollständiger Ersatz für Laufen und Fallen.
@@ -475,6 +506,7 @@ func _hangeln(delta: float) -> void:
 					eingabe.y * RUN_SPEED * AIR_CTRL)
 			can_djump = true
 			Klang.spiele("sprung")
+			_stoss(-0.2)
 		else:
 			velocity = Vector3.ZERO
 		return
@@ -600,10 +632,19 @@ func _hitbox_aktualisieren() -> void:
 ## Schockwelle beim Aufschlag des Bauchplatschers: zerbricht Kisten im Umkreis.
 func _schockwelle() -> void:
 	bauchplatscher_gelandet.emit(global_position)
+	# Die Optik VOR den Kisten: Jede zerbrechende Kiste belegt drei der
+	# acht Effekte je Bild – käme der Ring danach, fiele ausgerechnet er
+	# unter einem Kistenhaufen weg, dabei zeigt er die Reichweite.
+	_schockwellen_optik()
+	# Nur mitgezählt für die Optik (Trefferpause, wenn etwas getroffen wurde).
+	var getroffen := 0
 	for kiste in get_tree().get_nodes_in_group("kisten"):
 		if kiste is Node3D and kiste.has_method("zerbrechen"):
 			if kiste.global_position.distance_to(global_position) < SLAM_RADIUS:
 				kiste.zerbrechen(Angriff.SLAM)
+				getroffen += 1
+	if getroffen > 0:
+		Effekte.trefferpause(self, 0.045)
 
 
 ## Rechnet die Eingabe in die Blickrichtung der Kamera um.
@@ -655,3 +696,149 @@ func _spin_treffer() -> void:
 			continue
 		if gegner.global_position.distance_to(global_position + Vector3.UP * 0.5) < SPIN_REICHWEITE:
 			gegner.besiegen(Angriff.SPIN)
+
+
+# ---------------------------------------------------------- Optik
+#
+# Alles ab hier ist Rückmeldung fürs Auge: Staub, Stauchen, Ringe,
+# Kamerawackeln. Gelesen wird der Zustand der Figur, geschrieben wird er
+# nie – kein Tempo, keine Hitbox, keine Zeitgeber. Die Trefferpause aus
+# `Effekte` hält das Spiel für Bruchteile einer Sekunde an und ist im
+# Headless-Betrieb aus, damit die Prüfwerkzeuge dieselben Bilder zählen.
+
+## Bekommt diese Figur Bodenfleck, Lauf- und Slidestaub und das Auftauchen
+## nach dem Tod? Nur die Figur, die selbst läuft. Reiter, Rennfahrer und
+## Flieger werden getragen (Wildkatze, Kart, Doppeldecker) und führen ihr
+## Modell selbst – unter ihnen läge der Fleck im Sattel, und der Kart
+## hätte Laufstaub. Eine Unterklasse, die wieder zu Fuß geht und die
+## Bewegung dieser Klasse nutzt, überschreibt das mit `true`.
+func _mit_bodeneffekten() -> bool:
+	var skript := get_script() as Script
+	return skript != null and skript.get_global_name() == &"Spieler"
+
+
+## Stößt die Stauchfeder des Modells an (> 0 stauchen, < 0 strecken).
+func _stoss(wert: float) -> void:
+	if is_instance_valid(_modell):
+		_modell.stoss(wert)
+
+
+## Absprung vom Boden: gestreckt nach oben, eine Staubwolke bleibt zurück.
+func _absprung_optik(aus_slide: bool) -> void:
+	_stoss(-0.3 if aus_slide else -0.22)
+	Effekte.staubwolke(self, global_position, 0.55 if aus_slide else 0.4)
+
+
+## Doppelsprung: der klassische Luftring unter den Füßen – er zeigt, dass
+## der zweite Sprung verbraucht ist, ohne dass man auf eine Anzeige schaut.
+func _doppelsprung_optik() -> void:
+	_stoss(-0.16)
+	Effekte.ring(self, global_position + Vector3.UP * 0.1,
+			Color(Farben.SPIN_RING.lerp(Color.WHITE, 0.5), 0.42), 0.85, 0.22)
+
+
+## Landung: stauchen nach Wucht, ab einem echten Sprung auch Staub. Ein
+## Schritt eine Stufe hinab (kaum Fallgeschwindigkeit) bleibt ohne beides,
+## sonst staubte es auf jeder Treppe.
+func _landung_optik(fall_v: float) -> void:
+	if fall_v > -4.0:
+		return
+	_stoss(clampf(-fall_v / 60.0, 0.08, 0.28))
+	if fall_v < -7.0:
+		Effekte.staubwolke(self, global_position, clampf(-fall_v / 24.0, 0.35, 1.0))
+
+
+## Drehschlag am Boden: Der Staub unter den Füßen dreht sich mit. Die
+## Querbeschleunigung läuft um die Achse der Teilchenschwerkraft (hier nach
+## oben); negativ dreht sie in Richtung des Modells (SPIN_DREHUNG > 0).
+func _wirbel_optik() -> void:
+	var wolke := Effekte.staubwolke(self, global_position, 0.6)
+	if wolke != null:
+		wolke.tangential_accel_min = -22.0
+		wolke.tangential_accel_max = -14.0
+
+
+## Aufschlag des Bauchplatschers. Der Ring hat GENAU den Wirkradius –
+## so lernt man die Reichweite, ohne sie nachzulesen.
+func _schockwellen_optik() -> void:
+	var boden := global_position
+	Effekte.ring(self, boden + Vector3.UP * 0.06, Farben.SPIN_RING, SLAM_RADIUS, 0.3)
+	Effekte.staubwolke(self, boden, 1.5)
+	Effekte.erschuettern(self, 0.45)
+	_stoss(0.42)
+	if is_instance_valid(_modell):
+		_modell.kneifen(0.25)
+
+
+## Eine Schutzladung fängt einen Treffer ab. Das Zerspringen der Maske
+## selbst zeigt `Schutzmaske`; hier kommt die Wucht dazu.
+func _schutzbruch_optik() -> void:
+	Effekte.erschuettern(self, 0.35)
+	Effekte.trefferpause(self, 0.07)
+	Effekte.bildblitz(self, Color(1.0, 0.35, 0.2, 0.22), 0.22)
+	_stoss(0.2)
+	if is_instance_valid(_modell):
+		_modell.kneifen(0.35)
+
+
+## Tod. `sterben()` setzt im selben Bild zurück, und die Kamera springt
+## mit – ein Effekt am Todesort wäre nie zu sehen. Also ein dunkler
+## Schleier über den Schnitt und ein Auftauchen am Rückkehrpunkt.
+func _tod_optik() -> void:
+	Effekte.bildblitz(self, Color(Farben.UI_TREFFER, 0.85), 0.55)
+	if _mit_bodeneffekten():
+		# Aufgeschoben: Das Signal kommt VOR dem Zurücksetzen; erst am
+		# Bildende steht die Figur am Checkpoint.
+		_auftritt_optik.call_deferred()
+
+
+## Auftauchen am Rückkehrpunkt: Ring und Funken in der Farbe des
+## Startportals, die Figur ploppt aus kleiner Größe auf.
+func _auftritt_optik() -> void:
+	if not is_inside_tree():
+		return
+	var fuss := global_position
+	Effekte.ring(self, fuss + Vector3.UP * 0.05, Farben.PORTAL_START, 1.3, 0.4)
+	Effekte.funken(self, fuss + Vector3.UP * 0.6,
+			Farben.PORTAL_START.lightened(0.4), 14, 3.0)
+	_stoss(-0.35)
+	if not is_instance_valid(_modell):
+		return
+	if _auftritt != null and _auftritt.is_valid():
+		_auftritt.kill()
+	_modell.scale = Vector3.ONE * 0.4
+	_auftritt = create_tween()
+	_auftritt.tween_property(_modell, "scale", Vector3.ONE, 0.3) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Bodenfleck und Staub nachführen, jedes Bild. Die Emitter entstehen erst
+## beim ersten Gebrauch: Dann hat das Level `Effekte.staubfarbe` gesetzt –
+## beim Eintreten der Figur noch nicht, sie ist vor ihrem Level fertig.
+func _bodeneffekte_takten() -> void:
+	if _bodenschatten == null:
+		return
+	# Schrumpft die Figur (Portal, Auftauchen), verblasst der Fleck mit.
+	if is_instance_valid(_modell):
+		_bodenschatten.staerke = clampf(_modell.scale.y, 0.0, 1.0)
+	var boden := is_on_floor() and not gesperrt
+	var laeuft := boden and _tempo > 0.75 and sliding <= 0.0 and not kriechen \
+			and glaette() < 0.5
+	_laufstaub = _staub_schalten(_laufstaub, laeuft, false)
+	_slidestaub = _staub_schalten(_slidestaub, boden and sliding > 0.0, true)
+
+
+## Schaltet einen Dauerstaub nur beim Wechsel (siehe `Effekte.dauerstaub`)
+## und färbt ihn beim Einschalten in die Staubfarbe des Levels.
+func _staub_schalten(staub: CPUParticles3D, an: bool,
+		gleiten: bool) -> CPUParticles3D:
+	if staub == null:
+		if not an:
+			return null
+		staub = Effekte.dauerstaub(self, gleiten)
+	if staub.emitting != an:
+		if an:
+			var ton := Effekte.staubfarbe
+			staub.color = Color(ton.r, ton.g, ton.b, staub.color.a)
+		staub.emitting = an
+	return staub
