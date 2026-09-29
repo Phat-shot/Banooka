@@ -8,7 +8,8 @@ Jede übernommene Datei wird hier mit Quelle und Lizenz eingetragen.
 |---|---|---|---|
 | `icon.svg` | eigene Erstellung | CC0 | Projekt-Icon |
 | `assets/modelle/pruefling.glb` | eigene Erstellung (`werkzeuge/modelltest.gd`) | CC0 | Probefigur zum Prüfen des Modellwegs |
-| `assets/modelle/natur/*.glb` (35) | [Kenney Nature Kit](https://kenney.nl/assets/nature-kit) | CC0 | Bäume, Felsen, Pilze, Büsche, Blumen – Lizenztext liegt daneben |
+| `assets/modelle/natur/*.glb` (35) | [Kenney Nature Kit](https://kenney.nl/assets/nature-kit) | CC0 | Bäume, Felsen, Pilze, Büsche, Blumen – Lizenztext liegt daneben. In Level 01 über `Fremdmodelle.netz()` zur Laufzeit **verändert**: zu einem Netz verschmolzen, Felsen, Kiesel und Stämme unterteilt und nachgeformt (gewölbt statt flach, Stämme rund), alle Stoffe ersetzt (`moosdecke`, `laubstoff`), Farben auf den Waldboden gelegt; die Dateien selbst bleiben unverändert |
+| `assets/modelle/natur2/` | vorgesehen: Quaternius [Stylized Nature MegaKit](https://quaternius.com) und Ultimate Nature Pack, Kenney Nature Kit vollständig | CC0 | **Derzeit leer** – beim Bau (29.09.2026) waren kenney.nl, quaternius.com und poly.pizza gesperrt; Level 01 nimmt dann die Kenney-Modelle oben bzw. prozedurale Rückfälle. Einkaufsliste, Anforderungen und Ablauf in `natur2/LIESMICH.md`. Je Paket kommt hier eine Zeile hinzu, der Lizenztext liegt im Paketordner |
 | `assets/modelle/gegner/kroete.glb` | [Quaternius](https://quaternius.com) über [poly.pizza](https://poly.pizza) | CC0 | Laubfrosch, Optik der Sumpfkröte – **verändert**: Haut sumpfblaugrün (0,22 / 0,55 / 0,50) statt laubgrün, sechs runde helle Rückenflecken (auf die Haut gelegte Scheiben), ein Glanzpunkt in jedem Auge, feucht glänzende Haut und Augen |
 | `assets/modelle/gegner/kaefer.glb` | Exceptional_3D über [poly.pizza](https://poly.pizza) | CC0 | Marienkäfer, Optik des Panzerkäfers – **umgefärbt**: der Panzer dunkles Mahagoni (0,34 / 0,17 / 0,10) statt rot, damit es kein Marienkäfer mehr ist; die Mittelnaht warmes Creme, die acht Fleckkugeln warngelb, der Kopf warmes Braun (0,32 / 0,22 / 0,14), die Fühler dunkelbraun; alle Flächen glänzender |
 | `assets/modelle/gegner/spinne.glb` | [Quaternius](https://quaternius.com) über [poly.pizza](https://poly.pizza) | CC0 | Spinne, Optik der Stelzenspinne – **verändert**: leuchtend rote Augen, ein roter Stachelkamm aus fünf Spitzen auf dem Hinterleib, leichter Glanz auf dem Körper |
@@ -32,6 +33,9 @@ eine fremde **Schrift** für Titel und Zahlen; fehlt die Datei, schreibt
 Die Änderungen an den Gegnermodellen geschehen zur Laufzeit im Code
 (`scenes/enemies/`, `scripts/fremdmodelle.gd`): umgefärbt, bemalt und um
 eigene Teile ergänzt. Die `.glb`-Dateien selbst liegen unverändert vor.
+Ebenso die Naturmodelle für Level 01: `Fremdmodelle.netz()` nimmt aus der
+Datei nur die Form (und bei texturierten Paketen die Textur, getönt); Stoff,
+Moos, Licht und Farbe kommen aus dem Spiel.
 
 | Bereich | Herkunft |
 |---|---|
