@@ -39,15 +39,21 @@ const AUFTRITT_SPERRE := 0.75
 const EINSAUG_ZEIT := 0.6
 const NACHRICHT_ZEIT := 4.0
 const EDELSTEIN_VERZOEGERUNG := 1.6
+## Deckkraft des Lichtflecks am Boden (additiv).
+const FLECK_DECKKRAFT := 0.32
 
 ## Lichtsäule: additiver, offener Zylinder. Die Deckkraft läuft über die
-## Höhe aus, Lichtbänder wandern aufwärts, und am Umriss ist sie heller
-## als in der Mitte – so liest sie sich als Lichtschlauch, nicht als
-## Milchglasröhre. Die Höhe kommt aus VERTEX.y, weil die UVs von Godots
-## Zylinder nicht sauber 0..1 laufen.
+## Höhe aus, Lichtbänder wandern aufwärts. Quer dazu ist sie in der Mitte
+## am hellsten und läuft zum Umriss weich aus (d² ≈ 1 − x² über die
+## Breite) – so liest sie sich als Lichtstrahl. Ein heller Umriss, wie im
+## ersten Wurf, ergab aus der Nähe eine Glasröhre mit harten Kanten.
+## Nur Vorderseiten (`cull_back`): Die Rückwand legte dasselbe Profil
+## noch einmal darüber – doppelte Füllrate für ein Bild, das der hellere
+## Kern auch allein trägt. Die Höhe kommt aus VERTEX.y, weil die UVs von
+## Godots Zylinder nicht sauber 0..1 laufen.
 const _SAEULEN_CODE := """
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
+render_mode unshaded, blend_add, cull_back, depth_draw_never, shadows_disabled;
 
 uniform vec4 farbe : source_color = vec4(0.4, 0.85, 1.0, 1.0);
 uniform float hoehe = 14.0;
@@ -65,13 +71,15 @@ void fragment() {
 	// stehen, nicht in einer Lichtwand.
 	float fuss = smoothstep(0.0, 0.16, anteil);
 	float baender = 0.7 + 0.3 * sin(anteil * 20.0 - TIME * 3.0);
-	float umriss = 1.0 - abs(dot(NORMAL, VIEW));
-	float schlauch = 0.3 + 0.7 * umriss * umriss;
-	// Aus der Ferne ist sie der Wegweiser, aus der Nähe nur noch ein Hauch.
-	float fern = mix(0.3, 1.0, smoothstep(8.0, 30.0,
+	float d = abs(dot(NORMAL, VIEW));
+	// Weicher Strahl mit hellerem Kern.
+	float strahl = d * d + 0.4 * pow(d, 8.0);
+	// Aus der Ferne ist sie der Wegweiser, aus der Nähe nur noch ein Hauch:
+	// Dicht davor füllte sie sonst das halbe Bild und bleichte den Himmel.
+	float fern = mix(0.2, 1.0, smoothstep(10.0, 35.0,
 			distance(CAMERA_POSITION_WORLD, NODE_POSITION_WORLD)));
 	ALBEDO = farbe.rgb * 1.5;
-	ALPHA = clamp(oben_weg * fuss * baender * schlauch * fern * staerke, 0.0, 1.0);
+	ALPHA = clamp(oben_weg * fuss * baender * strahl * fern * staerke, 0.0, 1.0);
 }
 """
 
@@ -81,6 +89,7 @@ var _optik: Node3D = null
 var _scheibe: MeshInstance3D = null
 var _scheibenstoff: ShaderMaterial = null
 var _funken: CPUParticles3D = null
+var _fleckstoff: StandardMaterial3D = null
 var _licht: OmniLight3D = null
 var _phase := 0.0
 var _ausgeloest := false
@@ -158,7 +167,10 @@ func _baue_optik() -> void:
 	_scheibe = MeshInstance3D.new()
 	_scheibe.name = "Scheibe"
 	_scheibe.mesh = flaeche
-	_scheibenstoff = Effekte.wirbelstoff(ton)
+	# Saum nur wenig heller als der Grundton: Mit dem Vorgabesaum (um 0,25
+	# aufgehellt) las sich der Rand direkt am leuchtenden Ring aus
+	# Spielentfernung fast weiß – das Tor soll seine Farbe behalten.
+	_scheibenstoff = Effekte.wirbelstoff(ton, Effekte.KEINE_FARBE, ton.lightened(0.1))
 	# Das Ziel saugt (Arme laufen nach innen), der Start stößt aus.
 	_scheibenstoff.set_shader_parameter("richtung", -1.0 if ist_ziel else 1.0)
 	_scheibe.material_override = _scheibenstoff
@@ -185,10 +197,19 @@ func _baue_optik() -> void:
 ## einzelner Kugeln, die das Skript jedes Bild von Hand verschob. Ein
 ## Zeichenaufruf, und die Bahn rechnet die Engine.
 ##
-## Der Emitter liegt um 90° gekippt im Ring: Godot dreht Teilchen per
-## `tangential_accel` nur um die eigene Y-Achse, und die zeigt nach dem
-## Kippen durch die Öffnung des Rings. Lokale Koordinaten, damit der
-## Kranz mit dem Portal ein- und ausblendet.
+## DREHACHSE = SCHWERKRAFT: `CPUParticles3D` rechnet die Richtung von
+## `tangential_accel` als Kreuzprodukt aus Abstand zur Mitte und
+## `gravity`. Ohne Schwerkraft ist sie null – der Kranz kreiste dann
+## nicht, die Funken trieben nur geradeaus zur Mitte (so im ersten Wurf,
+## per Sonde unter 4.7.2 nachgemessen). Ein Hauch Schwerkraft entlang der
+## lokalen Y-Achse gibt die Achse vor und verschiebt die Funken in ihrer
+## Lebenszeit um einen Millimeter. Der Emitter liegt um 90° gekippt, damit
+## diese Achse durch die Öffnung des Rings zeigt. Lokale Koordinaten,
+## damit der Kranz mit dem Portal ein- und ausblendet.
+##
+## Drehsinn wie die Scheibe: Mit +Y als Achse kreist ein positives
+## `tangential_accel`, von vorn (+Z) gesehen, im Uhrzeigersinn – so wie
+## der Wirbel mit `richtung = -1` (Ziel). Das Startportal dreht umgekehrt.
 func _baue_funkenkranz(ton: Color) -> void:
 	if funken_anzahl <= 0:
 		return
@@ -198,7 +219,8 @@ func _baue_funkenkranz(ton: Color) -> void:
 	p.local_coords = true
 	p.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	p.amount = funken_anzahl * 2
+	# Wie jeder Emitter aus `Effekte`: auf Handys halbiert.
+	p.amount = maxi(1, roundi(funken_anzahl * 2 * (0.5 if Effekte.reduziert else 1.0)))
 	p.lifetime = 1.4
 	p.lifetime_randomness = 0.3
 	# Schon beim ersten Bild ein voller Kranz, nicht erst nach 1,4 s.
@@ -208,21 +230,23 @@ func _baue_funkenkranz(ton: Color) -> void:
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
 	p.emission_ring_axis = Vector3.UP
 	p.emission_ring_height = 0.3
-	p.gravity = Vector3.ZERO
+	p.gravity = Vector3(0.0, 0.001, 0.0)
 	p.direction = Vector3.UP
 	p.spread = 180.0
 	p.initial_velocity_min = 0.0
 	p.initial_velocity_max = 0.25
 	if ist_ziel:
 		# Von außen zum Ring gezogen und dabei im Kreis gerissen: ein Sog.
+		# Zug und Drall halten sich die Waage – die Funken enden auf dem
+		# Ring nach 60 bis 90° Umlauf, statt quer über die Scheibe zu ziehen.
 		p.emission_ring_radius = radius + RING_DICKE + 0.55
 		p.emission_ring_inner_radius = radius + RING_DICKE + 0.15
-		p.radial_accel_min = -1.6
+		p.radial_accel_min = -1.5
 		p.radial_accel_max = -1.0
-		p.tangential_accel_min = 1.2
-		p.tangential_accel_max = 2.2
+		p.tangential_accel_min = 1.6
+		p.tangential_accel_max = 2.4
 	else:
-		# Vom Ring nach außen gestoßen, gegenläufig.
+		# Vom Ring nach außen gestoßen, andersherum kreisend.
 		p.emission_ring_radius = radius + RING_DICKE + 0.2
 		p.emission_ring_inner_radius = radius + RING_DICKE
 		p.radial_accel_min = 0.4
@@ -252,9 +276,12 @@ static func _funkenlauf_holen() -> Gradient:
 
 ## Heller Fleck am Boden vor und unter dem Portal: Das Portal steht damit
 ## IN der Szene statt davor, auch dort, wo sein Punktlicht nicht hinreicht.
+## Nicht breiter als das Portal selbst: Der weiche Fleck hat bis weit nach
+## außen Körper, und auf schmalen Stegen glühte ein größerer in der Luft
+## neben dem Weg.
 func _baue_lichtfleck(ton: Color) -> void:
 	var netz := PlaneMesh.new()
-	netz.size = Vector2(radius * 3.4, radius * 3.4)
+	netz.size = Vector2(radius * 2.4, radius * 2.4)
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -262,7 +289,8 @@ func _baue_lichtfleck(ton: Color) -> void:
 	m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	m.disable_receive_shadows = true
 	m.albedo_texture = Effekte.weiche_textur()
-	m.albedo_color = Color(ton.r, ton.g, ton.b, 0.32)
+	m.albedo_color = Color(ton.r, ton.g, ton.b, FLECK_DECKKRAFT)
+	_fleckstoff = m
 	var fleck := MeshInstance3D.new()
 	fleck.name = "Lichtfleck"
 	fleck.mesh = netz
@@ -281,8 +309,10 @@ func _baue_saeule(ton: Color) -> void:
 		_saeulen_shader = Shader.new()
 		_saeulen_shader.code = _SAEULEN_CODE
 	var netz := CylinderMesh.new()
-	netz.top_radius = radius * 0.85
-	netz.bottom_radius = radius * 0.85
+	# Schmaler als der Ring: ein Strahl, der aus dem Tor steigt, keine Röhre,
+	# in der es steht.
+	netz.top_radius = radius * 0.6
+	netz.bottom_radius = radius * 0.6
 	netz.height = saeulen_hoehe
 	netz.radial_segments = 20
 	netz.rings = 1
@@ -362,6 +392,11 @@ func _scheibe_hochfahren(tween: Tween, ziel: float, dauer: float) -> void:
 func _startauftritt() -> void:
 	if _optik != null:
 		_optik.scale = Vector3(0.05, 0.05, 0.05)
+	# Der Fleck am Boden hängt nicht an `_optik` (er soll beim Aufblähen
+	# nicht mitwandern) und blendet deshalb eigens mit auf – sonst
+	# leuchtete er schon, bevor es das Tor gibt.
+	if _fleckstoff != null:
+		_fleckstoff.albedo_color.a = 0.0
 	await get_tree().process_frame
 	if not is_instance_valid(self):
 		return
@@ -374,6 +409,9 @@ func _startauftritt() -> void:
 		var tween := create_tween()
 		tween.tween_property(_optik, "scale", Vector3.ONE, EINBLEND_ZEIT) \
 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		if _fleckstoff != null:
+			tween.parallel().tween_property(_fleckstoff, "albedo_color:a",
+					FLECK_DECKKRAFT, EINBLEND_ZEIT)
 		# Das Tor geht mit einem Lichtschlag auf.
 		Effekte.aufblitzen(self, _optik.global_position, farbe().lightened(0.3),
 				radius * 2.6, 0.22)

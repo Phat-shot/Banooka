@@ -260,7 +260,8 @@ static func _beere(st: SurfaceTool) -> void:
 static func _stiel(st: SurfaceTool) -> void:
 	st.set_smooth_group(-1)                  # kantig, er ist winzig
 	st.set_uv(Vector2(0.75, 0.5))            # Leuchtmaske: schwarz
-	var braun := Color(0.36, 0.22, 0.1)
+	# Dunkel gegen die helle Beere, damit der Stiel auch klein noch steht.
+	var braun := Color(0.28, 0.17, 0.08)
 	var unten := Vector3(0.0, BEERE_H * 0.72, 0.0)
 	var oben := Vector3(0.035, BEERE_H + 0.1, 0.0)
 	var n := 5
@@ -288,7 +289,10 @@ static func _blatt(st: SurfaceTool, winkel: float, laenge: float, breite: float,
 		hebung: float) -> void:
 	st.set_smooth_group(-1)
 	st.set_uv(Vector2(0.75, 0.5))
-	var hell := Farben.FRUCHT_BLATT.lightened(0.18)
+	# Etwas heller als das Laub am Wegrand: Auf 20 m soll das Blatt als
+	# Umriss über der Beere stehen bleiben, nicht im Dunkel verschwinden.
+	var blatt := Farben.FRUCHT_BLATT.lightened(0.1)
+	var hell := blatt.lightened(0.18)
 	var dunkel := Farben.FRUCHT_BLATT.darkened(0.15)
 	var dreh := Basis(Vector3.UP, winkel)
 	var fuss := Vector3(0.02, BEERE_H + 0.07, 0.0)
@@ -307,7 +311,7 @@ static func _blatt(st: SurfaceTool, winkel: float, laenge: float, breite: float,
 	for dreieck: Array in oben:
 		# Oberseite
 		for p: Vector3 in [dreieck[0], dreieck[1], dreieck[2]]:
-			st.set_color(hell if p == rippe else Farben.FRUCHT_BLATT)
+			st.set_color(hell if p == rippe else blatt)
 			st.add_vertex(pkt.call(p))
 		# Unterseite: umgekehrt gewickelt, ein Hauch tiefer, dunkler.
 		for p: Vector3 in [dreieck[0], dreieck[2], dreieck[1]]:

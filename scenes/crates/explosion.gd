@@ -9,18 +9,28 @@ class_name Explosion
 ##   * Druckwelle – eine Kugel, die bis zum Wirkradius aufbläht. Ein
 ##     eigener Shader lässt nur ihren Rand leuchten (Fresnel): Man sieht
 ##     eine Blase, keine milchige Scheibe, und durch sie hindurch den Weg.
+##   * Feuerball  – große additive Flecken, die weißgelb aufquellen und über
+##     Orange und Rot abkühlen.
 ##   * Bodenring  – zeigt den Wirkradius genau an, wie beim Bauchplatscher.
-##   * Glut, Rauch und ein kurzes Blitzlicht über `Effekte` (gedeckelt:
-##     eine TNT-Kette erzeugte vorher ein Punktlicht je Kiste).
+##   * Glut, Rauch (steigt erst auf, wenn das Feuer verlischt) und ein
+##     kurzes Blitzlicht über `Effekte` (gedeckelt: eine TNT-Kette erzeugte
+##     vorher ein Punktlicht je Kiste).
 ##
 ## Die Splitter der Kiste und das Kamerawackeln kommen aus `Kiste`, weil
 ## nur sie weiß, aus welchem Holz sie ist.
+##
+## Farbe: Alles, was leuchtet, zieht die Kistenfarbe zur Hitze hin. Die
+## Kistenfarbe selbst, nur aufgehellt, ergab beim roten TNT eine rosa
+## Glasglocke über einer lachsfarbenen Scheibe – Licht, aber kein Feuer.
 
 ## Dauer der Druckwelle in Sekunden.
 const DAUER := 0.6
 ## Weißgelbe Hitze: Richtung, in die Glut und Feuerball die Kistenfarbe
 ## ziehen.
 const HITZE := Color(1.0, 0.82, 0.45)
+## Höchste Deckkraft der Druckwelle. Sie ist nur der Rahmen, das Feuer
+## steht in der Mitte.
+const WELLE_DECKKRAFT := 0.55
 
 ## Rand hell, Mitte durchsichtig. Additiv, damit die Welle auf dem dunklen
 ## Schluchtgrund glüht; Schatten und Tiefe schreibt sie nicht.
@@ -33,8 +43,8 @@ uniform float deckkraft : hint_range(0.0, 1.0) = 1.0;
 
 void fragment() {
 	// Hoher Exponent: nur ein schmaler Saum. Mit breitem Saum lag die
-	// Blase im Probelauf wie eine rosa Glocke über dem halben Bild.
-	float rand = pow(1.0 - abs(dot(NORMAL, VIEW)), 4.0);
+	// Blase im Probelauf wie eine Glasglocke über dem halben Bild.
+	float rand = pow(1.0 - abs(dot(NORMAL, VIEW)), 6.0);
 	ALBEDO = farbe.rgb * 1.6;
 	ALPHA = clamp(rand, 0.0, 1.0) * deckkraft;
 }
@@ -47,8 +57,13 @@ var farbe := Farben.WARNUNG
 var mitte := Vector3.ZERO
 
 # Einmal gebaut, von allen Explosionen geteilt (wie `Staubflug._shader`).
+# Nie verändert: Farbe und Deckkraft stecken im Emitter bzw. im eigenen
+# Material jeder Explosion.
 static var _shader: Shader = null
 static var _kugel: SphereMesh = null
+static var _feuerlauf: Gradient = null
+static var _feuerwuchs: Curve = null
+static var _qualmlauf: Gradient = null
 ## Für welche Szene der Shader schon vorgewärmt ist (Instanzkennung).
 static var _gewaermt_fuer := 0
 
@@ -128,7 +143,7 @@ func _baue_druckwelle() -> void:
 	mi.name = "Druckwelle"
 	mi.mesh = _kugel_holen()
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var stoff := _stoff_neu(farbe.lightened(0.35), 0.8)
+	var stoff := _stoff_neu(farbe.lerp(HITZE, 0.45), WELLE_DECKKRAFT)
 	mi.material_override = stoff
 	mi.scale = Vector3.ONE * 0.3
 	add_child(mi)
@@ -140,36 +155,88 @@ func _baue_druckwelle() -> void:
 	# Die Welle verlischt, bevor sie ganz draußen ist: Eine volle Blase um
 	# die Kamera legte sonst einen Farbschleier über das halbe Bild.
 	t.tween_method(func(wert: float) -> void:
-			stoff.set_shader_parameter("deckkraft", wert), 0.8, 0.0, DAUER * 0.7) \
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+			stoff.set_shader_parameter("deckkraft", wert), WELLE_DECKKRAFT, 0.0,
+			DAUER * 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	t.chain().tween_callback(queue_free)
 
 
-## Glut, Feuerball, Bodenring, Rauch und Blitzlicht. Die Reihenfolge ist der Rang,
-## falls `Effekte` in einer Kettenreaktion Stöße verwerfen muss.
+## Feuerball, Bodenring, Glut, Rauch und Blitzlicht. Die Reihenfolge ist
+## der Rang, falls `Effekte` in einer Kettenreaktion Stöße verwerfen muss:
+## zuerst das Feuer, dann der Ring, der den Wirkradius zeigt.
 func _stoesse() -> void:
+	# Der Feuerball: ein Knäuel großer, heißer Flecken, die aufquellen,
+	# aufsteigen und dabei abkühlen – weißgelb, orange, dunkelrot, weg.
+	# Additiv, also verlischt das Dunkelrot von selbst im Hintergrund. Die
+	# Kistenfarbe tönt nur leicht: Nitro brennt grünlich, TNT bleibt Feuer.
+	var ball := Effekte.funken(self, mitte + Vector3.UP * 0.3,
+			Color.WHITE.lerp(farbe, 0.25), 10, 2.6, radius * 0.6)
+	if ball != null:
+		ball.emission_sphere_radius = radius * 0.15
+		ball.gravity = Vector3(0.0, 3.0, 0.0)
+		ball.damping_min = 3.0
+		ball.damping_max = 5.0
+		ball.lifetime = 0.45
+		ball.lifetime_randomness = 0.25
+		ball.scale_amount_curve = _feuerwuchs_holen()
+		ball.color_ramp = _feuerlauf_holen()
+	# Der Ring am Boden sagt genau, wie weit es reicht. Etwas gedämpft: Der
+	# Saum der Ringtextur hat Körper, und voll lag eine glühende Scheibe
+	# unter dem Feuer statt eines Rings.
+	var boden := farbe.lerp(HITZE, 0.5)
+	Effekte.ring(self, mitte + Vector3.DOWN * 0.44, Color(boden, 0.7), radius, 0.35)
 	# Glut: fliegt weit, fällt schwer und glimmt länger als ein Funke. Nach
 	# oben gestreut – was nach unten fliegt, steckt sofort im Boden. Der Ton
 	# geht zum Feuer hin, auch beim grünen Nitro: Glut ist heiß.
-	var glut := Effekte.funken(self, mitte, farbe.lerp(HITZE, 0.55), 24,
+	var glut := Effekte.funken(self, mitte, farbe.lerp(HITZE, 0.65), 24,
 			radius * 2.2, 0.26, 110.0)
 	if glut != null:
 		glut.gravity = Vector3(0.0, -15.0, 0.0)
 		glut.lifetime = 0.7
-	# Der Feuerball: ein Knäuel großer, heißer Flecken, die auseinander-
-	# quellen, aufsteigen und dabei schrumpfen. Ein einzelner Blitzfleck
-	# las sich im Probelauf als Lichtschein, nicht als Feuer.
-	var ball := Effekte.funken(self, mitte + Vector3.UP * 0.3, farbe.lerp(HITZE, 0.7),
-			7, 2.5, radius * 0.45)
-	if ball != null:
-		ball.gravity = Vector3(0.0, 2.0, 0.0)
-		ball.lifetime = 0.35
-	# Der Ring am Boden sagt genau, wie weit es reicht.
-	Effekte.ring(self, mitte + Vector3.DOWN * 0.44, farbe.lightened(0.2), radius, 0.35)
-	# Dunkler Rauch, der langsam aufsteigt und stehen bleibt, wenn der
-	# Blitz längst vorbei ist.
-	# Nicht zu dunkel: Fast schwarzer Rauch stand im Probelauf wie ein Loch
-	# mitten im Bild.
-	Effekte.rauch(self, mitte + Vector3.UP * 0.4, Color(0.4, 0.37, 0.34, 0.8),
-			radius * 0.55, 8)
-	Effekte.blitzlicht(self, mitte, farbe.lightened(0.4), 6.0, radius * 2.5, 0.42)
+	# Dunkler Rauch, der aufsteigt, wenn das Feuer verlischt, und danach
+	# noch eine Weile steht. Er quillt erst auf, wenn der Feuerball schon
+	# abkühlt (eigener Verlauf): Gleichzeitig mit ihm zog er als brauner
+	# Schleier über das Feuer, statt es zu rahmen. Breiter gestreut als
+	# die Vorgabe, damit er seitlich um die Glut herumsteht. Nicht ganz
+	# schwarz: Fast schwarzer Rauch stand im Probelauf wie ein Loch im Bild.
+	var qualm := Effekte.rauch(self, mitte + Vector3.UP * 0.5, Color(0.26, 0.23, 0.2),
+			radius * 0.65, 10)
+	if qualm != null:
+		qualm.lifetime = 1.5
+		qualm.emission_sphere_radius = radius * 0.25
+		qualm.color_ramp = _qualmlauf_holen()
+	Effekte.blitzlicht(self, mitte, HITZE.lerp(farbe, 0.25), 6.0, radius * 2.5, 0.42)
+
+
+## Feuer kühlt ab: weißgelb, orange, rot, dann nichts. Multipliziert mit der
+## Emitterfarbe (fast weiß), deshalb stehen die Töne hier ausgeschrieben.
+static func _feuerlauf_holen() -> Gradient:
+	if _feuerlauf == null:
+		_feuerlauf = Gradient.new()
+		_feuerlauf.offsets = PackedFloat32Array([0.0, 0.25, 0.6, 1.0])
+		_feuerlauf.colors = PackedColorArray([Color(1.0, 0.95, 0.75, 1.0),
+				Color(1.0, 0.62, 0.18, 0.95), Color(0.75, 0.2, 0.06, 0.6),
+				Color(0.25, 0.06, 0.02, 0.0)])
+	return _feuerlauf
+
+
+## Rauch nach dem Feuer: unsichtbar, solange der Feuerball brennt (er lebt
+## knapp ein Drittel so lang), dann dicht, dann langsam weg.
+static func _qualmlauf_holen() -> Gradient:
+	if _qualmlauf == null:
+		_qualmlauf = Gradient.new()
+		_qualmlauf.offsets = PackedFloat32Array([0.0, 0.14, 0.32, 1.0])
+		_qualmlauf.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0),
+				Color(1, 1, 1, 1), Color(1, 1, 1, 0)])
+	return _qualmlauf
+
+
+## Feuer quillt auf und fällt am Ende nur wenig zusammen – ein Funke, der
+## gleichmäßig schrumpft, sähe aus wie Glut, nicht wie eine Flamme.
+static func _feuerwuchs_holen() -> Curve:
+	if _feuerwuchs == null:
+		_feuerwuchs = Curve.new()
+		_feuerwuchs.add_point(Vector2(0.0, 0.45), 0.0, 2.5)
+		_feuerwuchs.add_point(Vector2(0.4, 1.0))
+		_feuerwuchs.add_point(Vector2(1.0, 0.8))
+		_feuerwuchs.bake()
+	return _feuerwuchs

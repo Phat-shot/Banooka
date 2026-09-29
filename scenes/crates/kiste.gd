@@ -1009,8 +1009,12 @@ func erscheinen() -> void:
 	t.tween_property(_modell, "scale", Vector3.ONE, 0.22) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	# Ein Funkenkranz in der Farbe des Gerippes: Aus der Ferne ist das
-	# Aufploppen allein nur ein Zucken, die Funken sieht man.
-	Effekte.funken(self, global_position, UMRISS_WEISS, 8, 2.8, 0.18)
+	# Aufploppen allein nur ein Zucken, die Funken sieht man. Kurz verzögert:
+	# Alle Umrisse erscheinen im selben Bild wie der Bruch des Auslösers,
+	# und so konkurrieren sie nicht mit dessen Stößen um die Grenze je Bild.
+	t.parallel().tween_callback(func() -> void:
+			Effekte.funken(self, global_position, UMRISS_WEISS, 8, 2.8, 0.18)) \
+			.set_delay(0.03)
 
 
 ## Zurück zum Gerippe. Ruft ein Auslöser, der neu in die Welt kommt.
@@ -1181,7 +1185,10 @@ func _tnt_takt() -> void:
 	if stoff != null:
 		var g := create_tween()
 		g.tween_property(stoff, "emission_energy_multiplier", _blink_basis,
-				0.35).from(_blink_basis + 2.2)
+				0.35).from(_blink_basis + 3.0)
+	# Ein Glutschlag über der Kiste: Die Funken der Zündschnur allein sind
+	# aus Spielentfernung kaum zu sehen, der Takt soll es sein.
+	Effekte.aufblitzen(self, global_position + Vector3.UP * 0.7, Farben.GLUT, 0.6, 0.1)
 
 
 ## Eigene Kopie des Korpusmaterials zum Aufglühen. Das TNT-Holz aus der
@@ -1239,6 +1246,12 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 		_:
 			Klang.spiele("kiste")
 
+	# Die eigenen Stöße VOR allem, was die Kiste auslöst: `Effekte` nimmt
+	# je Bild nur acht an (Reihenfolge = Rang, siehe `_truemmer`). Der
+	# Auslöser weckt unten alle Umrisse, und die sprühen selbst Funken –
+	# zuerst angelegt, hätten sie ihm seinen weiten Ring weggenommen.
+	_truemmer()
+
 	match art:
 		Art.CHECKPOINT:
 			# Zählt nicht im Kistenzähler, setzt dafür den Respawn-Punkt.
@@ -1278,7 +1291,6 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 			GameState.kiste_zerbrochen()
 			Frucht.streuen(get_parent(), global_position, 1)
 
-	_truemmer()
 	queue_free()
 
 
@@ -1295,7 +1307,7 @@ func _explodieren(wirkradius: float, ton: Color, trifft_spieler: bool) -> void:
 	Explosion.erzeugen(elternteil, pos, wirkradius, ton)
 	# Die Bretter der Kiste selbst fliegen mit – eine Explosion, aus der
 	# nichts herausfliegt, liest sich als Lichteffekt, nicht als Kiste.
-	Effekte.splitter(self, pos, _bruchstoff(), 8)
+	_bretter_werfen(pos)
 	Effekte.erschuettern(self, 0.7, pos)
 
 	var spieler := get_tree().get_first_node_in_group("spieler") as Spieler
@@ -1348,10 +1360,22 @@ func _bruchstoff() -> Material:
 func _truemmer() -> void:
 	var mitte := global_position
 	var boden := mitte + Vector3.DOWN * 0.5
-	Effekte.splitter(self, mitte, _bruchstoff(), 10)
+	_bretter_werfen(mitte)
 	_bruch_akzent(mitte, boden)
-	Effekte.staubwolke(self, boden, 0.8, Farben.HOLZ.lightened(0.35))
+	# Halb durchsichtig und kaum aufgehellt: Voll deckend lag der Staub wie
+	# helle Wattebäusche auf dem dunklen Weg.
+	Effekte.staubwolke(self, boden, 0.6, Color(Farben.HOLZ.lightened(0.2), 0.6))
 	Effekte.aufblitzen(self, mitte + Vector3.UP * 0.1, Color(1.0, 0.9, 0.7), 1.4, 0.12)
+
+
+## Die Bretter der Kiste fliegen davon. Weniger, aber größer als die
+## Vorgabe von `Effekte.splitter`: Dort lasen sie sich neben einer
+## Meterkiste wie Zweige.
+func _bretter_werfen(mitte: Vector3) -> void:
+	var bretter := Effekte.splitter(self, mitte, _bruchstoff(), 8)
+	if bretter != null:
+		bretter.scale_amount_min = 1.1
+		bretter.scale_amount_max = 1.6
 
 
 ## Farbakzent je Kistenart – derselbe Ton wie die Kiste, damit man auch
