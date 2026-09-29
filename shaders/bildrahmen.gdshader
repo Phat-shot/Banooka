@@ -1,5 +1,5 @@
 shader_type canvas_item;
-// Bildrahmen: dunkle Ränder und ein schwacher warmer Schein von oben.
+// Bildrahmen: dunkle Ränder, auf Wunsch ein warmer Schein von oben.
 //
 // Liegt als bildschirmfüllendes Rechteck über der 3D-Welt (Knoten
 // `Bildrahmen`, CanvasLayer unter dem HUD). Die Ränder rahmen den Weg
@@ -18,7 +18,7 @@ uniform float rand_beginn = 0.5;    // ab hier (0 = Mitte, 1 = Ecke) wird es dun
 uniform float rand_weich = 0.55;
 uniform vec3 rand_farbe : source_color = vec3(0.02, 0.035, 0.02);
 uniform vec3 licht_farbe : source_color = vec3(1.0, 0.84, 0.58);
-uniform float licht_staerke = 0.04;
+uniform float licht_staerke = 0.0;
 uniform vec2 licht_ort = vec2(0.5, -0.2);   // in UV, oberhalb des Bildes
 uniform float licht_weite = 0.9;
 

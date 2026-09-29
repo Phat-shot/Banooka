@@ -118,17 +118,7 @@ common/physics_interpolation=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
-# Kantenglättung. Ohne sie flimmern Stacheln, Kistenkanten und
-# Wandstufen bei jeder Kamerabewegung. Am Rechner 2x MSAA: glättet die
-# Geometriekanten sauber und kostet dort kaum etwas. Im Browser statt-
-# dessen FXAA – ein einziger Vollbild-Durchgang, während MSAA in WebGL2
-# ein zweites, mehrfach abgetastetes Bild samt Auflösen braucht; das
-# spürt man auf Handys zuerst.
 anti_aliasing/quality/msaa_3d=1
 anti_aliasing/quality/msaa_3d.web=0
 anti_aliasing/quality/screen_space_aa.web=1
-# Schattenkarte der Sonne im Browser halb so groß: 16 statt 64 MB
-# Grafikspeicher, auf Handys der Unterschied zwischen Laufen und
-# Absturz. Die Schatten werden dabei nur minimal weicher (in Level 01
-# mit bloßem Auge nicht zu unterscheiden).
 lights_and_shadows/directional_shadow/size.web=2048

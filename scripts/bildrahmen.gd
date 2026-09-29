@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name Bildrahmen
-## Bildrahmen: abgedunkelte Ränder und ein warmer Schein von oben.
+## Bildrahmen: abgedunkelte Ränder, auf Wunsch ein warmer Schein von oben.
 ##
 ## Ein Overlay statt eines Nachbearbeitungseffekts, weil der
 ## Compatibility-Renderer (Web, Mobil) kein SCREEN_TEXTURE kennt. Der
@@ -9,7 +9,7 @@ class_name Bildrahmen
 ## Rechteck, ein Durchgang.
 ##
 ## Einsatz als Knoten in der Levelszene (Werte im Inspektor) oder aus
-## Code: `Bildrahmen.einsetzen(self, 0.25, Color(0.03, 0.03, 0.05), 0.03)`.
+## Code: `Bildrahmen.einsetzen(self, 0.25, Color(0.03, 0.03, 0.05))`.
 ##
 ## Liegt auf Ebene -1: unter dem HUD (1), dem Bildblitz der `Effekte` (0)
 ## und dem Ladeschirm (128). Der Rahmen gehört zur Welt, nicht zur Anzeige.
@@ -32,7 +32,10 @@ const SHADER := preload("res://shaders/bildrahmen.gdshader")
 		_werte_setzen()
 
 ## Warmer Schein von oben, als fiele Licht durch die Kronen. 0 = aus.
-@export_range(0.0, 0.2, 0.005) var licht := 0.04:
+## Unter rund 0,06 sieht man ihn nicht. Vorgabe aus: Vor hellem Himmel
+## wäscht er das Blau nur grau (in Level 01 erprobt und verworfen) – er
+## taugt für Level, deren oberer Bildrand dunkel ist.
+@export_range(0.0, 0.2, 0.005) var licht := 0.0:
 	set(wert):
 		licht = wert
 		_werte_setzen()
@@ -48,7 +51,7 @@ var _stoff: ShaderMaterial = null
 ## Hängt einen fertigen Bildrahmen an `eltern` und gibt ihn zurück.
 static func einsetzen(eltern: Node, rand: float = 0.3,
 		rand_farbe: Color = Color(0.02, 0.035, 0.02),
-		schein: float = 0.03) -> Bildrahmen:
+		schein: float = 0.0) -> Bildrahmen:
 	var rahmen := Bildrahmen.new()
 	rahmen.name = "Bildrahmen"
 	rahmen.staerke = rand
