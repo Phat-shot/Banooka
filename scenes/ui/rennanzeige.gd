@@ -9,6 +9,10 @@ class_name Rennanzeige
 ## Ebene 2, also UNTER dem HUD (Ebene 10): Die Statustafel deckt sie beim
 ## Anhalten ab. Solange angehalten ist, blendet sie sich ganz aus – ihre
 ## Zahlen stehen dann ohnehin still.
+##
+## Der Tacho steht unten rechts – außer mit Touch-Steuerung: Dort liegen
+## die Daumentasten (HUD, Ebene 10, also darüber), und er wandert unten in
+## die Mitte, wo zwischen Joystick und Tasten Platz ist.
 
 ## Alle Fahrer, der Spieler zuerst. Setzt das Level.
 var fahrer: Array[Rennfahrer] = []
@@ -35,6 +39,14 @@ var _uhr := 0.0
 ## Schein hinter einer bereiten Schubkapsel; eigene Kopie, weil ihre
 ## Deckung jedes Bild pulsiert.
 var _glut_stil: StyleBoxFlat
+## Geteilte Flächen und Texturen, einmal geholt statt in jedem Bild über
+## einen Schlüssel gesucht (nie verändern).
+var _kapsel_voll: StyleBoxFlat
+var _kapsel_leer: StyleBoxFlat
+var _band_stil: StyleBoxFlat
+var _hof: GradientTexture2D
+## Die Touch-Steuerung des HUD (Gruppe "touchsteuerung"), falls es eine gibt.
+var _touch: Control = null
 
 
 func _ready() -> void:
@@ -50,6 +62,15 @@ func _ready() -> void:
 	_flaeche.draw.connect(_zeichnen)
 	add_child(_flaeche)
 	_glut_stil = UiStil.eigene(&"pille")
+	_kapsel_voll = UiStil.getoent(&"pille", Color(1.0, 0.62, 0.18))
+	# Leer: eine dunkle Mulde mit feinem hellem Rand. Die helle Rinne von
+	# &"schalter" verschwand vor hellem Himmel und las sich wie "an".
+	_kapsel_leer = UiStil.variante(&"schalter", &"schub_leer", func(st: StyleBoxFlat) -> void:
+		st.bg_color = Color(0, 0, 0, 0.38)
+		st.border_color = Color(1, 1, 1, 0.26))
+	_band_stil = UiStil.getoent(&"band", Farben.WARNUNG)
+	# Weicher Hof hinter der Platzierung: Sie steht frei über dem Himmel.
+	_hof = UiStil.radialverlauf(Color(Farben.UI_NACHT, 0.5), Color(Farben.UI_NACHT, 0.0))
 	_band_flaeche = Control.new()
 	_band_flaeche.name = "Band"
 	_band_flaeche.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -131,7 +152,8 @@ func _zeichnen() -> void:
 					&"titel", -1, HORIZONTAL_ALIGNMENT_CENTER)
 		return
 
-	# --- Platzierung, groß oben rechts ---
+	# --- Platzierung, groß oben rechts, auf einem weichen dunklen Hof ---
+	_flaeche.draw_texture_rect(_hof, Rect2(rechts - 130.0, -14.0, 200.0, 140.0), false)
 	var p := platz()
 	var farbe := _podestfarbe(p)
 	if _platz_pop > 0.0:
@@ -169,16 +191,26 @@ func _zeichnen() -> void:
 			var glut := 0.5 + 0.5 * sin(_uhr * 5.0 + i * 0.7)
 			_glut_stil.bg_color = Color(1.0, 0.6, 0.2, 0.14 + 0.12 * glut)
 			_glut_stil.draw(_flaeche.get_canvas_item(), feld.grow(3.0 + glut * 2.5))
-			UiStil.getoent(&"pille", Color(1.0, 0.62, 0.18)).draw(
-					_flaeche.get_canvas_item(), feld)
+			_kapsel_voll.draw(_flaeche.get_canvas_item(), feld)
 		else:
-			UiStil.zeichne(_flaeche, feld, &"schalter")
+			_kapsel_leer.draw(_flaeche.get_canvas_item(), feld)
 	if vorrat > 0:
 		UiStil.text(_flaeche, Vector2(rechts, 194.0), "□ zündet den Schub", 14,
 				Farben.UI_TEXT_RUHE, &"fett", -1, HORIZONTAL_ALIGNMENT_RIGHT)
 
-	# --- Tacho, unten rechts ---
-	_tacho_zeichnen(Vector2(rechts - 58.0, groesse.y - 70.0), spieler)
+	# --- Tacho, unten rechts; mit Touch-Steuerung unten in der Mitte ---
+	var tacho := Vector2(rechts - 58.0, groesse.y - 70.0)
+	if _touch_sichtbar():
+		tacho = Vector2(groesse.x * 0.5, groesse.y - 66.0)
+	_tacho_zeichnen(tacho, spieler)
+
+
+## Liegen die Daumentasten gerade im Bild? Gefragt wird die Steuerung
+## selbst – sie weiß, ob sie erzwungen oder für das Gamepad verborgen ist.
+func _touch_sichtbar() -> bool:
+	if not is_instance_valid(_touch):
+		_touch = get_tree().get_first_node_in_group(&"touchsteuerung") as Control
+	return _touch != null and _touch.is_visible_in_tree()
 
 
 ## Bogen von 150° bis 390° (unten offen), Füllung von Hell über Orange
@@ -212,8 +244,7 @@ func _band_zeichnen() -> void:
 	var tb := UiStil.textbreite("LETZTE RUNDE!", 48, &"schwung")
 	var bw := tb + 80.0
 	_band_flaeche.draw_set_transform(mitte, 0.0, Vector2.ONE * skala)
-	UiStil.getoent(&"band", Farben.WARNUNG).draw(_band_flaeche.get_canvas_item(),
-			Rect2(-bw * 0.5, -31.0, bw, 60.0))
+	_band_stil.draw(_band_flaeche.get_canvas_item(), Rect2(-bw * 0.5, -31.0, bw, 60.0))
 	_band_flaeche.draw_rect(Rect2(-bw * 0.5 + 10.0, -26.0, bw - 20.0, 3.0),
 			Color(1, 1, 1, 0.28))
 	UiStil.text(_band_flaeche, Vector2(0.0, 48.0 * 0.36), "LETZTE RUNDE!", 48,

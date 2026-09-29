@@ -153,6 +153,13 @@ func umschalten() -> void:
 func setzen(an: bool) -> void:
 	if offen == an:
 		return
+	# Während der Auswertung am Ziel bleibt die Tafel zu. Das Level ist
+	# dann schon eingetragen, gespeichert wird aber erst im Portalraum –
+	# "Neu starten" hätte daran vorbei ins Level geführt, und mit dem
+	# nächsten geschlossenen Browserfenster wäre der Abschluss verloren.
+	# In gut vier Sekunden geht es ohnehin von selbst in den Portalraum.
+	if an and not get_tree().get_nodes_in_group(&"auswertung").is_empty():
+		return
 	offen = an
 	_auf_seit = Time.get_ticks_msec() * 0.001
 	if an:

@@ -39,6 +39,16 @@ const RUHE_DECKUNG := 0.74
 ## Flug einer eingesammelten Frucht in den Zähler.
 const FLUG_DAUER := 0.5
 const FLUG_HOECHSTENS := 10
+## Schweif dahinter: drei Perlen, die kleiner und blasser werden (Abstand
+## in Flugzeit). Ein Strich wurde beim Beschleunigen lang und las sich wie
+## ein Splitter, nicht wie Bewegung.
+const PERLEN_ABSTAND := 0.045
+const PERLEN_RADIUS: Array[float] = [6.0, 4.5, 3.0]
+const PERLEN_DECKUNG: Array[float] = [0.45, 0.3, 0.15]
+## Roter Rand, wenn ein Schutz einen Treffer abfängt: so tief (px) und so
+## deckend am Bildrand. Ein Hinweis am Rand, kein Filter über dem Weg.
+const RAND_TIEFE := 72.0
+const RAND_DECKUNG := 0.40
 
 @onready var _anzeige: Control = $Anzeige
 @onready var _tafel: Control = $Anzeige/Tafel
@@ -101,7 +111,9 @@ var _schweber: Array[Dictionary] = []
 ## soll nichts aufploppen oder fliegen.
 var _bereit := false
 
-static var _rand_textur: GradientTexture2D = null
+## Kapseln des HUD, einmal geholt (geteilte Abwandlungen, nie verändern).
+var _chip_stil: StyleBoxFlat
+var _chip_voll_stil: StyleBoxFlat
 
 
 func _ready() -> void:
@@ -129,6 +141,9 @@ func _ready() -> void:
 	_kisten_gesamt = GameState.kisten_gesamt
 	_schutz = GameState.schutz
 
+	_chip_stil = UiStil.variante(&"chip", &"hud", _chip_hud)
+	_chip_voll_stil = UiStil.variante(&"chip", &"hud_kisten_voll", _chip_gruen)
+
 	_blende = UiStil.Blende.new(Farben.UI_TREFFER)
 	_anzeige.add_child(_blende)
 	_anzeige.move_child(_blende, 0)
@@ -144,6 +159,7 @@ func _ready() -> void:
 	_anzeige.add_child(_flugbahn)
 
 	_meldung = Meldung.new()
+	_meldung.stil = _chip_stil
 	_anzeige.add_child(_meldung)
 	_band = Band.new()
 	_anzeige.add_child(_band)
@@ -215,10 +231,15 @@ func _process(delta: float) -> void:
 	if not _flieger.is_empty():
 		_flieger_bewegen(delta)
 	if not _schweber.is_empty():
+		var abgelaufen := false
 		for eintrag in _schweber:
-			eintrag["t"] = float(eintrag["t"]) + delta
-		_schweber = _schweber.filter(func(e: Dictionary) -> bool:
-				return float(e["t"]) < float(e["dauer"]))
+			var t := float(eintrag["t"]) + delta
+			eintrag["t"] = t
+			abgelaufen = abgelaufen or t >= float(eintrag["dauer"])
+		# Neue Liste nur, wenn wirklich einer fertig ist – nicht jedes Bild.
+		if abgelaufen:
+			_schweber = _schweber.filter(func(e: Dictionary) -> bool:
+					return float(e["t"]) < float(e["dauer"]))
 		tafel_neu = true
 
 	if _raute_pop > 0.0:
@@ -274,14 +295,19 @@ func _chip_frucht(x: float) -> float:
 	_frucht_mitte = mitte
 	var anteil := clampf(_fruechte_anzeige / float(GameState.FRUECHTE_PRO_EXTRALEBEN),
 			0.0, 1.0)
-	_tafel.draw_arc(mitte, 19.0, 0.0, TAU, 48, Color(0, 0, 0, 0.35), 3.5, true)
+	# Dunkle Rinne, 1 px breiter als die Füllung auf jeder Seite: die
+	# Füllung bekommt so eine Kontur und bleibt über hellem Grund lesbar.
+	_tafel.draw_arc(mitte, 19.0, 0.0, TAU, 48, Color(0, 0, 0, 0.4), 5.0, true)
 	if anteil > 0.0:
 		_tafel.draw_arc(mitte, 19.0, -PI * 0.5, -PI * 0.5 + TAU * anteil, 48,
-				Farben.FRUCHT.lightened(0.15), 3.5, true)
+				Farben.FRUCHT.lightened(0.15), 3.0, true)
 
+	# Die Beere sitzt IM Ring: kleiner und etwas nach links unten, damit ihr
+	# Blatt nicht mehr über den Anfang des Rings ragt – dort verdeckte es
+	# die ersten zehn Früchte Fortschritt.
 	var s := UiStil.federkurve(_pop_frucht, 0.3)
-	_tafel.draw_set_transform(mitte + Vector2(0.0, 1.5), 0.0, Vector2.ONE * s)
-	UiStil.frucht(_tafel, Vector2.ZERO, 12.5)
+	_tafel.draw_set_transform(mitte + Vector2(-1.0, 2.5), 0.0, Vector2.ONE * s)
+	UiStil.frucht(_tafel, Vector2.ZERO, 10.5)
 	_tafel.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 	var farbe := Farben.FRUCHT.lightened(0.55).lerp(Color.WHITE, 0.55 * _pop_frucht)
@@ -361,19 +387,28 @@ func _chip_kisten(x: float) -> float:
 ## Kapsel mit feinem Glanz an der Oberkante – wie Glas über der Welt,
 ## nicht wie ein Loch in ihr.
 func _chip(feld: Rect2, gruen: bool = false) -> void:
-	if gruen:
-		UiStil.variante(&"chip", &"kisten_voll", _chip_gruen).draw(
-				_tafel.get_canvas_item(), feld)
-	else:
-		UiStil.zeichne(_tafel, feld, &"chip")
+	(_chip_voll_stil if gruen else _chip_stil).draw(_tafel.get_canvas_item(), feld)
 	_tafel.draw_line(feld.position + Vector2(20.0, 3.5),
 			Vector2(feld.end.x - 20.0, feld.position.y + 3.5), Color(1, 1, 1, 0.08), 2.0, true)
 
 
+## Knapper, hellerer Schatten als bei &"chip": Der volle Schatten der
+## Vorlage lag über hellem Himmel und Gras als schmutzig-dunkler Hof um
+## jeden Chip. Gilt auch für die Meldung.
+func _chip_hud(s: StyleBoxFlat) -> void:
+	s.shadow_size = 4
+	s.shadow_color = Color(0, 0, 0, 0.25)
+	s.shadow_offset = Vector2(0, 2)
+
+
 func _chip_gruen(s: StyleBoxFlat) -> void:
+	_chip_hud(s)
 	s.border_color = Color(Farben.KISTE_LEBEN, 0.85)
 	s.bg_color = Color(0.03, 0.12, 0.06, 0.66)
-	s.shadow_color = Color(Farben.KISTE_LEBEN, 0.22)
+	# Hier ist der Schatten ein grüner Schein – der darf etwas weiter reichen.
+	s.shadow_size = 7
+	s.shadow_offset = Vector2.ZERO
+	s.shadow_color = Color(Farben.KISTE_LEBEN, 0.26)
 
 
 ## Zahl, senkrecht mittig auf `mitte.y`, mit Pop um ihre eigene Mitte.
@@ -450,23 +485,32 @@ func _flieger_bewegen(delta: float) -> void:
 
 
 func _zeichne_flieger() -> void:
+	var perlfarbe := Farben.FRUCHT.lightened(0.3)
 	for f in _flieger:
 		var t: float = f["t"]
 		if t < 0.0:
 			continue
 		var k := clampf(t / FLUG_DAUER, 0.0, 1.0)
-		var e := k * k
 		var a: Vector2 = f["a"]
 		var b: Vector2 = f["b"]
 		var c: Vector2 = f["c"]
-		var u := 1.0 - e
-		var pos := a * u * u + c * 2.0 * u * e + b * e * e
-		# Ein blasser Schweif hinter der Frucht
-		var e2 := maxf(k - 0.12, 0.0) * maxf(k - 0.12, 0.0)
-		var u2 := 1.0 - e2
-		var hinten := a * u2 * u2 + c * 2.0 * u2 * e2 + b * e2 * e2
-		_flugbahn.draw_line(hinten, pos, Color(1.0, 0.78, 0.4, 0.35), 5.0, true)
-		UiStil.frucht(_flugbahn, pos, lerpf(12.0, 9.0, e))
+		var skala := lerpf(1.0, 0.75, k * k)
+		for n in 3:
+			var kn := k - PERLEN_ABSTAND * (n + 1)
+			if kn <= 0.0:
+				break
+			_flugbahn.draw_circle(_bahnpunkt(a, c, b, kn), PERLEN_RADIUS[n] * skala,
+					Color(perlfarbe, PERLEN_DECKUNG[n]), true, -1.0, true)
+		UiStil.frucht(_flugbahn, _bahnpunkt(a, c, b, k), 12.0 * skala)
+
+
+## Punkt auf der Flugbahn (quadratische Bézierkurve a → c → b). Die Zeit
+## geht quadriert ein: erst langsam von der Figur weg, dann schnell in den
+## Zähler.
+static func _bahnpunkt(a: Vector2, c: Vector2, b: Vector2, k: float) -> Vector2:
+	var e := k * k
+	var u := 1.0 - e
+	return a * u * u + c * 2.0 * u * e + b * e * e
 
 
 # ------------------------------------------------------------- Zeittafel
@@ -496,7 +540,7 @@ func _zeichne_zeit() -> void:
 	if steht:
 		farbe = Farben.KISTE_ZEIT.lightened(0.5)
 	elif stufe != Zeitlauf.Stufe.KEINE:
-		farbe = Farben.UI_HELL.lerp(Zeitlauf.stufen_farbe(stufe), 0.35)
+		farbe = Farben.UI_HELL.lerp(Zeitlauf.stufen_farbe(stufe), 0.5)
 	else:
 		farbe = Color(1.0, 0.80, 0.74)
 	UiStil.text(_zeittafel, Vector2(breite * 0.5, 38.0), Zeitlauf.als_text(_zeit), 34,
@@ -514,33 +558,49 @@ func _zeichne_zeit() -> void:
 				Farben.KISTE_ZEIT.lightened(0.55), &"fett", -1, HORIZONTAL_ALIGNMENT_CENTER)
 		return
 
-	# Rauten und die Schwelle der besten noch offenen Stufe
+	# Rauten und die Schwelle der besten noch offenen Stufe. Maße für das
+	# Handy: Rauten und Zeile müssen im Vorbeilaufen lesbar sein.
 	var zeile := "Richtzeit vorbei"
 	var zeilen_farbe := Farben.UI_MATT
 	if stufe != Zeitlauf.Stufe.KEINE:
 		zeile = "%s bis %s" % [Zeitlauf.stufen_name(stufe),
 				Zeitlauf.als_text(_schwelle(stufe))]
 		zeilen_farbe = Zeitlauf.stufen_farbe(stufe).lightened(0.25)
-	var text_breite := UiStil.textbreite(zeile, 14, &"fett")
-	var rauten_breite := 3.0 * 14.0 + 2.0 * 4.0
+	var text_breite := UiStil.textbreite(zeile, 15, &"fett")
+	var r_raute := 8.0
+	var schritt := 20.0
+	var rauten_breite := 2.0 * schritt + 2.0 * r_raute
 	var links := (breite - rauten_breite - 10.0 - text_breite) * 0.5
-	var y := 55.0
+	var y := 54.0
 	var reihe := [Zeitlauf.Stufe.PLATIN, Zeitlauf.Stufe.GOLD, Zeitlauf.Stufe.SAPHIR]
 	for i in reihe.size():
 		var st: int = reihe[i]
-		var mitte := Vector2(links + 7.0 + i * 18.0, y)
+		var mitte := Vector2(links + r_raute + i * schritt, y)
 		var offen := _zeit <= _schwelle(st)
-		var r := 6.5
+		var r := r_raute
 		if st == _raute_pop_stufe and _raute_pop > 0.0:
-			r *= 1.0 + 0.8 * _raute_pop
+			# Nur so weit, dass sie die Nachbarn eben berührt
+			r *= 1.0 + 0.5 * _raute_pop
 		if offen:
 			UiStil.raute(_zeittafel, mitte, r + 1.5, Farben.UI_KONTUR)
 			UiStil.raute(_zeittafel, mitte, r, Zeitlauf.stufen_farbe(st))
 		else:
 			UiStil.raute(_zeittafel, mitte, r, Color(1, 1, 1, 0.28 + 0.5 * _raute_pop), false,
 					1.4)
-	UiStil.text(_zeittafel, Vector2(links + rauten_breite + 10.0, y + 5.0), zeile, 14,
+	UiStil.text(_zeittafel, Vector2(links + rauten_breite + 10.0, y + 5.5), zeile, 15,
 			zeilen_farbe, &"fett")
+
+	# Schmaler Balken an der Unterkante: wie viel von der Spanne dieser
+	# Stufe noch übrig ist. Er läuft leer, wenn sie verloren geht – man
+	# sieht es kommen, statt es erst an der Raute zu merken.
+	if stufe != Zeitlauf.Stufe.KEINE:
+		var spanne_von := _schwelle(stufe + 1) if stufe < Zeitlauf.Stufe.PLATIN else 0.0
+		var spanne := maxf(_schwelle(stufe) - spanne_von, 0.01)
+		var rest := clampf((_schwelle(stufe) - _zeit) / spanne, 0.0, 1.0)
+		var rinne := Rect2(16.0, feld.end.y - 6.0, breite - 32.0, 3.0)
+		_zeittafel.draw_rect(rinne, Color(0, 0, 0, 0.35))
+		_zeittafel.draw_rect(Rect2(rinne.position, Vector2(rinne.size.x * rest, 3.0)),
+				Color(Zeitlauf.stufen_farbe(stufe), 0.85))
 
 
 func _schwelle(stufe: int) -> float:
@@ -561,27 +621,32 @@ func _offene_stufe() -> int:
 
 # ------------------------------------------------------------- Treffer
 
+## Roter Rand, `RAND_TIEFE` tief: außen kräftig, nach innen klar. Vorher
+## lag eine radiale Textur gestreckt über dem ganzen Bild und färbte die
+## halbe Szene rot, auch den Weg – das las sich wie Schaden, nicht wie
+## "abgefangen". In zwei Stufen, damit der Rand weich ausläuft statt mit
+## einer Kante zu enden.
 func _zeichne_treffer() -> void:
-	_treffer.draw_texture_rect(_randtextur(), Rect2(Vector2.ZERO, _treffer.size), false)
+	var g := _treffer.size
+	var rot := Farben.WARNUNG
+	var knick := RAND_TIEFE * 0.3
+	_rahmenband(g, 0.0, knick, Color(rot, RAND_DECKUNG), Color(rot, RAND_DECKUNG * 0.35))
+	_rahmenband(g, knick, RAND_TIEFE, Color(rot, RAND_DECKUNG * 0.35), Color(rot, 0.0))
 
 
-## Roter Rand, innen klar – einmal gebaut, von allen HUDs geteilt.
-static func _randtextur() -> GradientTexture2D:
-	if _rand_textur != null:
-		return _rand_textur
-	var g := Gradient.new()
-	g.set_color(0, Color(Farben.WARNUNG, 0.0))
-	g.set_color(1, Color(Farben.WARNUNG, 0.5))
-	g.add_point(0.55, Color(Farben.WARNUNG, 0.0))
-	var t := GradientTexture2D.new()
-	t.gradient = g
-	t.width = 128
-	t.height = 128
-	t.fill = GradientTexture2D.FILL_RADIAL
-	t.fill_from = Vector2(0.5, 0.5)
-	t.fill_to = Vector2(0.95, 0.95)
-	_rand_textur = t
-	return t
+## Ein Band rund um das Bild, von `von` bis `bis` px vom Rand, Farbe von
+## `aussen` nach `innen`. Vier Trapeze mit Farbe je Ecke: Die Deckung hängt
+## so nur vom Abstand zum Rand ab, und die Ecken stoßen auf der Diagonalen
+## nahtlos aneinander, ohne sich doppelt zu decken.
+func _rahmenband(g: Vector2, von: float, bis: float, aussen: Color, innen: Color) -> void:
+	var a := PackedVector2Array([Vector2(von, von), Vector2(g.x - von, von),
+			Vector2(g.x - von, g.y - von), Vector2(von, g.y - von)])
+	var b := PackedVector2Array([Vector2(bis, bis), Vector2(g.x - bis, bis),
+			Vector2(g.x - bis, g.y - bis), Vector2(bis, g.y - bis)])
+	var farben := PackedColorArray([aussen, aussen, innen, innen])
+	for i in 4:
+		var j := (i + 1) % 4
+		_treffer.draw_polygon(PackedVector2Array([a[i], a[j], b[j], b[i]]), farben)
 
 
 # ------------------------------------------------------------- Signale
@@ -618,8 +683,11 @@ func _auf_leben(anzahl: int) -> void:
 		_wecken()
 		if anzahl == alt + 1:
 			_pop_leben = 1.0
+			# Das "+1" steigt von unten in den Chip hinein, das verlorene Herz
+			# fällt nach unten heraus. Über dem Chip wäre kein Platz: Dort
+			# lief es aus dem Bild und wurde abgeschnitten.
 			_schweben(&"text", "+1", Farben.KISTE_LEBEN.lightened(0.3),
-					_herz_mitte + Vector2(0.0, -14.0), -30.0, 0.9)
+					_herz_mitte + Vector2(0.0, 50.0), -18.0, 0.9)
 		elif anzahl > alt:
 			# Sprung um mehrere: Game Over füllt die Leben wieder auf – das
 			# ist kein Geschenk, also kein "+5".
@@ -653,8 +721,8 @@ func _auf_schutz(anzahl: int) -> void:
 		_treffer.visible = true
 		_treffer_tween = _treffer.create_tween()
 		_treffer_tween.set_ignore_time_scale(true)
-		_treffer_tween.tween_property(_treffer, "modulate:a", 0.0, 0.45) \
-				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		_treffer_tween.tween_property(_treffer, "modulate:a", 0.0, 0.4) \
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 		_treffer_tween.tween_callback(_treffer.hide)
 	_schutz = anzahl
 
@@ -714,7 +782,7 @@ func _auf_aufbau_fertig() -> void:
 	Spielfluss.titelkarte_faellig = false
 	var nummer := Spielfluss.aktuelles_level
 	var karte := Titelkarte.new(Spielfluss.level_kopfzeile(nummer),
-			Spielfluss.level_name(nummer))
+			Spielfluss.level_name(nummer), _touch.visible)
 	_anzeige.add_child(karte)
 	# Unter Meldung und Band, damit "Zeitlauf!" nicht verdeckt wird
 	_anzeige.move_child(karte, _meldung.get_index())
@@ -748,6 +816,8 @@ func _auf_zeitwertung(daten: Dictionary) -> void:
 class Meldung extends Control:
 	const GROESSE := 24
 	var text := ""
+	## Kapsel, wie die Chips des HUD (setzt der HUD; sonst &"chip").
+	var stil: StyleBoxFlat = null
 	var ein := 0.0:
 		set(wert):
 			ein = wert
@@ -798,7 +868,8 @@ class Meldung extends Control:
 		var hoehe := 46.0
 		var mitte_x := size.x * 0.5
 		var oben := size.y * 0.17 - 14.0 * (1.0 - ein)
-		UiStil.zeichne(self, Rect2(mitte_x - breite * 0.5, oben, breite, hoehe), &"chip")
+		(stil if stil != null else UiStil.flaeche(&"chip")).draw(get_canvas_item(),
+				Rect2(mitte_x - breite * 0.5, oben, breite, hoehe))
 		UiStil.text(self, Vector2(mitte_x, oben + hoehe * 0.5 + GROESSE * 0.36), text,
 				GROESSE, Farben.UI_HELL, &"fett", -1, HORIZONTAL_ALIGNMENT_CENTER)
 
@@ -886,13 +957,18 @@ class Band extends Control:
 
 # =============================================================== Titelkarte
 
-## "LEVEL 01 · WURZELWALD / Wurzelschlucht" im linken unteren Drittel, wie
-## ein Filmtitel: gleitet herein, steht gut zwei Sekunden, geht. Links
-## unten, weil dort weder Figur (Mitte) noch Zähler (oben) stehen.
+## "LEVEL 01 · WURZELWALD / Wurzelschlucht" links unten, wie ein
+## Filmtitel: gleitet herein, steht gut zwei Sekunden, geht. Links unten,
+## weil dort weder Figur (Mitte) noch Zähler (oben) stehen – und so tief,
+## dass sie den Weg vor der Figur frei lässt, auf dem man schon losläuft.
+## Mit Touch-Steuerung liegt dort der Joystick; dann steht sie höher.
 class Titelkarte extends Control:
-	const GROESSE := 60
+	const GROESSE := 52
 	## Abstand vom linken Rand.
 	const RAND := 64.0
+	## Höhe der Grundlinie als Anteil der Bildhöhe (mit / ohne Joystick).
+	const HOEHE := 0.78
+	const HOEHE_TOUCH := 0.60
 	var kopf := ""
 	var titel := ""
 	var ein := 0.0:
@@ -903,11 +979,17 @@ class Titelkarte extends Control:
 		set(wert):
 			strich = wert
 			queue_redraw()
+	var _hoehe := HOEHE
+	var _hof: GradientTexture2D
 
-	func _init(kopfzeile: String, levelname: String) -> void:
+	func _init(kopfzeile: String, levelname: String, touch: bool = false) -> void:
 		name = "Titelkarte"
 		kopf = kopfzeile
 		titel = levelname
+		_hoehe = HOEHE_TOUCH if touch else HOEHE
+		# Weicher dunkler Hof hinter der Schrift – lesbar über hellem Laub
+		# und Gras (Level 06), ohne Kasten. Einmal geholt, nicht pro Bild.
+		_hof = UiStil.radialverlauf(Color(Farben.UI_NACHT, 0.7), Color(Farben.UI_NACHT, 0.0))
 		set_anchors_preset(Control.PRESET_FULL_RECT)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -930,20 +1012,17 @@ class Titelkarte extends Control:
 			return
 		var e := ein
 		var x := RAND - 44.0 * (1.0 - e)
-		var y := size.y * 0.64
+		var y := size.y * _hoehe
 		var tb := UiStil.textbreite(titel, GROESSE, &"titel")
-		# Weicher dunkler Hof hinter der Schrift – lesbar über hellem Laub,
-		# ohne Kasten.
-		draw_texture_rect(UiStil.radialverlauf(Color(Farben.UI_NACHT, 0.62),
-				Color(Farben.UI_NACHT, 0.0)),
-				Rect2(x - 180.0, y - 150.0, tb + 380.0, 230.0), false, Color(1, 1, 1, e))
-		UiStil.text(self, Vector2(x + 3.0, y - 62.0), kopf, 15,
+		draw_texture_rect(_hof, Rect2(x - 170.0, y - 136.0, tb + 360.0, 210.0), false,
+				Color(1, 1, 1, e))
+		UiStil.text(self, Vector2(x + 3.0, y - 55.0), kopf, 15,
 				Color(Farben.UI_GOLD, e), &"sperr", 4)
 		UiStil.text(self, Vector2(x, y), titel, GROESSE,
-				Color(Farben.UI_TITEL_FUELLUNG, e), &"titel", 10)
+				Color(Farben.UI_TITEL_FUELLUNG, e), &"titel", 9)
 		var lang := (tb - 8.0) * strich
 		if lang > 1.0:
-			var linie := Rect2(x + 4.0, y + 16.0, lang, 4.0)
+			var linie := Rect2(x + 4.0, y + 14.0, lang, 4.0)
 			draw_rect(linie.grow(1.5), Color(Farben.UI_KONTUR, 0.8 * e))
 			draw_rect(linie, Color(Farben.UI_GOLD, e))
 			UiStil.raute(self, Vector2(linie.end.x + 9.0, linie.get_center().y), 6.0 * strich,
@@ -957,9 +1036,15 @@ class Titelkarte extends Control:
 ## losen Meldungen "Level geschafft!" und "Alle Kisten! Edelstein
 ## erhalten". Alles in gut zwei Sekunden – `LevelBasis` wechselt nach 4,5 s
 ## (im Zeitlauf nach 5,6 s) in den Portalraum, der Ladeschirm deckt sie dann.
+##
+## Im Rennen feiert nur das Podest: Ab Platz 4 steht ein stilles "ZIEL!"
+## in Silbergrau da, ohne Konfetti; der Sieger bekommt eine zweite Salve.
 class Auswertung extends Control:
 	const BREITE := 560.0
 	const ZEILE := 50.0
+	## Deckung des Lichts an der Oberkante der Karte.
+	const GLANZ := 0.07
+	const GLANZ_HOEHE := 90.0
 
 	var daten: Dictionary
 	## Platzierung im Rennen (0 = kein Rennen).
@@ -972,7 +1057,14 @@ class Auswertung extends Control:
 	var fruechte_zahl := 0
 	var kisten_anteil := 0.0
 	var stein_pop: Array[float] = [0.0, 0.0, 0.0]
-	var _konfetti: CPUParticles2D
+	var _uhr := 0.0
+	## Einmal beim Aufbau festgelegt, nicht in jedem Bild neu gebaut.
+	var _kopfzeile := ""
+	var _feiern := true
+	var _bandtext := "GESCHAFFT!"
+	var _bandstil: StyleBoxFlat
+	## Schein hinter den verdienten Steinen, je Stein einmal geholt.
+	var _schein: Array[GradientTexture2D] = [null, null, null]
 
 	static var _schnipsel: ImageTexture = null
 
@@ -984,15 +1076,35 @@ class Auswertung extends Control:
 		add_to_group(&"auswertung")
 
 	func _ready() -> void:
-		_konfetti = _baue_konfetti()
-		add_child(_konfetti)
+		_kopfzeile = Spielfluss.level_kopfzeile(int(daten.get("nummer", 0)))
+		# `platz` setzt der HUD vor dem Einhängen; 0 = kein Rennen.
+		_feiern = platz <= 3
+		if _feiern:
+			_bandstil = UiStil.flaeche(&"band")
+		else:
+			_bandtext = "ZIEL!"
+			_bandstil = UiStil.getoent(&"band", Farben.UI_SILBER.darkened(0.3))
 		var t := create_tween()
 		t.set_ignore_time_scale(true)
 		t.tween_property(self, ^"ein", 1.0, 0.4) \
 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		t.parallel().tween_property(self, ^"band_ein", 1.0, 0.32).set_delay(0.12) \
 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		t.parallel().tween_callback(_konfetti_los).set_delay(0.18)
+		if _feiern:
+			var konfetti := _baue_konfetti()
+			add_child(konfetti)
+			t.parallel().tween_callback(_konfetti_los.bind(konfetti)).set_delay(0.18)
+		if platz == 1:
+			# Zweite Salve für den Sieg: eigener Sender, denn `restart()`
+			# löschte die Schnipsel der ersten noch im Flug. Eigener Tween,
+			# damit das Hochzählen nicht auf sie wartet.
+			var nachschub := _baue_konfetti()
+			nachschub.name = "Nachschub"
+			add_child(nachschub)
+			var t2 := create_tween()
+			t2.set_ignore_time_scale(true)
+			t2.tween_interval(0.58)
+			t2.tween_callback(_konfetti_los.bind(nachschub))
 		# Früchte zählen hoch
 		var ziel := int(daten.get("fruechte", 0))
 		t.tween_method(_fruechte_zaehlen, 0.0, float(ziel), clampf(0.25 + ziel * 0.02, 0.3, 0.8)) \
@@ -1013,7 +1125,8 @@ class Auswertung extends Control:
 	func zeit_setzen(werte: Dictionary) -> void:
 		zeit_daten = werte
 
-	func _process(_delta: float) -> void:
+	func _process(delta: float) -> void:
+		_uhr += delta
 		queue_redraw()
 
 	func _fruechte_zaehlen(wert: float) -> void:
@@ -1054,10 +1167,10 @@ class Auswertung extends Control:
 				return bool(daten.get("hatte_ohne_tod", false))
 		return false
 
-	func _konfetti_los() -> void:
-		if is_instance_valid(_konfetti):
-			_konfetti.position = Vector2(size.x * 0.5, _kartenfeld().position.y)
-			_konfetti.restart()
+	func _konfetti_los(sender: CPUParticles2D) -> void:
+		if is_instance_valid(sender):
+			sender.position = Vector2(size.x * 0.5, _kartenfeld().position.y)
+			sender.restart()
 
 	func _baue_konfetti() -> CPUParticles2D:
 		var k := CPUParticles2D.new()
@@ -1126,12 +1239,12 @@ class Auswertung extends Control:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(Farben.UI_NACHT, 0.38 * minf(ein, 1.0)))
 		draw_set_transform(mitte * (1.0 - s), 0.0, Vector2.ONE * s)
 		UiStil.zeichne(self, feld, &"tafel")
+		_glanz(feld)
 
 		var links := feld.position.x + 34.0
 		var rechts := feld.end.x - 34.0
 		var y := feld.position.y + 72.0
-		var nummer := int(daten.get("nummer", 0))
-		UiStil.text(self, Vector2(mitte.x, y), Spielfluss.level_kopfzeile(nummer), 14,
+		UiStil.text(self, Vector2(mitte.x, y), _kopfzeile, 14,
 				Farben.UI_GOLD, &"sperr", -1, HORIZONTAL_ALIGNMENT_CENTER)
 		y += 36.0
 		UiStil.text(self, Vector2(mitte.x, y), String(daten.get("name", "")), 32,
@@ -1214,18 +1327,41 @@ class Auswertung extends Control:
 
 		draw_set_transform_matrix(Transform2D.IDENTITY)
 
-		# --- Band "GESCHAFFT!" über der Oberkante ---
+		# --- Band "GESCHAFFT!" (bzw. "ZIEL!") über der Oberkante ---
 		if band_ein > 0.0:
 			var bs := lerpf(1.6, 1.0, band_ein)
 			var oben := Vector2(mitte.x, feld.position.y)
 			draw_set_transform(oben, -0.03, Vector2.ONE * bs)
-			var tb := UiStil.textbreite("GESCHAFFT!", 50, &"schwung")
+			var tb := UiStil.textbreite(_bandtext, 50, &"schwung")
 			var bw := tb + 90.0
-			UiStil.flaeche(&"band").draw(get_canvas_item(), Rect2(-bw * 0.5, -34.0, bw, 66.0))
+			_bandstil.draw(get_canvas_item(), Rect2(-bw * 0.5, -34.0, bw, 66.0))
 			draw_rect(Rect2(-bw * 0.5 + 10.0, -29.0, bw - 20.0, 3.0), Color(1, 1, 1, 0.3))
-			UiStil.text(self, Vector2(0.0, 18.0), "GESCHAFFT!", 50, Farben.UI_HELL,
+			UiStil.text(self, Vector2(0.0, 18.0), _bandtext, 50, Farben.UI_HELL,
 					&"schwung", 10, HORIZONTAL_ALIGNMENT_CENTER)
 			draw_set_transform_matrix(Transform2D.IDENTITY)
+
+	## Licht von oben: Die Karte wirkt wie eine beleuchtete Tafel statt wie
+	## eine flache Platte. Ein Vieleck entlang der runden Oberkante (innen am
+	## Rahmen), dessen Deckung nur von der Höhe abhängt – so bleibt der
+	## Verlauf sauber, auch in den Ecken, und nichts ragt über die Karte.
+	func _glanz(feld: Rect2) -> void:
+		var r := 14.0   # Eckradius der Tafel (16) minus Rahmen (2)
+		var links := feld.position.x + 2.0
+		var rechts := feld.end.x - 2.0
+		var oben := feld.position.y + 2.0
+		var punkte := PackedVector2Array()
+		for n in 7:
+			var w := PI + PI * 0.5 * n / 6.0
+			punkte.append(Vector2(links + r, oben + r) + Vector2(cos(w), sin(w)) * r)
+		for n in 7:
+			var w := PI * 1.5 + PI * 0.5 * n / 6.0
+			punkte.append(Vector2(rechts - r, oben + r) + Vector2(cos(w), sin(w)) * r)
+		punkte.append(Vector2(rechts, oben + GLANZ_HOEHE))
+		punkte.append(Vector2(links, oben + GLANZ_HOEHE))
+		var farben := PackedColorArray()
+		for p: Vector2 in punkte:
+			farben.append(Color(1, 1, 1, GLANZ * (1.0 - (p.y - oben) / GLANZ_HOEHE)))
+		draw_polygon(punkte, farben)
 
 	func _zeichne_stein(ort: Vector2, i: int) -> void:
 		var farben: Array[Color] = [Farben.EDELSTEIN_KISTEN, Farben.EDELSTEIN_OHNE_TOD,
@@ -1236,6 +1372,13 @@ class Auswertung extends Control:
 		var jetzt := _stein_erreicht(i)
 		var p := stein_pop[i]
 		if jetzt and p > 0.0:
+			# Der Stein leuchtet seine Fassung aus, leise pulsierend, solange
+			# die Karte steht – sonst läge er nach dem Strahlenkranz flach da.
+			if _schein[i] == null:
+				_schein[i] = UiStil.radialverlauf(Color(farben[i], 0.5), Color(farben[i], 0.0))
+			var puls := 0.82 + 0.18 * sin(_uhr * 3.2 + i * 1.3)
+			draw_texture_rect(_schein[i], Rect2(ort - Vector2(46.0, 46.0), Vector2(92.0, 92.0)),
+					false, Color(1, 1, 1, clampf(p, 0.0, 1.0) * puls))
 			# Kranz aus kurzen Strahlen, der aufgeht und verlischt
 			var k := clampf((p - 0.1) / 0.9, 0.0, 1.0)
 			if k > 0.0 and k < 1.0:

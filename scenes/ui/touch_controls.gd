@@ -80,6 +80,9 @@ var _nachglimmen := {}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Die Rennanzeige fragt hierüber, ob die Daumentasten im Bild liegen,
+	# und rückt ihren Tacho dann aus dem Weg.
+	add_to_group(&"touchsteuerung")
 	# Auch bei angehaltenem Baum bedienbar, sonst käme man mit dem Finger
 	# nicht mehr aus der Statustafel heraus.
 	process_mode = Node.PROCESS_MODE_ALWAYS
