@@ -19,10 +19,15 @@ class_name Neonmaterial
 ## verändern** – sie gehört allen. Wer eine eigene Farbe braucht, ruft
 ## `.duplicate()` auf oder nimmt `streifen()` mit anderer Farbe.
 ##
-## Renderer ist `gl_compatibility`: keine Partikel, kein Volumennebel.
+## Renderer ist `gl_compatibility`: kein Volumennebel, und Partikel nur
+## als MultiMesh mit Shader (wie im `Staubflug`) oder als CPUParticles3D.
 ## Das Leuchten trägt hier allein das Material, deshalb sind die Streifen
 ## unbeleuchtet gesetzt – sie sollen aus jedem Winkel gleich hell sein,
 ## auch wenn im Level gar kein Licht steht.
+##
+## WICHTIG für unbeleuchtete Materialien: Der Compatibility-Renderer gibt
+## für sie nur die Albedo aus, die Emission fällt weg. Helligkeit über 1
+## – und damit Glow – gibt es dort nur über eine Albedo über 1.
 
 # ---------------------------------------------------------------- Palette
 
@@ -48,6 +53,7 @@ const NEON_GRUEN := Color(0.42, 1.00, 0.35)
 const NEON := [NEON_CYAN, NEON_MAGENTA, NEON_GRUEN]
 
 ## Leuchtstärke eines Streifens. Kräftig, weil er gegen fast Schwarz steht.
+## Wirkt nur, wo beleuchtet gerechnet wird – siehe `streifen()`.
 const STREIFEN_STAERKE := 3.2
 
 static var _cache: Dictionary = {}
@@ -111,8 +117,14 @@ static func glas() -> StandardMaterial3D:
 ## Unbeleuchtet gesetzt: Ein Leuchtstreifen, den ein Punktlicht von der
 ## Seite noch zusätzlich abschattet, flackert beim Vorbeilaufen in der
 ## Helligkeit – und wo im Level gar kein Licht steht, wäre er dunkel.
-## Albedo UND Emission tragen dieselbe Farbe, damit der Streifen auch
-## dann richtig aussieht, wenn irgendwo doch beleuchtet gerechnet wird.
+##
+## Unbeleuchtet ist die Albedo das Einzige, was ankommt (siehe Kopf). Die
+## Emission bleibt gesetzt, falls irgendwo doch beleuchtet gerechnet
+## wird; eine Kopie mit anderer `emission_energy_multiplier` ändert im
+## Compatibility-Renderer aber NICHTS – dämpfen oder heben geht nur über
+## `albedo_color`. Über 1 heben ist erprobt und verworfen: Der Tonemapper
+## zieht die Neonfarben dann zu Weiß, die Wegkante in Level 24 wurde ein
+## weißer Balken und die Reklametafeln verloren ihre Farbe.
 static func streifen(farbe: Color) -> StandardMaterial3D:
 	return _hole("neon_streifen_%s" % farbe.to_html(), func() -> StandardMaterial3D:
 		var m := StandardMaterial3D.new()

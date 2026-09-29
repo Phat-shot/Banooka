@@ -5,14 +5,19 @@ extends Control
 ## Aufbau (alles zur Laufzeit erzeugt, die Szene enthält nur den
 ## Wurzelknoten – siehe ARCHITEKTUR.md):
 ##
-##   Kulisse      Node3D mit Wald, Licht, Nebel und wandernder Kamera
-##   Schleier     dunkler Verlauf links und unten, damit Text lesbar bleibt
-##   Titel        "BANOOKA", plastisch mit Kontur gezeichnet
-##   Untertitel   eine Zeile, gesperrt gesetzt, mit Zierlinie
+##   Kulisse      Node3D mit Wald, Licht, Himmel, Lichtfahnen und Pollen
+##   Schleier     dunkler Verlauf links und unten plus Vignette, damit Text
+##                lesbar bleibt und das Bild einen Rahmen hat
+##   Titel        "BANOOKA", ein Feld je Buchstabe: plastisch mit Kontur,
+##                fällt beim Start einzeln herein, wippt danach sacht und
+##                bekommt alle paar Sekunden einen Glanzstreif (Shader)
+##   Untertitel   eine Zeile, gesperrt gesetzt, mit wachsender Zierlinie
 ##   Menü         drei Tafeln: Neues Spiel, Spiel laden, Einstellungen
 ##   Fortschritt  25 Rauten plus Klartext, wie viel freigeschaltet ist
+##   Hinweis      Bedienung – passend zu Tastatur, Controller oder Finger
 ##   Tafel        Overlay für die vier Speicherplätze und Rückfragen
 ##
+## Aussehen aus `UiStil` (Schriften, Flächen, Text mit Kontur, Blende).
 ## Symbole werden gezeichnet (`_draw`) statt geladen – das Projekt kommt
 ## ohne fremde Assets aus.
 
@@ -20,7 +25,6 @@ extends Control
 const RAND := 96.0
 const TITEL_OBEN := 104.0
 const TITEL_GROESSE := 104
-const TITEL_SPERRUNG := 12
 const UNTERTITEL_OBEN := 252.0
 const UNTERTITEL_GROESSE := 21
 const MENUE_OBEN := 344.0
@@ -35,26 +39,64 @@ const TAFEL_SLOT_HOEHE := 64.0
 const TAFEL_LUECKE := 8.0
 
 # --- Farben ---
-const GOLD := Color(1.0, 0.78, 0.32)
-const TITEL_FUELLUNG := Color(1.0, 0.90, 0.66)
-const TITEL_TIEFE := Color(0.55, 0.24, 0.06)
-const TITEL_KONTUR := Color(0.11, 0.06, 0.03)
 const SCHLEIER := Color(0.03, 0.05, 0.05)
+const UNTERTITEL_FARBE := Color(0.93, 0.89, 0.80)
 
 const TEXT_TITEL := "BANOOKA"
 const TEXT_UNTERTITEL := "Rennen, springen, wirbeln – durch fünf wilde Welten"
-const TEXT_HINWEIS := "Pfeiltasten wählen  ·  Enter bestätigt  ·  oder antippen"
 const TEXT_ZURUECK := "Zurück"
-const HINWEIS_BREITE := 600.0
+const HINWEIS_BREITE := 720.0
+const HINWEIS_GROESSE := 15
+
+## Glanzstreif und Wippen des Schriftzugs – beides im Shader, damit die
+## Buchstaben nie neu gezeichnet werden müssen.
+##
+## Wippen: Jeder Buchstabe hebt und senkt sich um 2,5 px, der Takt hängt
+## an seiner Lage im Bild (`MODEL_MATRIX[3].x`) – so läuft eine sanfte
+## Welle durch das Wort, und alle teilen sich EIN Material.
+## Glanz: ein schräges Band wandert alle ~8,7 s über den Schriftzug. Es
+## hellt nur die helle Füllung auf (`hell`), nie die dunklen Konturen und
+## die braune Tiefe – sonst sähe es aus wie ein grauer Wischer. Der Rand
+## läuft glockenförmig aus: Ein hart begrenztes Band sah im Standbild aus
+## wie ein halb weiß gefüllter Buchstabe.
+const TITEL_SHADER := """
+shader_type canvas_item;
+
+uniform float wippen = 2.5;
+uniform float glanz = 0.28;
+uniform float glanz_breite = 18.0;
+
+varying vec2 ort;
+
+void vertex() {
+	float takt = MODEL_MATRIX[3].x * 0.011;
+	VERTEX.y += sin(TIME * 1.9 - takt) * wippen;
+	ort = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+}
+
+void fragment() {
+	float x = ort.x - ort.y * 0.35 - mod(TIME * 300.0, 2600.0) + 300.0;
+	float band = exp(-x * x / (2.0 * glanz_breite * glanz_breite));
+	float hell = smoothstep(0.55, 0.7, max(COLOR.r, COLOR.g));
+	COLOR.rgb += band * hell * glanz;
+}
+"""
+
+## Wurde die Eröffnung schon einmal gezeigt? Wer aus den Einstellungen
+## zurückkommt, soll nicht noch einmal zwei Sekunden auf das Menü warten.
+static var _eroeffnet := false
+static var _titelstoff: ShaderMaterial = null
 
 var _kulisse: SplashKulisse
 var _schleier: Control
 var _titel: Control
+var _buchstaben: Array[Control] = []
 var _untertitel: Control
 var _fortschritt: Control
 var _hinweis: Control
 var _tafel: Control
-var _blende: ColorRect
+var _tafelkoerper: Control
+var _blende: UiStil.Blende
 
 var _eintraege: Array[MenueEintrag] = []
 var _aktionen: Array[Callable] = []
@@ -74,16 +116,15 @@ var _blockiert := false        ## während Einblendung und Szenenwechsel
 ## Läuft gerade die Eröffnungs-Einblendung? Sie lässt sich abkürzen; der
 ## Szenenwechsel am Ende dagegen nicht.
 var _einblendung: Tween = null
-
-var _titelschrift: FontVariation
-var _sperrschrift: FontVariation
+## Zierlinie unter dem Untertitel, 0..1 – wächst in der Eröffnung.
+var _linie := 1.0
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	theme = UiStil.thema()
 
-	_schriften_bauen()
 	_kulisse = SplashKulisse.new()
 	_kulisse.name = "Kulisse"
 	add_child(_kulisse)
@@ -96,25 +137,16 @@ func _ready() -> void:
 	_baue_blende()
 
 	Spielfluss.fortschritt_geaendert.connect(_auf_fortschritt)
-	_waehle(0)
+	InputHub.eingabeart_geaendert.connect(func(_art: int) -> void:
+		_hinweis.queue_redraw())
+	_waehle(0, true)
 	_einblenden()
 	set_process_unhandled_input(true)
 
 
-func _schriften_bauen() -> void:
-	var grund := get_theme_default_font()
-	_titelschrift = FontVariation.new()
-	_titelschrift.base_font = grund
-	_titelschrift.spacing_glyph = TITEL_SPERRUNG
-	_titelschrift.variation_embolden = 0.55
-	_sperrschrift = FontVariation.new()
-	_sperrschrift.base_font = grund
-	_sperrschrift.spacing_glyph = 3
-
-
 ## Legt ein Zeichenfeld an und hängt seine Zeichenroutine ein.
 func _feld(ort: Vector2, groesse: Vector2, zeichner: Callable,
-		anker: int = Control.PRESET_TOP_LEFT) -> Control:
+		anker: int = Control.PRESET_TOP_LEFT, eltern: Control = self) -> Control:
 	var knoten := Control.new()
 	knoten.set_anchors_preset(anker)
 	knoten.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -125,7 +157,7 @@ func _feld(ort: Vector2, groesse: Vector2, zeichner: Callable,
 	knoten.offset_right = ort.x + groesse.x
 	knoten.offset_bottom = ort.y + groesse.y
 	knoten.draw.connect(zeichner.bind(knoten))
-	add_child(knoten)
+	eltern.add_child(knoten)
 	return knoten
 
 
@@ -144,86 +176,103 @@ func _baue_schleier() -> void:
 func _zeichne_schleier() -> void:
 	var b := _schleier.size.x
 	var h := _schleier.size.y
-	var dunkel := Color(SCHLEIER.r, SCHLEIER.g, SCHLEIER.b, 0.70)
-	var klar := Color(SCHLEIER.r, SCHLEIER.g, SCHLEIER.b, 0.0)
+	var dunkel := Color(SCHLEIER, 0.70)
+	var klar := Color(SCHLEIER, 0.0)
 
 	# Verlauf von links: trägt Titel und Menü
-	_verlauf(_schleier, Vector2(0, 0), Vector2(b * 0.56, h), dunkel, klar, true)
+	UiStil.verlauf(_schleier, Rect2(0, 0, b * 0.56, h), dunkel, klar, true)
 	# Fuß und Kopf leicht abdunkeln – rahmt das Bild
-	_verlauf(_schleier, Vector2(0, h - 190.0), Vector2(b, 190.0),
-			klar, Color(SCHLEIER.r, SCHLEIER.g, SCHLEIER.b, 0.72), false)
-	_verlauf(_schleier, Vector2(0, 0), Vector2(b, 130.0),
-			Color(SCHLEIER.r, SCHLEIER.g, SCHLEIER.b, 0.40), klar, false)
-
-
-## Rechteck mit linearem Farbverlauf (waagerecht oder senkrecht).
-func _verlauf(auf: Control, ort: Vector2, groesse: Vector2,
-		von: Color, bis: Color, waagerecht: bool) -> void:
-	var punkte := PackedVector2Array([
-		ort,
-		ort + Vector2(groesse.x, 0),
-		ort + groesse,
-		ort + Vector2(0, groesse.y),
-	])
-	var farben: PackedColorArray
-	if waagerecht:
-		farben = PackedColorArray([von, bis, bis, von])
-	else:
-		farben = PackedColorArray([von, von, bis, bis])
-	auf.draw_polygon(punkte, farben)
+	UiStil.verlauf(_schleier, Rect2(0, h - 190.0, b, 190.0), klar,
+			Color(SCHLEIER, 0.72))
+	UiStil.verlauf(_schleier, Rect2(0, 0, b, 130.0), Color(SCHLEIER, 0.40), klar)
+	# Vignette: Die Ecken sinken ab, der Blick bleibt in der Bildmitte –
+	# bei der Kamerafahrt wirkt der Wald so wie durch ein Objektiv gesehen.
+	UiStil.vignette(_schleier, Rect2(0, 0, b, h), 0.42)
 
 
 # --------------------------------------------------------------- Titel
 
+## Der Schriftzug besteht aus einem Feld je Buchstabe, damit jeder für
+## sich hereinfallen und wippen kann. Die Lage jedes Buchstabens kommt aus
+## der Breite des Wortanfangs – so bleiben Sperrung und Unterschneidung
+## genau wie beim ganzen Wort.
 func _baue_titel() -> void:
-	_titel = _feld(Vector2(RAND, TITEL_OBEN), Vector2(820, 150), _zeichne_titel)
+	_titel = Control.new()
+	_titel.name = "Titel"
+	_titel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_titel.position = Vector2(RAND, TITEL_OBEN)
+	_titel.size = Vector2(820, 150)
+	add_child(_titel)
+	var zs := UiStil.schrift(&"logo")
+	var grundlinie := zs.get_ascent(TITEL_GROESSE)
+	for i in TEXT_TITEL.length():
+		# Anfang des Buchstabens = Wortanfang bis einschließlich ihm, minus
+		# ihm selbst. So stimmt es, ob die Sperrung hinter dem letzten
+		# Zeichen mitgezählt wird oder nicht.
+		var breite := _wortbreite(zs, TEXT_TITEL[i])
+		var links := _wortbreite(zs, TEXT_TITEL.substr(0, i + 1)) - breite
+		var buchstabe := _feld(Vector2(links, 0.0), Vector2(breite, 150.0),
+				_zeichne_buchstabe.bind(TEXT_TITEL[i]), Control.PRESET_TOP_LEFT, _titel)
+		buchstabe.name = "Buchstabe%d" % i
+		# Drehpunkt auf der Grundlinie, mittig: Beim Hereinfallen setzt der
+		# Buchstabe auf und federt, statt um seine Ecke zu kippen.
+		buchstabe.pivot_offset = Vector2(breite * 0.5, grundlinie)
+		buchstabe.material = _titel_material()
+		_buchstaben.append(buchstabe)
 	_untertitel = _feld(Vector2(RAND + 6.0, UNTERTITEL_OBEN), Vector2(720, 56),
 			_zeichne_untertitel)
 
 
-func _zeichne_titel(auf: Control) -> void:
-	if _titelschrift == null:
-		return
-	var ort := Vector2(0.0, _titelschrift.get_ascent(TITEL_GROESSE))
+func _wortbreite(zs: Font, text: String) -> float:
+	if text.is_empty():
+		return 0.0
+	return zs.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TITEL_GROESSE).x
+
+
+static func _titel_material() -> ShaderMaterial:
+	if _titelstoff == null:
+		var shader := Shader.new()
+		shader.code = TITEL_SHADER
+		_titelstoff = ShaderMaterial.new()
+		_titelstoff.shader = shader
+	return _titelstoff
+
+
+func _zeichne_buchstabe(auf: Control, zeichen: String) -> void:
+	var zs := UiStil.schrift(&"logo")
+	var ort := Vector2(0.0, zs.get_ascent(TITEL_GROESSE))
 
 	# Schlagschatten
-	_kontur(auf, ort + Vector2(6, 12), TEXT_TITEL, TITEL_GROESSE, 20,
-			Color(0, 0, 0, 0.32))
+	auf.draw_string_outline(zs, ort + Vector2(6, 12), zeichen,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, TITEL_GROESSE, 20, Color(0, 0, 0, 0.32))
 	# Tiefe: mehrere Konturen nach unten versetzt ⇒ plastischer Block
 	for d in range(10, 0, -1):
 		var t := float(d) / 10.0
-		_kontur(auf, ort + Vector2(0, d), TEXT_TITEL, TITEL_GROESSE, 17,
-				TITEL_TIEFE.darkened(0.35 * t))
+		auf.draw_string_outline(zs, ort + Vector2(0, d), zeichen,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, TITEL_GROESSE, 17,
+				Farben.UI_TITEL_TIEFE.darkened(0.35 * t))
 	# Harte Kontur und helle Fläche
-	_kontur(auf, ort, TEXT_TITEL, TITEL_GROESSE, 17, TITEL_KONTUR)
-	auf.draw_string(_titelschrift, ort, TEXT_TITEL, HORIZONTAL_ALIGNMENT_LEFT,
-			-1, TITEL_GROESSE, TITEL_FUELLUNG)
+	auf.draw_string_outline(zs, ort, zeichen, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			TITEL_GROESSE, 17, Farben.UI_TITEL_KONTUR)
+	auf.draw_string(zs, ort, zeichen, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			TITEL_GROESSE, Farben.UI_TITEL_FUELLUNG)
 	# Feiner Glanz auf der Oberkante
-	auf.draw_string(_titelschrift, ort - Vector2(0, 3), TEXT_TITEL,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, TITEL_GROESSE, Color(1, 1, 1, 0.16))
-
-
-func _kontur(auf: Control, ort: Vector2, text: String, groesse: int,
-		staerke: int, farbe: Color) -> void:
-	auf.draw_string_outline(_titelschrift, ort, text, HORIZONTAL_ALIGNMENT_LEFT,
-			-1, groesse, staerke, farbe)
+	auf.draw_string(zs, ort - Vector2(0, 3), zeichen, HORIZONTAL_ALIGNMENT_LEFT,
+			-1, TITEL_GROESSE, Color(1, 1, 1, 0.16))
 
 
 func _zeichne_untertitel(auf: Control) -> void:
-	if _sperrschrift == null:
-		return
 	# Blatt-Marke vor der Zeile
 	_blattmarke(auf, Vector2(8, 12), 9.0)
 	var ort := Vector2(30, 20)
-	auf.draw_string(_sperrschrift, ort + Vector2(1.5, 2.0), TEXT_UNTERTITEL,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, UNTERTITEL_GROESSE, Color(0, 0, 0, 0.65))
-	auf.draw_string(_sperrschrift, ort, TEXT_UNTERTITEL,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, UNTERTITEL_GROESSE,
-			Color(0.93, 0.89, 0.80))
-	# Zierlinie darunter
-	var breite: float = _sperrschrift.get_string_size(TEXT_UNTERTITEL,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, UNTERTITEL_GROESSE).x + 30.0
-	auf.draw_line(Vector2(0, 38), Vector2(breite, 38), Color(1.0, 0.78, 0.32, 0.35), 2.0)
+	var breite := UiStil.text(auf, ort, TEXT_UNTERTITEL, UNTERTITEL_GROESSE,
+			UNTERTITEL_FARBE, &"sperr", 4) + 30.0
+	# Zierlinie darunter; in der Eröffnung wächst sie von links heraus.
+	if _linie > 0.0:
+		auf.draw_line(Vector2(0, 38), Vector2(breite * _linie, 38),
+				Color(Farben.UI_GOLD, 0.45), 2.0)
+		auf.draw_line(Vector2(0, 40), Vector2(breite * _linie, 40),
+				Color(0, 0, 0, 0.25), 1.0)
 
 
 ## Kleines Blatt als Wortmarke – gezeichnet, kein Bild.
@@ -235,9 +284,17 @@ func _blattmarke(auf: Control, mitte: Vector2, r: float) -> void:
 	for i in 13:
 		var t := 1.0 - float(i) / 12.0
 		punkte.append(mitte + Vector2(-r + 2.0 * r * t, sin(t * PI) * r * 0.62))
+	var umriss := punkte.duplicate()
+	umriss.append(punkte[0])
+	auf.draw_polyline(umriss, Farben.UI_KONTUR, 3.0, true)
 	auf.draw_colored_polygon(punkte, Farben.LAUB_HELL)
 	auf.draw_line(mitte - Vector2(r, 0), mitte + Vector2(r, 0),
-			Farben.LAUB_DUNKEL, 1.5)
+			Farben.LAUB_DUNKEL, 1.5, true)
+
+
+func _setze_linie(wert: float) -> void:
+	_linie = wert
+	_untertitel.queue_redraw()
 
 
 # ---------------------------------------------------------------- Menü
@@ -245,7 +302,7 @@ func _blattmarke(auf: Control, mitte: Vector2, r: float) -> void:
 func _baue_menue() -> void:
 	_neuer_eintrag("Neues Spiel", _slots_fuer_neues_spiel)
 	_neuer_eintrag("Spiel laden", _slots_zum_laden)
-	_neuer_eintrag("Einstellungen", Spielfluss.zu_optionen)
+	_neuer_eintrag("Einstellungen", func() -> void: _verlassen(Spielfluss.zu_optionen, 0.18))
 
 
 func _neuer_eintrag(text: String, tat: Callable) -> void:
@@ -255,24 +312,36 @@ func _neuer_eintrag(text: String, tat: Callable) -> void:
 	eintrag.position = Vector2(RAND, MENUE_OBEN
 			+ nummer * (EINTRAG_HOEHE + EINTRAG_ABSTAND))
 	eintrag.size = Vector2(EINTRAG_BREITE, EINTRAG_HOEHE)
-	eintrag.ueberfahren.connect(func() -> void: _waehle(nummer))
-	eintrag.angetippt.connect(func() -> void: _ausloesen())
+	eintrag.ueberfahren.connect(func() -> void:
+		if not _tafel_offen and not _blockiert:
+			_waehle(nummer))
+	# Ein Tipp während der Eröffnung kürzt sie ab und gilt dann sofort –
+	# und zwar für den angetippten Eintrag, auch wenn das Überfahren davor
+	# noch gesperrt war.
+	eintrag.angetippt.connect(func() -> void:
+		_einblendung_abkuerzen()
+		if not _tafel_offen and not _blockiert:
+			_waehle(nummer, true)
+			_ausloesen())
 	add_child(eintrag)
 	_eintraege.append(eintrag)
 	_aktionen.append(tat)
 
 
-func _waehle(nummer: int) -> void:
+func _waehle(nummer: int, still: bool = false) -> void:
 	if _eintraege.is_empty():
 		return
-	_index = posmod(nummer, _eintraege.size())
+	var neu := posmod(nummer, _eintraege.size())
+	if neu != _index and not still:
+		MenueEintrag.klang_wahl()
+	_index = neu
 	for i in _eintraege.size():
 		_eintraege[i].setze_auswahl(i == _index and not _tafel_offen)
 
 
 ## Wählt einen Eintrag. Gesperrte (leere Plätze) werden in Laufrichtung
 ## übersprungen, damit man nicht auf einem toten Eintrag stehen bleibt.
-func _waehle_tafel(nummer: int, richtung: int = 1) -> void:
+func _waehle_tafel(nummer: int, richtung: int = 1, still: bool = false) -> void:
 	if _tafel_eintraege.is_empty():
 		return
 	var anzahl := _tafel_eintraege.size()
@@ -281,6 +350,8 @@ func _waehle_tafel(nummer: int, richtung: int = 1) -> void:
 		if ziel >= _tafel_gesperrt.size() or not _tafel_gesperrt[ziel]:
 			break
 		ziel = posmod(ziel + signi(richtung), anzahl)
+	if ziel != _tafel_index and not still:
+		MenueEintrag.klang_wahl()
 	_tafel_index = ziel
 	for i in _tafel_eintraege.size():
 		_tafel_eintraege[i].setze_auswahl(i == _tafel_index)
@@ -289,18 +360,21 @@ func _waehle_tafel(nummer: int, richtung: int = 1) -> void:
 func _ausloesen() -> void:
 	if _blockiert:
 		return
+	MenueEintrag.klang_ok()
 	if _tafel_offen:
+		_tafel_eintraege[_tafel_index].druecken()
 		_tafel_aktionen[_tafel_index].call()
 	else:
+		_eintraege[_index].druecken()
 		_aktionen[_index].call()
 
 
 ## Blendet ab und führt dann die Tat aus – für jeden Szenenwechsel.
-func _verlassen(tat: Callable) -> void:
+## 0,35 s vor dem Ladeschirm (der Wechsel ins Spiel), kürzer zu den
+## Einstellungen: Dort wartet kein Aufbau, nur ein anderes Bild.
+func _verlassen(tat: Callable, dauer: float = 0.35) -> void:
 	_blockiert = true
-	var ablauf := create_tween()
-	ablauf.tween_property(_blende, "color:a", 1.0, 0.35)
-	ablauf.tween_callback(tat)
+	_blende.zu(dauer).tween_callback(tat)
 
 
 # --------------------------------------------------------- Speicherplätze
@@ -383,18 +457,32 @@ func _spiel_laden_von(slot: int) -> void:
 # Speicherplätze und die Rückfrage vor dem Überschreiben. Die Einträge
 # werden bei jedem Öffnen neu gebaut, damit sie den aktuellen Stand der
 # Speicherdateien zeigen.
+#
+# Zwei Ebenen: `_tafel` dunkelt das ganze Bild ab, `_tafelkoerper` trägt
+# Tafel und Einträge und federt beim Öffnen auf – so wächst nur die
+# Tafel, nicht der Schleier, der sonst an den Bildrändern Lücken zeigte.
 
 func _baue_tafel() -> void:
 	_tafel = Control.new()
 	_tafel.name = "Tafel"
 	_tafel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_tafel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_tafel.draw.connect(_zeichne_tafel)
-	_tafel.resized.connect(func() -> void:
-		_tafel.queue_redraw()
-		_tafel_ausrichten())
+	_tafel.draw.connect(func() -> void:
+		_tafel.draw_rect(Rect2(Vector2.ZERO, _tafel.size), Farben.UI_ABDUNKELN))
 	_tafel.visible = false
 	add_child(_tafel)
+
+	_tafelkoerper = Control.new()
+	_tafelkoerper.name = "Koerper"
+	_tafelkoerper.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_tafelkoerper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tafelkoerper.pivot_offset_ratio = Vector2(0.5, 0.5)
+	_tafelkoerper.draw.connect(_zeichne_tafel)
+	_tafelkoerper.resized.connect(func() -> void:
+		_tafel.queue_redraw()
+		_tafelkoerper.queue_redraw()
+		_tafel_ausrichten())
+	_tafel.add_child(_tafelkoerper)
 
 
 ## Öffnet das Overlay. `eintraege` ist eine Liste aus Wörterbüchern mit
@@ -422,9 +510,20 @@ func _tafel_zeigen(titel: String, unterzeile: String, eintraege: Array,
 		tafel.size = Vector2(TAFEL_EINTRAG.x,
 				TAFEL_SLOT_HOEHE if not unter.is_empty() else TAFEL_EINTRAG.y)
 		var nummer := _tafel_eintraege.size()
-		tafel.ueberfahren.connect(func() -> void: _waehle_tafel(nummer))
-		tafel.angetippt.connect(func() -> void: _ausloesen())
-		_tafel.add_child(tafel)
+		# Nur solange die Tafel offen ist: Beim Ausblenden liegt sie noch
+		# kurz im Bild, ein Tipp dort darf nicht das Hauptmenü auslösen.
+		tafel.ueberfahren.connect(func() -> void:
+			if _tafel_offen:
+				_waehle_tafel(nummer))
+		# Ein Tipp gilt der angetippten Zeile. Leere Plätze (gesperrt) tun
+		# nichts – das Überfahren davor hat die Auswahl schon auf die nächste
+		# offene Zeile geschoben, und die soll nicht ungefragt auslösen.
+		tafel.angetippt.connect(func() -> void:
+			if _tafel_offen and nummer < _tafel_gesperrt.size() \
+					and not _tafel_gesperrt[nummer]:
+				_waehle_tafel(nummer, 1, true)
+				_ausloesen())
+		_tafelkoerper.add_child(tafel)
 		_tafel_eintraege.append(tafel)
 		_tafel_aktionen.append(wert.get("tat", _tafel_schliessen) as Callable)
 		_tafel_gesperrt.append(tafel.gedaempft)
@@ -432,20 +531,28 @@ func _tafel_zeigen(titel: String, unterzeile: String, eintraege: Array,
 	_tafel_hoehe = hoehe - TAFEL_LUECKE + TAFEL_FUSS
 
 	_tafel_offen = true
-	_tafel.visible = true
+	_hinweis.queue_redraw()
 	for e in _eintraege:
 		e.setze_auswahl(false)
 	_tafel_ausrichten()
-	_tafel.queue_redraw()
-	_waehle_tafel(vorauswahl)
-	if not war_offen:
-		_tafel.modulate.a = 0.0
-		create_tween().tween_property(_tafel, "modulate:a", 1.0, 0.18)
+	_tafelkoerper.queue_redraw()
+	_tafel_index = -1
+	_waehle_tafel(vorauswahl, 1, true)
+	# Die gewählte Zeile steht sofort, nur die Tafel selbst kommt herein –
+	# sonst liefen zwei Bewegungen übereinander.
+	if _tafel_index >= 0:
+		_tafel_eintraege[_tafel_index].setze_auswahl(true, true)
+	if not war_offen or not _tafel.visible:
+		UiStil.einblenden(_tafel, 0.18)
+		_tafelkoerper.scale = Vector2(0.96, 0.96)
+		var t := _tafelkoerper.create_tween()
+		t.tween_property(_tafelkoerper, ^"scale", Vector2.ONE, 0.28) \
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## Fläche der Tafel, mittig im Bild.
 func _tafel_flaeche() -> Rect2:
-	var mitte := _tafel.size * 0.5
+	var mitte := _tafelkoerper.size * 0.5
 	return Rect2(Vector2(mitte.x - TAFEL_BREITE * 0.5,
 			mitte.y - _tafel_hoehe * 0.5), Vector2(TAFEL_BREITE, _tafel_hoehe))
 
@@ -460,27 +567,35 @@ func _tafel_ausrichten() -> void:
 
 
 func _zeichne_tafel() -> void:
-	_tafel.draw_rect(Rect2(Vector2.ZERO, _tafel.size), Color(0.02, 0.03, 0.03, 0.72))
 	var flaeche := _tafel_flaeche()
-	_runde_flaeche(_tafel, flaeche.grow(4.0), Color(1.0, 0.78, 0.32, 0.12), 18)
-	_runde_flaeche(_tafel, flaeche, Color(0.08, 0.09, 0.08, 0.97), 16)
-	_runde_rahmen(_tafel, flaeche, Color(1.0, 0.78, 0.32, 0.55), 16, 2.0)
-
-	var schrift := _tafel.get_theme_default_font()
-	if schrift == null:
-		return
+	UiStil.zeichne(_tafelkoerper, flaeche, &"tafel")
 	var mitte_x := flaeche.position.x + flaeche.size.x * 0.5
-	_mittig(_tafel, schrift, Vector2(mitte_x, flaeche.position.y + 48.0),
-			_tafel_titel, 27, Color(1.0, 0.93, 0.74))
+	UiStil.text(_tafelkoerper, Vector2(mitte_x, flaeche.position.y + 50.0),
+			_tafel_titel, 30, Farben.UI_GOLD_HELL, &"titel", 5,
+			HORIZONTAL_ALIGNMENT_CENTER)
+	# Zierstrich unter dem Titel: zwei feine Goldlinien mit Raute
+	var strich_y := flaeche.position.y + 64.0
+	UiStil.raute(_tafelkoerper, Vector2(mitte_x, strich_y), 4.0, Farben.UI_GOLD)
+	_tafelkoerper.draw_line(Vector2(mitte_x - 70.0, strich_y),
+			Vector2(mitte_x - 10.0, strich_y), Color(Farben.UI_GOLD, 0.45), 1.5, true)
+	_tafelkoerper.draw_line(Vector2(mitte_x + 10.0, strich_y),
+			Vector2(mitte_x + 70.0, strich_y), Color(Farben.UI_GOLD, 0.45), 1.5, true)
 	if not _tafel_unterzeile.is_empty():
-		_mittig(_tafel, schrift, Vector2(mitte_x, flaeche.position.y + 78.0),
-				_tafel_unterzeile, 17, Color(0.84, 0.83, 0.78))
+		var zs := UiStil.schrift()
+		var groesse := UiStil.passend(zs, _tafel_unterzeile, 17,
+				flaeche.size.x - 48.0, 13)
+		UiStil.text(_tafelkoerper, Vector2(mitte_x, flaeche.position.y + 90.0),
+				_tafel_unterzeile, groesse, Farben.UI_TEXT_RUHE, &"text", 3,
+				HORIZONTAL_ALIGNMENT_CENTER)
 
 
+## Schließt das Overlay: Der Zustand wechselt sofort (Eingaben gehen
+## wieder ans Menü), nur das Bild blendet kurz aus.
 func _tafel_schliessen() -> void:
 	_tafel_offen = false
-	_tafel.visible = false
-	_waehle(_index)
+	_hinweis.queue_redraw()
+	UiStil.ausblenden(_tafel, 0.12)
+	_waehle(_index, true)
 
 
 # ---------------------------------------------------------- Fortschritt
@@ -494,9 +609,6 @@ func _baue_fortschritt() -> void:
 
 
 func _zeichne_fortschritt(auf: Control) -> void:
-	var schrift := auf.get_theme_default_font()
-	if schrift == null:
-		return
 	var gesamt := Spielfluss.LEVEL_GESAMT
 	# Im Startbildschirm ist noch kein Platz gewählt – gezeigt wird der
 	# weiteste Stand über alle vier Plätze.
@@ -505,45 +617,61 @@ func _zeichne_fortschritt(auf: Control) -> void:
 	var frei: int = mini(int(stand["freigeschaltet"]), gesamt)
 	var fertig := erledigt.size()
 
-	# Rautenreihe: gefüllt = geschafft, hell = offen, matt = verschlossen
+	# Rautenreihe: gefüllt = geschafft, hell = offen, matt = verschlossen.
+	# Nach je fünf Leveln (ein Raum) eine kleine Lücke – die Reihe liest
+	# sich dann als fünf Welten statt als lange Kette.
 	var schritt := 15.0
 	for i in gesamt:
-		var mitte := Vector2(6.0 + i * schritt, 10.0)
+		var mitte := Vector2(6.0 + i * schritt + floorf(i / 5.0) * 7.0, 10.0)
 		var nummer := i + 1
 		if erledigt.has(nummer):
-			_raute(auf, mitte, 5.5, GOLD, true)
+			UiStil.raute(auf, mitte, 6.5, Farben.UI_KONTUR)
+			UiStil.raute(auf, mitte, 5.5, Farben.UI_GOLD)
 		elif nummer <= frei:
-			_raute(auf, mitte, 5.5, Color(1.0, 0.93, 0.78, 0.85), false)
+			UiStil.raute(auf, mitte, 5.5, Color(1.0, 0.93, 0.78, 0.9), false, 1.8)
 		else:
-			_raute(auf, mitte, 4.5, Color(1, 1, 1, 0.30), true)
+			UiStil.raute(auf, mitte, 4.5, Color(1, 1, 1, 0.30))
 
 	var zeile := "%d von %d Leveln freigeschaltet  ·  %d geschafft" % [frei, gesamt, fertig]
-	auf.draw_string(_sperrschrift, Vector2(0, 44) + Vector2(1, 1.5), zeile,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0, 0, 0, 0.6))
-	auf.draw_string(_sperrschrift, Vector2(0, 44), zeile,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.88, 0.86, 0.80, 0.92))
+	UiStil.text(auf, Vector2(0, 44), zeile, 16, Color(0.90, 0.88, 0.82), &"sperr", 3)
 
 
-func _raute(auf: Control, mitte: Vector2, r: float, farbe: Color, gefuellt: bool) -> void:
-	var ecken := PackedVector2Array([
-		mitte + Vector2(0, -r), mitte + Vector2(r, 0),
-		mitte + Vector2(0, r), mitte + Vector2(-r, 0),
-	])
-	if gefuellt:
-		auf.draw_colored_polygon(ecken, farbe)
-	else:
-		var zug := ecken.duplicate()
-		zug.append(ecken[0])
-		auf.draw_polyline(zug, farbe, 1.6)
-
-
+## Bedienhinweis unten rechts, passend zur zuletzt benutzten Eingabe:
+## Tastennamen für die Tastatur, Symboltasten für den Controller, ein
+## Wort für den Finger. "Zurück" steht nur da, wo es etwas bewirkt – in
+## der Tafel der Speicherplätze.
 func _zeichne_hinweis(auf: Control) -> void:
-	if _sperrschrift == null:
-		return
-	auf.draw_string(_sperrschrift, Vector2(1, 21.5), TEXT_HINWEIS,
-			HORIZONTAL_ALIGNMENT_RIGHT, auf.size.x, 15, Color(0, 0, 0, 0.55))
-	auf.draw_string(_sperrschrift, Vector2(0, 20), TEXT_HINWEIS,
-			HORIZONTAL_ALIGNMENT_RIGHT, auf.size.x, 15, Color(0.90, 0.89, 0.85, 0.72))
+	var farbe := Color(0.92, 0.91, 0.87, 0.85)
+	var y := 20.0
+	var x := auf.size.x
+	var teile: Array = []
+	if InputHub.eingabeart == InputHub.Art.PAD:
+		teile = [["", "Steuerkreuz wählen"], ["jump", "bestätigen"]]
+		if _tafel_offen:
+			teile.append(["slide", "zurück"])
+	elif InputHub.eingabeart == InputHub.Art.TOUCH:
+		teile = [["", "Eintrag antippen"]]
+	else:
+		teile = [["", "Pfeiltasten wählen"], ["", "Enter bestätigt"]]
+		if _tafel_offen:
+			teile.append(["", "Esc zurück"])
+		elif DisplayServer.is_touchscreen_available():
+			teile.append(["", "oder antippen"])
+	# Von rechts nach links setzen, damit der Hinweis rechtsbündig bleibt.
+	for i in range(teile.size() - 1, -1, -1):
+		var teil: Array = teile[i]
+		var symbol := String(teil[0])
+		var text := String(teil[1])
+		x -= UiStil.textbreite(text, HINWEIS_GROESSE, &"sperr")
+		UiStil.text(auf, Vector2(x, y), text, HINWEIS_GROESSE, farbe, &"sperr", 3)
+		if not symbol.is_empty():
+			x -= 24.0
+			var mitte := Vector2(x + 9.0, y - 5.0)
+			auf.draw_circle(mitte, 10.5, Farben.UI_KONTUR, true, -1.0, true)
+			PadSymbole.zeichne(auf, symbol, mitte, 6.0, PadSymbole.farbe(symbol), 2.0)
+		if i > 0:
+			x -= 34.0
+			UiStil.raute(auf, Vector2(x + 17.0, y - 5.0), 2.5, Color(Farben.UI_GOLD, 0.7))
 
 
 func _auf_fortschritt() -> void:
@@ -553,61 +681,81 @@ func _auf_fortschritt() -> void:
 # ------------------------------------------------------------ Einblenden
 
 func _baue_blende() -> void:
-	_blende = ColorRect.new()
-	_blende.name = "Blende"
-	_blende.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_blende.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_blende.color = Color(0, 0, 0, 1)
+	_blende = UiStil.Blende.new()
 	add_child(_blende)
+	_blende.setzen(1.0)
 
 
+## Eröffnung: Aus dem Dunkel blendet der Wald auf, die Buchstaben fallen
+## einzeln herein und federn auf ihre Grundlinie, dann gleitet das Menü
+## von links hinein. Beim zweiten Mal (zurück aus den Einstellungen) läuft
+## alles auf gut ein Drittel verkürzt und ohne Buchstabenfall.
 func _einblenden() -> void:
 	_blockiert = true
-	_titel.modulate.a = 0.0
-	_titel.scale = Vector2(1.06, 1.06)
+	var k := 0.35 if _eroeffnet else 1.0
+	for b in _buchstaben:
+		b.modulate.a = 0.0
 	_untertitel.modulate.a = 0.0
 	_fortschritt.modulate.a = 0.0
 	_hinweis.modulate.a = 0.0
+	_linie = 0.0
 	for e in _eintraege:
 		e.modulate.a = 0.0
+		e.position.x = RAND - 36.0
 
 	var ablauf := create_tween()
 	_einblendung = ablauf
 	ablauf.set_parallel(true)
-	ablauf.tween_property(_blende, "color:a", 0.0, 0.9)
-	ablauf.tween_property(_titel, "modulate:a", 1.0, 0.6).set_delay(0.25)
-	ablauf.tween_property(_titel, "scale", Vector2.ONE, 0.7) \
-			.set_delay(0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	ablauf.tween_property(_untertitel, "modulate:a", 1.0, 0.5).set_delay(0.65)
+	ablauf.tween_property(_blende, ^"color:a", 0.0, 0.9 * k)
+	for i in _buchstaben.size():
+		var b := _buchstaben[i]
+		var start := (0.25 + i * 0.06) * k
+		ablauf.tween_property(b, ^"modulate:a", 1.0, 0.25 * k).set_delay(start)
+		if not _eroeffnet:
+			# Abwechselnd leicht links und rechts gekippt – wie hingeworfen.
+			b.position.y = -70.0
+			b.rotation = 0.3 if i % 2 == 0 else -0.3
+			b.scale = Vector2(0.5, 0.5)
+			ablauf.tween_property(b, ^"position:y", 0.0, 0.55).set_delay(start) \
+					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			ablauf.tween_property(b, ^"rotation", 0.0, 0.55).set_delay(start) \
+					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			ablauf.tween_property(b, ^"scale", Vector2.ONE, 0.5).set_delay(start) \
+					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	ablauf.tween_property(_untertitel, ^"modulate:a", 1.0, 0.5 * k).set_delay(0.65 * k)
+	ablauf.tween_method(_setze_linie, 0.0, 1.0, 0.6 * k).set_delay(0.75 * k) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	for i in _eintraege.size():
-		ablauf.tween_property(_eintraege[i], "modulate:a", 1.0, 0.35) \
-				.set_delay(0.9 + i * 0.09)
-	ablauf.tween_property(_fortschritt, "modulate:a", 1.0, 0.5).set_delay(1.2)
-	ablauf.tween_property(_hinweis, "modulate:a", 1.0, 0.5).set_delay(1.4)
-	ablauf.chain().tween_callback(func() -> void:
-		_blockiert = false
-		_einblendung = null)
+		var start := (0.9 + i * 0.09) * k
+		ablauf.tween_property(_eintraege[i], ^"modulate:a", 1.0, 0.35 * k).set_delay(start)
+		ablauf.tween_property(_eintraege[i], ^"position:x", RAND, 0.45 * k) \
+				.set_delay(start).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	ablauf.tween_property(_fortschritt, ^"modulate:a", 1.0, 0.5 * k).set_delay(1.2 * k)
+	ablauf.tween_property(_hinweis, ^"modulate:a", 1.0, 0.5 * k).set_delay(1.4 * k)
+	ablauf.chain().tween_callback(_einblendung_fertig)
+
+
+func _einblendung_fertig() -> void:
+	_blockiert = false
+	_einblendung = null
+	_eroeffnet = true
+	_blende.setzen(0.0)
 
 
 ## Bricht die Eröffnungs-Einblendung ab und stellt den Endzustand sofort her.
 ##
 ## Ohne das schluckte der Startbildschirm die ersten rund zwei Sekunden
 ## jede Eingabe: Wer gleich Enter drückt, bekam keinerlei Reaktion.
+## Der Tween wird dazu ans Ende gespult, nicht abgebrochen – so landet
+## jeder Buchstabe und jeder Eintrag genau dort, wo er hingehört, und der
+## Schluss-Rückruf läuft wie sonst auch.
 func _einblendung_abkuerzen() -> bool:
 	if _einblendung == null:
 		return false
 	if is_instance_valid(_einblendung) and _einblendung.is_valid():
-		_einblendung.kill()
-	_einblendung = null
-	_blende.color.a = 0.0
-	_titel.modulate.a = 1.0
-	_titel.scale = Vector2.ONE
-	_untertitel.modulate.a = 1.0
-	_fortschritt.modulate.a = 1.0
-	_hinweis.modulate.a = 1.0
-	for e in _eintraege:
-		e.modulate.a = 1.0
-	_blockiert = false
+		_einblendung.custom_step(3600.0)
+	if _einblendung != null:
+		_einblendung_fertig()
 	return true
 
 
@@ -617,7 +765,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _blockiert:
 		# Während der Eröffnung: Einblendung überspringen und den Druck
 		# ganz normal weiterbehandeln. Nur der Szenenwechsel bleibt dicht.
-		if not _einblendung_abkuerzen():
+		# Abgekürzt wird nur für einen echten Druck – eine Mausbewegung über
+		# der Kulisse oder ein leicht verrutschter Stick (unter halbem
+		# Ausschlag gilt er nicht als gedrückt) soll den Buchstabenfall
+		# nicht schlucken.
+		if not event.is_pressed() or event.is_echo() \
+				or not _einblendung_abkuerzen():
 			return
 	if event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
 		_schiebe(1)
@@ -640,32 +793,3 @@ func _schiebe(richtung: int) -> void:
 		_waehle_tafel(_tafel_index + richtung, richtung)
 	else:
 		_waehle(_index + richtung)
-
-
-# ------------------------------------------------------- Zeichenhelfer
-
-func _mittig(auf: Control, schrift: Font, mitte: Vector2, text: String,
-		groesse: int, farbe: Color) -> void:
-	var breite := schrift.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT,
-			-1, groesse).x
-	var ort := Vector2(mitte.x - breite * 0.5, mitte.y)
-	auf.draw_string(schrift, ort + Vector2(1.0, 1.5), text,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, groesse, Color(0, 0, 0, 0.55))
-	auf.draw_string(schrift, ort, text, HORIZONTAL_ALIGNMENT_LEFT, -1, groesse, farbe)
-
-
-func _runde_flaeche(auf: Control, feld: Rect2, farbe: Color, radius: int) -> void:
-	var stil := StyleBoxFlat.new()
-	stil.bg_color = farbe
-	stil.set_corner_radius_all(radius)
-	stil.draw(auf.get_canvas_item(), feld)
-
-
-func _runde_rahmen(auf: Control, feld: Rect2, farbe: Color, radius: int,
-		staerke: float) -> void:
-	var stil := StyleBoxFlat.new()
-	stil.bg_color = Color(0, 0, 0, 0)
-	stil.border_color = farbe
-	stil.set_border_width_all(int(staerke))
-	stil.set_corner_radius_all(radius)
-	stil.draw(auf.get_canvas_item(), feld)

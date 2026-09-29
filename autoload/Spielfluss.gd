@@ -71,7 +71,28 @@ const RAUM_NAMEN := [
 	"Sand und Neon",
 ]
 
+## Namen der Level, Index 0 = Level 01. Die einzige Stelle im Code, an der
+## sie stehen – Ladeschirm, Titelkarte, Statustafel und Auswertung lesen
+## sie über `level_name()`. Vorher hieß jedes Level nur "Level 01", und
+## den Namen, unter dem es geplant und gebaut wurde, sah der Spieler nie.
+const LEVEL_NAMEN: Array[String] = [
+	"Wurzelschlucht", "Frostgrat", "Treibgut", "Katzensprung", "Hauerjagd",
+	"Wettrennen", "Moorbrücken", "Torfstich", "Sumpfgeysir", "Hebewerk",
+	"Steinschlag", "Kesselwerk", "Pfahlfeste", "Wolkensteg", "Abendruinen",
+	"Kanalgrund", "Frostritt", "Schwarmpfad", "Sturmruinen", "Kolbengang",
+	"Sandgrab", "Wolkenjagd", "Funkenlicht", "Neonhöhe", "Dächergasse",
+]
+
 signal fortschritt_geaendert
+## Ein Level ist geschafft. `daten` für die Auswertung im HUD:
+## {"nummer", "name", "fruechte", "kisten", "kisten_gesamt",
+##  "alle_kisten", "ohne_tod"  – in diesem Durchlauf erreicht,
+##  "hatte_kisten", "hatte_ohne_tod" – schon vorher im Spielstand,
+##  "erstmals" – das Level war vorher noch nie geschafft}
+signal level_abgeschlossen(daten: Dictionary)
+## Ein Zeitlauf ist gewertet (aus `zeit_eintragen`):
+## {"nummer", "zeit", "stufe", "bestzeit": bool}
+signal zeit_gewertet(daten: Dictionary)
 
 ## Höchstes freigeschaltetes Level (1-basiert).
 var freigeschaltet := 1
@@ -87,6 +108,11 @@ var aktuelles_level := 0
 var aktueller_slot := 0
 ## Gesammelte Früchte über den ganzen Spielstand hinweg.
 var fruechte_gesamt := 0
+## Soll das nächste Level mit seiner Titelkarte beginnen? Gesetzt nur von
+## `zum_level()`, zurückgesetzt vom HUD, sobald er sie zeigt. Werkzeuge,
+## die ein Level direkt laden (Fotos, Prüfungen), bekommen so keine
+## Karte ins Bild.
+var titelkarte_faellig := false
 
 
 func _ready() -> void:
@@ -136,6 +162,21 @@ func raum_von_level(nummer: int) -> int:
 	return (nummer - 1) / LEVEL_JE_RAUM + 1
 
 
+## Name eines Levels ("Wurzelschlucht"); leer außerhalb von 1..25.
+func level_name(nummer: int) -> String:
+	if nummer < 1 or nummer > LEVEL_NAMEN.size():
+		return ""
+	return LEVEL_NAMEN[nummer - 1]
+
+
+## Kopfzeile über einem Levelnamen: "LEVEL 01 · WURZELWALD".
+func level_kopfzeile(nummer: int) -> String:
+	if nummer < 1 or nummer > LEVEL_GESAMT:
+		return ""
+	var raum := raum_von_level(nummer)
+	return "LEVEL %02d · %s" % [nummer, String(RAUM_NAMEN[raum - 1]).to_upper()]
+
+
 ## Die fünf Levelnummern eines Raums.
 func level_im_raum(raum: int) -> Array[int]:
 	var liste: Array[int] = []
@@ -168,6 +209,11 @@ func zum_level(nummer: int) -> bool:
 		return false
 	aktuelles_level = nummer
 	GameState.neu_beginnen()
+	titelkarte_faellig = true
+	# Bewusst weiter "Level 01": Der Ladeschirm macht daraus selbst Namen
+	# und Kopfzeile ("LEVEL 01 · WURZELWALD" über "Wurzelschlucht"), sobald
+	# er `level_name()` kennt. Ein Ladeschirm, der das noch nicht kann,
+	# zeigt so wenigstens die Nummer statt eines Namens ohne Nummer.
 	_wechseln(LEVEL_SZENEN[nummer - 1], "Level %02d" % nummer)
 	return true
 
@@ -180,6 +226,11 @@ func level_abschliessen(alle_kisten: bool, ohne_tod: bool = false) -> void:
 	if aktuelles_level < 1:
 		return
 	var eintrag: Dictionary = geschafft.get(aktuelles_level, {})
+	# Vorher festhalten: `eintrag` ist derselbe Eintrag, der gleich
+	# überschrieben wird – die Auswertung will wissen, was NEU ist.
+	var erstmals := not geschafft.has(aktuelles_level)
+	var hatte_kisten := bool(eintrag.get("kisten", false))
+	var hatte_ohne_tod := bool(eintrag.get("ohne_tod", false))
 	eintrag["kisten"] = bool(eintrag.get("kisten", false)) or alle_kisten
 	eintrag["ohne_tod"] = bool(eintrag.get("ohne_tod", false)) or ohne_tod
 	eintrag["fruechte"] = maxi(int(eintrag.get("fruechte", 0)), GameState.fruechte)
@@ -188,6 +239,18 @@ func level_abschliessen(alle_kisten: bool, ohne_tod: bool = false) -> void:
 	fruechte_gesamt += GameState.fruechte
 	# Geschrieben wird nicht hier, sondern beim Betreten des Portalraums.
 	fortschritt_geaendert.emit()
+	level_abgeschlossen.emit({
+		"nummer": aktuelles_level,
+		"name": level_name(aktuelles_level),
+		"fruechte": GameState.fruechte,
+		"kisten": GameState.kisten_zerbrochen,
+		"kisten_gesamt": GameState.kisten_gesamt,
+		"alle_kisten": alle_kisten,
+		"ohne_tod": ohne_tod,
+		"hatte_kisten": hatte_kisten,
+		"hatte_ohne_tod": hatte_ohne_tod,
+		"erstmals": erstmals,
+	})
 
 
 ## Trägt das Ergebnis eines Zeitlaufs ein.
@@ -204,6 +267,8 @@ func zeit_eintragen(nummer: int, gelaufen: float, stufe: int) -> bool:
 	zeiten[nummer] = eintrag
 	# Geschrieben wird wie der übrige Fortschritt erst im Portalraum.
 	fortschritt_geaendert.emit()
+	zeit_gewertet.emit({"nummer": nummer, "zeit": gelaufen, "stufe": stufe,
+			"bestzeit": besser})
 	return besser
 
 

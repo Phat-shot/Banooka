@@ -58,6 +58,14 @@ var _ziel: Node3D
 ## Beim ersten Bild darf die Kamera nicht erst hinfahren – sonst startet
 ## der Spieler außerhalb des Bildes.
 var _muss_springen := true
+## Nachgezogene Stellung OHNE Wackeln. Die Glättung rechnet von hier aus
+## weiter und nicht von `global_transform` – sonst flösse jeder Stoß in
+## die Kugelinterpolation zurück und die Kamera schwänge nach.
+var _lage := Transform3D.IDENTITY
+## Wackeln nach dem Kameravertrag (scripts/effekte.gd), siehe
+## `KorridorKamera.wackelbasis()`.
+var _wucht := 0.0
+var _wucht_zeit := 0.0
 
 
 func _ready() -> void:
@@ -83,9 +91,15 @@ func _ziel_suchen() -> void:
 ## zum Startpunkt zurück.
 func sofort_ausrichten() -> void:
 	_muss_springen = true
+	_wucht = 0.0
 	_ziel_suchen()
 	if _ziel != null and is_instance_valid(_ziel):
 		_folgen(1.0)
+
+
+## Kamerawackeln (Kameravertrag): das Maximum zählt, nicht die Summe.
+func erschuettern(staerke: float) -> void:
+	_wucht = clampf(maxf(_wucht, staerke), 0.0, 1.0)
 
 
 func _process(delta: float) -> void:
@@ -93,6 +107,12 @@ func _process(delta: float) -> void:
 		_ziel_suchen()
 		return
 	_folgen(delta)
+	if _wucht > 0.0:
+		_wucht_zeit += delta
+		global_transform = Transform3D(
+				_lage.basis * KorridorKamera.wackelbasis(_wucht, _wucht_zeit),
+				_lage.origin)
+		_wucht = maxf(_wucht - delta * KorridorKamera.WUCHT_ABKLINGEN, 0.0)
 
 
 func _folgen(delta: float) -> void:
@@ -118,11 +138,13 @@ func _folgen(delta: float) -> void:
 	var soll := Transform3D(Basis.looking_at(richtung, oben.normalized()), wunsch)
 
 	if _muss_springen:
+		_lage = soll
 		global_transform = soll
 		_muss_springen = false
 		return
 
-	var ort := global_position.lerp(soll.origin, 1.0 - pow(glaettung, delta))
-	var dreh := Quaternion(global_transform.basis.orthonormalized()).slerp(
+	var ort := _lage.origin.lerp(soll.origin, 1.0 - pow(glaettung, delta))
+	var dreh := Quaternion(_lage.basis.orthonormalized()).slerp(
 			Quaternion(soll.basis), 1.0 - pow(dreh_glaettung, delta))
-	global_transform = Transform3D(Basis(dreh), ort)
+	_lage = Transform3D(Basis(dreh), ort)
+	global_transform = _lage

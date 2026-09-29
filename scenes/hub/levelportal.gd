@@ -3,8 +3,10 @@ class_name Levelportal
 ## Ein Levelportal im Portalraum – ein Tor pro Level.
 ##
 ## Der Zustand kommt aus `Spielfluss`:
-##   OFFEN         – leuchtender, pulsierender Ring; Betreten startet das Level
-##   VERSCHLOSSEN  – gebaut, aber noch nicht freigeschaltet: dunkel, mit Gitter
+##   OFFEN         – leuchtender Ring, wirbelnde Scheibe, Lichtfleck am
+##                   Boden; Betreten startet das Level
+##   VERSCHLOSSEN  – gebaut, aber noch nicht freigeschaltet: dunkler Ring
+##                   und eine „schlafende" Scheibe, die sich kaum regt
 ##   IN_ARBEIT     – Level noch nicht gebaut: mit Bauplane abgedeckt
 ##
 ## Geschaffte Level leuchten: ein warmer Schein legt sich um das ganze
@@ -18,8 +20,23 @@ class_name Levelportal
 ##   Zeitrelikt – im Zeitmodus die Richtzeit unterboten; seine Farbe sagt
 ##   welche Stufe (Saphir, Gold, Platin). Darunter steht die Bestzeit.
 ##
-## `nummer` muss VOR `add_child()` gesetzt werden – `_ready()` baut daraus
-## die gesamte Optik auf.
+## Kommt man einem offenen Tor nahe, erwacht es: Die Scheibe wird heller,
+## die Zahl wächst ein wenig, und über dem Tor erscheint der Levelname. So
+## steht der Name nur da, wo man ihn braucht – 25 Namen auf einmal wären
+## eine Wand aus Schrift.
+##
+## LICHT OHNE PUNKTLICHT: Früher hatte jedes offene Tor ein OmniLight3D,
+## jedes geschaffte ein zweites. Unter gl_compatibility zeichnet jedes
+## Punktlicht alles in seiner Reichweite ein weiteres Mal, und ab acht
+## Lichtern je Netz fallen welche weg – die Lichtflecken auf dem Raumboden
+## sprangen beim Laufen an und aus. Jetzt liegt vor jedem offenen Tor ein
+## additiver Lichtfleck, und den Schein um Ring und Scheibe legt das
+## Glühen der Umgebung (Glow in Hub.tscn). Deshalb sind die leuchtenden
+## Teile hier bewusst heller als 1: Nur was darüber liegt, glüht.
+##
+## `nummer`, `eigene_pfeiler`, `akzent` und `wirbel` müssen VOR
+## `add_child()` gesetzt werden – `_ready()` baut daraus die gesamte Optik
+## auf.
 
 enum Zustand { OFFEN, VERSCHLOSSEN, IN_ARBEIT }
 
@@ -28,21 +45,82 @@ const RING_DICKE := 0.17
 const MITTE_Y := 1.25         ## Höhe der Ringmitte über dem Boden
 const ZONE_RADIUS := 0.95
 const ZONE_HOEHE := 2.4
+## Die beiden Pfeiler: Abstand zur Tormitte und Größe. Der Portalraum baut
+## seine Säulenreihe genau um diese Kästen herum (siehe hub.gd).
+const PFEILER_X := RADIUS + 0.62
+const PFEILER_GROESSE := Vector3(0.52, 1.7, 0.52)
+
+## Ab diesem Abstand (Meter) beginnt ein offenes Tor zu erwachen, ab dem
+## zweiten ist es ganz wach. Den Namen zeigt nur das nächste Tor (siehe
+## `_namenstor`) – bei 3,6 m Torabstand standen sonst zwei, drei Namen
+## halb durchsichtig nebeneinander.
+const NAH_BEGINN := 6.0
+const NAH_VOLL := 4.0
+## Dauer des Einsaugens beim Betreten.
+const EINSAUG_ZEIT := 0.6
+## Ruhewerte des Wirbelshaders (shaders/portal_wirbel.gdshader), zu denen
+## ein abgebrochenes Betreten zurückkehrt.
+const WIRBEL_DRALL := 4.0
+const WIRBEL_SOG := 0.7
+## Unter diesem Namen merkt sich der Baum das zuletzt betretene Level – der
+## Portalraum setzt den Spieler bei der Rückkehr vor dessen Raum. Eine
+## Metaangabe an der Wurzel überlebt den Szenenwechsel, gehört aber nicht
+## zum Spielstand (nichts davon wird gespeichert). Je Speicherplatz: Wer
+## nach Platz 1 ein neues Spiel beginnt, soll nicht vor dem Raum stehen,
+## in dem er auf Platz 1 zuletzt war (siehe `letztes_level_schluessel`).
+const LETZTES_LEVEL := "portalraum_letztes_level_%d"
+
+## Die Levelnamen (aus CLAUDE.md). Sie stehen über dem Tor, sobald man
+## davorsteht, und groß über der Blende beim Betreten.
+const LEVEL_NAMEN := [
+	"Wurzelschlucht", "Frostgrat", "Treibgut", "Katzensprung", "Hauerjagd",
+	"Wettrennen", "Moorbrücken", "Torfstich", "Sumpfgeysir", "Hebewerk",
+	"Steinschlag", "Kesselwerk", "Pfahlfeste", "Wolkensteg", "Abendruinen",
+	"Kanalgrund", "Frostritt", "Schwarmpfad", "Sturmruinen", "Kolbengang",
+	"Sandgrab", "Wolkenjagd", "Funkenlicht", "Neonhöhe", "Dächergasse",
+]
 
 ## Levelnummer, 1-basiert.
 var nummer := 1
 ## Ergibt sich in `_ready()` aus dem Spielfluss.
 var zustand: Zustand = Zustand.IN_ARBEIT
+## Sichtbare Steinpfeiler bauen. Der Portalraum schaltet das ab und
+## zeichnet eine gemeinsame Bogenreihe für alle fünf Tore eines Raums –
+## die Pfeiler zweier Nachbartore standen vorher ineinander. Die
+## Kollision der Pfeiler bleibt in jedem Fall dieselbe.
+var eigene_pfeiler := true
+## Akzentfarbe des Raums. Färbt die schlafende Scheibe eines verschlossenen
+## Tors; Alpha 0 heißt „keine" (dann Eisengrau).
+var akzent := Color(0.0, 0.0, 0.0, 0.0)
+## Farben des Wirbels in einem offenen Tor: [Grundton, Kern, Saum]. Leer
+## heißt Portalgrün. Der Ring bleibt immer grün – er sagt „offen" –, der
+## Wirbel darin sagt, wohin: Sonst hätten der Wurzelwald und „Sand und
+## Neon" genau dasselbe Tor, und gerade das Tor ist, wohin das Auge zuerst
+## geht.
+var wirbel := PackedColorArray()
 
+var _ring: MeshInstance3D = null
 var _scheibe: MeshInstance3D = null
-var _scheibenmaterial: StandardMaterial3D = null
-var _licht: OmniLight3D = null
+var _scheibenmaterial: ShaderMaterial = null
+var _fleckmaterial: StandardMaterial3D = null
+var _zahl: Label3D = null
+var _name: Label3D = null
 var _edelsteine: Array[Node3D] = []
-var _schein: OmniLight3D = null
 var _scheinring: MeshInstance3D = null
 var _scheinmaterial: StandardMaterial3D = null
+var _spieler: Node3D = null
 var _phase := 0.0
+var _naehe := 0.0
+var _namenssicht := 0.0
+var _helligkeit := -1.0
 var _ausgeloest := false
+
+## Weicher Lichtfleck (einmal gebaut, von allen Toren geteilt).
+static var _fleckbild: GradientTexture2D = null
+## Das Tor, dessen Name gerade stehen darf, und sein Abstand zum Spieler.
+## Jedes offene Tor vergleicht sich in `_erwachen` damit.
+static var _namenstor: Levelportal = null
+static var _namensabstand := INF
 
 
 func _ready() -> void:
@@ -55,16 +133,22 @@ func _ready() -> void:
 	match zustand:
 		Zustand.OFFEN:
 			_baue_scheibe()
+			_baue_lichtfleck()
 		Zustand.VERSCHLOSSEN:
-			_baue_gitter()
+			_baue_schlafende_scheibe()
 		_:
 			_baue_bauplane()
 	_baue_zahl()
+	if zustand == Zustand.OFFEN:
+		_baue_name()
 	_baue_erfolg()
+	if _name != null:
+		var ueber_steinen := not _edelsteine.is_empty()
+		_name.position = Vector3(0.0, _zahl_hoehe() + (1.55 if ueber_steinen else 0.78), 0.0)
 	_baue_zone()
 
 	set_process(zustand == Zustand.OFFEN or not _edelsteine.is_empty()
-			or _schein != null)
+			or _scheinmaterial != null)
 
 
 func _bestimme_zustand() -> Zustand:
@@ -86,38 +170,66 @@ func farbe() -> Color:
 			return Farben.FELS_DUNKEL
 
 
+## Grundton des Wirbels und von allem, was von ihm ausgeht (Lichtfleck,
+## Funken beim Betreten). Bei einem Tor ohne eigenen Wirbel der Grundton.
+func wirbelfarbe() -> Color:
+	if zustand == Zustand.OFFEN and wirbel.size() > 0:
+		return wirbel[0]
+	return farbe()
+
+
+## Metaschlüssel für das zuletzt betretene Level des laufenden Speicherplatzes.
+static func letztes_level_schluessel() -> String:
+	return LETZTES_LEVEL % Spielfluss.aktueller_slot
+
+
+## Name eines Levels (1-basiert), leer für unbekannte Nummern.
+static func levelname(nr: int) -> String:
+	if nr < 1 or nr > LEVEL_NAMEN.size():
+		return ""
+	return String(LEVEL_NAMEN[nr - 1])
+
+
+## Höhe der Levelnummer. Mit der Bogenreihe des Portalraums sitzt über dem
+## Ring ein Schlussstein – die Zahl rückt darüber.
+func _zahl_hoehe() -> float:
+	return MITTE_Y + RADIUS + (0.75 if eigene_pfeiler else 1.25)
+
+
 # ------------------------------------------------------------------ Aufbau
 
-## Zwei Steinpfeiler links und rechts – sie rahmen das Tor und geben ihm
-## Halt im Raum. Kollision nur an den Pfeilern, der Durchgang bleibt frei.
+## Zwei Pfeiler links und rechts – sie rahmen das Tor und geben ihm Halt im
+## Raum. Kollision nur an den Pfeilern, der Durchgang bleibt frei.
 func _baue_pfeiler() -> void:
 	for wert in [-1.0, 1.0]:
 		var seite := float(wert)
 		var koerper := StaticBody3D.new()
 		koerper.collision_layer = 1
 		koerper.collision_mask = 0
-		koerper.position = Vector3(seite * (RADIUS + 0.62), 0.85, 0.0)
-
-		var wuerfel := BoxMesh.new()
-		wuerfel.size = Vector3(0.52, 1.7, 0.52)
-		var mi := MeshInstance3D.new()
-		mi.mesh = wuerfel
-		mi.material_override = Materialbibliothek.fels()
-		koerper.add_child(mi)
+		koerper.position = Vector3(seite * PFEILER_X, PFEILER_GROESSE.y * 0.5, 0.0)
 
 		var form := BoxShape3D.new()
-		form.size = wuerfel.size
+		form.size = PFEILER_GROESSE
 		var kollision := CollisionShape3D.new()
 		kollision.shape = form
 		koerper.add_child(kollision)
 		add_child(koerper)
+
+		if not eigene_pfeiler:
+			continue
+		var wuerfel := BoxMesh.new()
+		wuerfel.size = PFEILER_GROESSE
+		var mi := MeshInstance3D.new()
+		mi.mesh = wuerfel
+		mi.material_override = Materialbibliothek.fels()
+		koerper.add_child(mi)
 
 		# Leuchtende Kappe – bei offenen Toren farbig, sonst matt
 		var kappe := MeshInstance3D.new()
 		var kappen_mesh := BoxMesh.new()
 		kappen_mesh.size = Vector3(0.66, 0.16, 0.66)
 		kappe.mesh = kappen_mesh
-		kappe.position = Vector3(seite * (RADIUS + 0.62), 1.78, 0.0)
+		kappe.position = Vector3(seite * PFEILER_X, 1.78, 0.0)
 		kappe.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if zustand == Zustand.OFFEN:
 			kappe.material_override = Materialbibliothek.leuchtend(farbe(), 1.6)
@@ -130,81 +242,113 @@ func _baue_ring() -> void:
 	var torus := TorusMesh.new()
 	torus.inner_radius = RADIUS
 	torus.outer_radius = RADIUS + RING_DICKE
-	torus.rings = 16
-	torus.ring_segments = 6
+	# 48 × 12 statt 16 × 6: Der Ring ist die hellste Kante im Bild, und mit
+	# Glühen zeichnet sich jede Facette als Zacke im Schein ab.
+	torus.rings = 48
+	torus.ring_segments = 12
 
-	var ring := MeshInstance3D.new()
-	ring.name = "Ring"
-	ring.mesh = torus
-	ring.position = Vector3(0.0, MITTE_Y, 0.0)
-	ring.rotation_degrees = Vector3(90.0, 0.0, 0.0)
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ring = MeshInstance3D.new()
+	_ring.name = "Ring"
+	_ring.mesh = torus
+	_ring.position = Vector3(0.0, MITTE_Y, 0.0)
+	_ring.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if zustand == Zustand.OFFEN:
-		ring.material_override = Materialbibliothek.leuchtend(farbe(), 1.0)
+		# Über 1, damit er glüht (siehe Kopfkommentar).
+		_ring.material_override = Materialbibliothek.leuchtend(farbe(), 2.2)
 	else:
-		ring.material_override = Materialbibliothek.einfarbig(farbe(), 0.75, 0.25)
-	add_child(ring)
+		_ring.material_override = Materialbibliothek.einfarbig(farbe(), 0.75, 0.25)
+	add_child(_ring)
 
 
-## Flimmernde Scheibe im offenen Tor, dazu ein Schein.
+## Wirbelnde Scheibe im offenen Tor. Ein Viereck mit dem Wirbel-Shader
+## statt eines Zylinders: Der Kreis entsteht im Shader, und der Wirbel läuft
+## über TIME – pro Bild setzt das Skript nur noch `puls`.
 func _baue_scheibe() -> void:
-	var flaeche := CylinderMesh.new()
-	flaeche.top_radius = RADIUS
-	flaeche.bottom_radius = RADIUS
-	flaeche.height = 0.04
-	flaeche.radial_segments = 16
-	flaeche.rings = 0
-
-	_scheibe = MeshInstance3D.new()
-	_scheibe.name = "Scheibe"
-	_scheibe.mesh = flaeche
-	_scheibe.position = Vector3(0.0, MITTE_Y, 0.0)
-	_scheibe.rotation_degrees = Vector3(90.0, 0.0, 0.0)
-	_scheibe.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_scheibenmaterial = Materialbibliothek.transparent(
-			farbe().lightened(0.15), 1.0).duplicate()
-	_scheibenmaterial.albedo_color.a = 0.5
+	_scheibe = _scheibenviereck()
+	if wirbel.size() >= 3:
+		_scheibenmaterial = Effekte.wirbelstoff(wirbel[0], wirbel[1], wirbel[2])
+	else:
+		_scheibenmaterial = Effekte.wirbelstoff(farbe())
 	_scheibe.material_override = _scheibenmaterial
 	add_child(_scheibe)
 
-	_licht = OmniLight3D.new()
-	_licht.name = "Schein"
-	_licht.light_color = farbe()
-	_licht.light_energy = 1.4
-	_licht.omni_range = 7.0
-	_licht.shadow_enabled = false
-	_licht.position = Vector3(0.0, MITTE_Y, 0.35)
-	add_child(_licht)
+
+## Ein verschlossenes Tor schläft: Dieselbe Scheibe, aber dunkel, fast
+## still und im kühlen Siegelton des Raums – derselbe Ton wie der Schleier
+## vor dem Raum (hub.gd). Vorher saßen hier drei Gitterstäbe, ein Riegel
+## und ein Schloss: fünf Netze je Tor, und zwanzig vergitterte Tore lasen
+## sich beim ersten Betreten wie ein Gefängnis.
+func _baue_schlafende_scheibe() -> void:
+	var ton := akzent if akzent.a > 0.0 else Farben.KISTE_EISEN
+	var schlaf := ton.lerp(Farben.KISTE_ZEIT, 0.5).darkened(0.35)
+	_scheibe = _scheibenviereck()
+	var stoff := Effekte.wirbelstoff(schlaf)
+	stoff.set_shader_parameter("helligkeit", 0.6)
+	stoff.set_shader_parameter("tempo", 0.12)
+	stoff.set_shader_parameter("deckkraft", 0.85)
+	stoff.set_shader_parameter("sog", 0.15)
+	stoff.set_shader_parameter("puls", 0.0)
+	_scheibe.material_override = stoff
+	add_child(_scheibe)
 
 
-## Gitter vor einem verschlossenen Tor: drei Stäbe und ein Querriegel.
-func _baue_gitter() -> void:
-	var material := Materialbibliothek.metall()
-	for i in 3:
-		var stab := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.11, RADIUS * 1.95, 0.11)
-		stab.mesh = mesh
-		stab.material_override = material
-		stab.position = Vector3((float(i) - 1.0) * 0.62, MITTE_Y, 0.0)
-		add_child(stab)
+func _scheibenviereck() -> MeshInstance3D:
+	var flaeche := QuadMesh.new()
+	flaeche.size = Vector2(RADIUS * 2.0, RADIUS * 2.0)
+	var mi := MeshInstance3D.new()
+	mi.name = "Scheibe"
+	mi.mesh = flaeche
+	mi.position = Vector3(0.0, MITTE_Y, 0.0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
 
-	var riegel := MeshInstance3D.new()
-	var riegel_mesh := BoxMesh.new()
-	riegel_mesh.size = Vector3(RADIUS * 1.9, 0.16, 0.14)
-	riegel.mesh = riegel_mesh
-	riegel.material_override = material
-	riegel.position = Vector3(0.0, MITTE_Y, 0.0)
-	add_child(riegel)
 
-	# Schloss in der Mitte
-	var schloss := MeshInstance3D.new()
-	var schloss_mesh := BoxMesh.new()
-	schloss_mesh.size = Vector3(0.34, 0.4, 0.2)
-	schloss.mesh = schloss_mesh
-	schloss.material_override = Materialbibliothek.einfarbig(Farben.ROST_HELL, 0.6, 0.5)
-	schloss.position = Vector3(0.0, MITTE_Y - 0.08, 0.1)
-	add_child(schloss)
+## Lichtfleck am Boden vor dem Tor – ersetzt das Punktlicht. Additiv und
+## ungeschattet, deshalb wirkt er auch im Schatten der Rückwand.
+func _baue_lichtfleck() -> void:
+	var ebene := PlaneMesh.new()
+	ebene.size = Vector2(3.1, 2.3)
+	var fleck := MeshInstance3D.new()
+	fleck.name = "Lichtfleck"
+	fleck.mesh = ebene
+	fleck.position = Vector3(0.0, 0.035, 0.7)
+	fleck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_fleckmaterial = StandardMaterial3D.new()
+	_fleckmaterial.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_fleckmaterial.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_fleckmaterial.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_fleckmaterial.disable_receive_shadows = true
+	_fleckmaterial.albedo_texture = _fleck_textur()
+	_fleckmaterial.albedo_color = _fleckfarbe(0.5)
+	fleck.material_override = _fleckmaterial
+	add_child(fleck)
+
+
+## Farbe des Lichtflecks bei Puls `p` (0..1). Geschaffte Tore mischen Gold
+## hinein, damit auch der Boden sagt, dass man hier schon war.
+func _fleckfarbe(p: float) -> Color:
+	var ton := wirbelfarbe()
+	if Spielfluss.geschafft.has(nummer):
+		ton = ton.lerp(Farben.ERFOLG_SCHEIN, 0.55)
+	var k := (0.42 + 0.16 * p) * (1.0 + 0.6 * _naehe)
+	return Color(ton.r * k, ton.g * k, ton.b * k, 1.0)
+
+
+static func _fleck_textur() -> GradientTexture2D:
+	if _fleckbild == null:
+		var verlauf := Gradient.new()
+		verlauf.offsets = PackedFloat32Array([0.0, 0.35, 0.75, 1.0])
+		verlauf.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.6),
+				Color(1, 1, 1, 0.12), Color(1, 1, 1, 0)])
+		_fleckbild = GradientTexture2D.new()
+		_fleckbild.gradient = verlauf
+		_fleckbild.fill = GradientTexture2D.FILL_RADIAL
+		_fleckbild.fill_from = Vector2(0.5, 0.5)
+		_fleckbild.fill_to = Vector2(1.0, 0.5)
+		_fleckbild.width = 64
+		_fleckbild.height = 64
+	return _fleckbild
 
 
 ## Noch nicht gebautes Level: Bauplane mit gekreuzten Brettern.
@@ -242,22 +386,45 @@ func _baue_bauplane() -> void:
 
 
 func _baue_zahl() -> void:
-	var zahl := Label3D.new()
-	zahl.name = "Nummer"
-	zahl.text = "%02d" % nummer
-	zahl.font_size = 120
-	zahl.outline_size = 20
-	zahl.pixel_size = 0.011
+	_zahl = Label3D.new()
+	_zahl.name = "Nummer"
+	_zahl.text = "%02d" % nummer
+	# Die Zählschrift: gleich breite, kräftige Ziffern – „11" und „18"
+	# stehen damit genauso ruhig über dem Tor wie „08".
+	_zahl.font = UiStil.schrift(&"zahl")
+	_zahl.font_size = 96
+	_zahl.outline_size = 20
+	_zahl.pixel_size = 0.0096
 	match zustand:
 		Zustand.OFFEN:
-			zahl.modulate = Color(1.0, 0.97, 0.85)
+			_zahl.modulate = Farben.UI_HELL
 		Zustand.VERSCHLOSSEN:
-			zahl.modulate = Color(0.72, 0.75, 0.8)
+			_zahl.modulate = Color(0.66, 0.66, 0.72)
 		_:
-			zahl.modulate = Color(0.6, 0.58, 0.54)
-	zahl.outline_modulate = Color(0.05, 0.04, 0.03, 0.92)
-	zahl.position = Vector3(0.0, MITTE_Y + RADIUS + 0.75, 0.0)
-	add_child(zahl)
+			_zahl.modulate = Color(0.6, 0.58, 0.54)
+	_zahl.outline_modulate = Farben.UI_KONTUR
+	_zahl.position = Vector3(0.0, _zahl_hoehe(), 0.0)
+	add_child(_zahl)
+
+
+## Levelname über dem Tor – unsichtbar, bis man davorsteht. Er sitzt
+## dicht über der Nummer; nur wenn Edelsteine darüber schweben, rückt er
+## über sie. Kräftige Kontur, weil hinter ihm Baumkronen und Rückwand
+## liegen – mit dünner Kontur las er sich wie ein Aufdruck auf der Mauer.
+func _baue_name() -> void:
+	_name = Label3D.new()
+	_name.name = "Levelname"
+	_name.text = levelname(nummer)
+	_name.font = UiStil.schrift(&"titel")
+	_name.font_size = 48
+	_name.outline_size = 18
+	_name.pixel_size = 0.0068
+	_name.render_priority = 2
+	_name.outline_render_priority = 1
+	_name.modulate = Color(Farben.UI_GOLD_HELL, 0.0)
+	_name.outline_modulate = Color(Farben.UI_KONTUR, 0.0)
+	_name.visible = false
+	add_child(_name)
 
 
 ## Schein für geschaffte Level, Edelsteine für die beiden Kunststücke.
@@ -269,7 +436,7 @@ func _baue_erfolg() -> void:
 	_baue_schein()
 
 	# --- Edelsteine über dem Tor ---
-	var steine: Array = []
+	var steine: Array[Color] = []
 	if bool(eintrag.get("kisten", false)):
 		steine.append(Farben.EDELSTEIN_KISTEN)
 	if bool(eintrag.get("ohne_tod", false)):
@@ -286,44 +453,43 @@ func _baue_erfolg() -> void:
 		_baue_bestzeit(float(zeitstand["zeit"]), stufe)
 
 
-## Warmer Schein um das ganze Tor: ein Licht in der Toröffnung und ein
-## breiter, halbdurchsichtiger Ring hinter dem Rahmen.
+## Warmer Schein um das ganze Tor: ein breiter, halbdurchsichtiger Ring
+## hinter dem Rahmen. Das zweite Punktlicht von früher ist weg (siehe
+## Kopfkommentar); den Boden färbt der goldene Lichtfleck.
 func _baue_schein() -> void:
 	_scheinring = MeshInstance3D.new()
 	_scheinring.name = "Schein"
 	var scheibe := TorusMesh.new()
 	scheibe.inner_radius = RADIUS + RING_DICKE * 0.2
 	scheibe.outer_radius = RADIUS + RING_DICKE * 4.6
-	scheibe.rings = 24
+	scheibe.rings = 32
 	scheibe.ring_segments = 10
 	_scheinring.mesh = scheibe
 	_scheinring.position = Vector3(0.0, MITTE_Y, -0.04)
 	_scheinring.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+	# Flach gedrückt: Ein runder Wulst stach vorn durch die Bogensteine
+	# des Portalraums und überzog sie cremeweiß.
+	_scheinring.scale = Vector3(1.0, 0.3, 1.0)
 	_scheinring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Additiv und ungeschattet: Nur so liest sich der Ring als Licht und
-	# nicht als graue Scheibe. Ein gewöhnliches Leuchtmaterial wurde von
-	# der Raumbeleuchtung überlagert und blieb stumpf.
+	# nicht als graue Scheibe. ACHTUNG: Ungeschattete Materialien geben unter
+	# gl_compatibility nur ihre Grundfarbe aus, die Eigenleuchtkraft fällt
+	# weg – das Atmen läuft deshalb über `albedo_color` (siehe _process).
 	_scheinmaterial = StandardMaterial3D.new()
-	_scheinmaterial.albedo_color = Color(Farben.ERFOLG_SCHEIN.r,
-			Farben.ERFOLG_SCHEIN.g, Farben.ERFOLG_SCHEIN.b, 0.30)
-	_scheinmaterial.emission_enabled = true
-	_scheinmaterial.emission = Farben.ERFOLG_SCHEIN
-	_scheinmaterial.emission_energy_multiplier = 1.3
+	_scheinmaterial.albedo_color = _scheinfarbe(0.5)
 	_scheinmaterial.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_scheinmaterial.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_scheinmaterial.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	_scheinmaterial.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_scheinmaterial.disable_receive_shadows = true
 	_scheinring.material_override = _scheinmaterial
 	add_child(_scheinring)
 
-	_schein = OmniLight3D.new()
-	_schein.name = "Scheinlicht"
-	_schein.light_color = Farben.ERFOLG_SCHEIN
-	_schein.light_energy = 1.6
-	_schein.omni_range = 5.5
-	_schein.shadow_enabled = false
-	_schein.position = Vector3(0.0, MITTE_Y, 0.2)
-	add_child(_schein)
+
+func _scheinfarbe(schwelle: float) -> Color:
+	var k := 0.9 + schwelle * 0.5
+	var s := Farben.ERFOLG_SCHEIN
+	return Color(s.r * k, s.g * k, s.b * k, 0.22 + schwelle * 0.12)
 
 
 ## Die Bestzeit unter der Levelnummer. Sie steht klein und matt da: Wer
@@ -333,23 +499,28 @@ func _baue_bestzeit(sekunden: float, stufe: int) -> void:
 	var schild := Label3D.new()
 	schild.name = "Bestzeit"
 	schild.text = Zeitlauf.als_text(sekunden)
+	schild.font = UiStil.schrift(&"zahl")
 	schild.font_size = 44
 	schild.pixel_size = 0.0032
 	schild.modulate = Zeitlauf.stufen_farbe(stufe) if stufe > 0 \
 			else Color(0.82, 0.80, 0.74)
 	schild.outline_size = 12
-	schild.outline_modulate = Color(0.05, 0.04, 0.03, 0.92)
+	schild.outline_modulate = Farben.UI_KONTUR
 	schild.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	# Zwischen Torbogen und Levelnummer. Unter den Ring gehört sie nicht:
-	# Dort ist der Boden, und die Schrift steckte darin.
-	schild.position = Vector3(0.0, MITTE_Y + RADIUS + 0.32, 0.0)
+	# Dort ist der Boden, und die Schrift steckte darin. Mit der Bogenreihe
+	# des Portalraums steht sie vor dem Schlussstein wie auf einer Tafel.
+	if eigene_pfeiler:
+		schild.position = Vector3(0.0, MITTE_Y + RADIUS + 0.32, 0.0)
+	else:
+		schild.position = Vector3(0.0, MITTE_Y + RADIUS + 0.62, 0.42)
 	add_child(schild)
 
 
 func _baue_edelstein(ton: Color, seitlich: float) -> Node3D:
 	var stein := Node3D.new()
 	stein.name = "Edelstein"
-	stein.position = Vector3(seitlich, MITTE_Y + RADIUS + 1.62, 0.0)
+	stein.position = Vector3(seitlich, _edelstein_hoehe(), 0.0)
 	add_child(stein)
 
 	var kristall := MeshInstance3D.new()
@@ -363,6 +534,10 @@ func _baue_edelstein(ton: Color, seitlich: float) -> Node3D:
 	kristall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	stein.add_child(kristall)
 	return stein
+
+
+func _edelstein_hoehe() -> float:
+	return _zahl_hoehe() + 0.82
 
 
 func _baue_zone() -> void:
@@ -385,16 +560,8 @@ func _baue_zone() -> void:
 
 func _process(delta: float) -> void:
 	_phase += delta
-	if zustand == Zustand.OFFEN:
-		var puls := 0.5 + 0.5 * sin(_phase * 2.9)
-		if is_instance_valid(_scheibe):
-			var s := 0.9 + puls * 0.1
-			_scheibe.scale = Vector3(s, 1.0, s)
-		if _scheibenmaterial != null:
-			_scheibenmaterial.emission_energy_multiplier = 0.9 + puls * 1.2
-			_scheibenmaterial.albedo_color.a = 0.4 + puls * 0.22
-		if is_instance_valid(_licht):
-			_licht.light_energy = 1.1 + puls * 0.9
+	if zustand == Zustand.OFFEN and not _ausgeloest:
+		_erwachen(delta)
 	for i in _edelsteine.size():
 		var stein := _edelsteine[i]
 		if not is_instance_valid(stein):
@@ -402,14 +569,63 @@ func _process(delta: float) -> void:
 		stein.rotation.y += delta * 1.4
 		# Gegenläufig versetzt schweben, damit zwei Steine nicht im
 		# Gleichschritt wippen.
-		stein.position.y = MITTE_Y + RADIUS + 1.62 \
+		stein.position.y = _edelstein_hoehe() \
 				+ sin(_phase * 1.7 + float(i) * 2.1) * 0.09
 	if _scheinmaterial != null:
-		var schwelle := 0.5 + 0.5 * sin(_phase * 1.6)
-		_scheinmaterial.emission_energy_multiplier = 1.1 + schwelle * 0.7
-		_scheinmaterial.albedo_color.a = 0.22 + schwelle * 0.14
-	if is_instance_valid(_schein):
-		_schein.light_energy = 1.2 + 0.6 * (0.5 + 0.5 * sin(_phase * 1.6))
+		_scheinmaterial.albedo_color = _scheinfarbe(0.5 + 0.5 * sin(_phase * 1.6))
+
+
+## Atmen und Nähe eines offenen Tors.
+func _erwachen(delta: float) -> void:
+	var puls := 0.5 + 0.5 * sin(_phase * 2.9)
+	if _spieler == null or not is_instance_valid(_spieler):
+		_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
+	var ziel := 0.0
+	var abstand := INF
+	if _spieler != null:
+		abstand = global_position.distance_to(_spieler.global_position)
+		ziel = clampf(inverse_lerp(NAH_BEGINN, NAH_VOLL, abstand), 0.0, 1.0)
+	_naehe = move_toward(_naehe, ziel, delta * 2.5)
+
+	if is_instance_valid(_scheibe):
+		var s := 0.94 + puls * 0.06
+		_scheibe.scale = Vector3(s, s, 1.0)
+	if _scheibenmaterial != null:
+		_scheibenmaterial.set_shader_parameter("puls", puls)
+		# Die Helligkeit ändert sich nur beim Näherkommen – dann erst setzen.
+		var hell := snappedf(1.25 + 0.7 * _naehe, 0.01)
+		if hell != _helligkeit:
+			_helligkeit = hell
+			_scheibenmaterial.set_shader_parameter("helligkeit", hell)
+	if _fleckmaterial != null:
+		_fleckmaterial.albedo_color = _fleckfarbe(puls)
+	if _zahl != null:
+		_zahl.scale = Vector3.ONE * (1.0 + 0.12 * _naehe)
+	if _name != null:
+		var ziel_sicht := _naehe if _name_frei(abstand) else 0.0
+		_namenssicht = move_toward(_namenssicht, ziel_sicht, delta * 3.0)
+		_name.visible = _namenssicht > 0.01
+		_name.modulate.a = _namenssicht
+		_name.outline_modulate.a = _namenssicht * Farben.UI_KONTUR.a
+
+
+## Darf dieses Tor seinen Namen zeigen? Nur das dem Spieler nächste offene
+## Tor. Ein anderes übernimmt erst, wenn es ein Stück näher ist – sonst
+## flackerte der Name genau zwischen zwei Toren hin und her.
+func _name_frei(abstand: float) -> bool:
+	var halter_da := _namenstor != null and is_instance_valid(_namenstor) \
+			and not _namenstor._ausgeloest
+	if halter_da and _namenstor == self:
+		if abstand > NAH_BEGINN:
+			_namenstor = null
+			return false
+		_namensabstand = abstand
+		return true
+	if abstand < NAH_BEGINN and (not halter_da or abstand < _namensabstand - 0.4):
+		_namenstor = self
+		_namensabstand = abstand
+		return true
+	return false
 
 
 # ------------------------------------------------------------------ Betreten
@@ -429,21 +645,139 @@ func _auf_koerper(koerper: Node3D) -> void:
 			GameState.zeige_nachricht("Noch in Arbeit", 1.5)
 
 
-## Kurze Aufblende, dann startet das Level.
+## Das Tor saugt den Spieler ein, eine Kreisblende schließt sich auf der
+## Scheibe, dann startet das Level. Vorher wuchs das ganze Tor samt
+## Steinpfeilern auf 1,3 und die Szene brach hart zum Ladebildschirm ab.
 func _eintreten(spieler: Node3D) -> void:
 	if "gesperrt" in spieler:
 		spieler.gesperrt = true
-	GameState.zeige_nachricht("Level %02d" % nummer, 1.2)
-	var tween := create_tween()
-	tween.tween_property(self, "scale", Vector3.ONE * 1.3, 0.35) \
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	var figur := spieler as CharacterBody3D
+	if figur != null:
+		figur.velocity = Vector3.ZERO
+	# Physik anhalten, damit die Schwerkraft nicht gegen das Einsaugen zieht.
+	spieler.set_physics_process(false)
+	var schluessel := letztes_level_schluessel()
+	get_tree().root.set_meta(schluessel, nummer)
+
+	var mitte := to_global(Vector3(0.0, MITTE_Y, 0.0))
+	var ton := wirbelfarbe()
+	Effekte.aufblitzen(self, mitte, ton.lightened(0.35), 2.6, 0.3)
+	Effekte.funken(self, mitte, ton, 22, 4.0, 0.2)
+	Effekte.ring(self, to_global(Vector3(0.0, 0.08, 0.4)), ton, 2.4, 0.45)
+	Klang.spiele("checkpoint", 0.8)
+
+	var modell := spieler.get_node_or_null("Modell") as Node3D
+	var modell_skala := modell.scale if modell != null else Vector3.ONE
+	var start_drehung := spieler.rotation.y
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(spieler, "global_position", mitte, EINSAUG_ZEIT) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tween.tween_property(spieler, "rotation:y", start_drehung + TAU * 2.0,
+			EINSAUG_ZEIT)
+	if modell != null:
+		tween.tween_property(modell, "scale", modell_skala * 0.05, EINSAUG_ZEIT) \
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	# Nur Scheibe und Ring wachsen – die Steine bleiben, wo sie sind.
+	for teil: Node3D in [_scheibe, _ring]:
+		if is_instance_valid(teil):
+			tween.tween_property(teil, "scale", teil.scale * 1.2, EINSAUG_ZEIT) \
+					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if _scheibenmaterial != null and is_instance_valid(_scheibe):
+		var hell_start := _helligkeit if _helligkeit > 0.0 else 1.25
+		tween.tween_method(_scheibe_aufdrehen.bind(hell_start), 0.0, 1.0, EINSAUG_ZEIT)
+		# Schneller drehen über den Knoten, nicht über `tempo` (siehe unten).
+		# Positiv um Z ist der Drehsinn des Wirbels, von vorn gesehen.
+		tween.tween_property(_scheibe, "rotation:z", TAU * 1.5, EINSAUG_ZEIT) \
+				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+	var name_text := levelname(nummer)
+	var blende := _blende_anlegen(name_text)
+	var kamera := get_viewport().get_camera_3d()
+	if blende != null and kamera != null and not kamera.is_position_behind(mitte):
+		blende.iris_zu(kamera.unproject_position(mitte), EINSAUG_ZEIT + 0.12)
+	if blende == null:
+		# Ohne Blende steht der Name als Meldung im HUD.
+		GameState.zeige_nachricht("Level %02d · %s" % [nummer, name_text] \
+				if not name_text.is_empty() else "Level %02d" % nummer, 1.4)
+
 	await tween.finished
 	if not is_instance_valid(self):
 		return
 	if Spielfluss.zum_level(nummer):
 		return
-	# Sollte nicht vorkommen – Tor wieder freigeben.
-	scale = Vector3.ONE
+
+	# Sollte nicht vorkommen – Tor und Figur wieder freigeben.
+	get_tree().root.remove_meta(schluessel)
+	if blende != null:
+		blende.auf(0.2)
+		var schicht := blende.get_parent()
+		if schicht != null:
+			get_tree().create_timer(0.3).timeout.connect(schicht.queue_free)
+	for teil: Node3D in [_scheibe, _ring]:
+		if is_instance_valid(teil):
+			teil.scale = Vector3.ONE
+	if is_instance_valid(_scheibe):
+		_scheibe.rotation.z = 0.0
+	if _scheibenmaterial != null:
+		_scheibenmaterial.set_shader_parameter("drall", WIRBEL_DRALL)
+		_scheibenmaterial.set_shader_parameter("sog", WIRBEL_SOG)
+		# Den Merkwert verwerfen, sonst hielte `_erwachen` die hochgedrehte
+		# Helligkeit für schon gesetzt.
+		_helligkeit = -1.0
 	_ausgeloest = false
-	if is_instance_valid(spieler) and "gesperrt" in spieler:
-		spieler.gesperrt = false
+	if is_instance_valid(spieler):
+		spieler.set_physics_process(true)
+		if modell != null and is_instance_valid(modell):
+			modell.scale = modell_skala
+		if "gesperrt" in spieler:
+			spieler.gesperrt = false
+
+
+## Der Wirbel dreht beim Betreten auf: Die Arme wickeln sich enger
+## (`drall`), die Mitte zieht heller (`sog`), alles wird heller.
+##
+## NIE über `tempo` oder `richtung`: Der Shader rechnet `TIME * tempo`, und
+## TIME zählt seit Spielstart. Jede Änderung von `tempo` ließe den Winkel
+## um TIME·Δtempo springen – nach fünf Minuten Spielzeit um mehrere
+## Umdrehungen je Bild. Die Scheibe flackerte dann wild, statt schneller zu
+## werden. Das Schnellerwerden übernimmt die Drehung des Knotens.
+func _scheibe_aufdrehen(anteil: float, hell_start: float) -> void:
+	if _scheibenmaterial == null:
+		return
+	_scheibenmaterial.set_shader_parameter("helligkeit", lerpf(hell_start, 3.4, anteil))
+	_scheibenmaterial.set_shader_parameter("drall", lerpf(WIRBEL_DRALL, 10.0, anteil))
+	_scheibenmaterial.set_shader_parameter("sog", lerpf(WIRBEL_SOG, 2.0, anteil))
+
+
+## Eigene Blende über dem HUD, unter dem Ladebildschirm. Sie hängt an der
+## laufenden Szene und verschwindet mit ihr. Der Levelname steht auf
+## derselben Schicht ÜBER der Blende: Als Meldung im HUD lag er unter ihr,
+## und die Iris schluckte ihn, kaum dass er erschienen war.
+func _blende_anlegen(name_text: String) -> UiStil.Blende:
+	var szene := get_tree().current_scene
+	if szene == null:
+		return null
+	var schicht := CanvasLayer.new()
+	schicht.name = "Portalblende"
+	schicht.layer = 50
+	var blende := UiStil.Blende.new(Farben.UI_NACHT)
+	schicht.add_child(blende)
+
+	var titel := Control.new()
+	titel.name = "Levelname"
+	titel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	titel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var kopf := "LEVEL %02d" % nummer
+	titel.draw.connect(func() -> void:
+		var feld := titel.size
+		var x := feld.x * 0.5
+		var y := feld.y * 0.7
+		UiStil.text(titel, Vector2(x, y), kopf, UiStil.GROESSE_KNOPF,
+				Farben.UI_GOLD_HELL, &"sperr", -1, HORIZONTAL_ALIGNMENT_CENTER)
+		if not name_text.is_empty():
+			UiStil.text(titel, Vector2(x, y + 62.0), name_text, UiStil.GROESSE_TITEL,
+					Farben.UI_HELL, &"titel", -1, HORIZONTAL_ALIGNMENT_CENTER))
+	schicht.add_child(titel)
+	szene.add_child(schicht)
+	UiStil.einschweben(titel, Vector2(0.0, 22.0), 0.4, 0.08)
+	return blende

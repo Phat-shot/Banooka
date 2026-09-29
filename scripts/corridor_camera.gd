@@ -1,4 +1,5 @@
 extends Camera3D
+class_name KorridorKamera
 ## Korridor-Kamera: folgt dem Spieler von schräg hinten oben.
 ##
 ## Drei Betriebsarten:
@@ -9,6 +10,21 @@ extends Camera3D
 ##                   wird zum 2D-Scroller. Die Steuerung stimmt dabei von
 ##                   selbst, weil sie kamerarelativ ist: Was auf dem Schirm
 ##                   nach rechts geht, geht auch am Stick nach rechts.
+##
+## Dazu drei Dinge fürs Gefühl, alle im Ruhezustand neutral (ein Standbild
+## sieht genauso aus wie ohne sie):
+##   Wackeln   – `erschuettern(staerke)` nach dem Kameravertrag in
+##               scripts/effekte.gd. Nur Drehung, kein Versatz: Glättung
+##               und Wandstrahl (`_freie_sicht`) sehen davon nichts.
+##   Tempo     – das Sichtfeld weitet sich bei hohem Tempo und im Slide um
+##               wenige Grad; Kart und Wildkatze bekommen das mit, weil
+##               das Tempo am Ort gemessen wird, nicht an der Figur.
+##   Handys    – auf sehr breiten Bildschirmen (20:9) wird das senkrechte
+##               Sichtfeld so weit gesenkt, dass das waagerechte nicht
+##               über `WAAGRECHT_HOECHSTENS` wächst – sonst Fischauge.
+##
+## Die statischen Helfer `wackelbasis()` und `sichtfeld_begrenzt()` teilen
+## sich Folge- und Flugkamera, damit ein Stoß überall gleich aussieht.
 
 ## Ziel-Knoten. Bleibt das Feld leer, wird der erste Knoten
 ## aus der Gruppe "spieler" verwendet.
@@ -74,12 +90,70 @@ const SICHT_PUFFER := 0.35
 ## Näher als das geht sie nie an die Figur – sonst steckt die Linse im Kopf.
 const SICHT_MINDEST := 1.4
 
+# --- Wackeln (Kameravertrag: scripts/effekte.gd) ---
+## Größter Ausschlag bei Wucht 1, in Radiant: Nicken rund 3,4°, Rollen
+## rund 2°. Der Ausschlag wächst mit Wucht², ein Bauchplatscher (0,45)
+## nickt also nur um gut 0,7° – spürbar, ohne dass das Bild verschwimmt.
+##
+## Bewusst KEIN Gieren: Die Steuerung ist kamerarelativ und liest die
+## waagerechte Blickrichtung der Kamera. Ein Gieren ließe den Stick für
+## einen Moment schief greifen. Nicken ändert diese Richtung gar nicht,
+## Rollen bei rund 20° Neigung nur um Bruchteile eines Grades.
+const WUCHT_NICKEN := 0.06
+const WUCHT_ROLLEN := 0.035
+## Abklingen je Sekunde. Ein Bauchplatscher ist nach gut 0,2 s ruhig.
+const WUCHT_ABKLINGEN := 2.0
+
+# --- Sichtfeld ---
+## Zusätzliches Sichtfeld in Grad bei hohem Tempo. Ab `TEMPO_AB` m/s –
+## knapp über dem Lauftempo 8,5, damit bloßes Laufen das Bild nie atmen
+## lässt – voll ab `TEMPO_VOLL` (Slide 13,5, Wildkatze und Kart bis 21).
+const SCHUB_TEMPO := 3.0
+const TEMPO_AB := 9.0
+const TEMPO_VOLL := 15.0
+## Im Slide kommt das dazu: Der Ruck nach vorn soll im Bild ankommen.
+## Zusammen bleibt es unter 5° – mehr macht auf Dauer übel.
+const SCHUB_SLIDE := 2.0
+## Größtes waagerechtes Sichtfeld in Grad. Bei 16:9 und 60° senkrecht
+## sind es 91°, erst ab etwa 19:9 greift der Deckel.
+const WAAGRECHT_HOECHSTENS := 100.0
+
+## Am Anfang der Kurve kann die Kamera nicht `abstand` Meter hinter der
+## Figur stehen – dahinter ist kein Weg, oft nur das Startportal. Sie
+## steht dann dicht hinter ihr und hoch darüber, blickte aber weiter
+## `blick_vorlauf` voraus: Am Levelstart (Strecke 2) und nach jedem Tod
+## vor dem ersten Checkpoint lag die Figur ganz unter dem Bildrand. Der
+## Blickpunkt rückt deshalb heran, quadratisch mit dem fehlenden Abstand:
+## an der Startstelle kräftig, bis die Figur im unteren Bilddrittel steht,
+## ein paar Meter weiter kaum noch – sonst sähe man dort nur noch Boden
+## statt der Schlucht. Ab Strecke `abstand` ist alles wie immer.
+## 0,75 heißt an der Startstelle (2 m, 7,5 m fehlen): Blick 1,6 m statt
+## 6 m voraus, die Füße stehen gut 10° über dem unteren Bildrand.
+const START_HERANHOLEN := 0.75
+
+var _wucht := 0.0
+var _wucht_zeit := 0.0
+## Hat `_folgen()` in diesem Bild die Blickrichtung neu gesetzt? Nur dann
+## darf gewackelt werden – sonst addierte sich der Ausschlag Bild für Bild.
+var _blick_gesetzt := false
+## Sichtfeld laut Szene, danach mit Handy-Deckel, zuletzt selbst gesetzt.
+var _szenen_fov := 60.0
+var _grund_fov := 60.0
+var _fov_gesetzt := -1.0
+## Aktueller Tempo-Zuschlag in Grad und das geglättete Tempo.
+var _schub := 0.0
+var _tempo_glatt := 0.0
+var _letzter_ort := Vector3.INF
+
 
 func _ready() -> void:
 	# Die Kamera wird selbst im Bildtakt gesetzt. Godot darf sie deshalb
 	# nicht zusätzlich interpolieren, sonst hinkt sie einen Physikschritt
 	# hinterher und alles fühlt sich schwammig an.
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	_szenen_fov = fov
+	get_viewport().size_changed.connect(_grund_fov_rechnen)
+	_grund_fov_rechnen()
 	_ziel_suchen()
 	sofort_ausrichten()
 
@@ -89,9 +163,76 @@ func _ready() -> void:
 func sofort_ausrichten() -> void:
 	_muss_springen = true
 	_strecke = -1.0
+	_wucht = 0.0
+	_schub = 0.0
+	_tempo_glatt = 0.0
+	_letzter_ort = Vector3.INF
+	_fov_setzen(_grund_fov)
 	_ziel_suchen()
 	if _ziel != null and is_instance_valid(_ziel):
 		_folgen(1.0)
+
+
+## Kamerawackeln nach dem Kameravertrag (scripts/effekte.gd): Das
+## Maximum zählt, nicht die Summe – sonst schaukelte eine Kistenkette die
+## Kamera zum Erdbeben auf. Abstand und `Effekte.reduziert` hat der
+## Aufrufer schon verrechnet.
+func erschuettern(staerke: float) -> void:
+	_wucht = clampf(maxf(_wucht, staerke), 0.0, 1.0)
+
+
+## Drehung eines Wackelns der Wucht `wucht` (0..1) zur Zeit `zeit`, als
+## Basis zum Anhängen im Kamerasystem (`basis * wackelbasis(...)`).
+## Zwei Nick-Frequenzen gegeneinander verstimmt, damit es nicht wie ein
+## Pendel tickt; ein Rollen darüber gibt dem Stoß Gewicht.
+static func wackelbasis(wucht: float, zeit: float) -> Basis:
+	var k := wucht * wucht
+	var nicken := WUCHT_NICKEN * k \
+			* (sin(zeit * 37.0) + 0.5 * sin(zeit * 71.0 + 1.3)) / 1.5
+	var rollen := WUCHT_ROLLEN * k * sin(zeit * 29.0 + 2.1)
+	return Basis(Vector3.RIGHT, nicken) * Basis(Vector3.FORWARD, rollen)
+
+
+## Senkrechtes Sichtfeld `fov_szene`, gedeckelt für breite Bildschirme:
+## Das waagerechte Sichtfeld wächst bei KEEP_HEIGHT mit dem Seitenverhältnis
+## – auf einem 20:9-Handy wären aus 60° senkrecht 104° waagerecht geworden,
+## ein Fischauge, in dem die Figur winzig wird. Gedeckelt sind es dort
+## rund 56° senkrecht. Bei 16:9 ändert sich nichts.
+static func sichtfeld_begrenzt(kamera: Camera3D, fov_szene: float) -> float:
+	if not kamera.is_inside_tree():
+		return fov_szene
+	var groesse := kamera.get_viewport().get_visible_rect().size
+	if groesse.x < 1.0 or groesse.y < 1.0:
+		return fov_szene
+	if kamera.keep_aspect == Camera3D.KEEP_WIDTH:
+		return minf(fov_szene, WAAGRECHT_HOECHSTENS)
+	var seiten := groesse.x / groesse.y
+	var hoechstens := rad_to_deg(2.0 * atan(
+			tan(deg_to_rad(WAAGRECHT_HOECHSTENS) * 0.5) / seiten))
+	return minf(fov_szene, hoechstens)
+
+
+## Wie viele Meter der Kamera am Kurvenanfang zum vollen Abstand fehlen.
+## Auf einem Rundkurs (Level 06: der letzte Punkt liegt knapp 6 m neben
+## dem ersten) fehlt nichts – dort geht es hinter dem Start weiter, und
+## die Kamera soll nicht in jeder Runde nicken. Ein Korridorlevel endet
+## Hunderte Meter von seinem Anfang entfernt.
+func _fehlstrecke(kurve: Curve3D, strecke: float) -> float:
+	var ende := kurve.point_count - 1
+	if kurve.get_point_position(0).distance_to(kurve.get_point_position(ende)) < 12.0:
+		return 0.0
+	return maxf(abstand - strecke, 0.0)
+
+
+func _grund_fov_rechnen() -> void:
+	_grund_fov = sichtfeld_begrenzt(self, _szenen_fov)
+	_fov_setzen(_grund_fov + _schub)
+
+
+func _fov_setzen(wert: float) -> void:
+	fov = wert
+	# Zurücklesen statt `wert` merken: Der Setter klemmt auf 1..179.
+	_fov_gesetzt = fov
 
 
 func _ziel_suchen() -> void:
@@ -108,6 +249,56 @@ func _process(delta: float) -> void:
 		_ziel_suchen()
 		return
 	_folgen(delta)
+	_sichtfeld_fuehren(delta)
+	_wackeln(delta)
+
+
+## Weitet das Sichtfeld mit dem Tempo. Gemessen wird am Weg, den das Ziel
+## im Bild zurücklegt – so gilt es für jede Figur, auch für die, die ihre
+## `velocity` nie setzen (Reiter, Rennfahrer).
+func _sichtfeld_fuehren(delta: float) -> void:
+	# Hat jemand anderes das Sichtfeld gesetzt (ein Werkzeug, ein Level),
+	# gilt das als neue Grundlage, statt jedes Bild überschrieben zu werden.
+	if _fov_gesetzt >= 0.0 and not is_equal_approx(fov, _fov_gesetzt):
+		_szenen_fov = fov
+		_grund_fov = sichtfeld_begrenzt(self, _szenen_fov)
+	if delta <= 0.0:
+		return
+	var p := _ziel.get_global_transform_interpolated().origin
+	var tempo := _tempo_glatt
+	if _letzter_ort.is_finite():
+		var weg := p - _letzter_ort
+		weg.y = 0.0
+		# Schneller als 60 m/s ist nichts im Spiel – das ist ein Versetzen
+		# (Checkpoint, Portal), kein Tempo.
+		var gemessen := weg.length() / delta
+		if gemessen < 60.0:
+			tempo = gemessen
+	_letzter_ort = p
+	_tempo_glatt = lerpf(_tempo_glatt, tempo, 1.0 - exp(-10.0 * delta))
+
+	var ziel := SCHUB_TEMPO * clampf(
+			(_tempo_glatt - TEMPO_AB) / (TEMPO_VOLL - TEMPO_AB), 0.0, 1.0)
+	if _ziel is Spieler and (_ziel as Spieler).sliding > 0.0:
+		ziel += SCHUB_SLIDE
+	# Schnell auf, langsam zurück: Der Schub soll als Ruck ankommen und
+	# nicht als Pumpen, wenn Slides kurz hintereinander folgen.
+	var rate := 8.0 if ziel > _schub else 3.0
+	_schub = lerpf(_schub, ziel, 1.0 - exp(-rate * delta))
+	if absf(_schub) < 0.01 and ziel <= 0.0:
+		_schub = 0.0
+	_fov_setzen(_grund_fov + _schub)
+
+
+## Legt das Wackeln über die frisch gesetzte Blickrichtung. Die Drehung
+## geht bei jedem `look_at` wieder verloren; es sammelt sich nichts an.
+func _wackeln(delta: float) -> void:
+	if _wucht <= 0.0:
+		return
+	_wucht_zeit += delta
+	if _blick_gesetzt:
+		basis = basis * wackelbasis(_wucht, _wucht_zeit)
+	_wucht = maxf(_wucht - delta * WUCHT_ABKLINGEN, 0.0)
 
 
 ## Führt die Stelle auf der Kurve, statt sie jedes Bild neu zu suchen.
@@ -195,12 +386,14 @@ func _folgen(delta: float) -> void:
 		versatz.y = 0.0
 
 		# Höhe getrennt und träge nachziehen – siehe `hoehe_folge`.
+		# Exponentiell statt `delta * hoehe_folge`: Das lief bei 30 und 144
+		# Bildern je Sekunde verschieden schnell nach. Bei 60 ist es gleich.
 		var ziel_hoehe := p.y - mitte.y
 		if _muss_springen:
 			_hoehe_versatz = ziel_hoehe
 		else:
 			_hoehe_versatz = lerpf(_hoehe_versatz, ziel_hoehe,
-					clampf(delta * hoehe_folge, 0.0, 1.0))
+					1.0 - exp(-hoehe_folge * delta))
 
 		# Beide Ansichten werden IMMER gerechnet und dann überblendet.
 		# Ein `if` an dieser Stelle war der Fehler: Beim Betreten einer
@@ -235,8 +428,14 @@ func _folgen(delta: float) -> void:
 				kurve.sample_baked(clampf(strecke - abstand, 0.0, laenge)))
 		var wunsch_hinten := kam_punkt + Vector3.UP * (_hoehe_versatz + hoehe) \
 				+ versatz * seiten_faktor
+		# Am Kurvenanfang rückt der Blickpunkt heran (START_HERANHOLEN), aber
+		# nie näher als anderthalb Meter vor die Figur – sonst blickte die
+		# Kamera bei Strecke 0 senkrecht nach unten.
+		var fehlt := _fehlstrecke(kurve, strecke)
+		var vorlauf := maxf(blick_vorlauf - START_HERANHOLEN * fehlt * fehlt
+				/ maxf(abstand, 0.1), minf(blick_vorlauf, 1.5))
 		var blick_hinten := _kurve_knoten.to_global(
-				kurve.sample_baked(clampf(strecke + blick_vorlauf, 0.0, laenge)))
+				kurve.sample_baked(clampf(strecke + vorlauf, 0.0, laenge)))
 		# Auch der Blickpunkt folgt der geglätteten Höhe, sonst kippte
 		# die Kamera bei jedem Sprung nach oben statt sich zu heben.
 		blick_hinten.y = mitte.y + _hoehe_versatz + 1.0
@@ -256,5 +455,6 @@ func _folgen(delta: float) -> void:
 		_muss_springen = false
 	else:
 		global_position = global_position.lerp(wunsch, 1.0 - pow(glaettung, delta))
-	if global_position.distance_squared_to(blickziel) > 0.001:
+	_blick_gesetzt = global_position.distance_squared_to(blickziel) > 0.001
+	if _blick_gesetzt:
 		look_at(blickziel, Vector3.UP)

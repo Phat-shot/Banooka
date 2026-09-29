@@ -278,6 +278,11 @@ func _todesstart(_art: int) -> void:
 ## wird dabei kleiner. Kein Wegflug des Mittelpunkts – sonst zöge er die
 ## Tiere alle in dieselbe Richtung, und der Schwarm fiele als Klumpen.
 func _todesanimation(delta: float) -> void:
+	# Der Treffer bläht `modell` kurz auf (`_treffer_zeigen`); die anderen
+	# Gegner führen die Skalierung in ihrem Tod weiter, der Schwarm bewegt
+	# nur seine Tiere – ohne diese Zeile bliebe die Wolke um 18 % zu groß.
+	if is_instance_valid(modell):
+		modell.scale = modell.scale.lerp(Vector3.ONE, minf(delta * 10.0, 1.0))
 	for i in _tiere.size():
 		var tier := _tiere[i]
 		if not is_instance_valid(tier):

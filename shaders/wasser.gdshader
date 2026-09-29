@@ -24,6 +24,15 @@ uniform float grund_alpha = 0.68;     // Grunddurchsichtigkeit
 uniform float schaum_schwelle = 0.66; // ab welcher Wellenhöhe Schaum entsteht
 uniform float spiegelung = 0.55;      // Stärke der Fresnel-Spiegelung
 
+// Was die Fläche bei flachem Blick spiegelt. Vorgabe ist der Schaumton –
+// so sah das Wasser bisher aus. Ein Level mit eigenem Himmel setzt dessen
+// Horizontfarbe, dann spiegelt der Bach den Himmel statt eines Weißschleiers.
+uniform vec3 himmel_farbe : source_color = vec3(0.90, 0.97, 1.0);
+// Sonnenglitzern: einzelne funkelnde Punkte. 0 = aus (Vorgabe). Gedacht
+// für Level mit Glow – dort blühen die Punkte auf; ohne Glow wären es nur
+// helle Pixel, die flimmern.
+uniform float glitzer = 0.0;
+
 varying float wellenhoehe;  // -1 .. 1, Höhe an diesem Punkt
 varying vec2 weltebene;     // Position in der XZ-Ebene
 
@@ -77,12 +86,25 @@ void fragment() {
 
 	// Leichte Spiegelung: flacher Blickwinkel => heller Himmelsschimmer.
 	float fresnel = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 3.0);
-	farbe += farbe_schaum * fresnel * spiegelung;
+	farbe += himmel_farbe * fresnel * spiegelung;
+
+	// Glitzern: zwei gegenläufig treibende Rauschmuster, nur wo beide
+	// zugleich hoch stehen, blitzt ein Punkt auf. Das Produkt macht die
+	// Punkte selten und lässt sie von selbst an- und ausgehen. Gelesen
+	// wird die feinste Mip-Stufe: Aus der Ferne mittelten die gröberen
+	// Stufen das Rauschen zu Grau, und kein Punkt käme mehr über die
+	// Schwelle.
+	float funkeln = 0.0;
+	if (glitzer > 0.0) {
+		float g1 = textureLod(rauschen, weltebene * 0.23 + vec2(TIME * 0.021, -TIME * 0.013), 0.0).r;
+		float g2 = textureLod(rauschen, weltebene * 0.31 - vec2(TIME * 0.010, TIME * 0.018), 0.0).r;
+		funkeln = smoothstep(0.46, 0.60, g1 * g2) * glitzer * (1.0 - fresnel * 0.5);
+	}
 
 	ALBEDO = farbe;
-	ALPHA = clamp(grund_alpha + fresnel * 0.30 + schaum * 0.25, 0.0, 1.0);
+	ALPHA = clamp(grund_alpha + fresnel * 0.30 + schaum * 0.25 + funkeln * 0.3, 0.0, 1.0);
 	ROUGHNESS = mix(0.42, 0.08, fresnel);
 	METALLIC = 0.0;
 	SPECULAR = 0.7;
-	EMISSION = farbe * 0.10;
+	EMISSION = farbe * 0.10 + himmel_farbe * funkeln * 2.5;
 }

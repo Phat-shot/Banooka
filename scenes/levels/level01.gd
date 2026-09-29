@@ -27,10 +27,11 @@ const WURZEL := preload("res://scenes/props/Wurzel.tscn")
 const STEIN := preload("res://scenes/props/Stein.tscn")
 const GRASFELD := preload("res://scenes/props/Gras.tscn")
 const KLEINZEUG := preload("res://scenes/props/Kleinzeug.tscn")
-const WALDSTREUER := preload("res://scenes/props/Waldstreuer.tscn")
 const STAUB := preload("res://scenes/props/Staub.tscn")
 const LAUBTREIBEN := preload("res://scenes/props/Laubtreiben.tscn")
 const VOEGEL := preload("res://scenes/props/Voegel.tscn")
+const HORIZONT := preload("res://scenes/props/Horizont.tscn")
+const STIMMUNGSZONE := preload("res://scenes/props/Stimmungszone.tscn")
 
 # Strecken-Marken der Abschnitte
 const M_WALDRAND := 0.0
@@ -45,6 +46,10 @@ const WALDBODEN_HOEHE := -14.0  ## sichtbarer Waldboden tief unter dem Pfad
 const ABSTURZ_HOEHE := -6.0     ## darunter ist der Sturz tödlich
 const WASSER_HOEHE := -13.4     ## Bachlauf am Grund der Schlucht (nur Kulisse)
 
+## Die Schluchtwand; ihr Metadatum "kronen" trägt Lagen und Krone jeder
+## Säule für den Bewuchs.
+var _wand: Node3D
+
 
 func _baue() -> void:
 	for schritt in _bauschritte():
@@ -53,25 +58,15 @@ func _baue() -> void:
 
 
 ## Aufbau in Einzelschritten, damit der Ladebildschirm mitläuft.
-## Die Waldbestände sind der teuerste Teil und stehen deshalb einzeln
-## in der Liste.
 func _bauschritte() -> Array:
-	var schritte: Array = [
+	return [
 		{"text": "Wegverlauf", "tun": _verlauf_anlegen},
 		{"text": "Waldboden", "tun": _waldboden_bauen},
 		{"text": "Schluchtwände türmen sich", "tun": _waende_bauen},
+		{"text": "Wurzeln, Ranken und ein Wasserfall", "tun": _bewuchs_bauen},
 		{"text": "Weg wird angelegt", "tun": _boden_bauen},
 		{"text": "Plattformen", "tun": _plattformen_bauen},
-	]
-	# Der Verlauf muss stehen, bevor die Bestände gesetzt werden – die
-	# Anzahl hängt nur von der Streckenlänge ab, nicht von der Kurve.
-	for nummer in _bestand_anzahl():
-		schritte.append({
-			"text": "Wald wächst (%d/%d)" % [nummer + 1, _bestand_anzahl()],
-			"tun": _bestand_setzen.bind(nummer),
-		})
-	schritte.append_array([
-		{"text": "Bäume am Wegesrand", "tun": _rahmenbaeume},
+		{"text": "Baumkronen unter dem Grat", "tun": _kronenwald},
 		{"text": "Blattwerk am Schluchtrand", "tun": _rankenwerk},
 		{"text": "Farne und Pilze", "tun": _wegdeko},
 		{"text": "Portale", "tun": _portale_setzen},
@@ -80,12 +75,17 @@ func _bauschritte() -> Array:
 		{"text": "Gegner beziehen Stellung", "tun": _gegner_setzen},
 		{"text": "Früchte werden verteilt", "tun": _fruechte_setzen},
 		{"text": "Staub, Laub und Vögel", "tun": _bewegung_setzen},
-	])
-	return schritte
+		{"text": "Blick ins Tal", "tun": _ausblick},
+		{"text": "Licht und Dunst", "tun": _stimmungen},
+	]
 
 
 ## Der Weg durch den Wald: zwei große Kurven und ein Anstieg zum Ziel.
 func _verlauf_anlegen() -> void:
+	# Staub beim Landen und Rennen: die Farbe des Waldwegs, eine Spur ins
+	# Kiesgrau – der Weg ist ausgetreten, nicht frisch geharkt. Die Farbe
+	# überlebt den Szenenwechsel, deshalb setzt sie jedes Level selbst.
+	Effekte.staubfarbe = Farben.WEG_HELL.lerp(Farben.KIES_HELL, 0.3)
 	verlauf = LevelWerkzeuge.kurve_aus_punkten([
 		Vector3(0, 0, 4),        # Startportal
 		Vector3(0, 0, -18),      # gerade Anlaufstrecke
@@ -139,13 +139,27 @@ const ABSCHNITTE := [
 ## steht die Wand unmittelbar an der Wegkante. Ausnahme sind die Baumkronen
 ## (158–208): Dort ist der schmale Grat die Aufgabe, also weicht die Wand
 ## zurück und bleibt reine Kulisse – seitlich herunterfallen kann man dort
-## weiterhin.
+## weiterhin. Sie weicht weit zurück und bleibt niedrig: Nach 150 Metern
+## Schlucht öffnet sich hier zum ersten Mal der Blick, über ein Meer aus
+## Baumkronen, aus dem die Riesen des `_kronenwald()` steigen.
+##
+## Die Abschnitte überlappen sich um gut einen Meter. Stießen sie genau
+## aneinander, klaffte in der Kurve dort, wo der Abstand wechselt, ein
+## senkrechter Schlitz, durch den helles Grün von draußen hereinschien.
+##
+## Die niedrigen Wände der Kronen und der Lichtung stehen in der Sonne statt
+## im Schatten der Schlucht. Mit dem Helligkeitsverlauf der hohen Wände
+## waren ihre Blockköpfe die hellsten, buntesten Flächen im Bild – heller
+## als der Weg und wieder wie Pappkartons. Sie bekommen einen eigenen,
+## dunkleren Verlauf.
 const WAENDE := [
-	{"von": -8.0, "bis": 42.0, "abstand": 5.9, "hoehe": 9.5},
-	{"von": 42.0, "bis": 100.0, "abstand": 5.2, "hoehe": 11.0},
-	{"von": 100.0, "bis": 158.0, "abstand": 5.6, "hoehe": 10.0},
-	{"von": 158.0, "bis": 208.0, "abstand": 9.0, "hoehe": 8.0},
-	{"von": 208.0, "bis": 244.0, "abstand": 7.2, "hoehe": 6.5},
+	{"von": -8.0, "bis": 43.2, "abstand": 5.9, "hoehe": 9.5},
+	{"von": 40.8, "bis": 101.2, "abstand": 5.2, "hoehe": 11.0},
+	{"von": 98.8, "bis": 159.2, "abstand": 5.6, "hoehe": 10.0},
+	{"von": 156.8, "bis": 209.2, "abstand": 12.5, "hoehe": 6.0,
+			"helligkeit": Vector2(0.55, 0.84)},
+	{"von": 206.8, "bis": 247.0, "abstand": 7.2, "hoehe": 6.5,
+			"helligkeit": Vector2(0.55, 0.84)},
 ]
 
 ## Abschnitte, in denen die Wand am Weg steht und deshalb eine glatte
@@ -167,18 +181,162 @@ const LEITWAENDE := [
 ## das ist grünlich und ergab zusammen mit der Grasnarbe eine Wand aus
 ## Limettenwürfeln. Die Wand trägt keine Kollision – dafür steht die glatte
 ## Leitwand davor, an deren Kästen man nicht hängen bleibt.
+##
+## Die Schichten laufen in Weltkoordinaten durch die ganze Wand
+## (`welt_projektion`): Jeder Block trug vorher dasselbe Stück Muster, nur
+## gestreckt, und die Wand las sich als Stapel Pappkartons. Eine Kachel von
+## gut drei Metern Höhe gibt Bänder um einen Meter, waagerecht länger
+## gezogen – so liegen Schichten: flach, lang und über viele Blöcke hinweg.
+##
+## Dunkler als früher (`helligkeit`): Die obere Wand war so hell wie der
+## Weg. Der Lesbarkeitsvertrag verlangt es umgekehrt – der Weg ist das
+## Hellste im Bild, der Fels rahmt ihn.
 func _waende_bauen() -> void:
-	LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE,
+	_wand = LevelWerkzeuge.schluchtwand(geometrie, verlauf, WAENDE,
 			Materialbibliothek.wurzelfels(), {
 		"schritt": 2.4, "lagen": 4, "block": 3.2,
 		"sockel": 16.0, "saat": 1801,
 		"adermaterial": Materialbibliothek.waldboden(),
 		"deckmaterial": Materialbibliothek.moos(),
 		"aderdichte": 0.45,
+		"welt_projektion": true,
+		"welt_kachel": Vector3(0.19, 0.3, 0.19),
+		"helligkeit": Vector2(0.58, 1.04),
+		"kronen_merken": true,
 	})
 	for w in LEITWAENDE:
 		LevelWerkzeuge.leitwand(geometrie, verlauf, w["von"], w["bis"],
 				w["abstand"], 5.0)
+
+	# Zwischen Wegkante und Wandfuß klaffte ein Spalt bis hinab zum
+	# Waldboden; wo die Sonne unten hinfiel, stand er als heller Strich
+	# neben dem Weg. Ein Erdsims schließt ihn, knapp unter der Kante –
+	# rein optisch, hinter der Leitwand kommt ohnehin niemand hin. Er folgt
+	# den Wegstücken und hört an jeder Lücke auf: Liefe er an der Wand
+	# weiter, sähe er aus wie ein Pfad um das Loch herum.
+	var simse: Array = []
+	for a in ABSCHNITTE:
+		var von: float = a["von"]
+		var bis: float = a["bis"]
+		var wand := _wand_bei((von + bis) * 0.5)
+		var abstand: float = wand["abstand"]
+		if abstand > 8.0:
+			continue
+		var breite := minf(float(a["breite"]), float(a.get("breite_ende", a["breite"])))
+		simse.append({"von": von, "bis": bis, "innen": breite * 0.5 - 0.3,
+				"aussen": abstand + 0.5, "hoehe": -0.3})
+	var sims := LevelWerkzeuge.sims(geometrie, verlauf, simse,
+			Materialbibliothek.waldboden(), 2.0)
+	_ohne_schatten(sims)
+
+
+## Bewuchs an den Wänden – Blattsaum auf der Krone, Ranken, Wurzeln, Farne
+## auf den Simsen, große Blätter und Blüten am Wandfuß (siehe
+## `Schluchtsaum`) – und die Wahrzeichen, die an der Wand hängen: der
+## Wasserfall, die Wurzeltore und ein umgestürzter Stamm. Alles wächst an
+## genau der Wand, die `_waende_bauen()` gesetzt hat.
+func _bewuchs_bauen() -> void:
+	var kronen: Array = _wand.get_meta("kronen", [])
+	# Drei Aufrufe über getrennte Säulen – die Stücke sind ohnehin nach
+	# Strecke geteilt:
+	#   Schlucht  kaum Blüten. Jeder helle Tupfer auf dem dunklen Fels zog
+	#             den Blick vom Weg weg, und in Massen las es sich als
+	#             Konfetti.
+	#   Kronen    niedrige Wände in der Sonne: dichter Blattsaum, der die
+	#             Blockköpfe bricht.
+	#   Lichtung  blüht üppig und auch hell – sie ist die Belohnung am Ende
+	#             und nach der Schlucht der erste Ort mit Farbe.
+	var schlucht: Array = []
+	var grat: Array = []
+	var lichtung: Array = []
+	for eintrag in kronen:
+		var e: Dictionary = eintrag
+		var s: float = e["s"]
+		# Bis wohin die Pflanzen am Wandfuß reichen dürfen: bis kurz vor die
+		# Außenkante des Weges, über die äußere Hälfte der Rasenkante, nie
+		# darüber hinaus. An einer Lücke gilt der Weg daneben.
+		var breite := maxf(_breite_bei(s), maxf(_breite_bei(s - 3.0), _breite_bei(s + 3.0)))
+		e["weg_rand"] = breite * 0.5 - 0.3 if breite > 0.0 else float(e["abstand"]) - 1.0
+		if s >= M_LICHTUNG - 2.0:
+			lichtung.append(e)
+		elif float(e["abstand"]) > 8.0:
+			grat.append(e)
+		else:
+			schlucht.append(e)
+	var bewuchs := {
+		"saat": 1802,
+		"saum": 2.0,
+		"ranken": 2.4,
+		"simse": 0.8,
+		"fuss": 0.45,
+		"blueten": 0.4,
+	}
+	Schluchtsaum.bauen(deko, verlauf, schlucht, bewuchs)
+	bewuchs["saat"] = 1804
+	bewuchs["saum"] = 3.0
+	Schluchtsaum.bauen(deko, verlauf, grat, bewuchs)
+	bewuchs["saat"] = 1803
+	bewuchs["blueten"] = 2.0
+	bewuchs["helle_blueten"] = true
+	Schluchtsaum.bauen(deko, verlauf, lichtung, bewuchs)
+
+	# Der Wasserfall am Ende der ersten langen Geraden: Wer aus dem
+	# Waldrand kommt, schaut in der Rechtskurve genau auf diese Wand. Er
+	# stürzt mitten in die erste Lücke über dem Bach – der Abgrund bekommt
+	# damit eine Tiefe, die man sieht, und die Lücke ist von Weitem als
+	# Lücke da. Stand er an ihrem Anfang, schien er auf der Wegkante neben
+	# der Kiste aufzuschlagen.
+	const FALL_STRECKE := 59.5
+	Wasserfall.an_schluchtwand(deko, verlauf, kronen, FALL_STRECKE, -1.0, 4.2, -12.0)
+	# Gischt, wo er unten aufschlägt: Wer über die Lücke springt, sieht
+	# hinab in Dunst statt auf das Ende eines Bandes.
+	var gischt := STAUB.instantiate() as Staubflug
+	gischt.raum = Vector3(4.0, 8.0, 4.0)
+	gischt.anzahl = 26
+	gischt.groesse = 0.45
+	gischt.groessen_streuung = 0.4
+	gischt.farbe = Color(0.78, 0.88, 0.9)
+	gischt.deckkraft = 0.16
+	gischt.steiggeschwindigkeit = 0.9
+	gischt.wirbel = 0.6
+	gischt.funkeln = 0.0
+	gischt.saat = 5960
+	gischt.position = LevelWerkzeuge.punkt(verlauf, FALL_STRECKE,
+			-(float(_wand_bei(FALL_STRECKE)["abstand"]) - 1.4), -12.5)
+	deko.add_child(gischt)
+
+	# Wurzeltore an den Abschnittswechseln: Sie geben dem Weg einen Takt,
+	# und jedes kündigt an, dass danach etwas Neues kommt.
+	for eintrag: Array in [[42.0, 5.5], [100.0, 5.4], [157.0, 5.6]]:
+		var strecke: float = eintrag[0]
+		Schluchtsaum.wurzeltor(deko, verlauf, strecke, eintrag[1], 4200 + int(strecke))
+
+	# Ein umgestürzter Baumriese, der hoch über der TNT-Kiste von Krone zu
+	# Krone liegt – aus der Schlucht schon von Weitem als Silhouette gegen
+	# den Himmel zu sehen. Seine Ranken enden hoch über der Kamera.
+	var a := _kronenpunkt(kronen, 85.5, -1.0)
+	var b := _kronenpunkt(kronen, 93.5, 1.0)
+	Schluchtsaum.baumstamm(deko, a, b, 0.85,
+			LevelWerkzeuge.punkt(verlauf, 89.5).y + 7.5, 9001)
+
+
+## Auflagepunkt auf der Wandkrone bei `strecke`: ein Stück hinter der
+## Kante, auf ihrer Oberseite.
+func _kronenpunkt(kronen: Array, strecke: float, seite: float) -> Vector3:
+	var beste: Dictionary = {}
+	var abstand := INF
+	for eintrag in kronen:
+		var e: Dictionary = eintrag
+		if float(e["seite"]) != seite:
+			continue
+		var d := absf(float(e["s"]) - strecke)
+		if d < abstand:
+			abstand = d
+			beste = e
+	if beste.is_empty():
+		return LevelWerkzeuge.punkt(verlauf, strecke, seite * 8.0, 11.0)
+	return LevelWerkzeuge.punkt(verlauf, strecke,
+			seite * (float(beste["innen"]) + 1.0), float(beste["oben"]) + 0.6)
 
 
 func _boden_bauen() -> void:
@@ -202,6 +360,8 @@ func _boden_bauen() -> void:
 ## weit über der Schlucht geben der Kulisse einen Puls. Alles läuft im
 ## Vertex-Shader auf MultiMesh-Knoten – je Bild kostet es zwei Zuweisungen.
 func _bewegung_setzen() -> void:
+	var fall := _lichtrichtung()
+	var seite := 1.0
 	for stelle: float in [18.0, 58.0, 96.0, 132.0, 178.0, 214.0]:
 		var staub := STAUB.instantiate() as Staubflug
 		staub.raum = Vector3(7.0, 12.0, 7.0)
@@ -209,6 +369,35 @@ func _bewegung_setzen() -> void:
 		staub.saat = int(stelle)
 		staub.position = LevelWerkzeuge.punkt(verlauf, stelle, 0.0, -1.0)
 		deko.add_child(staub)
+
+		# Der Staub hieß von Anfang an "Lichtschacht" – nur gab es den
+		# Schacht nicht, und die Flusen trieben im Schatten. Jetzt fällt in
+		# der Schlucht an jeder Säule ein Bündel Strahlen schräg über die
+		# Kante, in der Richtung der Sonne, damit Strahl und Schatten
+		# zusammenpassen. Sichtbar nur unterhalb der Wandkrone (`decke`).
+		#
+		# Nicht über den Kronen und der Lichtung: Dort ist kein Dach, durch
+		# das Licht fallen könnte, und die Strahlen standen als Such-
+		# scheinwerfer vor dem Himmel – Konkurrenz für das Zielportal.
+		#
+		# Das Bündel steht seitlich an der Wand, abwechselnd links und
+		# rechts: In der Wegmitte fuhr die Kamera mitten hindurch, und jede
+		# Bahn kostet Füllrate, auch dort, wo sie ausgeblendet ist.
+		if stelle >= M_KRONEN:
+			continue
+		var wand := _wand_bei(stelle)
+		seite = -seite
+		var schacht := Lichtschacht.new()
+		schacht.richtung = fall
+		schacht.laenge = 22.0
+		schacht.breite = 2.2
+		schacht.anzahl = 4
+		schacht.streuung = 1.2
+		schacht.staerke = 0.1
+		schacht.saat = int(stelle) + 7
+		schacht.position = LevelWerkzeuge.punkt(verlauf, stelle, seite * 2.6, -0.5)
+		schacht.decke = LevelWerkzeuge.punkt(verlauf, stelle).y + float(wand["hoehe"])
+		deko.add_child(schacht)
 
 	for stelle: float in [30.0, 84.0, 140.0, 196.0]:
 		var laub := LAUBTREIBEN.instantiate() as Laubtreiben
@@ -221,14 +410,60 @@ func _bewegung_setzen() -> void:
 		laub.rotation.y = LevelWerkzeuge.drehung(verlauf, stelle)
 		deko.add_child(laub)
 
-	for stelle: float in [70.0, 190.0]:
+	# Vögel über den langen Blicken. Früher kreisten sie 55 m hoch – die
+	# Verfolgerkamera schaut knapp 20 Grad nach unten, der obere Bildrand
+	# liegt kaum über dem Horizont: So hoch kamen sie erst jenseits der
+	# Sichtweite ins Bild, also nie. Zehn bis sechzehn Meter über der
+	# Kamera sieht man sie ab rund vierzig Metern Entfernung.
+	for eintrag: Array in [[58.0, 18.0, 22.0], [125.0, 20.0, 26.0],
+			[185.0, 16.0, 20.0], [228.0, 17.0, 18.0]]:
+		var stelle: float = eintrag[0]
 		var schwarm := VOEGEL.instantiate() as Vogelschwarm
-		schwarm.anzahl = 6
-		schwarm.radius = 40.0
-		schwarm.hoehe = 55.0
+		schwarm.anzahl = 5 + int(stelle) % 3
+		schwarm.hoehe = eintrag[1]
+		schwarm.hoehen_streuung = 3.0
+		schwarm.radius = eintrag[2]
+		schwarm.spannweite = 1.4
+		schwarm.linksherum = int(stelle) % 2 == 0
 		schwarm.saat = int(stelle)
 		schwarm.position = LevelWerkzeuge.punkt(verlauf, stelle, 0.0, 0.0)
 		deko.add_child(schwarm)
+
+
+## Richtung, in die das Sonnenlicht fällt. Aus der Sonne der Szene gelesen
+## statt fest eingetragen – wer das Licht umstellt, dreht die Strahlen mit.
+func _lichtrichtung() -> Vector3:
+	var sonne := _sonne()
+	if sonne == null:
+		return Vector3(-0.36, -0.89, -0.27)
+	return -sonne.global_transform.basis.z.normalized()
+
+
+## Die schattenwerfende Sonne der Szene, oder null.
+func _sonne() -> DirectionalLight3D:
+	var sonne := get_node_or_null("Sonne") as DirectionalLight3D
+	if sonne != null:
+		return sonne
+	for kind in get_children():
+		if kind is DirectionalLight3D and (kind as DirectionalLight3D).shadow_enabled:
+			return kind as DirectionalLight3D
+	return null
+
+
+## Im Web zwei Schattenstufen statt vier. Jede Stufe zeichnet alles, was
+## Schatten wirft, noch einmal – gemessen ist das gut ein Drittel aller
+## Zeichenaufrufe des Levels. Nur wenn die Szene noch vier Stufen trägt:
+## Wer das Licht der Szene selbst umstellt, hat hier das letzte Wort.
+func _nach_aufbau() -> void:
+	if not OS.has_feature("web"):
+		return
+	var sonne := _sonne()
+	if sonne == null \
+			or sonne.directional_shadow_mode != DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS:
+		return
+	sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sonne.directional_shadow_max_distance = minf(sonne.directional_shadow_max_distance, 60.0)
+	sonne.directional_shadow_split_1 = 0.2
 
 
 ## Breite des Weges an dieser Stelle. 0.0 bedeutet: hier ist eine Lücke.
@@ -525,10 +760,13 @@ func _fruechte_reihe(von: float, bis: float, anzahl: int,
 
 ## Der Pfad verläuft auf einem Grat. Weit darunter liegt der Waldboden –
 ## sichtbar, aber nicht begehbar; wer hinunterfällt, stirbt vorher in der
-## Absturzzone. Darauf stehen die Bäume, deren Kronen bis auf Weghöhe reichen.
+## Absturzzone. Darauf wächst das Blättermeer unter den Baumkronen und das
+## Tal am Ende.
 func _waldboden_bauen() -> void:
+	# Bis ans Ende der Kurve, nicht nur bis zum Ziel: Hinter dem Zielportal
+	# schaute man sonst über die Bodenkante ins Leere.
 	LevelWerkzeuge.korridor(geometrie, verlauf, [
-		{"von": 0.0, "bis": M_ENDE, "breite": 110.0},
+		{"von": 0.0, "bis": verlauf.get_baked_length(), "breite": 110.0},
 	], {
 		"oben": Materialbibliothek.waldboden(),
 		"kante": Materialbibliothek.waldboden(),
@@ -571,100 +809,260 @@ func _auf_absturz(koerper: Node3D) -> void:
 
 # =========================================================== Wald
 
-## Verteilt den Wald in einem Rutsch. Wird nur noch von außen genutzt;
-## der Levelaufbau ruft die Teile einzeln über `_bauschritte()` auf.
-func _wald_bauen() -> void:
-	_bestaende_unten()
-	_wegrand_bepflanzen()
+## Der Wald unter dem Grat der Baumkronen.
+##
+## Früher standen neun Waldbestände und vierundzwanzig Rahmenbäume auf dem
+## Waldboden entlang der ganzen Strecke, rund hundertfünfzig Bäume. Gesehen
+## hat man nur die in den Baumkronen: Überall sonst stehen die Schluchtwände
+## dicht am Weg und reichen bis unter den Waldboden, was dahinter wächst,
+## verdeckt der Fels vollständig. Gezeichnet wurde es trotzdem, samt vier
+## Schattenstufen – ein gutes Drittel aller Zeichenaufrufe des Levels ging an
+## Bäume, die niemand sieht.
+##
+## Jetzt wächst Wald nur dort, wo man hineinschaut, neben dem Grat, in zwei
+## Ringen:
+##   nah   Kronen knapp UNTER dem Grat, ein Blättermeer, über das der Weg
+##         führt. Die Wipfel bleiben deutlich unter der Wegkante, an den
+##         Lücken noch tiefer – was auf Weghöhe grünt, sieht begehbar aus.
+##   fern  Riesen, deren Stämme aus dem Blättermeer steigen und deren Kronen
+##         neben dem Weg das Bild rahmen, weit genug draußen für die Kamera.
+## Das Blättermeer ist ein einziges Netz (`Schluchtsaum.blaetterdach`), die
+## Riesen bauen sich selbst (`eigenbau`): Die Kenney-Bäume, auf zwölf Meter
+## aufgeblasen, standen hier als große flache Platten im Bild.
+func _kronenwald() -> void:
+	var wuerfel := RandomNumberGenerator.new()
+	wuerfel.seed = 15803
+	var toene := [Farben.LAUB, Farben.LAUB_DUNKEL, Farben.LAUB_HELL,
+			Farben.LAUB_DUNKEL, Farben.LAUB_GELB, Farben.LAUB]
+	var nummer := 0
 
+	# --- nah: das Blättermeer ---
+	# Ein einziges Netz statt eines `Baum` je Wipfel: Von oben sieht man
+	# ohnehin nur Kronen, und fünfzig Bäume kosteten hundert Zeichenaufrufe.
+	var dach: Array = []
+	var s := M_KRONEN + 1.0
+	while s < M_LICHTUNG - 1.0:
+		for seite: float in [-1.0, 1.0]:
+			var strecke := s + wuerfel.randf_range(-1.2, 1.2)
+			var rand := maxf(_breite_bei(strecke) * 0.5, 3.0)
+			# An den Lücken deutlich tiefer, unter der Absturzzone: Wer dort
+			# hinabschaut, soll den Absturz sehen und nicht ein Polster, auf
+			# dem er landen könnte. Auch neben dem Grat liegen die Wipfel ein
+			# gutes Stück unter der Kante – knapp darunter standen sie aus
+			# der Kamera wie Büsche am Wegrand.
+			var tiefer := 0.0 if _breite_bei(strecke) > 0.0 \
+					and _breite_bei(strecke - 2.5) > 0.0 \
+					and _breite_bei(strecke + 2.5) > 0.0 else 6.0
+			dach.append({
+				"fuss": LevelWerkzeuge.punkt(verlauf, strecke,
+						seite * (rand + wuerfel.randf_range(1.6, 4.8)), WALDBODEN_HOEHE),
+				"hoehe": -WALDBODEN_HOEHE - wuerfel.randf_range(3.2, 5.0) - tiefer,
+				"breite": wuerfel.randf_range(2.6, 3.8),
+			})
+			# Ein zweiter, tieferer Ring bis an die Wand: Ohne ihn sah man
+			# zwischen Wipfeln und Fels auf den kahlen Waldboden hinab.
+			var aussen := s + wuerfel.randf_range(-1.8, 1.8)
+			dach.append({
+				"fuss": LevelWerkzeuge.punkt(verlauf, aussen,
+						seite * wuerfel.randf_range(9.0, 11.5), WALDBODEN_HOEHE),
+				"hoehe": -WALDBODEN_HOEHE - wuerfel.randf_range(5.0, 7.0),
+				"breite": wuerfel.randf_range(3.0, 4.2),
+			})
+		s += wuerfel.randf_range(3.2, 4.4)
+	Schluchtsaum.blaetterdach(deko, dach, 15804)
 
-## Waldbestände auf dem Waldboden. Die Kronen ragen bis auf Weghöhe herauf
-## und rahmen den Pfad ein.
-func _bestaende_unten() -> void:
-	for nummer in _bestand_anzahl():
-		_bestand_setzen(nummer)
-
-
-## Anzahl der Waldbestände entlang des Weges.
-func _bestand_anzahl() -> int:
-	return int(ceil((M_ENDE - 6.0) / 26.0))
-
-
-## Ein Waldbestand auf dem Waldboden. Einzeln aufrufbar, damit der
-## Ladebildschirm zwischen den Beständen ein Bild zeichnen kann –
-## sie sind der teuerste Teil des Aufbaus.
-func _bestand_setzen(nummer: int) -> void:
-		var s := 6.0 + float(nummer) * 26.0
-		var streuer := WALDSTREUER.instantiate() as Waldstreuer
-		streuer.flaeche = Vector2(34.0, 30.0)
-		streuer.anzahl = 22
-		streuer.saat = 1000 + nummer * 37
-		streuer.mindestabstand_mitte = 9.0
-		streuer.anteil_baeume = 0.62
-		streuer.anteil_steine = 0.16
-		streuer.anteil_wurzeln = 0.06
-		streuer.baum_hoehe_min = 7.0
-		streuer.baum_hoehe_max = 12.5
-		streuer.anteil_nadelbaum = 0.35
-		streuer.anteil_totholz = 0.1
-		streuer.grasfelder = 2
-		streuer.gras_dichte = 90
-		streuer.gras_feldgroesse = 8.0
-		streuer.hoehen_streuung = 0.6
-		# Der Waldboden liegt 14 m unter dem Weg, die Absturzzone bei -6 m:
-		# Niemand kommt dort je an. Kollision an diesen Beständen wäre
-		# also Physik für einen Ort, den es für den Spieler nicht gibt –
-		# rund zweihundert Körper, die nur Rechenzeit kosten. Ohne sie
-		# gelten die Stämme als das, was sie sind: Kulisse.
-		streuer.kollision = false
-		streuer.position = LevelWerkzeuge.punkt(verlauf, s, 0.0, WALDBODEN_HOEHE)
-		streuer.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
-		deko.add_child(streuer)
-
-
-## Deko am Weg. Wichtig: Auf dem Weg selbst stehen nur niedrige Dinge.
-## Bäume wachsen aus der Schlucht neben dem Grat empor und rahmen den Weg
-## ein – stünden sie auf dem Weg, geriete die Verfolgerkamera in ihre Krone.
-func _wegrand_bepflanzen() -> void:
-	_rahmenbaeume()
-	_wegdeko()
-
-
-## Hohe Bäume, die vom Waldboden bis über Weghöhe reichen.
-func _rahmenbaeume() -> void:
-	var stellen := [
-		[8.0, -1.0, 17.0], [15.0, 1.0, 19.0], [24.0, -1.0, 16.0], [36.0, 1.0, 20.0],
-		[46.0, -1.0, 17.5], [54.0, 1.0, 16.0], [66.0, 1.0, 18.0], [78.0, -1.0, 17.0],
-		[86.0, -1.0, 19.0], [98.0, 1.0, 21.0], [108.0, -1.0, 18.5], [118.0, 1.0, 17.0],
-		[124.0, 1.0, 16.5], [140.0, -1.0, 20.0], [150.0, 1.0, 18.0], [156.0, -1.0, 17.0],
-		[164.0, -1.0, 19.5], [172.0, 1.0, 18.0], [186.0, 1.0, 17.5], [196.0, -1.0, 20.0],
-		[206.0, -1.0, 18.0], [214.0, 1.0, 21.0], [222.0, -1.0, 19.0], [230.0, 1.0, 17.5],
-	]
-	for i in stellen.size():
-		var e: Array = stellen[i]
-		var strecke: float = e[0]
-		var seite: float = e[1]
-		# Deutlich außerhalb der Wegkante, damit die Kamera frei bleibt
-		var abstand := _rand_bei(strecke, 0.0) + 4.5 + float(i % 3) * 1.6
+	# --- fern: Riesen neben dem Grat ---
+	# Zwischen Blättermeer und Wand, locker gestellt und nur wenig über die
+	# Wegkante ragend: Sie sollen den ersten offenen Blick des Levels rahmen,
+	# nicht verstellen. Standen sie dichter und höher, füllten gestapelte
+	# Kronen das linke und rechte Bilddrittel. Weiter hinaus geht es nicht –
+	# ab 12,5 m steht die Kronenwand, und dahinter wären sie verschwunden.
+	s = M_KRONEN + 4.0
+	var seite_fern := 1.0
+	while s < M_LICHTUNG - 2.0:
+		# Nicht neben eine Lücke: Dort soll der Blick hinab frei sein, und
+		# eine Krone auf Weghöhe gleich daneben sah aus wie ein Busch, auf
+		# dem man landen könnte.
+		if _breite_bei(s) <= 0.0 or _breite_bei(s - 3.0) <= 0.0 \
+				or _breite_bei(s + 3.0) <= 0.0:
+			s += 2.0
+			continue
 		var b := BAUM.instantiate() as Baum
-		b.hoehe = e[2]
-		b.saat = 400 + i * 13
-		b.art = Baum.Art.NADELBAUM if i % 4 == 3 else Baum.Art.LAUBBAUM
-		b.laubfarbe = Farben.LAUB.lerp(Farben.LAUB_HELL, float(i % 3) * 0.4)
-		b.position = LevelWerkzeuge.punkt(verlauf, strecke, seite * abstand, WALDBODEN_HOEHE)
-		b.rotation.y = float(i) * 1.37
+		b.eigenbau = true
+		b.kollision = false
+		b.kronenform = Baum.Kronenform.HOCH
+		b.kronenfuelle = 1.5
+		b.hoechsthoehe = 22.0
+		b.hoehe = -WALDBODEN_HOEHE + wuerfel.randf_range(0.0, 3.0)
+		b.staerke = wuerfel.randf_range(1.2, 1.6)
+		b.laubfarbe = toene[nummer % toene.size()]
+		b.saat = 5900 + nummer
+		b.position = LevelWerkzeuge.punkt(verlauf, s,
+				seite_fern * wuerfel.randf_range(9.5, 11.0), WALDBODEN_HOEHE)
+		b.rotation.y = wuerfel.randf() * TAU
 		deko.add_child(b)
+		nummer += 1
+		seite_fern = -seite_fern
+		s += wuerfel.randf_range(8.0, 11.0)
 
-	# Totholz als Blickfang in der Schlucht
-	for stelle in [[54.0, -1.0], [132.0, 1.0], [196.0, -1.0]]:
-		var strecke: float = stelle[0]
-		var t := BAUM.instantiate() as Baum
-		t.art = Baum.Art.TOTHOLZ
-		t.hoehe = 13.0
-		t.saat = int(strecke)
-		t.position = LevelWerkzeuge.punkt(verlauf, strecke,
-				stelle[1] * (_rand_bei(strecke, 0.0) + 5.0), WALDBODEN_HOEHE)
-		deko.add_child(t)
+	# Ein abgestorbener Riese, der aus dem Blättermeer ragt: kahles Holz als
+	# Silhouette zwischen all dem Grün.
+	var tot := BAUM.instantiate() as Baum
+	tot.art = Baum.Art.TOTHOLZ
+	tot.kollision = false
+	tot.hoehe = 14.0
+	tot.staerke = 1.4
+	tot.saat = 196
+	tot.position = LevelWerkzeuge.punkt(verlauf, 199.0, -7.5, WALDBODEN_HOEHE)
+	deko.add_child(tot)
+
+
+## Das Ende des Weges: Hinter dem Zielportal bricht der Grat ab, und der
+## Blick geht über ein Tal voller Baumkronen bis zu bewaldeten Hügeln.
+##
+## Vorher endeten Weg, Waldboden und Wände kurz hinter dem Portal, die
+## Kurve lief aber noch zwanzig Meter weiter – das letzte Bild des Levels
+## schaute ins Leere. Jetzt steht dort, wo der Grat abbricht, ein
+## Weltenbaum aus dem Tal herauf; seine Krone schließt das Bild nach oben,
+## ein Wurzelbogen rahmt das Portal, und unten wächst Wald.
+func _ausblick() -> void:
+	# Der Weltenbaum. Sein Stamm steigt hinter dem Ende des Grats aus dem
+	# Tal, links neben dem Portal, und die Krone sitzt so hoch, dass die
+	# Kamera sie nur am oberen Bildrand anschneidet: Man sieht eine Säule
+	# von Stamm, und das Übrige denkt sich jeder selbst größer, als man es
+	# bauen könnte. Vorher stand er genau auf der Achse und niedriger – die
+	# Krone deckte als dunkler Schirm das Tal zu, das der Wurzelbogen rahmen
+	# soll.
+	var riese := BAUM.instantiate() as Baum
+	riese.eigenbau = true
+	riese.kollision = false
+	riese.hoechsthoehe = 40.0
+	riese.hoehe = 40.0
+	riese.staerke = 3.5
+	riese.kronenfuelle = 1.8
+	riese.kronenform = Baum.Kronenform.SCHIRM
+	riese.laubfarbe = Farben.LAUB
+	riese.saat = 2501
+	riese.position = LevelWerkzeuge.punkt(verlauf, 257.0, -6.5, WALDBODEN_HOEHE)
+	riese.rotation.y = 0.6
+	deko.add_child(riese)
+	# Sein Schatten fiele ins Tal, vom Weg weg – gezeichnet würde er
+	# trotzdem, in vier Schattenstufen.
+	_ohne_schatten(riese)
+
+	# Wurzelbogen über dem Ende des Weges, hinter dem Portal: Er rahmt es
+	# aus der Verfolgerkamera wie ein Tor. Ohne Kollision – er steht auf der
+	# Wegkante, und der Weg endet ohnehin an ihm.
+	var bogen := WURZEL.instantiate() as Wurzel
+	bogen.kollision = false
+	# Ohne Nebenwurzeln: Bei knapp sieben Metern Bogenhöhe liefen sie als
+	# lange dünne Stäbe vom Scheitel zum Boden und kreuzten sich genau
+	# hinter dem Portal.
+	bogen.nebenwurzeln = false
+	bogen.spannweite = 13.6
+	bogen.hoehe = 6.8
+	bogen.dicke = 1.05
+	bogen.segmente = 12
+	bogen.saat = 2350
+	bogen.position = LevelWerkzeuge.punkt(verlauf, M_ENDE - 1.2, 0.0, 0.0)
+	bogen.rotation.y = LevelWerkzeuge.drehung(verlauf, M_ENDE - 1.2)
+	deko.add_child(bogen)
+	# Dasselbe helle Wurzelholz wie an den Wänden – im Gegenlicht las sich
+	# das dunkle als schwarzer Strich.
+	for kind in bogen.get_children():
+		if kind is MeshInstance3D:
+			(kind as MeshInstance3D).material_override = Schluchtsaum.wurzelholz()
+
+	# Das Tal unter dem Grat: Baumkronen, deren Wipfel deutlich unter der
+	# Wegkante bleiben – ein Blätterdach, ein Netz.
+	var wuerfel := RandomNumberGenerator.new()
+	wuerfel.seed = 23701
+	var tal: Array = []
+	for i in 22:
+		var strecke := wuerfel.randf_range(M_ENDE + 1.0, 258.0)
+		var quer := wuerfel.randf_range(1.5, 16.0) * (1.0 if i % 2 == 0 else -1.0)
+		tal.append({
+			"fuss": LevelWerkzeuge.punkt(verlauf, strecke, quer, WALDBODEN_HOEHE),
+			"hoehe": -WALDBODEN_HOEHE - wuerfel.randf_range(3.0, 6.5),
+			"breite": wuerfel.randf_range(2.8, 4.2),
+		})
+	Schluchtsaum.blaetterdach(deko, tal, 23702)
+
+	# Bewaldete Hügel rings um das Level. Zu sehen sind sie nur, wo die
+	# Wände den Blick freigeben: über den Kronen und hier am Ende. Der
+	# Mittelpunkt liegt mitten im Level, der Radius weit genug draußen,
+	# dass der Ring nirgends näher als gut siebzig Meter kommt; die ferne
+	# zweite Kette stünde jenseits der Sichtweite und entfällt. Die
+	# Bodenscheibe liegt unter dem tiefsten Waldboden, damit sie nirgends
+	# durch die Schlucht schneidet.
+	var hz := HORIZONT.instantiate() as Horizont
+	hz.radius = 170.0
+	hz.hoehe = 27.0
+	hz.zacken = 110
+	hz.kronen = true
+	hz.nur_nah = true
+	hz.fuss = -16.0
+	# Ferne ist heller und blauer: Die Hügel liegen im Dunst zwischen dem
+	# Waldgrün und der Farbe des Horizonts.
+	hz.farbe_nah = Color(0.32, 0.42, 0.37)
+	hz.boden_farbe = Color(0.24, 0.32, 0.25)
+	hz.position = Vector3(37.0, 0.0, -87.0)
+	deko.add_child(hz)
+
+
+## Jeder Abschnitt ein eigenes Licht: Über dem Bach der Schlucht wird es
+## kühl und dunstig, auf dem Grat der Baumkronen hell und golden, auf der
+## Lichtung warm. Vorher stand das ganze Level im selben grünen Dunst, und
+## die Abschnitte unterschieden sich nur durch die Wegbreite.
+##
+## Die Zonen rechnen RELATIV zur Grundstimmung der Szene (Faktor auf Dichte
+## und Umgebungslicht, halber Weg zur Zonenfarbe; im Tiefennebel verkürzt
+## oder verlängert der Faktor die Nebelstrecke, siehe `Stimmungszone`): So
+## bleibt der Unterschied bestehen, auch wenn das Grundlicht des Levels neu
+## gestimmt wird. Die Nahzone bleibt davon unberührt – Nebel liegt hinter
+## dem Spiel.
+func _stimmungen() -> void:
+	_stimmung(M_SCHLUCHT + 6.0, M_STACHELN, Color(0.30, 0.42, 0.40), 1.3,
+			0.9, Color(0.44, 0.56, 0.62))
+	_stimmung(M_KRONEN + 2.0, M_LICHTUNG, Color(0.62, 0.60, 0.44), 0.7,
+			1.2, Color(0.64, 0.62, 0.50))
+	_stimmung(M_LICHTUNG, M_ENDE + 8.0, Color(0.66, 0.56, 0.38), 0.75,
+			1.25, Color(0.70, 0.60, 0.46))
+
+
+## Stimmungszonen in Stücken entlang des Weges – ein einzelner Kasten
+## folgte der Kurve nicht. Wie `KorridorLevel.stimmung()`, das diesem
+## Level nicht zur Verfügung steht.
+func _stimmung(von: float, bis: float, nebelfarbe: Color, nebel: float,
+		licht: float, umgebung: Color) -> void:
+	var schritt := 14.0
+	var s := von
+	while s < bis:
+		var laenge := minf(schritt, bis - s)
+		var z := STIMMUNGSZONE.instantiate() as Stimmungszone
+		z.nebelfarbe = nebelfarbe
+		z.nebel_faktor = nebel
+		z.licht_faktor = licht
+		z.umgebungsfarbe = umgebung
+		z.farbanteil = 0.5
+		var form := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(40.0, 24.0, laenge)
+		form.shape = box
+		z.add_child(form)
+		z.position = LevelWerkzeuge.punkt(verlauf, s + laenge * 0.5, 0.0, 6.0)
+		z.rotation.y = LevelWerkzeuge.drehung(verlauf, s + laenge * 0.5)
+		geometrie.add_child(z)
+		s += laenge
+
+
+## Schaltet den Schattenwurf eines ganzen Unterbaums ab.
+func _ohne_schatten(knoten: Node) -> void:
+	var geo := knoten as GeometryInstance3D
+	if geo != null:
+		geo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for kind in knoten.get_children():
+		_ohne_schatten(kind)
 
 
 ## Blattwerk auf der Schluchtkante.
@@ -713,6 +1111,9 @@ func _rankenwerk() -> void:
 				seite * (wand["abstand"] + randf_range(3.0, 7.5)),
 				wand["hoehe"] + randf_range(0.0, 0.4))
 		deko.add_child(b)
+		# Die Kamera schwebt unter der Wandkrone und sieht nie auf sie
+		# hinauf – der Schatten dieser Bäume fiele genau dorthin.
+		_ohne_schatten(b)
 	seed(wuerfel)
 
 
@@ -780,77 +1181,133 @@ func _wegdeko() -> void:
 		k.art = arten[i % arten.size()]
 		k.groesse = 0.45 + float(i % 4) * 0.18
 		k.saat = 900 + i * 5
+		# Farne immer selbst gebaut: Das Kenney-Paket hat keinen, und ohne
+		# diesen Schalter stand im ganzen Wurzelwald kein einziger Farn.
+		k.eigenbau = k.art == Kleinzeug.Art.FARN
 		k.position = LevelWerkzeuge.punkt(verlauf, s,
 				seite * maxf(_rand_bei(s, 1.4) - float(i % 3) * 0.5, 0.3), 0.0)
 		k.rotation.y = float(i) * 0.9
 		deko.add_child(k)
+		# Knöchelhoch: Ihr Schatten ist ein Fleck unter ihnen, kostet aber
+		# je Schattenstufe einen Zeichenaufruf.
+		_ohne_schatten(k)
 
 
 # =========================================================== Lücken
 
-## Setzt an jede Abbruchkante Warnpfosten mit Querbalken und einen
-## Warnstreifen auf dem Weg, damit Löcher von weitem als Löcher erkennbar sind.
+## Markiert jede Abbruchkante: zwei Pfosten mit Querbalken und quer über
+## den Weg eine Schwelle aus hellen Steinplatten, damit Löcher von weitem
+## als Löcher erkennbar sind.
+##
+## Vorher lag dort ein leuchtend gelber Streifen, und die Pfosten trugen
+## gelbe Kappen – aus der Verfolgerkamera das Grellste im ganzen Bild, eine
+## Baustelle mitten im Wald. Die Aufgabe bleibt, die Mittel kommen jetzt
+## aus dem Wald: Die Schwelle ist heller und grauer als der Weg und liegt
+## als Linie quer zur Laufrichtung; auf den Pfosten wachsen leuchtende
+## Pilze. Je Lücke drei Netze statt zwölf Knoten – je Lücke und nicht für
+## das ganze Level, damit eine Lücke hinter der Kamera auch nicht mehr
+## gezeichnet wird.
 func _luecken_markieren() -> void:
-	for i in ABSCHNITTE.size():
+	var wuerfel := PropWerkzeug.zufall(4242)
+	var holzstoff := Materialbibliothek.kistenholz(Farben.HOLZ_DUNKEL)
+	var plattenstoff := PropWerkzeug.mit_scheitelfarben(
+			Materialbibliothek.einfarbig(Color(0.86, 0.84, 0.78)))
+	var pilzstoff := _pilzleuchten()
+	for i in ABSCHNITTE.size() - 1:
 		var a: Dictionary = ABSCHNITTE[i]
-		if i + 1 < ABSCHNITTE.size():
-			var naechster: Dictionary = ABSCHNITTE[i + 1]
-			if naechster["von"] - a["bis"] > 0.5:
-				_warnbalken(a["bis"] - 0.5, a.get("breite_ende", a["breite"]))
-				_warnbalken(naechster["von"] + 0.5, naechster["breite"])
+		var naechster: Dictionary = ABSCHNITTE[i + 1]
+		if naechster["von"] - a["bis"] <= 0.5:
+			continue
+		var holz := PropWerkzeug.bauer()
+		var pilze := PropWerkzeug.bauer()
+		var platten := PropWerkzeug.bauer()
+		_kantenmarke(holz, pilze, platten, wuerfel, a["bis"] - 0.5,
+				a.get("breite_ende", a["breite"]), 1.0)
+		_kantenmarke(holz, pilze, platten, wuerfel, naechster["von"] + 0.5,
+				naechster["breite"], -1.0)
+
+		var knoten := PropWerkzeug.mesh_knoten("Kantenpfosten", PropWerkzeug.fertig(holz),
+				holzstoff)
+		if knoten != null:
+			deko.add_child(knoten)
+		# Die Schwelle liegt flach am Boden, ihr Schatten wäre nicht zu sehen.
+		# Verschmolzen wie der Bewuchs (siehe `Schluchtsaum._blattnetz`).
+		platten.index()
+		knoten = PropWerkzeug.mesh_knoten("Kantenschwelle",
+				PropWerkzeug.fertig_mit_tangenten(platten), plattenstoff, false)
+		if knoten != null:
+			deko.add_child(knoten)
+		pilze.index()
+		knoten = PropWerkzeug.mesh_knoten("Kantenpilze",
+				PropWerkzeug.fertig_mit_tangenten(pilze), pilzstoff, false)
+		if knoten != null:
+			deko.add_child(knoten)
 
 
-## Zwei Holzpfosten mit Querbalken quer zum Weg, knapp vor der Kante.
-func _warnbalken(strecke: float, breite: float) -> void:
-	var holz := Materialbibliothek.kistenholz(Farben.HOLZ_DUNKEL)
-	var streifen := Materialbibliothek.leuchtend(Color(1.0, 0.85, 0.25), 0.5)
+## Pfosten, Balken, Pilze und Schwelle einer Kante. `zur_luecke` zeigt
+## entlang des Weges auf das Loch (+1 = voraus, -1 = zurück).
+func _kantenmarke(holz: SurfaceTool, pilze: SurfaceTool, platten: SurfaceTool,
+		wuerfel: RandomNumberGenerator, strecke: float, breite: float,
+		zur_luecke: float) -> void:
 	var halb := breite * 0.5 - 0.55
-	var drehung := LevelWerkzeuge.drehung(verlauf, strecke)
+	var basis := Basis(Vector3.UP, LevelWerkzeuge.drehung(verlauf, strecke))
 
 	for seite: float in [-1.0, 1.0]:
-		var gruppe := Node3D.new()
-		gruppe.position = LevelWerkzeuge.punkt(verlauf, strecke, seite * halb, 0.45)
-		gruppe.rotation.y = drehung
-		deko.add_child(gruppe)
-
-		var pfosten := MeshInstance3D.new()
-		var zylinder := CylinderMesh.new()
-		zylinder.top_radius = 0.09
-		zylinder.bottom_radius = 0.11
-		zylinder.height = 1.1
-		zylinder.radial_segments = 8
-		pfosten.mesh = zylinder
-		pfosten.position.y = 0.55
-		pfosten.material_override = holz
-		gruppe.add_child(pfosten)
-
-		var kappe := MeshInstance3D.new()
-		var band := CylinderMesh.new()
-		band.top_radius = 0.13
-		band.bottom_radius = 0.13
-		band.height = 0.18
-		band.radial_segments = 8
-		kappe.mesh = band
-		kappe.position.y = 1.0
-		kappe.material_override = streifen
-		gruppe.add_child(kappe)
+		var fuss := LevelWerkzeuge.punkt(verlauf, strecke, seite * halb, 0.45)
+		PropWerkzeug.anfuegen(holz, PropWerkzeug.stumpf(0.11, 0.09, 1.1, 8, true),
+				Transform3D(basis, fuss + Vector3.UP * 0.55))
+		# Ein Hut obenauf und zwei Konsolenpilze am Pfosten, zur Wegmitte
+		# gedreht – sie leuchten dahin, wo man hinschaut.
+		var kopf := fuss + Vector3.UP * 1.1
+		PropWerkzeug.klumpen(pilze, wuerfel, kopf + Vector3.UP * 0.04,
+				Vector3(0.2, 0.1, 0.2), Vector3(0.0, wuerfel.randf() * TAU, 0.0),
+				8, 3, 0.12, false, Color(0.55, 0.5, 0.45), Color.WHITE,
+				kopf.y - 0.05, kopf.y + 0.14)
+		for k in 2:
+			var h := 0.35 + float(k) * 0.3 + wuerfel.randf_range(-0.05, 0.05)
+			var nach_innen := basis * Vector3(-seite, 0.0, wuerfel.randf_range(-0.6, 0.6))
+			var mitte := fuss + Vector3.UP * h + nach_innen.normalized() * 0.1
+			PropWerkzeug.klumpen(pilze, wuerfel, mitte,
+					Vector3(0.1, 0.035, 0.1) * wuerfel.randf_range(0.8, 1.2),
+					Vector3(0.0, wuerfel.randf() * TAU, 0.0), 7, 2, 0.15, false,
+					Color(0.6, 0.55, 0.5), Color.WHITE, mitte.y - 0.04, mitte.y + 0.04)
 
 	# Querbalken auf Kniehöhe – warnt, ohne die Sicht auf die Lücke zu nehmen
-	var balken := MeshInstance3D.new()
-	var quader := BoxMesh.new()
-	quader.size = Vector3(halb * 2.0, 0.1, 0.08)
-	balken.mesh = quader
-	balken.material_override = holz
-	balken.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.62)
-	balken.rotation.y = drehung
-	deko.add_child(balken)
+	PropWerkzeug.anfuegen(holz, PropWerkzeug.kasten(Vector3(halb * 2.0, 0.1, 0.08)),
+			Transform3D(basis, LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.62)))
 
-	# Warnstreifen auf dem Weg: aus der Verfolgerkamera gut sichtbar
-	var streifen_mesh := BoxMesh.new()
-	streifen_mesh.size = Vector3(halb * 2.0 + 0.6, 0.04, 0.45)
-	var markierung := MeshInstance3D.new()
-	markierung.mesh = streifen_mesh
-	markierung.material_override = streifen
-	markierung.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.03)
-	markierung.rotation.y = drehung
-	deko.add_child(markierung)
+	# Schwelle: eine Reihe flacher Platten über die ganze Wegbreite, knapp
+	# vor der Kante. Helle, graue Steine auf braunem Weg – die Linie ist
+	# aus der Verfolgerkamera so deutlich wie der Streifen, nur ohne Glühen.
+	var anzahl := maxi(int(halb * 2.0 / 0.95), 4)
+	for k in anzahl:
+		var t := (float(k) + 0.5) / float(anzahl)
+		var quer := lerpf(-halb - 0.2, halb + 0.2, t) + wuerfel.randf_range(-0.12, 0.12)
+		var laengs := -zur_luecke * wuerfel.randf_range(0.05, 0.3)
+		# Eingesunken und fast gleich groß, in einem warmen Kalkton: Kühl,
+		# hoch und verschieden groß lasen sich die Platten aus der Nähe als
+		# Trittsteine, die jemand auf den Weg gelegt hat.
+		var ort := LevelWerkzeuge.punkt(verlauf, strecke + laengs, quer, 0.0)
+		var r := Vector3(wuerfel.randf_range(0.45, 0.52), wuerfel.randf_range(0.045, 0.065),
+				wuerfel.randf_range(0.32, 0.4))
+		var hell := wuerfel.randf_range(0.86, 1.0)
+		PropWerkzeug.klumpen(platten, wuerfel, ort, r,
+				Vector3(wuerfel.randf_range(-0.05, 0.05),
+						LevelWerkzeuge.drehung(verlauf, strecke) + wuerfel.randf_range(-0.5, 0.5),
+						wuerfel.randf_range(-0.05, 0.05)),
+				7, 3, 0.26, true, Color(0.76, 0.72, 0.64) * hell,
+				Color(0.94, 0.9, 0.82) * hell, ort.y - r.y, ort.y + r.y)
+
+
+## Leuchtstoff der Kantenpilze: warmes Weiß, deutlich schwächer und weniger
+## gesättigt als das alte Warngelb. Eigenes Material – das der Bibliothek
+## wird nie verändert.
+func _pilzleuchten() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.albedo_color = Color(1.0, 0.86, 0.62)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.78, 0.45)
+	m.emission_energy_multiplier = 0.9
+	m.roughness = 0.5
+	return m

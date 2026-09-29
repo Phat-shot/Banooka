@@ -71,7 +71,10 @@ func _ready() -> void:
 	_pruefe_objekte("gegner", 0.0)
 	_pruefe_baeume()
 	_pruefe_gegner_patrouille()
+	_pruefe_gegner_blick()
 	await _pruefe_absturz()
+	# Zuletzt: Die Probe besiegt Gegner, danach fehlen sie jeder anderen.
+	await _pruefe_gegner_leben()
 	if not _hat_verlauf():
 		print("  HINWEIS  kurvenloses Level: Boden-, Patrouillen- und")
 		print("           Sturzproben entfallen – sie messen alle gegen den")
@@ -215,6 +218,110 @@ func _pruefe_gegner_patrouille() -> void:
 						% [_strecke(g.global_position), str(p.snappedf(0.1))])
 				_fehler += 1; schlecht += 1
 	print("  Patrouillen-Endpunkte: %d Probleme" % schlecht)
+
+## Blickt jeder Gegner in seine Laufrichtung?
+##
+## Die Level drehen jeden Gegner auf den Korridor; `_blick_ausrichten`
+## rechnet eine WELTrichtung in die Drehung seines Modells um. Früher
+## fehlte dabei die eigene Drehung, und in den Kurven von Level 01 liefen
+## neun von vierzehn Gegnern 30 bis 70 Grad schräg – im Standbild einer
+## Geradeaus-Strecke sieht man das nicht. Hier wird der Blick ohne
+## Weichzeichnung gesetzt (Gewicht 1), in Weltrichtung gemessen und
+## zurückgestellt: reine Rechnung, keine Simulation.
+##
+## Jede Art über den Weg, den sie im Spiel nimmt: die meisten über
+## `_blick_ausrichten` (die Krabbe mit eigener Fassung, sie läuft
+## seitwärts, +X voran), der Werfer über `_zum_spieler_drehen` zu einem
+## Probepunkt schräg hinter ihm. Der Schwarm dreht keinen Körper, nur
+## seine Tiere – er zählt als "ohne Blickrichtung", statt still zu bestehen.
+func _pruefe_gegner_blick() -> void:
+	var schlecht := 0
+	var geprueft := 0
+	var ohne := 0
+	var probe := Node3D.new()
+	add_child(probe)
+	for knoten in get_tree().get_nodes_in_group("gegner"):
+		var g := knoten as Gegner
+		if g == null or g.besiegt or not is_instance_valid(g.modell):
+			continue
+		if g is Schwarm:
+			ohne += 1
+			continue
+		var vorher := g.modell.rotation.y
+		var soll := g.achse() * g.richtung
+		if g is Werfer:
+			# Ein Punkt 6 m entfernt, schräg zur Korridorachse: So fällt
+			# eine vergessene Korridordrehung in jeder Lage auf.
+			soll = (g.global_basis.z + g.global_basis.x * 0.6).normalized()
+			probe.global_position = g.global_position + soll * 6.0
+			(g as Werfer)._zum_spieler_drehen(1.0, probe)
+		else:
+			g._blick_ausrichten(1.0, 1.0)
+		var blick := g.modell.global_basis.x if g is Gletscherkrabbe \
+				else -g.modell.global_basis.z
+		g.modell.rotation.y = vorher
+		blick.y = 0.0
+		soll.y = 0.0
+		if blick.length() < 0.01 or soll.length() < 0.01:
+			continue
+		geprueft += 1
+		var treue := blick.normalized().dot(soll.normalized())
+		if treue < 0.95:
+			print("  FEHLER  %s bei Strecke %.0f m blickt %.0f Grad neben seine Laufrichtung"
+					% [g.get_script().get_global_name(), _strecke(g.global_position),
+					rad_to_deg(acos(clampf(treue, -1.0, 1.0)))])
+			_fehler += 1; schlecht += 1
+	probe.queue_free()
+	print("  Gegnerblick: %d geprüft, %d schräg, %d ohne Blickrichtung (Schwarm)"
+			% [geprueft, schlecht, ohne])
+
+
+## Leben die Gegner, und sterben sie sauber?
+##
+## 1. Jeder Gegner mit mitgeliefertem, animiertem Modell spielt einen Clip.
+##    Die Clips waren einmal importiert, aber nie gestartet – die Figuren
+##    glitten als Standbilder durchs Level, und keine Prüfung merkte es.
+## 2. Je Gegnerart wird einer besiegt; nach Todesdauer, Verpuffen und
+##    etwas Luft muss er verschwunden sein. Der Tod läuft seitdem über
+##    Tweens, Trefferpause und Effekte – bleibt davon etwas hängen, bliebe
+##    ein Gegner als Leiche im Level stehen.
+## Mit PRUEF_ASSETS=0 gibt es keine Modelle; dann zählt nur Punkt 2.
+func _pruefe_gegner_leben() -> void:
+	var gegner := get_tree().get_nodes_in_group("gegner")
+	var mit_clips := 0
+	var stumm := 0
+	for knoten in gegner:
+		var g := knoten as Gegner
+		if g == null or g.besiegt or g._fremd_anim == null:
+			continue
+		mit_clips += 1
+		if g._clip_jetzt.is_empty() or not g._fremd_anim.is_playing():
+			print("  FEHLER  %s bei Strecke %.0f m hat ein Modell mit Clips, spielt aber keinen"
+					% [g.get_script().get_global_name(), _strecke(g.global_position)])
+			_fehler += 1; stumm += 1
+
+	var je_art := {}
+	for knoten in gegner:
+		var g := knoten as Gegner
+		if g == null or g.besiegt:
+			continue
+		var art := String(g.get_script().get_global_name())
+		if not je_art.has(art):
+			je_art[art] = g
+	for art: String in je_art:
+		var g := je_art[art] as Gegner
+		g.besiegen(g.besiegbar_durch)
+	var warten := roundi((Gegner.TODES_DAUER + 0.5) * Engine.physics_ticks_per_second)
+	for i in warten:
+		await get_tree().physics_frame
+	var liegen := 0
+	for art: String in je_art:
+		if is_instance_valid(je_art[art]):
+			print("  FEHLER  besiegter Gegner %s verschwindet nicht" % art)
+			_fehler += 1; liegen += 1
+	print("  Gegnerleben: %d Clips geprüft, %d stumm; %d Arten besiegt, %d liegen geblieben"
+			% [mit_clips, stumm, je_art.size(), liegen])
+
 
 ## Lässt an mehreren Stellen einen Testkörper neben den Pfad fallen und
 ## prüft, ob die Absturzzone ihn tötet.

@@ -122,6 +122,9 @@ func _init() -> void:
 	patrouille_weite = 0.0
 	tempo = 0.0
 	fruechte = 2
+	# Rumpfmitte über dem Podest; liegend etwa eine Brustkorbhälfte hoch.
+	_todes_mitte = 1.15
+	_liege_hoehe = 0.45
 
 
 func _ready() -> void:
@@ -152,12 +155,14 @@ func _baue() -> void:
 		_podest = Node3D.new()
 		_podest.name = "Podest"
 		modell.add_child(_podest)
+		# Stein blitzt nicht mit, wenn der Werfer getroffen wird: Das
+		# Podest bleibt als Teil des Levels stehen (`Gegner._glanz_anlegen`).
 		_teil(_podest, _quader(Vector3(1.5, PODEST_HOEHE, 1.5)), stein,
 				Vector3(0.0, PODEST_HOEHE * 0.5, 0.0), Vector3.ZERO,
-				Vector3.ONE, "Block")
+				Vector3.ONE, "Block").set_meta("kein_blitz", true)
 		_teil(_podest, _quader(Vector3(1.66, 0.1, 1.66)), dunkel,
 				Vector3(0.0, PODEST_HOEHE, 0.0), Vector3.ZERO,
-				Vector3.ONE, "Deckplatte")
+				Vector3.ONE, "Deckplatte").set_meta("kein_blitz", true)
 
 	# --- Beine: kurz und breit, damit er wie festgewachsen wirkt ---
 	for seite: float in [-1.0, 1.0]:
@@ -288,7 +293,9 @@ func _zum_spieler_drehen(delta: float, spieler: Node3D) -> void:
 	d.y = 0.0
 	if d.length() < 0.2:
 		return
-	var ziel := atan2(-d.x, -d.z)
+	# Weltrichtung in die Drehung des Modells umrechnen (siehe
+	# `Gegner._blickwinkel`): Der Werfer selbst ist auf den Korridor gedreht.
+	var ziel := _blickwinkel(d)
 	modell.rotation.y = lerp_angle(modell.rotation.y, ziel, minf(delta * 4.0, 1.0))
 
 
@@ -386,15 +393,15 @@ func _podest_abhaengen(eltern: Node, ort: Transform3D) -> void:
 
 
 func _todesanimation(delta: float) -> void:
-	_wegflug.y += TODES_G * delta
-	global_position += _wegflug * delta
+	var fliegt := _flugschritt(delta)
+	_taumeln(delta, 7.0, 4.0)
 	if is_instance_valid(modell):
-		modell.rotation.x += delta * 7.0
-		modell.rotation.z += delta * 4.0
 		modell.scale = modell.scale.lerp(Vector3(0.55, 0.55, 0.55),
 				minf(delta * 3.0, 1.0))
 	# Die Arme rudern noch – das liest sich als "getroffen", nicht als
-	# "ausgeschaltet".
+	# "ausgeschaltet". Liegt er, ist Ruhe.
+	if not fliegt:
+		return
 	if is_instance_valid(_wurfarm):
 		_wurfarm.rotation.x = sin(_zeit * 22.0) * 1.1
 	if is_instance_valid(_haltearm):

@@ -62,6 +62,11 @@ func _ready() -> void:
 	if _spieler != null:
 		_spieler.set_physics_process(false)
 
+	# Die Staubfarbe ist statisch und überlebt den Szenenwechsel. VOR dem
+	# Aufbau auf die Vorgabe, damit ein Level ohne eigene Farbe nicht im
+	# Staub des vorigen läuft; wer eine eigene will, setzt sie in `_baue()`.
+	Effekte.staubfarbe = Effekte.STAUBFARBE_VORGABE
+
 	await _aufbauen()
 
 	if verlauf != null:
@@ -78,6 +83,10 @@ func _ready() -> void:
 	# Spieler beim ersten Bild außerhalb des Sichtfelds.
 	if _kamera != null and _kamera.has_method("sofort_ausrichten"):
 		_kamera.call("sofort_ausrichten")
+	# Teilchen-Shader übersetzen, solange der Ladeschirm noch steht – sonst
+	# stockt das Spiel beim ersten Kistenbruch. Erst jetzt, weil die
+	# Kamera dafür an ihrem Platz stehen muss.
+	Effekte.vorwaermen(self)
 	# Jetzt steht der Boden und die Figur an ihrem Platz: Physik wieder an.
 	if _spieler != null:
 		if _spieler is CharacterBody3D:

@@ -223,6 +223,11 @@ static func leuchtend(farbe: Color, staerke: float = 1.2) -> StandardMaterial3D:
 
 
 ## Durchscheinendes Material (Portale, Wasserflächen, Schockwellen).
+##
+## ACHTUNG: Es ist unbeleuchtet, und der Compatibility-Renderer gibt für
+## unbeleuchtete Materialien nur die Albedo aus – `leuchten` kommt dort
+## nie an. Wer einen Schleier braucht, der wirklich leuchtet (und mit
+## Glow aufblüht), nimmt `leuchtschleier()`.
 static func transparent(farbe: Color, leuchten: float = 0.8) -> StandardMaterial3D:
 	var schluessel := "transp_%s_%.2f" % [farbe.to_html(), leuchten]
 	return _hole(schluessel, func() -> StandardMaterial3D:
@@ -234,6 +239,36 @@ static func transparent(farbe: Color, leuchten: float = 0.8) -> StandardMaterial
 		m.emission_energy_multiplier = leuchten
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		return m)
+
+
+## Leuchtender Schleier: unbeleuchtet, durchscheinend, Helligkeit über 1.
+##
+## Das Gegenstück zu `transparent()`, das im Compatibility-Renderer nicht
+## leuchtet (siehe dort). Hier steckt die Helligkeit in der Albedo selbst:
+## `staerke` hebt die Farbe über 1, und alles über der Glow-Schwelle des
+## Levels blüht auf. Ohne Glow sieht man nur eine hellere, weißlichere
+## Fläche – deshalb bei rund 1,5 bleiben, über 3 schneidet der Glow-Puffer
+## ohnehin ab.
+##
+## `additiv` legt die Fläche auf das Bild statt sie zu mischen: gut für
+## Schein und Strahlen vor dunklem Grund, schlecht vor hellem Himmel, wo
+## sie zu Weiß ausbrennt.
+##
+## Wer die Farbe animieren will (Pulsieren), ruft `.duplicate()` auf und
+## setzt dann `albedo_color` – die Emission gibt es hier nicht.
+static func leuchtschleier(farbe: Color, staerke: float = 1.5,
+		additiv: bool = false) -> StandardMaterial3D:
+	var schluessel := "schleier_%s_%.2f_%d" % [farbe.to_html(), staerke, int(additiv)]
+	return _hole(schluessel, func() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		if additiv:
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.albedo_color = Color(farbe.r * staerke, farbe.g * staerke,
+				farbe.b * staerke, farbe.a)
 		return m)
 
 
