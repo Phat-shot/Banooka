@@ -16,8 +16,13 @@ class_name Bodenschatten
 ## Bodenpunkt gesetzt, den ein Strahl nach unten findet.
 ##
 ## Reine Anzeige: keine Kollision, kein Schatten, keine Wirkung aufs Spiel.
-## Der Strahl trifft nur Ebene 1 (feste Levelgeometrie, Kisten) und keine
-## Areas – sonst läge der Fleck auf Wasserflächen und Todeszonen.
+## Der Strahl trifft, worauf die Figur stehen kann: Ebene 1 (feste Level-
+## geometrie, Kisten) und Ebene 16 „Spielergrenze" (erhöhtes Begehbares wie
+## Findlinge und Wurzeln, siehe `LevelWerkzeuge.SPIELERGRENZE`) – sonst läge
+## der Fleck über einer Moosbank Meter tiefer auf dem Hang darunter. Keine
+## Areas: sonst läge er auf Wasserflächen und Todeszonen. Über einer
+## Leitlinie (auch Ebene 16) kann die Figur nie stehen, die Wände reichen
+## höher als jeder Sprung.
 
 ## Radius des Flecks am Boden in Metern. Etwas größer als die Kapsel
 ## (0,38 m): Am Boden verdeckt die Figur die Mitte, sichtbar bleibt der
@@ -60,7 +65,8 @@ func _ready() -> void:
 	var stoff := _fleck.material_override as StandardMaterial3D
 	if stoff != null:
 		stoff.albedo_texture = _scheibenbild()
-	_frage = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.DOWN, 1)
+	_frage = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.DOWN,
+			1 | LevelWerkzeuge.SPIELERGRENZE)
 	var koerper := _traeger as CollisionObject3D
 	if koerper != null:
 		_frage.exclude = [koerper.get_rid()]

@@ -13,8 +13,8 @@ static func bauschritte(_level: Level01) -> Array:
 
 
 ## Optik für Einträge aus `Level01.BEGEHBARES` mit "optik": "wegbauten"
-## (Startboden, Mooslog, Kanzel, Moosbank, Pforte, Furtsteine, Findlings-
-## turm, Wurzelknie …). Wird als Kind des Körpers eingehängt, passgenau auf
+## (Startboden, Mooslog, Kanzel, Spornfels, Hangstamm, Moosbank, Pforte,
+## Furtsteine, Findlingsturm, Wurzelknie …). Wird als Kind des Körpers eingehängt, passgenau auf
 ## die Kollision; null heißt grauer Platzhalter.
 static func optik(_level: Level01, _eintrag: Dictionary) -> Node3D:
 	return null

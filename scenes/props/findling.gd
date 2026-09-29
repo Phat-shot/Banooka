@@ -7,12 +7,17 @@ class_name Findling
 ## Körper, stünde die Figur in der Luft oder im Fels. Deshalb wird der Stein
 ## hier AUF den Kasten gebaut:
 ## * **Oberseite** flach und genau auf der Kastenoberkante (+y/2), in der
-##   Mitte ausgetreten (hell, glatt, ohne Moos, höchstens 1,5 cm Mulde),
-##   zum Rand hin bemoost.
-## * **Seiten** gerundet und verrauscht, aber nur NACH INNEN und nur unter
+##   Mitte ausgetreten (hell, glatt, ohne Moos, höchstens 1,5 cm Mulde).
+## * **Kante** mit wechselndem Radius (rundum 30–100 % von `rundung`, bei
+##   großen Steinen 0,1–0,3 m): mal scharf gebrochen, mal abgerundet.
+## * **Seiten** geschichtet und verbeult, aber nur NACH INNEN und nur unter
 ##   der Oberkante: Nichts ragt über den Kasten hinaus, was die Figur treffen
-##   könnte. Die Kante oben ist schmal gerundet – so steht die Figur am Rand
-##   nie sichtbar in der Luft.
+##   könnte. Waagerechte **Schichtfugen** alle 0,6–1,0 m (dunkel, die Schicht
+##   darüber setzt vor oder zurück), niederfrequente **Beulen** und ein
+##   **Anlauf**: Der Stein wird nach oben schmaler (6 % der Höhe, höchstens
+##   0,12 m) und steht dadurch wie gewachsener Fels, nicht wie ein Kissen.
+## * **Moos** läuft in Zungen über die Kante die Seite hinab und ein Stück
+##   auf die Oberseite – kein Ring, der sich als Bordstein läse.
 ## * **Fuß** 1 m versenkt und unter dem Boden leicht ausgestellt, damit auf
 ##   unebenem Gelände keine Kante frei liegt.
 ## * **Verdeckungsring** (`kranz()`): ein flacher, dunkler Kranz aus
@@ -21,7 +26,8 @@ class_name Findling
 ##
 ## `brocken()` baut dagegen Deko-Felsen mit gewölbter Oberseite (nie flach,
 ## sonst sähen sie begehbar aus), `scheibe()` Trittsteine auf einem
-## Zylinder.
+## Zylinder: unregelmäßiger Umriss, nasses dunkles Band an der Wasserlinie,
+## helle trockene Oberseite.
 ##
 ## Koordinaten: wie BoxShape3D – der Kasten `groesse` ist um den Ursprung
 ## zentriert. Wer den Körper mit einer Verwandlung setzt, setzt den Stein
@@ -29,22 +35,35 @@ class_name Findling
 ##
 ## Scheiteldaten (für den Stoff): COLOR.rgb Verdeckung, COLOR.a Moosanteil,
 ## UV2.x wie ausgetreten (0..1), UV2.y wie viel Moos oben wachsen darf. Moos
-## auf allem, was nach oben schaut, rechnet der Shader dazu. Fels in Weltprojektion (Dreifachprojektion),
-## also gleich dicht bei jeder Größe und Drehung.
+## auf allem, was nach oben schaut, rechnet der Shader dazu. Fels in
+## Weltprojektion (Dreifachprojektion), also gleich dicht bei jeder Größe und
+## Drehung; heller, warmer Kalk (Luma um 0,55), nicht dunkles Grau.
 ##
-## Dreiecke: höchstens 1,5k (typisch 0,6–1,1k).
+## Dreiecke: höchstens 1,5k (typisch 0,6–1,4k).
 
 const VERSENKT := 1.0
+## So weit tritt die Oberkante durch den Anlauf höchstens zurück: Weiter
+## stünde die Figur am Rand sichtbar in der Luft.
+const ANLAUF_GRENZE := 0.12
+## Tiefe einer Schichtfuge (an der tiefsten Stelle). Tiefer, und die
+## Schichten lasen sich als gestapelte Reifen.
+const FUGE_TIEFE := 0.08
+## Neigung der Schichten (tan 4°): Fels liegt nie ganz waagerecht.
+const SCHICHT_NEIGUNG := 0.07
 
 
 ## Stein genau auf den Kasten `groesse` (um den Ursprung zentriert).
-## Optionen: saat, rundung (Kantenradius oben), unruhe (Tiefe der
-## Seitenbuckel), einzug (so weit zieht sich der Stein zum Boden hin ein –
-## er liegt auf, statt aus dem Boden zu wachsen), eckig (Exponent des
-## Grundrisses, Vorgabe 3,6 = gerundetes Rechteck, 2 = Ellipse), umriss (Anteil, um
-## den der Grundriss unregelmäßig nach innen springt), moos (0..1),
-## moos_oben (Moos auf der Oberseite, 0..1), ausgetreten (0..1), wasser_y
-## (lokale Höhe einer Wasserlinie: darunter nass und dunkel).
+## Optionen: saat, rundung (größter Kantenradius oben; rundum schwankt er
+## zwischen 30 % und 100 %), unruhe (Tiefe der feinen Seitenbuckel), beulen
+## (Tiefe der großen Beulen), anlauf (Anteil der Höhe, um den die Oberkante
+## gegenüber dem Fuß zurücktritt; höchstens `ANLAUF_GRENZE`), schichten
+## (Schichtfugen an/aus), einzug (so weit zieht sich der Stein zum Boden hin
+## ein – er liegt auf, statt aus dem Boden zu wachsen; für Deko), eckig
+## (Exponent des Grundrisses, Vorgabe 3,6 = gerundetes Rechteck, 2 =
+## Ellipse), umriss (Anteil, um den der Grundriss unregelmäßig nach innen
+## springt), umriss_aussen (Anteil, um den er höchstens nach außen springt),
+## moos (0..1), moos_oben (Moos auf der Oberseite, 0..1), ausgetreten (0..1),
+## wasser_y (lokale Höhe einer Wasserlinie: darunter nass und dunkel).
 static func netz(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
 	var o := _vorgaben_netz(groesse.abs() * 0.5)
 	o.merge(optionen, true)
@@ -52,13 +71,15 @@ static func netz(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
 
 
 ## Halbe Kantenlängen (x, z) der Fläche, die auf der Oberseite sicher eben
-## liegt – ohne gerundete Kante und Umrisssprünge. Dort stehen Kisten und
-## Figur sichtbar auf dem Stein. `rund` für `scheibe()` (dann ist x der Radius).
+## liegt – ohne gerundete Kante, Anlauf und Umrisssprünge. Dort stehen
+## Kisten und Figur sichtbar auf dem Stein. `rund` für `scheibe()` (dann ist
+## x der Radius).
 static func plateau(groesse: Vector3, optionen: Dictionary = {}, rund: bool = false) -> Vector2:
 	var h := groesse.abs() * 0.5
 	var o := _vorgaben_scheibe(h) if rund else _vorgaben_netz(h)
 	o.merge(optionen, true)
-	var rand := float(o["rundung"]) * 1.15 + float(o["unruhe"]) * 0.3 \
+	var anlauf := minf(float(o.get("anlauf", 0.0)) * 2.0 * h.y, ANLAUF_GRENZE)
+	var rand := float(o["rundung"]) + anlauf + float(o["unruhe"]) * 0.3 \
 			+ float(o["umriss"]) * maxf(h.x, h.z)
 	return Vector2(maxf(h.x - rand, 0.0), maxf(h.z - rand, 0.0))
 
@@ -67,10 +88,14 @@ static func _vorgaben_netz(h: Vector3) -> Dictionary:
 	var klein := minf(h.x, h.z)
 	return {
 		"eckig": 3.6,
-		"rundung": minf(clampf(klein * 0.16, 0.07, 0.26), h.y * 0.5),
+		"rundung": minf(clampf(klein * 0.2, 0.1, 0.3), h.y * 0.5),
 		"unruhe": clampf(klein * 0.1, 0.04, 0.2),
-		"einzug": minf(clampf(klein * 0.12, 0.04, 0.35), h.y * 0.6),
+		"beulen": clampf(klein * 0.12, 0.06, 0.25),
+		"anlauf": 0.06,
+		"schichten": true,
+		"einzug": 0.0,
 		"umriss": 0.035,
+		"umriss_aussen": 0.0,
 		"kuppe": 0.0,
 		"delle": 0.012,
 		"moos": 1.0,
@@ -82,7 +107,8 @@ static func _vorgaben_netz(h: Vector3) -> Dictionary:
 
 
 ## Trittstein auf einem Zylinder (Radius, Höhe, um den Ursprung zentriert):
-## runde, flache Oberseite genau auf +hoehe/2.
+## runde, flache Oberseite genau auf +hoehe/2. Der Umriss springt um bis zu
+## 16 % nach innen und 5 % nach außen – aus der Münze wird ein Stein.
 static func scheibe(radius: float, hoehe: float, optionen: Dictionary = {}) -> ArrayMesh:
 	var h := Vector3(radius, hoehe * 0.5, radius)
 	var o := _vorgaben_scheibe(h)
@@ -94,15 +120,19 @@ static func _vorgaben_scheibe(h: Vector3) -> Dictionary:
 	var radius := h.x
 	return {
 		"eckig": 2.0,
-		"rundung": minf(clampf(radius * 0.1, 0.05, 0.16), h.y * 0.5),
+		"rundung": minf(clampf(radius * 0.12, 0.06, 0.2), h.y * 0.5),
 		"unruhe": clampf(radius * 0.07, 0.03, 0.14),
-		"einzug": minf(clampf(radius * 0.1, 0.04, 0.2), h.y * 0.5),
-		"umriss": 0.1,
+		"beulen": clampf(radius * 0.08, 0.04, 0.15),
+		"anlauf": 0.05,
+		"schichten": false,
+		"einzug": 0.0,
+		"umriss": 0.16,
+		"umriss_aussen": 0.05,
 		"kuppe": 0.0,
 		"delle": 0.01,
 		"moos": 0.7,
 		"moos_oben": 0.25,
-		"ausgetreten": 0.6,
+		"ausgetreten": 0.9,
 		"fuss_weite": 0.08,
 		"nur_innen": true,
 	}
@@ -117,8 +147,12 @@ static func brocken(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
 		"eckig": 2.6,
 		"rundung": minf(klein * 0.45, h.y * 0.7),
 		"unruhe": clampf(klein * 0.2, 0.05, 0.6),
+		"beulen": clampf(klein * 0.15, 0.05, 0.3),
+		"anlauf": 0.08,
+		"schichten": h.y > 0.6,
 		"einzug": minf(clampf(klein * 0.15, 0.05, 0.5), h.y * 0.5),
 		"umriss": 0.12,
+		"umriss_aussen": 0.0,
 		"kuppe": h.y * 0.28,
 		"delle": 0.0,
 		"moos": 1.0,
@@ -261,6 +295,7 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 	var eckig: float = o["eckig"]
 	var rr: float = o["rundung"]
 	var unruhe: float = o["unruhe"]
+	var beulen: float = o.get("beulen", 0.0)
 	var kuppe: float = o["kuppe"]
 	var delle: float = o["delle"]
 	var moos: float = o["moos"]
@@ -268,9 +303,13 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 	var fuss_weite: float = o["fuss_weite"]
 	var nur_innen: bool = o["nur_innen"]
 	var einzug: float = o.get("einzug", 0.0)
+	var anlauf: float = minf(float(o.get("anlauf", 0.0)) * 2.0 * h.y, ANLAUF_GRENZE)
+	var schichten: bool = o.get("schichten", false)
 	var umriss_unruhe: float = o.get("umriss", 0.0)
+	var umriss_aussen: float = o.get("umriss_aussen", 0.0)
 	var moos_oben: float = o.get("moos_oben", 1.0)
 	var wasser_y: float = o.get("wasser_y", -INF)
+	var rng := PropWerkzeug.zufall(saat + 101)
 	var rauschen := FastNoiseLite.new()
 	rauschen.seed = saat
 	rauschen.frequency = 0.9
@@ -285,37 +324,82 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 	facetten.noise_type = FastNoiseLite.TYPE_CELLULAR
 	facetten.frequency = 0.55 / maxf(sqrt(minf(h.x, h.z)), 0.5)
 	facetten.cellular_return_type = FastNoiseLite.RETURN_DISTANCE
+	# Wo Moos über die Kante läuft (Zungen statt Ring).
+	var zungen := FastNoiseLite.new()
+	zungen.seed = saat + 53
+	zungen.frequency = 0.8
 
 	var umfang := TAU * sqrt((h.x * h.x + h.z * h.z) * 0.5)
-	var anzahl := clampi(int(umfang / 0.34), 20, 48)
+	var anzahl := clampi(int(umfang / 0.38), 20, 40)
 	anzahl += anzahl % 2
 	var um := _umriss(h.x, h.z, eckig, anzahl)
 	var punkte2: PackedVector2Array = um[0]
 	var normalen2: PackedVector2Array = um[1]
-	# Grundriss unregelmäßig: springt nach innen (bei Deko auch nach außen).
-	if umriss_unruhe > 0.0:
+	# Grundriss unregelmäßig: springt nach innen (bei Deko auch nach außen,
+	# bei Trittsteinen ein wenig).
+	if umriss_unruhe > 0.0 or umriss_aussen > 0.0:
 		for j in anzahl:
 			var w := TAU * float(j) / float(anzahl)
-			var n := grob.get_noise_2d(cos(w) * 2.2, sin(w) * 2.2)
-			var f := 1.0 - umriss_unruhe * (0.5 + 0.5 * n)
+			var n := 0.7 * grob.get_noise_2d(cos(w) * 2.2, sin(w) * 2.2) \
+					+ 0.3 * rauschen.get_noise_2d(cos(w) * 1.6, sin(w) * 1.6)
+			var f := lerpf(1.0 - umriss_unruhe, 1.0 + umriss_aussen,
+					clampf(0.5 + 0.8 * n, 0.0, 1.0))
 			if not nur_innen:
 				f = 1.0 + umriss_unruhe * n * 0.8
 			punkte2[j] = punkte2[j] * f
 
-	# Zeilen von unten nach oben: [y, Art, Parameter]
-	# Art 0 = unter dem Boden (nach außen), 1 = Seite, 2 = Kante (Winkel),
-	# 3 = Deckel (Anteil zur Mitte)
-	var zeilen_def: Array[Vector3] = []
-	zeilen_def.append(Vector3(-h.y - VERSENKT, 0.0, 1.0))
-	zeilen_def.append(Vector3(-h.y - 0.35, 0.0, 0.6))
-	zeilen_def.append(Vector3(-h.y, 1.0, 0.0))
-	var seiten := clampi(int((2.0 * h.y - rr) / 0.6), 1, 3)
-	for k in range(1, seiten + 1):
-		zeilen_def.append(Vector3(lerpf(-h.y, h.y - rr, float(k) / float(seiten)), 1.0, 0.0))
+	# Eigenschaften je Ecke rundum: Kantenradius, Moos über der Kante, Tiefe
+	# der Schichtfugen.
+	var kanten_r := PackedFloat32Array()
+	var zunge := PackedFloat32Array()
+	var zungen_laenge := PackedFloat32Array()
+	var fugen_tiefe := PackedFloat32Array()
+	for j in anzahl:
+		var b := punkte2[j]
+		var n_r := grob.get_noise_2d(b.x * 1.9 + 11.0, b.y * 1.9)
+		kanten_r.append(lerpf(rr * 0.3, rr, clampf(0.5 + 0.9 * n_r, 0.0, 1.0)))
+		zunge.append(smoothstep(0.08, 0.4, zungen.get_noise_2d(b.x, b.y)))
+		zungen_laenge.append(lerpf(0.3, 1.3,
+				clampf(0.5 + 0.6 * zungen.get_noise_2d(b.x * 2.3 + 40.0, b.y * 2.3), 0.0, 1.0)))
+		# Die Fugen reißen ab: Auf gut einem Drittel des Umfangs fehlen sie,
+		# sonst liefen sie als Ringe um den Stein.
+		fugen_tiefe.append(smoothstep(-0.15, 0.35,
+				rauschen.get_noise_2d(b.x * 1.3, b.y * 1.3 + 7.0)))
+
+	# Zeilen von unten nach oben. Art 0 = unter dem Boden (nach außen),
+	# 1 = Seite, 2 = Kante (Winkel "w"), 3 = Deckel (Anteil "f" zur Mitte).
+	# Seitenzeilen mit "y" = NAN liegen je Ecke dort, wo deren Kante beginnt.
+	var kipp := Vector2.from_angle(rng.randf() * TAU) * SCHICHT_NEIGUNG
+	var zeilen_def: Array[Dictionary] = []
+	zeilen_def.append({"art": 0, "y": -h.y - VERSENKT, "p": 1.0})
+	zeilen_def.append({"art": 0, "y": -h.y - 0.35, "p": 0.6})
+	var seite_def: Array[Dictionary] = [{"art": 1, "y": -h.y}]
+	var oben_frei := h.y - rr - 0.2
+	if schichten and oben_frei > -h.y + 0.5:
+		# Waagerechte Schichtfugen alle 0,6–1,0 m: Die Fuge liegt tiefer und
+		# dunkel, die Schicht darüber setzt vor oder zurück an. So liest sich
+		# der Block als geschichteter Fels, nicht als Kissen.
+		var y := -h.y + rng.randf_range(0.45, 0.85)
+		while y < oben_frei:
+			seite_def.append({"art": 1, "y": y, "fuge": 1.0})
+			seite_def.append({"art": 1, "y": y + 0.07, "stufe": rng.randf_range(-1.0, 1.0)})
+			y += rng.randf_range(0.6, 1.0)
+	else:
+		var seiten := clampi(int((2.0 * h.y - rr) / 0.6), 1, 3)
+		for k in range(1, seiten):
+			seite_def.append({"art": 1, "y": lerpf(-h.y, h.y - rr, float(k) / float(seiten))})
+	if wasser_y > -h.y + 0.1 and wasser_y < h.y - rr - 0.2:
+		# Zeilen an der Wasserlinie, damit das nasse Band scharf sitzt.
+		seite_def.append({"art": 1, "y": wasser_y - 0.06})
+		seite_def.append({"art": 1, "y": minf(wasser_y + 0.14, h.y - rr - 0.05)})
+	seite_def.sort_custom(func(x: Dictionary, y2: Dictionary) -> bool:
+		return float(x["y"]) < float(y2["y"]))
+	zeilen_def.append_array(seite_def)
+	zeilen_def.append({"art": 1, "y": NAN})
 	for e: float in [30.0, 60.0, 90.0]:
-		zeilen_def.append(Vector3(0.0, 2.0, deg_to_rad(e)))
+		zeilen_def.append({"art": 2, "w": deg_to_rad(e)})
 	for f: float in [0.8, 0.52, 0.24]:
-		zeilen_def.append(Vector3(0.0, 3.0, f))
+		zeilen_def.append({"art": 3, "f": f})
 
 	var zeilen: Array[PackedVector3Array] = []
 	var uvs: Array[PackedVector2Array] = []
@@ -323,7 +407,7 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 	var arten: Array[PackedVector2Array] = []
 	var kante_oben := PackedVector3Array()
 	for z in zeilen_def:
-		var art := int(z.y)
+		var art: int = z["art"]
 		var zeile := PackedVector3Array()
 		var uv := PackedVector2Array()
 		var fa := PackedColorArray()
@@ -332,60 +416,75 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 			var jj := j % anzahl
 			var basis := punkte2[jj]
 			var nrm := normalen2[jj]
+			var r_k := kanten_r[jj]
+			# Deko-Brocken runden gleichmäßig, Begehbares je Ecke anders.
+			var r_rand := r_k if nur_innen else rr
+			var y_kante := h.y - r_rand
 			var p: Vector3
-			var y := z.x
 			var tief := 0.0
 			var ao := 1.0
 			var m := 0.0
 			var abgetreten := 0.0
 			match art:
 				0:
-					var weite := basis + nrm * (basis.length() * fuss_weite * z.z)
+					var y: float = z["y"]
+					var weite := basis + nrm * (basis.length() * fuss_weite * float(z["p"]))
 					p = Vector3(weite.x, y, weite.y)
 					ao = 0.32
 					m = 0.6
 				1:
-					# Bauch: zum Boden hin eingezogen, oben volle Breite.
-					var u := clampf((y + h.y) / maxf(2.0 * h.y - rr, 0.01), 0.0, 1.0)
+					var y: float = z["y"]
+					if is_nan(y):
+						y = y_kante
+					elif z.has("fuge") or z.has("stufe"):
+						# Schichtfugen liegen schräg, bleiben aber unter der Kante.
+						y = clampf(y + kipp.dot(basis), -h.y + 0.05, y_kante - 0.08)
+					var u := clampf((y + h.y) / maxf(2.0 * h.y, 0.01), 0.0, 1.0)
+					# Bauch (nur Deko): zum Boden hin eingezogen.
 					var bauch := einzug * pow(1.0 - smoothstep(0.0, 0.62, u), 1.5)
-					# Nach innen verbeult: Facetten, feines Rauschen, oben weniger.
-					var oben_anteil := smoothstep(-h.y + 0.3, h.y - rr, y)
+					var oben_anteil := smoothstep(-h.y + 0.3, y_kante, y)
 					var n1 := rauschen.get_noise_3d(basis.x, y, basis.y)
 					var zelle := facetten.get_noise_3d(basis.x, y * 0.8, basis.y)
-					tief = bauch + unruhe * (0.3 + 0.25 * n1) * lerpf(1.0, 0.4, oben_anteil) \
+					var beule := beulen * (0.5 + 0.5 * grob.get_noise_3d(basis.x * 1.4, y * 0.9,
+							basis.y * 1.4)) * lerpf(1.0, 0.3, oben_anteil)
+					tief = bauch + anlauf * u + beule \
+							+ unruhe * (0.3 + 0.25 * n1) * lerpf(1.0, 0.4, oben_anteil) \
 							+ unruhe * 1.1 * (0.5 + 0.5 * zelle) * lerpf(1.0, 0.25, oben_anteil)
+					var fuge: float = z.get("fuge", 0.0)
+					tief += fuge * fugen_tiefe[jj] * FUGE_TIEFE
+					tief += float(z.get("stufe", 0.0)) * 0.03 * fugen_tiefe[jj]
 					if not nur_innen:
 						var n2 := grob.get_noise_3d(basis.x, y * 0.7, basis.y)
 						tief -= unruhe * 0.9 * maxf(-n2, 0.0)
+					else:
+						tief = maxf(tief, 0.0)
 					var q := basis - nrm * tief
 					p = Vector3(q.x, y, q.y)
 					var ueber_boden := y + h.y
-					ao = lerpf(0.5, 1.0, smoothstep(0.0, 0.9, ueber_boden))
-					ao *= 1.0 - 0.35 * clampf(tief / maxf(unruhe * 1.8, 0.001), 0.0, 1.0)
-					var polster_s := 0.5 + 0.5 * grob.get_noise_2d(basis.x * 1.7, basis.y * 1.7)
-					m = lerpf(0.55, 0.08, smoothstep(0.0, 0.8, ueber_boden)) \
-							+ 0.35 * moos_oben * smoothstep(h.y - rr - 0.5, h.y - rr, y) \
-							* smoothstep(0.3, 0.75, polster_s)
+					ao = lerpf(0.6, 1.0, smoothstep(0.0, 0.9, ueber_boden))
+					ao *= 1.0 - 0.3 * clampf((tief - anlauf * u) / maxf(unruhe * 1.8 + beulen, 0.001),
+							0.0, 1.0)
+					ao *= 1.0 - 0.45 * fuge * fugen_tiefe[jj]
+					# Moos: unten am Fuß, in den Fugen, und in Zungen, die von der
+					# Kante die Seite hinablaufen.
+					m = lerpf(0.55, 0.08, smoothstep(0.0, 0.8, ueber_boden)) + 0.25 * fuge
+					var laenge := zungen_laenge[jj]
+					m += 0.95 * moos_oben * zunge[jj] \
+							* smoothstep(y_kante - laenge, y_kante - laenge * 0.3, y)
 				2:
-					var winkel := z.z
+					var winkel: float = z["w"]
 					var n1 := rauschen.get_noise_3d(basis.x, h.y, basis.y)
-					var r_k := rr * (0.85 + 0.3 * grob.get_noise_2d(basis.x * 2.0, basis.y * 2.0))
-					tief = unruhe * 0.3 * (0.5 + 0.5 * n1) + r_k * (1.0 - cos(winkel))
+					tief = anlauf + unruhe * 0.3 * (0.5 + 0.5 * n1) + r_rand * (1.0 - cos(winkel))
 					var q := basis - nrm * tief
-					var kuppen_anteil := 0.0
-					if kuppe > 0.0:
-						kuppen_anteil = kuppe * 0.15
-					y = h.y - r_k + r_k * sin(winkel) + kuppen_anteil * sin(winkel)
-					if not nur_innen:
-						y = h.y - rr + rr * sin(winkel) + kuppen_anteil * sin(winkel)
+					var kuppen_anteil := kuppe * 0.15 if kuppe > 0.0 else 0.0
+					var y := h.y - r_rand + r_rand * sin(winkel) + kuppen_anteil * sin(winkel)
 					y = minf(y, h.y + kuppen_anteil)
 					p = Vector3(q.x, y, q.y)
-					# Moos in Polstern entlang der Kante, nie als durchgehender
-					# grüner Saum (der läse sich als Bordstein).
-					var polster := 0.5 + 0.5 * grob.get_noise_2d(basis.x * 1.7, basis.y * 1.7)
-					m = lerpf(0.2, 0.75, sin(winkel)) * moos_oben * smoothstep(0.3, 0.75, polster) * 1.4
+					# Moos nur, wo eine Zunge über die Kante läuft – nie als
+					# durchgehender grüner Saum (der läse sich als Bordstein).
+					m = moos_oben * (0.1 + 0.9 * zunge[jj]) * lerpf(0.75, 1.1, sin(winkel))
 				3:
-					var f := z.z
+					var f: float = z["f"]
 					# Deckel: vom oberen Kantenring zur Mitte.
 					var rand_p := kante_oben[jj]
 					var q2 := Vector2(rand_p.x, rand_p.z) * f
@@ -394,19 +493,20 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 					var feine := 0.0
 					if not nur_innen:
 						feine = 0.06 * kuppe * rauschen.get_noise_2d(q2.x * 2.0, q2.y * 2.0)
-					y = h.y + (kante_oben[jj].y - h.y) * f + wolbung - mulde + feine
+					var y := h.y + (kante_oben[jj].y - h.y) * f + wolbung - mulde + feine
 					if nur_innen:
 						y = minf(y, h.y)
 					p = Vector3(q2.x, y, q2.y)
 					abgetreten = ausgetreten * smoothstep(0.85, 0.25, f)
 					var polster := 0.5 + 0.5 * grob.get_noise_2d(q2.x * 1.7, q2.y * 1.7)
-					m = lerpf(0.6, 0.05, 1.0 - f) * (1.0 - abgetreten) * moos_oben \
-							* smoothstep(0.3, 0.75, polster) * 1.4
+					m = moos_oben * (zunge[jj] * lerpf(0.1, 0.85, f)
+							+ 0.4 * smoothstep(0.62, 0.85, polster) * f) * (1.0 - abgetreten)
 			if wasser_y > -INF:
-				var nass := 1.0 - smoothstep(wasser_y - 0.1, wasser_y + 0.25, p.y)
-				ao *= lerpf(1.0, 0.62, nass)
-				var linie := 1.0 - smoothstep(0.0, 0.3, absf(p.y - wasser_y))
-				m = maxf(m, 0.75 * linie)
+				var nass := 1.0 - smoothstep(wasser_y - 0.05, wasser_y + 0.2, p.y)
+				ao *= lerpf(1.0, 0.45, nass)
+				var linie := 1.0 - smoothstep(0.0, 0.16, absf(p.y - wasser_y - 0.04))
+				ao *= 1.0 - 0.25 * linie
+				m = maxf(m, 0.7 * linie)
 			m = clampf((m + 0.3 * rauschen.get_noise_3d(p.x * 1.7, p.y * 1.7, p.z * 1.7)) * moos,
 					0.0, 1.0)
 			ao *= 0.92 + 0.08 * grob.get_noise_3d(p.x * 3.0, p.y * 3.0, p.z * 3.0)
@@ -414,7 +514,7 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 			uv.append(Vector2.ZERO)
 			fa.append(Color(ao, ao, ao, m))
 			ar.append(Vector2(abgetreten, moos_oben))
-		if art == 2 and is_equal_approx(z.z, deg_to_rad(90.0)):
+		if art == 2 and is_equal_approx(float(z["w"]), deg_to_rad(90.0)):
 			kante_oben = zeile
 		zeilen.append(zeile)
 		uvs.append(uv)
@@ -520,10 +620,11 @@ uniform sampler2D fels : source_color, filter_linear_mipmap_anisotropic, repeat_
 uniform sampler2D fels_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D moos : source_color, filter_linear_mipmap, repeat_enable;
 uniform float kachel = 0.45;
-uniform vec4 stein_farbe : source_color = vec4(0.95, 0.94, 0.9, 1.0);
+// Heller, warmer Kalk statt dunklem Grau (Luma um 0,55 in der Sonne).
+uniform vec4 stein_farbe : source_color = vec4(1.16, 1.08, 0.92, 1.0);
 uniform vec4 moos_farbe : source_color = vec4(1.0);
 uniform float moos_oben = 0.22;
-uniform float entsaettigen = 0.45;
+uniform float entsaettigen = 0.3;
 
 varying vec3 v_welt;
 varying vec3 v_wn;
@@ -564,7 +665,8 @@ void fragment() {
 	float anteil = smoothstep(0.42, 0.6, m * 0.85 + (mt.a - 0.5) * 0.8);
 	nw = normalize(mix(nw, n, clamp(anteil * 0.7 + abgetreten * 0.45, 0.0, 1.0)));
 
-	vec3 stein = farbe * stein_farbe.rgb * mix(1.0, 1.06, abgetreten);
+	// Ausgetreten und trocken: heller und glatter.
+	vec3 stein = farbe * stein_farbe.rgb * mix(1.0, 1.14, abgetreten);
 	ALBEDO = mix(stein, mt.rgb * moos_farbe.rgb, anteil) * COLOR.rgb;
 	ROUGHNESS = mix(0.9, 0.6, abgetreten);
 	SPECULAR = 0.35;

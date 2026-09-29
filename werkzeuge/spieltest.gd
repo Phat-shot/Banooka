@@ -23,6 +23,10 @@ extends Node
 ##   TEST_ZIEL   Ausgabeverzeichnis für die PNGs (Pflicht)
 ##   TEST_DAUER  Höchstdauer in Sekunden (Vorgabe 600)
 ##   TEST_LEVEL  Levelnummern mit Komma getrennt (Vorgabe: alle gebauten)
+##   TEST_DOPPELSPRUNG  0 = nie doppelt springen. Dann zeigt der Lauf, dass
+##               jede Pflichtlücke mit dem einfachen Sprung geht (Lehrlevel).
+##   TEST_SPRUENGE  1 = jeden Absprung im Laufmodus mit Stelle und Grund
+##               ins Protokoll schreiben (zum Nachsehen, wo der Bot fällt).
 
 const KEY_SPACE := 32
 const KEY_J := 74
@@ -39,7 +43,20 @@ const HALLE_RADIUS := 33.5      ## hub.gd: START_R
 const BOGEN_SCHRITT := 20.0
 
 const VORAUS := 5.0             ## Zielpunkt so viele Meter voraus
-const LUECKE_VORAUS := 4.2      ## so weit voraus wird auf Boden geprüft
+## So weit voraus wird auf Boden geprüft: Fehlt er dort, springt der Bot ab.
+## Knapp vor der Kante, wie ein Mensch – der Sprung trägt 4,5 m, und
+## früher abgesprungen fehlte er über einer 3-m-Lücke (bei 4,2 m landete
+## der Bot vor dem Erdspalt von Level 01 regelmäßig im Spalt). Gut ein
+## Physikschritt Verzug kommt noch dazu (0,14 m bei vollem Lauf).
+const LUECKE_VORAUS := 0.9
+## Hindernis voraus in Kniehöhe (liegender Stamm, Stufe): so weit voraus.
+const HUERDE_VORAUS := 1.1
+const HUERDE_HOEHE := 0.45
+## Liegt voraus nichts höher als so tief unter den Füßen, ist dort eine
+## Lücke. Tiefer als jeder Stufenabsatz (Level 01: 1,6 m), flacher als ein
+## Bruch mit Wiesenboden darunter (Level 01, G1: 2,7 m) – den erkannte der
+## Bot mit vier Metern Suchtiefe nicht als Lücke und lief hinein.
+const LUECKE_TIEFE := 1.8
 const BILD_ABSTAND := 4.0       ## Sekunden zwischen zwei Spielbildern
 const LEVEL_DAUER := 260.0      ## Höchstdauer je Level
 const FLUG_DAUER := 40.0        ## so lange wird im Flugniveau geflogen
@@ -69,11 +86,17 @@ var _tote := 0
 var _aktuelles_bild := ""
 ## Zeitpunkt des letzten gezielten Angriffs.
 var _letzter_angriff := -9.0
+## Doppelsprung als Rettung über Lücken (TEST_DOPPELSPRUNG=0 schaltet ab).
+var _doppelsprung := true
+## Absprünge protokollieren (TEST_SPRUENGE=1).
+var _spruenge_melden := false
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ziel = OS.get_environment("TEST_ZIEL")
+	_doppelsprung = OS.get_environment("TEST_DOPPELSPRUNG") != "0"
+	_spruenge_melden = OS.get_environment("TEST_SPRUENGE") == "1"
 	if _ziel.is_empty():
 		_ziel = "/tmp/spieltest"
 	DirAccess.make_dir_recursive_absolute(_ziel)
@@ -296,6 +319,9 @@ func _durchlaufen(nummer: int) -> Dictionary:
 	var haenger := 0
 	var letzte_pos := spieler.global_position
 	var stand := "Zeit abgelaufen"
+	# Wo die Figur zuletzt Boden unter den Füßen hatte: Nach einem Tod steht
+	# sie schon wieder am Checkpoint, und "Tod bei 107 m" sagte nur, wo.
+	var boden_s := 0.0
 
 	while _uhr - start < LEVEL_DAUER:
 		await get_tree().physics_frame
@@ -314,6 +340,9 @@ func _durchlaufen(nummer: int) -> Dictionary:
 		var s: float = float(spieler.get("strecke")) if schiene \
 				else verlauf.get_closest_offset(spieler.global_position)
 		beste = maxf(beste, s)
+		if GameState.leben == leben_vorher and spieler.has_method("is_on_floor") \
+				and spieler.call("is_on_floor"):
+			boden_s = s
 
 		if schiene:
 			_schiene_steuern(spieler, verlauf, s, laenge)
@@ -332,8 +361,8 @@ func _durchlaufen(nummer: int) -> Dictionary:
 				_tote += 1
 				# Wer war schuld? Ohne diese Zeile steht im Bericht nur
 				# "gestorben bei 34 m", und man sucht die Ursache im Bild.
-				_notiz("Level %02d: Tod %d bei %.0f m – %s"
-						% [nummer, tode, s, _todesumstand(spieler, verlauf, s)])
+				_notiz("Level %02d: Tod %d bei %.0f m (zuletzt am Boden bei %.1f m) – %s"
+						% [nummer, tode, s, boden_s, _todesumstand(spieler, verlauf, s)])
 				if tode <= 6:
 					await _bild("level%02d_tod%d_bei_%dm" % [nummer, tode, int(s)])
 			leben_vorher = GameState.leben
@@ -522,15 +551,56 @@ func _laufen(spieler: Node3D, szene: Node, verlauf: Curve3D, s: float,
 	InputHub.touch_bewegung = _eingabe(nach)
 
 	if spieler.is_on_floor():
-		if not _boden_bei(spieler, _punkt(verlauf, minf(s + LUECKE_VORAUS, laenge), seitlich)):
+		# Gesucht wird ab Fußhöhe, nicht ab der Kurve: In Terrassen liegt die
+		# Decke bis 1,2 m neben ihr.
+		var voraus := _punkt(verlauf, minf(s + LUECKE_VORAUS, laenge), seitlich)
+		voraus.y = spieler.global_position.y
+		var luecke := not _boden_bei(spieler, voraus, 1.2, LUECKE_TIEFE)
+		if luecke or _huerde_voraus(spieler, nach):
+			if _spruenge_melden:
+				_notiz("Absprung bei %.1f m (%s, seitlich %.1f)"
+						% [s, "Lücke" if luecke else "Hürde", seitlich])
 			_taste_ab(KEY_SPACE)
 			_sprung_halten(0.22)
 		return false
-	if not djump and spieler.velocity.y < 0.5 \
+	# Im Sinkflug über festem Boden, voraus aber eine Lücke: anhalten und
+	# landen, statt über eine schmale Plattform hinauszufliegen (Trittsteine
+	# einer Furt). Ein Mensch lässt dort den Stick los.
+	if spieler.velocity.y < 0.0 \
+			and _boden_bei(spieler, spieler.global_position, 0.3, 2.5):
+		var danach := _punkt(verlauf, minf(s + 1.0, laenge), seitlich)
+		danach.y = spieler.global_position.y
+		if not _boden_bei(spieler, danach, 0.3, 3.0):
+			InputHub.touch_bewegung = Vector2.ZERO
+	if _doppelsprung and not djump and spieler.velocity.y < 0.5 \
 			and not _boden_bei(spieler, spieler.global_position):
+		if _spruenge_melden:
+			_notiz("Doppelsprung bei %.1f m" % s)
 		_tippe(KEY_SPACE)
 		return true
 	return djump
+
+
+## Steht in Laufrichtung knapp voraus etwas in Kniehöhe, über das man
+## springen muss (ein liegender Stamm, eine Stufe hinauf)? Kisten zählen
+## nicht – die zerschlägt der Drehschlag –, Gegner auch nicht (`_kampf`).
+## Ohne diese Probe stand der Bot in Level 01 vor dem Mooslog, bis die
+## Hängerwache nach acht Sekunden einen Sprung auslöste.
+func _huerde_voraus(spieler: Node3D, richtung: Vector3) -> bool:
+	var flach := Vector3(richtung.x, 0.0, richtung.z)
+	if flach.length_squared() < 0.0001:
+		return false
+	var von := spieler.global_position + Vector3.UP * HUERDE_HOEHE
+	var frage := PhysicsRayQueryParameters3D.create(von,
+			von + flach.normalized() * HUERDE_VORAUS, _maske(spieler), _ohne(spieler))
+	frage.collide_with_areas = false
+	var treffer := spieler.get_world_3d().direct_space_state.intersect_ray(frage)
+	if treffer.is_empty():
+		return false
+	var ding: Object = treffer["collider"]
+	if ding is Kiste or ding is Gegner:
+		return false
+	return absf((treffer["normal"] as Vector3).y) < 0.5
 
 
 ## Schienenmodus: nur quer lenken und über Lücken springen.
@@ -697,12 +767,35 @@ func _eingabe(welt: Vector3) -> Vector2:
 
 
 ## Ist unter diesem Punkt fester Boden in Reichweite?
-func _boden_bei(spieler: Node3D, punkt: Vector3) -> bool:
+##
+## Gefragt wird genau, worauf die Figur stehen kann (ihre eigene Maske,
+## in Level 01 also auch Ebene 16 mit Findlingen und Wurzeln), und ohne die
+## Figur selbst. Vorher traf der Strahl mit der Vorgabemaske in der Luft die
+## eigene Kapsel – der Doppelsprung über einer Lücke kam dadurch nie.
+func _boden_bei(spieler: Node3D, punkt: Vector3, oben: float = 3.0,
+		unten: float = 4.0) -> bool:
 	var raum := spieler.get_world_3d().direct_space_state
 	var frage := PhysicsRayQueryParameters3D.create(
-			punkt + Vector3.UP * 3.0, punkt + Vector3.DOWN * 4.0)
+			punkt + Vector3.UP * oben, punkt + Vector3.DOWN * unten,
+			_maske(spieler), _ohne(spieler))
 	frage.collide_with_areas = false
 	return not raum.intersect_ray(frage).is_empty()
+
+
+## Die Ebenen, an denen die Figur anstößt (Vorgabe 1|16).
+func _maske(spieler: Node3D) -> int:
+	var koerper := spieler as CollisionObject3D
+	if koerper != null and koerper.collision_mask != 0:
+		return koerper.collision_mask
+	return 1 | 16
+
+
+## Die Figur selbst, damit kein Strahl an ihr hängen bleibt.
+func _ohne(spieler: Node3D) -> Array[RID]:
+	var koerper := spieler as CollisionObject3D
+	if koerper == null:
+		return []
+	return [koerper.get_rid()]
 
 
 func _punkt(verlauf: Curve3D, strecke: float, seitlich: float) -> Vector3:
@@ -724,12 +817,17 @@ func _rechts(verlauf: Curve3D, strecke: float) -> Vector3:
 
 # ------------------------------------------------------------- Eingabe
 
+## Taste drücken. Das Ereignis wird sofort ausgewertet, nicht erst mit dem
+## nächsten gezeichneten Bild: Unter llvmpipe liegen bei 15 Bildern je
+## Sekunde vier Physikschritte dazwischen, und der Bot sprang so bis zu
+## 0,6 m später ab, als er wollte – an der Furt lief er deshalb ins Wasser.
 func _taste_ab(code: int) -> void:
 	var e := InputEventKey.new()
 	e.keycode = code
 	e.physical_keycode = code
 	e.pressed = true
 	Input.parse_input_event(e)
+	Input.flush_buffered_events()
 
 
 func _taste_auf(code: int) -> void:
@@ -738,6 +836,7 @@ func _taste_auf(code: int) -> void:
 	e.physical_keycode = code
 	e.pressed = false
 	Input.parse_input_event(e)
+	Input.flush_buffered_events()
 
 
 func _tippe(code: int) -> void:

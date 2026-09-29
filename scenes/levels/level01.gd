@@ -26,7 +26,7 @@ class_name Level01
 ## MODULE. Die Optik bauen Module in `scenes/levels/level01/` (je eine
 ## Klasse mit statischen Funktionen, Parameter `level: Level01`):
 ##   L01Boden       stoff(level, abschnitt) -> Material, bauschritte(level)
-##   L01Saum        bauschritte(level)
+##   L01Saum        bauschritte(level), optik(level, eintrag)
 ##   L01Gelaende    bauschritte(level), hoehe(x, z), optik(level, eintrag)
 ##   L01Wasser      bauschritte(level)
 ##   L01Weltenbaum  bauschritte(level), optik(level, eintrag)
@@ -177,6 +177,31 @@ const LUECKEN := [
 	{"name": "G2", "von": 243.0, "bis": 245.5, "toedlich": true},
 ]
 
+## Vorsprünge der Felskante rechts im Hangweg (B). Ohne sie liefe die Lippe
+## siebzig Meter parallel zum Weg über dem Abgrund – der Schlauch, nur mit
+## einer Seite. An drei Stellen springt sie 2,5–3 m hinaus: ein Felssporn
+## mit Boden, auf den man treten und von dem man hinabsehen kann.
+##
+## Je Polylinie [Vector2(s, q)] = die LIPPE (Kollisionskante), Anfang und
+## Ende auf der Wegkante. Daraus entstehen der Boden (BEGEHBARES
+## "Vorsprung …", Ebene 1, bündig mit der Decke) und die Lippe des Saums
+## (RAENDER "umriss", `rand_profil`). Die Todeszone K-B beginnt knapp innerhalb
+## der Wegkante und liegt damit auch unter jedem Vorsprung. Über die Lippe
+## darf außer Gras (höchstens 0,35 m) nichts hinausragen, was begehbar
+## aussieht.
+##   62  Kerbennase: ein Spornfels an der Spitze (BEGEHBARES "Spornfels")
+##   75  Stammsporn: ein liegender Stamm ragt über den Abgrund ("Hangstamm")
+##   89  Kiefernsporn: gegenüber der Moosbank, ein Rahmenbaum unter der
+##       Lippe neigt die Krone darüber (RAHMENBAUM_STELLEN)
+const VORSPRUNG_62 := [Vector2(60.0, 4.5), Vector2(60.7, 5.2), Vector2(61.5, 6.2),
+		Vector2(62.4, 6.8), Vector2(63.4, 7.0), Vector2(64.3, 6.6), Vector2(65.0, 5.6),
+		Vector2(65.6, 4.5)]
+const VORSPRUNG_75 := [Vector2(71.0, 4.5), Vector2(71.8, 5.4), Vector2(72.8, 6.5),
+		Vector2(74.0, 7.2), Vector2(75.2, 7.5), Vector2(76.4, 7.1), Vector2(77.3, 6.0),
+		Vector2(78.0, 4.5)]
+const VORSPRUNG_89 := [Vector2(86.0, 4.13), Vector2(86.8, 5.0), Vector2(87.8, 5.9),
+		Vector2(89.0, 6.4), Vector2(90.2, 6.2), Vector2(91.2, 5.2), Vector2(92.0, 3.75)]
+
 ## Die Ränder des Weges, je Seite (-1 links, +1 rechts; 0 = quer, Stirn).
 ##
 ## "typ":      FLACH (Gelände schließt bündig an), BOESCHUNG (Erdhang 35–60°
@@ -191,6 +216,8 @@ const LUECKEN := [
 ## "krone_q":  Querabstand, an dem die Böschung oben ausläuft; dahinter steigt
 ##             der Hangwald bis Welt-Y "hang_y".
 ## "nische":   Umriss der Moosbank-Nische (wie die Leitlinie, [Vector2(s, q)]).
+## "umriss":   Liste von Polylinien [Vector2(s, q)], an denen die Lippe über
+##             den Abstand hinaus springt (Vorsprünge, siehe VORSPRUNG_62).
 ## Für eine einzelne Stelle rechnet `rand_profil(s, seite)` alles aus.
 const RAENDER := [
 	# --- links: zu, dunkel, nah ---
@@ -219,7 +246,8 @@ const RAENDER := [
 	{"von": 40.0, "bis": 48.0, "seite": 1, "typ": "FELS_AB", "abstand": 9.5,
 			"hoehe": 19.0, "fuss_y": 7.0, "kanzel": true},
 	{"von": 48.0, "bis": 104.0, "seite": 1, "typ": "FELS_AB", "hoehe": 18.0,
-			"hoehe_ende": 20.0, "fuss_y": 7.0, "fuss_y_ende": 2.5},
+			"hoehe_ende": 20.0, "fuss_y": 7.0, "fuss_y_ende": 2.5,
+			"umriss": [VORSPRUNG_62, VORSPRUNG_75, VORSPRUNG_89]},
 	{"von": 104.0, "bis": 145.0, "seite": 1, "typ": "FELS_AB", "hoehe": 20.0,
 			"hoehe_ende": 8.0, "fuss_y": 2.5, "fuss_y_ende": 5.0},
 	{"von": 145.0, "bis": 160.0, "seite": 1, "typ": "UFER", "hoehe": 7.0,
@@ -346,6 +374,26 @@ const BEGEHBARES := [
 	{"name": "Kanzelkiefer", "form": "zylinder", "s": 41.6, "q": 8.7,
 			"radius": 0.45, "hoehe": 7.0, "oben": 6.0, "ebene": 16,
 			"optik": "wegbauten"},
+	# Vorsprünge der Felskante (VORSPRUNG_62 …): Boden bündig mit der Decke
+	# bis zur Lippe. Oberseite und Felsstirn baut der Saum.
+	{"name": "Vorsprung 62", "form": "streifen", "von": 60.0, "bis": 65.6,
+			"aussen": VORSPRUNG_62, "oben": 0.0, "hoehe": 2.0, "ebene": 1,
+			"optik": "saum"},
+	{"name": "Vorsprung 75", "form": "streifen", "von": 71.0, "bis": 78.0,
+			"aussen": VORSPRUNG_75, "oben": 0.0, "hoehe": 2.0, "ebene": 1,
+			"optik": "saum"},
+	{"name": "Vorsprung 89", "form": "streifen", "von": 86.0, "bis": 92.0,
+			"aussen": VORSPRUNG_89, "oben": 0.0, "hoehe": 2.0, "ebene": 1,
+			"optik": "saum"},
+	# Kniehoher Fels an der Spitze der Kerbennase: bricht den Umriss der
+	# Kante, ohne im Bild zu stehen (außen an der Wegkante, K7).
+	{"name": "Spornfels", "form": "kasten", "s": 63.2, "q": 6.0,
+			"groesse": Vector3(1.3, 2.4, 1.8), "oben": 1.1, "ebene": 16,
+			"optik": "wegbauten"},
+	# Liegender Stamm auf dem Stammsporn, das äußere Drittel ragt über den
+	# Abgrund. Wer darauf hinausbalanciert, steht über der Todeszone K-B.
+	{"name": "Hangstamm", "form": "kapsel", "s": 75.0, "q": 8.0, "radius": 0.35,
+			"laenge": 5.4, "oben": 0.7, "ebene": 16, "optik": "wegbauten"},
 	{"name": "Nischenboden", "form": "streifen", "von": 78.0, "bis": 98.0,
 			"aussen": [Vector2(78.0, -5.3), Vector2(82.0, -9.5), Vector2(84.0, -11.0),
 				Vector2(92.0, -11.0), Vector2(95.0, -8.0), Vector2(98.0, -5.3)],
@@ -360,11 +408,14 @@ const BEGEHBARES := [
 			"groesse": Vector3(1.55, 3.6, 4.0), "oben": 2.6, "ebene": 16,
 			"optik": "wegbauten"},
 	# --- D ---
+	# Die Trittsteine liegen bündig mit dem Weg (7,2) und damit auf Ebene 1
+	# wie die Decke: Der Kamerastrahl bleibt über Deck +1 und berührt sie
+	# nie, aber der Bodenschatten und alle Bodenstrahlen finden sie.
 	{"name": "Furtstein 1", "form": "zylinder", "s": 175.9, "q": -1.0,
-			"radius": 1.3, "hoehe": 2.0, "oben_y": 7.2, "ebene": 16,
+			"radius": 1.3, "hoehe": 2.0, "oben_y": 7.2, "ebene": 1,
 			"optik": "wegbauten"},
 	{"name": "Furtstein 2", "form": "zylinder", "s": 180.1, "q": 0.8,
-			"radius": 1.3, "hoehe": 2.0, "oben_y": 7.2, "ebene": 16,
+			"radius": 1.3, "hoehe": 2.0, "oben_y": 7.2, "ebene": 1,
 			"optik": "wegbauten"},
 	{"name": "Findlingsturm", "form": "kasten", "s": 189.75, "q": 6.8,
 			"groesse": Vector3(1.6, 4.0, 2.5), "oben": 3.0, "ebene": 16,
@@ -440,13 +491,19 @@ const LEITLINIEN := [
 				Vector2(-7.0, 5.6), Vector2(33.0, 5.6), Vector2(33.5, 5.2),
 				Vector2(39.5, 5.2), Vector2(40.0, 9.8), Vector2(48.0, 9.8),
 				Vector2(48.5, 5.2), Vector2(50.0, 5.2)]},
-	# Rechts D mit der Hecke der Wurzelwiese (r ≈ 34).
+	# Rechts D mit der Hecke der Wurzelwiese (r ≈ 34). Die Schulter reicht
+	# bis 196, wo die Wiese beginnt: Zwischen 194 und 196 schwenkt die Linie
+	# von 6,8 auf 12,4 hinaus, und ohne Boden bis dorthin fiele man neben
+	# der Kröte 19 m tief.
 	{"name": "Rechts D", "aussen": 1.0, "hoehe": 6.0, "unten": 5.0,
-			"schulter": Vector2(159.5, 194.0), "punkte": [
+			"schulter": Vector2(159.5, 196.0), "punkte": [
 				Vector2(159.5, 6.8), Vector2(187.0, 6.8), Vector2(188.0, 7.8),
 				Vector2(191.5, 7.8), Vector2(192.5, 6.8), Vector2(194.0, 6.8),
 				Vector2(196.0, 12.4), Vector2(214.0, 12.4), Vector2(214.4, 4.8)]},
+	# Mit Schulter: Die Linie steht 0,1 m außerhalb der Wegkante, und ohne
+	# Boden dazwischen klaffte ein Spalt ohne Todeszone darunter.
 	{"name": "Stammseite F", "aussen": -1.0, "hoehe": 6.0, "unten": 3.0,
+			"schulter": Vector2(272.5, 287.3),
 			"punkte": [Vector2(272.5, -4.1), Vector2(287.3, -6.1)]},
 	{"name": "Querwand Ende", "aussen": 1.0, "hoehe": 6.0, "unten": 3.0,
 			"punkte": [Vector2(287.3, 6.4), Vector2(287.3, -6.4)]},
@@ -455,6 +512,13 @@ const LEITLINIEN := [
 ## Todeszonen (Plan Abschnitt 12), einseitig. Oberkante "oben_y" fest oder
 ## "unter_weg" Meter unter der Wegdecke (je Stück neu gerechnet). Die Regel:
 ## höchstens min(Weg − 6, tiefstes Begehbares im Umriss − 2,5).
+##
+## "am_rand" statt "q_von": Die Zone beginnt je Stück so viele Meter
+## INNERHALB der Wegkante (nach der schmalsten Stelle des Stücks). Wo der
+## Weg schmaler wird (B4/B5 auf 7,5 m), bliebe sonst zwischen Kante und
+## einer festen Innengrenze ein Streifen, durch den ein senkrechter Sturz
+## 35 m tief an der Zone vorbeifällt. Unter der festen Decke schadet die
+## Zone nicht – sie liegt sechs Meter tiefer.
 const TODESZONEN := [
 	{"name": "K-A links", "von": -8.0, "bis": 33.0, "q_von": -36.0, "q_bis": -5.6,
 			"oben_y": 20.0},
@@ -462,11 +526,11 @@ const TODESZONEN := [
 			"oben_y": 20.0},
 	{"name": "K-Spalt", "von": 24.0, "bis": 28.5, "q_von": -12.0, "q_bis": 12.0,
 			"oben_y": 20.0},
-	{"name": "K-B", "von": 33.0, "bis": 104.0, "q_von": 4.8, "q_bis": 40.0,
+	{"name": "K-B", "von": 33.0, "bis": 104.0, "am_rand": 0.3, "q_bis": 40.0,
 			"unter_weg": 6.0},
 	{"name": "K-Kerbe", "von": 55.0, "bis": 60.0, "q_von": -12.0, "q_bis": 12.0,
 			"oben_y": 18.5},
-	{"name": "K-C", "von": 104.0, "bis": 150.0, "q_von": 3.8, "q_bis": 40.0,
+	{"name": "K-C", "von": 104.0, "bis": 150.0, "am_rand": 0.3, "q_bis": 40.0,
 			"unter_weg": 6.0},
 	{"name": "K-Fallkerbe", "von": 117.0, "bis": 122.0, "q_von": -12.0,
 			"q_bis": 12.0, "oben_y": 14.0},
@@ -499,10 +563,22 @@ const LICHTLOECHER := [
 
 ## Wurzeltore und Kronentor. "abstand": halbe lichte Weite von Fuß zu Fuß,
 ## "scheitel": Höhe über dem Weg; Sichtsperre erst ab 6 m.
+##
+## Die Wurzelbögen der Wendel ("art": "wurzelbogen", baut der Weltenbaum):
+## Alle gut 20 m schwingt ein Strang des Innenfleischs über den Weg zum
+## äußeren Wurzelkamm. Sie geben dem Rahmen einen Takt, damit die Wendel
+## nicht als gleichförmiges Band mit Wand und Bordstein liest. Innen fußen
+## sie auf dem Fleisch hinter dessen Kollision, außen auf dem Rindenwulst.
 const TORE := [
 	{"name": "Waldtor", "s": 3.0, "abstand": 7.5, "scheitel": 9.2},
 	{"name": "Pfortentor", "s": 101.5, "abstand": 4.4, "scheitel": 9.2},
 	{"name": "Riesentor", "s": 162.0, "abstand": 9.0, "scheitel": 10.0},
+	{"name": "Wurzelbogen 1", "s": 206.0, "abstand": 5.0, "scheitel": 9.8,
+			"art": "wurzelbogen"},
+	{"name": "Wurzelbogen 2", "s": 229.0, "abstand": 5.0, "scheitel": 9.8,
+			"art": "wurzelbogen"},
+	{"name": "Wurzelbogen 3", "s": 253.0, "abstand": 5.0, "scheitel": 10.2,
+			"art": "wurzelbogen"},
 	{"name": "Kronentor", "s": 280.0, "abstand": 5.3, "scheitel": 9.5},
 ]
 
@@ -527,13 +603,17 @@ const RAHMENBAUM_STELLEN := [
 	{"s": 41.6, "q": 8.7, "fuss": 0.0, "hoehe": 9.0, "art": "drehkiefer"},
 	{"s": 50.0, "q": 9.5, "fuss": -7.0, "hoehe": 14.0, "art": "sims"},
 	{"s": 76.0, "q": 10.5, "fuss": -8.5, "hoehe": 15.0, "art": "sims"},
+	# Unter der Lippe des Kiefernsporns (VORSPRUNG_89), die Krone neigt sich
+	# über den Vorsprung.
+	{"s": 89.5, "q": 9.0, "fuss": -5.0, "hoehe": 14.0, "art": "sims"},
 	{"s": 98.0, "q": 9.0, "fuss": -6.5, "hoehe": 13.0, "art": "sims"},
 	{"s": 101.5, "q": 7.0, "fuss": -1.0, "hoehe": 22.0, "art": "torbaum"},
 ]
 
 # =========================================================== Spiel
 
-## Alle 62 Kisten. "stapel": 1 = auf einer Kiste; "auf": Name eines
+## Alle 62 Kisten, davon zählen 57 (die vier Checkpoints und die Sprungfeder
+## zählt das HUD nicht). "stapel": 1 = auf einer Kiste; "auf": Name eines
 ## Eintrags aus BEGEHBARES, auf dessen Oberkante die Kiste steht.
 ## Keine schwebenden Kisten; Stapel nur bei |q| ≥ 2,6.
 const KISTEN := [
@@ -638,6 +718,10 @@ const FRUECHTE := [
 	{"art": "bogen", "von": 24.0, "bis": 28.5, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
 	# --- B ---
 	{"art": "reihe", "von": 36.0, "bis": 40.0, "anzahl": 5, "q": 1.0},
+	# Die Spur biegt auf die Kanzel zum ersten Checkpoint ab: Wer in der
+	# Wegmitte bleibt, liefe sonst an ihm vorbei bis zur offenen Kante.
+	{"art": "punkte", "punkte": [Vector3(41.0, 2.0, 0.9), Vector3(42.2, 3.5, 0.9),
+			Vector3(43.4, 5.0, 0.9)]},
 	{"art": "bogen", "von": 55.0, "bis": 60.0, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
 	{"art": "reihe", "von": 62.0, "bis": 65.0, "anzahl": 3, "q": 0.0},
 	# Die Moosbank kündigt sich an: eine Spur von der Feder hinauf.
@@ -674,6 +758,21 @@ const FRUECHTE := [
 	# --- F ---
 	{"art": "reihe", "von": 274.0, "bis": 277.0, "anzahl": 4, "q": 0.0},
 ]
+
+# =========================================================== Sichtweiten
+
+## Harte Sichtweiten der Spielobjekte (Plan Abschnitt 13), nur in diesem
+## Level. Die lange Sichtlinie vom Grat zeigte sonst fast alle Kisten und
+## über hundert Früchte zugleich – jede Kiste mit Korpus, Schattenriss und
+## Schrift fünf bis sieben Zeichenaufrufe. Allein der Rohbau kam damit bei
+## s 4 auf 672. Ohne Überblenden (im Compatibility-Renderer nicht
+## verlässlich); im Dunst jenseits von 55–90 m fällt das Auftauchen nicht
+## auf. `SICHTWEITE_RAND` ist die Schwelle gegen Flackern an der Grenze.
+const SICHTWEITE_KISTE := 80.0
+const SICHTWEITE_FRUCHT := 58.0
+const SICHTWEITE_GEGNER := 90.0
+const SICHTWEITE_RAND := 5.0
+
 
 # =========================================================== Laufzeit
 
@@ -788,6 +887,8 @@ func _optik(e: Dictionary) -> Node3D:
 			return L01Weltenbaum.optik(self, e)
 		"gelaende":
 			return L01Gelaende.optik(self, e)
+		"saum":
+			return L01Saum.optik(self, e)
 	return null
 
 
@@ -867,8 +968,10 @@ func _gefahren_setzen() -> void:
 	for e: Dictionary in TODESZONEN:
 		var von: float = e["von"]
 		var bis: float = e["bis"]
-		var q_von: float = e["q_von"]
+		var q_von: float = e.get("q_von", 0.0)
 		var q_bis: float = e["q_bis"]
+		# "am_rand": Innengrenze je Stück an der Wegkante (siehe TODESZONEN).
+		var am_rand: float = e.get("am_rand", NAN)
 		var zonen: Array[Area3D] = []
 		if e.has("unter_weg"):
 			# In Stücken, die an keiner Stufe vorbeilaufen: Die Oberkante
@@ -892,8 +995,12 @@ func _gefahren_setzen() -> void:
 					# den Wert des Nachbarn liefert.
 					var y0 := boden_bei(s0 + 0.01) - tief
 					var y1 := boden_bei(s1 - 0.01) - tief
+					var innen := q_von
+					if not is_nan(am_rand):
+						var kante := minf(_wegrand(s0 + 0.01), _wegrand(s1 - 0.01))
+						innen = signf(q_bis) * (kante - am_rand)
 					zonen.append(LevelWerkzeuge.todeszone(wurzel, verlauf, s0, s1,
-							q_von, q_bis, y0, y1))
+							innen, q_bis, y0, y1))
 		else:
 			zonen.append(LevelWerkzeuge.todeszone(wurzel, verlauf, von, bis,
 					q_von, q_bis, float(e["oben_y"])))
@@ -904,6 +1011,7 @@ func _gefahren_setzen() -> void:
 # =========================================================== Spielobjekte
 
 func _kisten_setzen() -> void:
+	_sichtweiten_einrichten()
 	for e: Dictionary in KISTEN:
 		var k := KISTE.instantiate() as Kiste
 		k.art = e["art"]
@@ -939,6 +1047,48 @@ func kisten_orte() -> Array[Vector3]:
 	for e: Dictionary in KISTEN:
 		orte.append(kisten_ort(e))
 	return orte
+
+
+## Hängt sich an `objekte`: Jede Kiste, Frucht und jeder Gegner, der dort
+## eintritt, bekommt seine Sichtweite, sobald er fertig gebaut ist (die Optik
+## entsteht erst in `_ready`). So trifft es auch, was `LevelBasis` nach einem
+## Tod neu aufstellt oder im Zeitmodus gegen eine Zeitkiste tauscht.
+func _sichtweiten_einrichten() -> void:
+	if not objekte.child_entered_tree.is_connected(_objekt_eingetreten):
+		objekte.child_entered_tree.connect(_objekt_eingetreten)
+
+
+func _objekt_eingetreten(knoten: Node) -> void:
+	var weite := _sichtweite_fuer(knoten)
+	if weite <= 0.0:
+		return
+	if knoten.is_node_ready():
+		_sichtweite_setzen(knoten, weite)
+	else:
+		knoten.ready.connect(_sichtweite_setzen.bind(knoten, weite), CONNECT_ONE_SHOT)
+
+
+func _sichtweite_fuer(knoten: Node) -> float:
+	if knoten is Kiste:
+		return SICHTWEITE_KISTE
+	if knoten is Frucht:
+		return SICHTWEITE_FRUCHT
+	if knoten is Gegner:
+		return SICHTWEITE_GEGNER
+	return 0.0
+
+
+## Setzt die Sichtweite an allem, was darunter gezeichnet wird. Wer schon
+## eine eigene hat, behält sie.
+func _sichtweite_setzen(knoten: Node, weite: float) -> void:
+	if not is_instance_valid(knoten):
+		return
+	var teil := knoten as GeometryInstance3D
+	if teil != null and teil.visibility_range_end <= 0.0:
+		teil.visibility_range_end = weite
+		teil.visibility_range_end_margin = SICHTWEITE_RAND
+	for kind in knoten.get_children():
+		_sichtweite_setzen(kind, weite)
 
 
 func _gegner_setzen() -> void:
@@ -1105,6 +1255,14 @@ func ist_luecke(s: float) -> bool:
 	return breite_bei(s) <= 0.0
 
 
+## Halbe Wegbreite; in einer Lücke die breitere der beiden Kanten.
+func _wegrand(s: float) -> float:
+	var halb := breite_bei(s) * 0.5
+	if halb <= 0.0:
+		halb = maxf(breite_bei(_kante_vor(s)), breite_bei(_kante_nach(s))) * 0.5
+	return halb
+
+
 ## Größter seitlicher Abstand, bei dem ein Objekt noch sicher auf dem Weg steht.
 func rand_bei(s: float, sicherheit: float = 1.3) -> float:
 	return maxf(breite_bei(s) * 0.5 - sicherheit, 0.0)
@@ -1184,9 +1342,11 @@ func weg_von_der_kante(s: float, abstand: float) -> float:
 
 
 ## Der Rand an einer Stelle, ausgerechnet: {"typ", "abstand" (Querabstand des
-## Profilanfangs), "wegrand" (halbe Wegbreite, in Lücken die der Kanten),
-## "hoehe", "kante_y" (Welt-Y der Decke), "fuss_y", "krone_y" (NAN, wo es
-## keinen gibt), "eintrag"}. Für die Nähte zwischen Saum und Gelände.
+## Profilanfangs, bei FELS_AB die Lippe), "wegrand" (halbe Wegbreite, in
+## Lücken die der Kanten), "hoehe", "kante_y" (Welt-Y der Decke), "fuss_y",
+## "krone_y" (NAN, wo es keinen gibt), "vorsprung" (true: die Lippe springt
+## hier über den Abstand hinaus, zwischen Wegrand und Lippe liegt Boden auf
+## Deckenhöhe), "eintrag"}. Für die Nähte zwischen Saum und Gelände.
 func rand_profil(s: float, seite: float) -> Dictionary:
 	var wegrand := breite_bei(s) * 0.5
 	if wegrand <= 0.0:
@@ -1204,6 +1364,13 @@ func rand_profil(s: float, seite: float) -> Dictionary:
 		if r.has("abstand"):
 			var a0: float = r["abstand"]
 			abstand = lerpf(a0, float(r.get("abstand_ende", a0)), t)
+		# Vorsprünge: Die Lippe springt über den Abstand hinaus.
+		var vorsprung := false
+		for linie: Array in r.get("umriss", []):
+			var q_lippe := _polylinie_q(linie, s)
+			if not is_nan(q_lippe) and absf(q_lippe) > abstand:
+				abstand = absf(q_lippe)
+				vorsprung = true
 		var hoehe := 0.0
 		if r.has("hoehe"):
 			var h0: float = r["hoehe"]
@@ -1217,9 +1384,11 @@ func rand_profil(s: float, seite: float) -> Dictionary:
 		if typ == "FELS_AUF" or typ == "BOESCHUNG":
 			krone_y = kante_y + hoehe
 		return {"typ": typ, "abstand": abstand, "wegrand": wegrand, "hoehe": hoehe,
-				"kante_y": kante_y, "fuss_y": fuss_y, "krone_y": krone_y, "eintrag": r}
+				"kante_y": kante_y, "fuss_y": fuss_y, "krone_y": krone_y,
+				"vorsprung": vorsprung, "eintrag": r}
 	return {"typ": "FLACH", "abstand": wegrand, "wegrand": wegrand, "hoehe": 0.0,
-			"kante_y": kante_y, "fuss_y": NAN, "krone_y": NAN, "eintrag": {}}
+			"kante_y": kante_y, "fuss_y": NAN, "krone_y": NAN, "vorsprung": false,
+			"eintrag": {}}
 
 
 func _kante_vor(s: float) -> float:

@@ -346,6 +346,12 @@ const NETZ_FARBEN := {
 ## `groesse` die größte Achse, für Liegendes), `optionen` sind die
 ## Vorgaben für `netz()`. Die Namen stammen aus dem Plan
 ## und sind nach dem Herunterladen zu prüfen (natur2/LIESMICH.md).
+##
+## `kenney_ab`: Die Kenney-Stufe taugt nur in der Ferne. Aus der Nähe lasen
+## sich `plant_bush*` als stachlige Agaven mit Moos auf den Blättern und
+## `log_large` als dunkler Kasten. Näher am Weg als so viele Meter liefert
+## `rolle(kennung, abstand)` dann nichts, und der Aufrufer baut den
+## Rückfall, der in `rueckfall` steht.
 const ROLLEN := {
 	"M1": {"name": "Hallen- und Hangbäume", "hoehe": 15.0,
 		"primaer": ["megakit/CommonTree_1", "megakit/CommonTree_2", "megakit/CommonTree_3",
@@ -369,11 +375,14 @@ const ROLLEN := {
 	"M7": {"name": "Konsolenpilze", "hoehe": 0.4,
 		"primaer": ["megakit/Mushroom_Laetiporus"], "ersatz": [], "kenney": [],
 		"optionen": {}},
+	# Moos sparsam und oliv, der Fuß dunkel: Mit 0,42 und dem Grün der
+	# Vorgabe lag auf jedem Stein eine flache, zu helle grüne Decke.
 	"M8": {"name": "Felsen, Findlinge (Deko)", "groesse": 2.4,
 		"primaer": ["megakit/Rock_Medium_1", "megakit/Rock_Medium_2", "megakit/Rock_Medium_3"],
 		"ersatz": [],
 		"kenney": ["rock_largeA", "rock_largeB", "rock_largeC"],
-		"optionen": {"moos": 0.42, "formen": 2, "max_dreiecke": 700}},
+		"optionen": {"moos": 0.3, "moos_ton": Color(0.9, 0.8, 1.0), "fuss_dunkel": 0.5,
+			"formen": 2, "max_dreiecke": 700}},
 	"M9": {"name": "Kiesel", "groesse": 0.32,
 		"primaer": ["megakit/Pebble_Round_1", "megakit/Pebble_Round_2",
 			"megakit/Pebble_Square_1", "megakit/Pebble_Square_2"],
@@ -388,6 +397,7 @@ const ROLLEN := {
 		"primaer": ["megakit/Bush_Common", "megakit/Bush_Common_Flowers"],
 		"ersatz": [],
 		"kenney": ["plant_bush", "plant_bushDetailed", "plant_bushSmall"],
+		"kenney_ab": 40.0, "rueckfall": "Kronenwolke.netz, radius 0,8–1,4",
 		"optionen": {"wind": 0.03}},
 	"M12": {"name": "Farne", "hoehe": 1.1,
 		"primaer": ["megakit/Fern_1"], "ersatz": [], "kenney": [],
@@ -409,6 +419,7 @@ const ROLLEN := {
 		"primaer": ["unp/WoodLog_Moss", "unp/TreeStump_Moss"],
 		"ersatz": ["stump_old", "stump_round"],
 		"kenney": ["log_large"],
+		"kenney_ab": 40.0, "rueckfall": "Riesenstamm.liegend / Riesenstamm.stumpf",
 		"optionen": {"moos": 0.5, "formen": 2, "zerklueftung": 0.025, "woelbung": 0.0,
 			"runden": 1.0, "max_dreiecke": 600}},
 	"M17": {"name": "Totholz", "hoehe": 8.0,
@@ -453,12 +464,16 @@ static var _lod_gewarnt := false
 
 ## Die vorhandenen Modelle einer Rolle (siehe `ROLLEN`), nur aus der
 ## besten Stufe, von der etwas da ist. Leer: prozeduraler Rückfall.
-static func rolle(kennung: String) -> PackedStringArray:
+## `abstand`: wie weit die Stücke vom Weg stehen (Vorgabe: beliebig weit).
+## Näher als `kenney_ab` fällt die Kenney-Stufe weg.
+static func rolle(kennung: String, abstand: float = INF) -> PackedStringArray:
 	var liste := PackedStringArray()
 	if not aktiv() or not ROLLEN.has(kennung):
 		return liste
 	var eintrag: Dictionary = ROLLEN[kennung]
 	for stufe: String in ["primaer", "ersatz", "kenney"]:
+		if stufe == "kenney" and abstand < float(eintrag.get("kenney_ab", 0.0)):
+			continue
 		var namen: Array = eintrag.get(stufe, [])
 		for n: Variant in namen:
 			if hat(String(n)):
@@ -488,11 +503,12 @@ static func rolle_optionen(kennung: String, dazu: Dictionary = {}) -> Dictionary
 
 
 ## Alle Netze einer Rolle mit ihren Vorgaben – leer, wenn die Rolle auf
-## den Rückfall angewiesen ist.
-static func rolle_netze(kennung: String, dazu: Dictionary = {}) -> Array[Dictionary]:
+## den Rückfall angewiesen ist. `abstand` wie bei `rolle()`.
+static func rolle_netze(kennung: String, dazu: Dictionary = {},
+		abstand: float = INF) -> Array[Dictionary]:
 	var netze: Array[Dictionary] = []
 	var optionen := rolle_optionen(kennung, dazu)
-	for n in rolle(kennung):
+	for n in rolle(kennung, abstand):
 		var fertig := netz(n, optionen)
 		if not fertig.is_empty():
 			netze.append(fertig)
@@ -523,6 +539,7 @@ static func rolle_netze(kennung: String, dazu: Dictionary = {}) -> Array[Diction
 ##   laub_toenung / hart_toenung   nur auf Laub bzw. harte Flächen
 ##   farben       {Materialname: Color} statt der Palette
 ##   moos         0–1 Moosmenge auf harten Flächen (Vorgabe je Stoff)
+##   moos_ton, fuss_dunkel   an `moosdecke()` weitergereicht (harte Flächen)
 ##   glaetten     0–1 Normalen der harten Flächen glätten (Vorgabe je Stoff)
 ##   formen       0–3 harte Flächen so oft vierteln und nachformen: Rauschen
 ##                und gewölbte Oberseite, aus Tischplatten werden Findlinge
@@ -1369,6 +1386,10 @@ static func _gruppe_stoff(g: Dictionary, optionen: Dictionary, huelle: AABB) -> 
 			"fuss": snappedf(clampf(hoehe * 0.12, 0.04, 0.35), 0.01),
 			"relief": 0.6 if holzig else 0.45,
 		}
+		# Moosfarbe und Fuß aus der Rolle (Felsen: oliv, dunkler Fuß).
+		for schluessel: String in ["moos_ton", "fuss_dunkel"]:
+			if optionen.has(schluessel):
+				wunsch[schluessel] = optionen[schluessel]
 		if textur != null:
 			wunsch["grund"] = textur
 			wunsch["grund_ist_farbe"] = true

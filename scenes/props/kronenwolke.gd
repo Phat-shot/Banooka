@@ -8,16 +8,23 @@ class_name Kronenwolke
 ## * 5–9 **verrauschte Ikosphären**, verschmolzen zu einem Netz. Was eine
 ##   Kugel ganz in einer anderen verbirgt, fällt weg – das spart Dreiecke
 ##   und Überzeichnen.
-## * **Normalen** zu 70 % zur Kronenmitte gebogen: Die Krone schattiert wie
-##   eine Wolke im Ganzen, die Buckel bleiben nur als sanfte Stufen. So liest
-##   sich eine Krone, nicht ein Haufen Kugeln. Dazu ein Zittern je Ecke (das
+## * **Normalen** zur Hälfte zur Kronenmitte gebogen: Die Krone schattiert
+##   wie eine Wolke im Ganzen, die Buckel behalten ihre Form. So liest sich
+##   eine Krone, nicht ein Haufen Kugeln – und auch kein glatter Klumpen. Dazu ein Zittern je Ecke (das
 ##   Licht bricht in Büschel) und ein Zug nach oben: Die Unterseite fängt
 ##   Himmelslicht, statt als schwarze Scheibe unter dem Baum zu hängen.
-## * **Scheitelfarbe**: innen und unten dunkler und kühler, oben heller und
-##   wärmer, jede Kugel leicht anders getönt.
-## * **Blattkarten** (30–60) am Umriss: Vierecke, die sich im Vertexshader
-##   zur Kamera drehen, mit einer prozeduralen Blattbüschel-Textur (256²,
-##   Alpha-Scissor). Sie fransen die Silhouette aus, von jeder Seite.
+## * **Farbe nach Höhe** (im Shader, aus UV2): unten ein kühles, dunkles
+##   Blaugrün (×0,45), oben ein warmes Gelbgrün (×1,2) – die Sonne liegt auf
+##   der Krone, nicht rundum. Scheitelfarbe: Verdeckung innen, jede Kugel und
+##   jede Krone leicht anders getönt (±6 %).
+## * **Blattkarten** (40–200, je 0,6–1,4 m) über die ganze Hülle verteilt,
+##   nicht nur am Rand: Vierecke, die sich im Vertexshader zur Kamera drehen,
+##   mit einer prozeduralen Blattbüschel-Textur (256², Alpha-Scissor). Sie
+##   fransen die Silhouette aus und brechen die Fläche in Büschel.
+## * **Aufgelöster Körper**: Wo keine der drei Projektionen der Blatttextur
+##   ein Blatt trifft (rund ein Viertel der Fläche), wird verworfen; durch
+##   die Lücken sieht man ins dunkle Innere (Rückseiten). Nur in der Nähe –
+##   jenseits von 45 m flimmerten die Löcher, dort schließt sich der Körper.
 ## * **Wind**: ein Hauch im Vertexshader, kein Knoten wird bewegt.
 ##
 ## Varianten: 0 rund, 1 breit (Schirm), 2 hoch (schlank) – und `fern()`:
@@ -28,8 +35,9 @@ class_name Kronenwolke
 ## wo die Äste enden – dann gelten die Koordinaten des Baums.
 ##
 ## Scheiteldaten (für den Stoff):
-##   COLOR.rgb  Schattierung · Tönung, COLOR.a Windgewicht
-##   UV2.x      1 = Blattkarte, 0 = Körper; UV2.y Kartengröße in m
+##   COLOR.rgb  Verdeckung · Tönung, COLOR.a Windgewicht
+##   UV2        Körper: (0, Höhe in der Krone 0..1)
+##              Blattkarte: (1 + Höhe, Kartengröße in m)
 ##   UV         Ecke der Karte (0..1)
 ## Instanzfarben eines MultiMesh tönen die Krone. Eine skalierte Instanz
 ## skaliert auch die Karten mit.
@@ -43,8 +51,9 @@ class_name Kronenwolke
 ##     mi.material_override = Kronenwolke.stoff(Farben.LAUB)
 ##     mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-## Wie weit die Normalen zur Kronenmitte gebogen werden.
-const BIEGUNG := 0.7
+## Wie weit die Normalen zur Kronenmitte gebogen werden. Bei 0,7 zerliefen
+## die Buckel zu einem dunklen Klumpen; bei 0,5 behalten sie ihre Form.
+const BIEGUNG := 0.5
 
 
 ## Eine Krone. Optionen (alle freiwillig):
@@ -53,7 +62,7 @@ const BIEGUNG := 0.7
 ##   mitte        Mittelpunkt (Vector3.ZERO)
 ##   variante     0 rund, 1 breit, 2 hoch
 ##   ballen       Anzahl der Kugeln (5–9, Vorgabe 7)
-##   karten       Blattkarten (30–60 nach Größe; 0 = keine)
+##   karten       Blattkarten (40–200 nach Größe; 0 = keine)
 ##   zentren      PackedVector3Array: Kugeln an diesen Stellen (Astspitzen,
 ##                der letzte Punkt ist der Leittrieb)
 ##   nebenzentren PackedVector3Array: kleinere Kugeln (Zweigspitzen)
@@ -74,7 +83,9 @@ static func netz(optionen: Dictionary = {}) -> ArrayMesh:
 	var ballen: int = clampi(int(optionen.get("ballen", 5 if flach else 7)), 1, 12)
 	var karten: int = optionen.get("karten", -1)
 	if karten < 0:
-		karten = 0 if flach else clampi(int(24.0 + radius * 12.0), 30, 60)
+		# Über die ganze Hülle, dicht genug, dass die Fläche in Büschel
+		# zerfällt: bei 3 m Radius rund 125, ab 3,8 m 200.
+		karten = 0 if flach else clampi(int(radius * radius * 14.0), 40, 200)
 	var wind: float = optionen.get("wind", 1.0)
 	var zentren: PackedVector3Array = optionen.get("zentren", PackedVector3Array())
 	var nebenzentren: PackedVector3Array = optionen.get("nebenzentren", PackedVector3Array())
@@ -102,36 +113,40 @@ static func netz(optionen: Dictionary = {}) -> ArrayMesh:
 	rauschen.frequency = 1.0
 	rauschen.fractal_octaves = 2
 
+	# Tönung der ganzen Krone (±6 %), damit ein Wald aus wenigen Netzen
+	# nicht gestempelt aussieht. Im MultiMesh kommt die Instanzfarbe dazu.
+	var kronen_waerme := rng.randf_range(-0.06, 0.06)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var randpunkte: Array[Dictionary] = []
 	for index in kugeln.size():
 		var k: Dictionary = kugeln[index]
 		_kugel(st, rng, rauschen, k, index, kugeln, huelle_mitte, huelle_radien, unten, oben,
-				wind, flach, randpunkte)
+				wind, flach, randpunkte, kronen_waerme)
 
-	# Blattkarten an Punkten nahe der Hülle, eher oben und außen.
+	# Blattkarten über die ganze Hülle: gleich verteilt über die Punkte der
+	# äußeren Schale (die Unterseite dünner, siehe `_kugel`). Klein – bei 3 m
+	# Radius 0,6–0,9 m: Viele kleine Büschel lesen sich als Laub, wenige
+	# große als Fransen an einem Klumpen.
 	var max_karte := 0.0
 	if karten > 0 and not randpunkte.is_empty():
+		var karten_mass := clampf(radius * 0.25, 0.6, 1.4)
 		for n in karten:
-			# Zweimal ziehen, den Punkt weiter außen nehmen: Die Karten
-			# sammeln sich am Umriss, ohne die Fläche ganz zu meiden.
 			var wahl: Dictionary = randpunkte[rng.randi_range(0, randpunkte.size() - 1)]
-			var zweite: Dictionary = randpunkte[rng.randi_range(0, randpunkte.size() - 1)]
-			if float(zweite["aussen"]) > float(wahl["aussen"]):
-				wahl = zweite
 			var p: Vector3 = wahl["ort"]
 			var nrm: Vector3 = wahl["normale"]
 			var farbe: Color = wahl["farbe"]
 			var rk: float = wahl["kugel_radius"]
-			var groesse := clampf(rk * rng.randf_range(0.55, 0.95), 0.35, 3.0)
+			var groesse := minf(karten_mass * rng.randf_range(0.8, 1.2), rk * 1.1)
 			max_karte = maxf(max_karte, groesse)
-			var ort := p + nrm * groesse * 0.12 + Vector3(rng.randf_range(-0.1, 0.1),
-					rng.randf_range(-0.1, 0.1), rng.randf_range(-0.1, 0.1)) * rk
-			var f := Color(minf(farbe.r * 1.08, 1.0), minf(farbe.g * 1.08, 1.0),
-					minf(farbe.b * 1.05, 1.0), minf(farbe.a + 0.2, 1.0))
+			var ort := p + nrm * groesse * rng.randf_range(0.05, 0.3) \
+					+ Vector3(rng.randf_range(-0.1, 0.1), rng.randf_range(-0.1, 0.1),
+					rng.randf_range(-0.1, 0.1)) * rk
+			var f := Color(minf(farbe.r * 1.06, 1.0), minf(farbe.g * 1.06, 1.0),
+					minf(farbe.b * 1.04, 1.0), minf(farbe.a + 0.2, 1.0))
 			# Karten schauen stärker nach oben: Laub ist Licht zugewandt.
-			_karte(st, ort, (nrm + Vector3.UP * 0.6).normalized(), groesse, f)
+			_karte(st, ort, (nrm + Vector3.UP * 0.6).normalized(), groesse, f,
+					float(wahl["hoehe"]))
 
 	var ergebnis: ArrayMesh = st.commit()
 	# Die Karten wachsen erst im Shader um ihre Mitte: Hülle vorbeugend weiten,
@@ -240,7 +255,7 @@ static func _anordnen(rng: RandomNumberGenerator, variante: int, flach: bool, ra
 static func _kugel(st: SurfaceTool, rng: RandomNumberGenerator, rauschen: FastNoiseLite,
 		k: Dictionary, index: int, kugeln: Array[Dictionary], huelle_mitte: Vector3,
 		huelle_radien: Vector3, unten: float, oben: float, wind: float, flach: bool,
-		randpunkte: Array[Dictionary]) -> void:
+		randpunkte: Array[Dictionary], kronen_waerme: float = 0.0) -> void:
 	var c: Vector3 = k["mitte"]
 	var radien: Vector3 = k["radien"]
 	var stufe: int = k.get("stufe", 1 if flach or radien.x < 0.9 else 2)
@@ -252,7 +267,7 @@ static func _kugel(st: SurfaceTool, rng: RandomNumberGenerator, rauschen: FastNo
 	var versatz := Vector3(rng.randf_range(-50.0, 50.0), rng.randf_range(-50.0, 50.0),
 			rng.randf_range(-50.0, 50.0))
 	var ton := rng.randf_range(0.9, 1.08)
-	var waerme := rng.randf_range(-0.04, 0.04)
+	var waerme := rng.randf_range(-0.04, 0.04) + kronen_waerme
 
 	# Punkte verschieben: grobe Buckel und feinere Büschel.
 	var punkte := PackedVector3Array()
@@ -287,6 +302,8 @@ static func _kugel(st: SurfaceTool, rng: RandomNumberGenerator, rauschen: FastNo
 	farben.resize(punkte.size())
 	var gebogen := PackedVector3Array()
 	gebogen.resize(punkte.size())
+	var hoehen := PackedFloat32Array()
+	hoehen.resize(punkte.size())
 	for i in punkte.size():
 		var p := punkte[i]
 		var ng := normalen[i].normalized()
@@ -303,22 +320,23 @@ static func _kugel(st: SurfaceTool, rng: RandomNumberGenerator, rauschen: FastNo
 		nb = (nb + zittern * 0.28 + Vector3.UP * 0.35).normalized()
 		gebogen[i] = nb
 		var t := clampf(inverse_lerp(unten, oben, p.y), 0.0, 1.0)
+		hoehen[i] = t
 		var e := rel.length()
+		# Nur Verdeckung und Tönung: Den Verlauf von unten (kühl, dunkel)
+		# nach oben (warm, hell) rechnet der Shader aus UV2.
 		var ao := lerpf(0.68, 1.0, smoothstep(0.45, 1.0, e))
-		var hell := lerpf(0.58, 1.0, smoothstep(0.0, 1.0, t)) * ao * ton \
-				* rng.randf_range(0.88, 1.08)
-		# unten kühl und bläulich, oben warm und gelblich
-		var farbe := Color(hell * (0.8 + 0.22 * t + waerme), hell * (0.92 + 0.08 * t),
-				hell * (1.0 - 0.3 * t - waerme), (0.25 + 0.75 * t) * wind)
+		var hell := ao * ton * rng.randf_range(0.9, 1.06)
+		var farbe := Color(hell * (1.0 + waerme), hell, hell * (1.0 - waerme),
+				(0.25 + 0.75 * t) * wind)
 		farben[i] = Color(clampf(farbe.r, 0.0, 1.0), clampf(farbe.g, 0.0, 1.0),
 				clampf(farbe.b, 0.0, 1.0), clampf(farbe.a, 0.0, 1.0))
-		if not flach and e > 0.55:
+		if not flach and e > 0.5:
 			# Unterseite seltener: dort sieht man selten hin, und Karten unten
 			# lesen sich als herabhängendes Laub nur in Maßen.
 			if t < 0.2 and rng.randf() < 0.6:
 				continue
 			randpunkte.append({"ort": p, "normale": nb, "farbe": farben[i],
-					"kugel_radius": radien.x, "aussen": e})
+					"kugel_radius": radien.x, "aussen": e, "hoehe": t})
 
 	for t in dreiecke.size() / 3:
 		var i0 := dreiecke[t * 3]
@@ -340,7 +358,7 @@ static func _kugel(st: SurfaceTool, rng: RandomNumberGenerator, rauschen: FastNo
 		for ii: int in [i0, i1, i2]:
 			st.set_color(farben[ii])
 			st.set_uv(Vector2.ZERO)
-			st.set_uv2(Vector2.ZERO)
+			st.set_uv2(Vector2(0.0, hoehen[ii]))
 			st.set_normal(gebogen[ii])
 			st.add_vertex(punkte[ii])
 
@@ -367,13 +385,15 @@ static func _verdeckt(p: Vector3, eigene: int, kugeln: Array[Dictionary]) -> boo
 ## Eine Blattkarte: vier Ecken an derselben Stelle, der Shader zieht sie
 ## zur Kamera hin auf. Reihenfolge so, dass die Vorderseite zur Kamera zeigt.
 static func _karte(st: SurfaceTool, ort: Vector3, normale: Vector3, groesse: float,
-		farbe: Color) -> void:
+		farbe: Color, hoehe: float = 1.0) -> void:
 	var ecken := [Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0),
 			Vector2(0.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0)]
+	# Die Höhe in der Krone steht hinter der Kennung 1 (1..2 heißt Karte).
+	var art := 1.0 + clampf(hoehe, 0.0, 0.99)
 	for e: Vector2 in ecken:
 		st.set_color(farbe)
 		st.set_uv(e)
-		st.set_uv2(Vector2(1.0, groesse))
+		st.set_uv2(Vector2(art, groesse))
 		st.set_normal(normale)
 		st.add_vertex(ort)
 
@@ -430,18 +450,27 @@ static func _mitte_von(a: int, b: int, punkte: PackedVector3Array, mitten: Dicti
 
 static var _stoffe: Dictionary = {}
 static var _shader: Shader = null
+static var _shader_fern: Shader = null
 static var _blatt: ImageTexture = null
 
 ## Stoff der Kronen, je Laubfarbe einmal gebaut und geteilt – nie verändern.
-static func stoff(farbe: Color = Farben.LAUB) -> ShaderMaterial:
-	var schluessel := farbe.to_html()
+##
+## `nah` (Vorgabe): beidseitig, der Körper löst sich in der Nähe in Laub auf
+## (siehe Kopf). `nah = false` für Kronen, die nie näher als 45 m kommen
+## (Talwald fern, `fern()`): nur Vorderseiten, keine Lücken – billiger.
+static func stoff(farbe: Color = Farben.LAUB, nah: bool = true) -> ShaderMaterial:
+	var schluessel := farbe.to_html() + ("" if nah else "|fern")
 	if _stoffe.has(schluessel):
 		return _stoffe[schluessel]
-	if _shader == null:
+	if nah and _shader == null:
 		_shader = Shader.new()
-		_shader.code = KRONEN_SHADER
+		_shader.code = KRONEN_SHADER.replace("//NAH", "#define NAH") \
+				.replace("cull_back", "cull_disabled")
+	if not nah and _shader_fern == null:
+		_shader_fern = Shader.new()
+		_shader_fern.code = KRONEN_SHADER
 	var m := ShaderMaterial.new()
-	m.shader = _shader
+	m.shader = _shader if nah else _shader_fern
 	m.set_shader_parameter("farbe", farbe)
 	m.set_shader_parameter("blatt", blatttextur())
 	_stoffe[schluessel] = m
@@ -563,10 +592,14 @@ static func _deckung(daten: PackedByteArray, start: int, anzahl: int, faktor: fl
 ## werden in der Ansicht aufgezogen (`skip_vertex_transform`), jede um einen
 ## festen Zufallswinkel gedreht. Der Körper nimmt die Blatttextur als
 ## Helligkeitsmuster, damit er aus der Nähe nach Laub aussieht und nicht
-## nach Kunststoff.
+## nach Kunststoff; in der Nahfassung (`NAH`) löst er sich an den Lücken des
+## Musters auf. Der Farbverlauf nach Höhe steht als Faktor auf `farbe`
+## (gemessen am Bild wirkt er wie auf sRGB-Werte): Bei `Farben.LAUB` wird
+## daraus unten (0,10/0,21/0,14), oben (0,40/0,50/0,18).
 const KRONEN_SHADER := """
 shader_type spatial;
 render_mode skip_vertex_transform, cull_back, diffuse_lambert_wrap, specular_schlick_ggx;
+//NAH
 
 uniform vec4 farbe : source_color = vec4(0.22, 0.47, 0.16, 1.0);
 uniform sampler2D blatt : source_color, filter_linear_mipmap, repeat_enable;
@@ -575,13 +608,19 @@ uniform float wind_weite = 0.05;
 // Licht, das durch das Laub scheint: hebt die Unterseite, sonst stünden
 // Kronen von unten als schwarze Scheiben im Bild.
 uniform float durchlicht = 0.28;
+uniform vec3 ton_unten = vec3(0.46, 0.44, 0.9);
+uniform vec3 ton_oben = vec3(1.8, 1.06, 1.12);
+// Anteil der Lücken im Körper (1 = rund ein Viertel), nur mit NAH.
+uniform float aufloesen = 1.0;
 
 varying float v_karte;
+varying float v_hoehe;
 varying vec3 v_lokal;
 varying vec3 v_n;
 
 void vertex() {
 	v_karte = step(0.5, UV2.x);
+	v_hoehe = v_karte > 0.5 ? clamp(UV2.x - 1.0, 0.0, 1.0) : UV2.y;
 	v_lokal = VERTEX;
 	v_n = NORMAL;
 	vec3 welt = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -623,11 +662,23 @@ void fragment() {
 		float mb = mix(0.22, b.r * 1.05, b.a);
 		float mc = mix(0.22, c.r * 1.05, c.a);
 		muster = ma * w.x + mb * w.y + mc * w.z;
+#ifdef NAH
+		// Wo keine der drei Projektionen ein Blatt trifft, ist eine Lücke –
+		// rund ein Viertel der Fläche. In der Ferne schließt sie sich
+		// allmählich (sonst flimmerte die Krone), jenseits von 45 m ganz.
+		float nahe = 1.0 - smoothstep(28.0, 45.0, length(VERTEX));
+		if (max(max(a.a, b.a), c.a) < 0.5 * nahe * aufloesen) {
+			discard;
+		}
+#endif
 	}
-	ALBEDO = farbe.rgb * COLOR.rgb * (0.42 + 0.72 * muster);
-	// Durchlicht nach der Stofffarbe, nicht nach der Verdeckung: Auch die
+	vec3 ton = farbe.rgb * mix(ton_unten, ton_oben, smoothstep(0.0, 1.0, v_hoehe));
+	// Durch die Lücken sieht man die Rückseiten: das dunkle Innere.
+	float innen = FRONT_FACING ? 1.0 : 0.35;
+	ALBEDO = ton * COLOR.rgb * (0.42 + 0.72 * muster) * innen;
+	// Durchlicht nach dem Farbton, nicht nach der Verdeckung: Auch die
 	// Unterseite behält ihr Blattmuster.
-	EMISSION = farbe.rgb * (0.45 + 0.55 * muster) * durchlicht;
+	EMISSION = ton * (0.45 + 0.55 * muster) * durchlicht * innen;
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
 	ALPHA = alpha;

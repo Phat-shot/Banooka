@@ -414,9 +414,14 @@ func _szene_welt() -> void:
 			"wurzel_hoehe": 16.0, "wurzel_dicke": 3.5, "pilze": 6, "efeu": 3,
 			"leuchtpilze": 4, "ring_abstand": 4.0, "oben": "offen", "saat": 21}
 	var netz := Riesenstamm.netz(o)
-	_setze(netz, Riesenstamm.borkenstoff({"welt": true}), Transform3D(Basis(), Vector3.ZERO),
-			true, "Weltenbaum")
+	_setze(netz, Riesenstamm.borkenstoff({"welt": true, "radius": 12.0}),
+			Transform3D(Basis(), Vector3.ZERO), true, "Weltenbaum")
 	_kranz_um(netz, Vector3.ZERO)
+	# Links daneben, von `welt_fern` aus gleich weit entfernt, dieselbe Form
+	# im Fernstoff (`fern`): dunkler und kühler, mit senkrechten Streifen –
+	# so soll der Riese vom Grat aus vor dem Dunst stehen.
+	_setze(netz, Riesenstamm.borkenstoff({"welt": true, "radius": 12.0, "fern": true}),
+			Transform3D(Basis(), Vector3(-40.0, 0.0, 20.0)), true, "Weltenbaum_fern")
 	_figur(Vector3(8.0, 0.0, 26.0))
 	_blick("welt_fern", Vector3(20.0, 14.0, 80.0), Vector3(0.0, 14.0, 0.0), 60.0)
 	_blick("welt_fuss", Vector3(14.0, 5.0, 34.0), Vector3(0.0, 4.0, 10.0), 60.0)

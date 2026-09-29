@@ -409,12 +409,16 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 			var rel := 1.0
 			var furche := false
 			if rippen > 0:
+				# Am Boden laufen die Rippen aus: Sonst zeichnete der Wechsel
+				# Rippe–Furche an der Bodenlinie eine Sägezahnkante.
+				var auslauf := smoothstep(0.0, clampf(radius * 0.3, 0.4, 1.8), yy)
 				var k := (jj >> 1) % rippen
 				if jj % 2 == 0:
-					rel += amplituden[k] * (0.75 + 0.5 * rauschen.get_noise_2d(float(k) * 7.3, yy * 0.35))
+					rel += amplituden[k] * (0.75 + 0.5 * rauschen.get_noise_2d(float(k) * 7.3, yy * 0.35)) \
+							* auslauf
 				else:
 					var k2 := ((jj + 1) >> 1) % rippen
-					rel -= (amplituden[k] + amplituden[k2]) * 0.4
+					rel -= (amplituden[k] + amplituden[k2]) * 0.4 * auslauf
 					furche = true
 			else:
 				rel += 0.035 * rauschen.get_noise_2d(float(jj) * 5.1, yy * 0.4)
@@ -433,7 +437,7 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 			var p := mitte + Vector3(cos(winkel) * r, y_ecke - yy, -sin(winkel) * r)
 			zeile.append(p)
 			uv.append(Vector2(float(j) / float(seiten) * float(n_u), y_ecke * KACHEL_V * kachel))
-			var ao := lerpf(0.42, 1.0, smoothstep(-0.4, 2.4, yy))
+			var ao := _fuss_ao(yy, radius)
 			if furche:
 				ao *= 0.8
 			if yy < wurzel_hoehe and not wurzeln.is_empty():
@@ -604,6 +608,15 @@ static func _profil(y: float, a: Dictionary) -> float:
 	return lerpf(radius, radius_oben, pow(u, 0.85))
 
 
+## Verdeckung am Stammfuß: 0,35 an der Bodenlinie, voll erst gut einen Meter
+## darüber (bei Riesen etwas höher). Der Stamm wächst dann aus dem Boden,
+## statt hell daraufgestellt zu sein.
+static func _fuss_ao(y: float, radius: float) -> float:
+	var band := 1.2 + radius * 0.1
+	return lerpf(0.35, 1.0, smoothstep(0.0, band, y)) \
+			* lerpf(0.82, 1.0, smoothstep(band, band * 2.5, y))
+
+
 ## Anschwellen des Stamms zu den Wurzeln hin.
 static func _wulst(winkel: float, y: float, wurzeln: Array[Dictionary]) -> float:
 	var summe := 0.0
@@ -665,8 +678,10 @@ static func brettwurzel_in(st: SurfaceTool, mitte: Vector3, winkel: float, r_sta
 		var w := winkel + schlange * sin(s * PI) * reichweite / maxf(rho, 0.1) * 0.5
 		var er := Vector3(cos(w), 0.0, -sin(w))
 		var et := Vector3(-sin(w), 0.0, -cos(w))
-		var oben := hoehe * pow(1.0 - s, kruemmung) - 0.3 * s * s
-		var unten := -VERSENKT * 0.7
+		# Die Spitze taucht ganz ein (VERSENKT): Die Oberkante schneidet den
+		# Boden in einem langen, flachen Bogen statt in einer Stufe.
+		var oben := hoehe * pow(1.0 - s, kruemmung) - VERSENKT * s * s
+		var unten := -VERSENKT - 0.3
 		var halb := dicke * 0.5 * (1.0 - 0.5 * s)
 		var basis := mitte + er * rho
 		var zeile := PackedVector3Array()
@@ -690,7 +705,7 @@ static func brettwurzel_in(st: SurfaceTool, mitte: Vector3, winkel: float, r_sta
 			vorher = p
 			zeile.append(p)
 			uv.append(Vector2(bogen * KACHEL_U, rho * KACHEL_V * 2.5) * borkenmass(r_stamm))
-			var ao := lerpf(0.5, 1.0, smoothstep(-0.3, 1.2, yy)) * lerpf(0.7, 1.0, smoothstep(0.0, 0.3, s))
+			var ao := _fuss_ao(yy, r_stamm) * lerpf(0.7, 1.0, smoothstep(0.0, 0.3, s))
 			var m := 0.2 + 0.6 * (1.0 - smoothstep(0.0, 0.8, yy)) + (0.12 if v > 0.9 else 0.0)
 			m += 0.3 * rauschen.get_noise_3d(p.x * 1.1, p.y * 1.1, p.z * 1.1)
 			fa.append(Color(ao, ao, ao, clampf(m * moos, 0.0, 1.0)))
@@ -1062,13 +1077,23 @@ static var _moos: ImageTexture = null
 ## Optionen:
 ##   welt   Rinde in Weltprojektion statt über UV (senkrechte Furchen, für
 ##          Riesen, deren Teile nahtlos ineinander übergehen sollen;
-##          `welt_kachel` = Vector2(rundum, längs) Wiederholungen je Meter)
+##          `welt_kachel` = Vector2(rundum, längs) Wiederholungen je Meter).
+##          Relief dort aus Bildschirmableitungen der Rinde, nicht aus der
+##          Normalentextur – die gehört in den Tangentenraum der UV-Fassung
+##          und läge in Weltprojektion schief zum Licht.
+##   radius Stammradius: ohne `welt_kachel` wird die Kachel danach gewählt
+##          (dünn 0,5 × 0,14, ab 6 m 0,2 × 0,1). Bei 12 m Radius las sich die
+##          dünne Kachel als feines senkrechtes Haar.
 ##   farbe  Tönung der Borke (Vorgabe weiß = Rinde wie in der Bibliothek)
+##   fern   Fernfassung eines Riesen: Borke ×0,6 und kühl, senkrechte Moos-
+##          und Efeustreifen – eine Silhouette, dunkler als der Dunst dahinter
+##   streifen  senkrechte Moosstreifen 0..1 (Vorgabe 0, mit `fern` 0,55)
 ##   moos_farbe, moos_oben (0.6), moos_nord (0.8), flechten (0.6)
 static func borkenstoff(optionen: Dictionary = {}) -> ShaderMaterial:
 	var schluessel := JSON.stringify(optionen)
 	if _stoffe.has(schluessel):
 		return _stoffe[schluessel]
+	var fern: bool = optionen.get("fern", false)
 	var welt: bool = optionen.get("welt", false)
 	if welt and _shader_welt == null:
 		_shader_welt = Shader.new()
@@ -1082,12 +1107,17 @@ static func borkenstoff(optionen: Dictionary = {}) -> ShaderMaterial:
 	m.set_shader_parameter("rinde", rinde.albedo_texture)
 	m.set_shader_parameter("rinde_normal", rinde.normal_texture)
 	m.set_shader_parameter("moos", moostextur())
-	m.set_shader_parameter("borke_farbe", optionen.get("farbe", Color(1.0, 1.0, 1.0)))
-	m.set_shader_parameter("moos_farbe", optionen.get("moos_farbe", Color(1.0, 1.0, 1.0)))
+	m.set_shader_parameter("borke_farbe", optionen.get("farbe",
+			Color(0.56, 0.6, 0.66) if fern else Color(1.0, 1.0, 1.0)))
+	m.set_shader_parameter("moos_farbe", optionen.get("moos_farbe",
+			Color(0.66, 0.74, 0.8) if fern else Color(1.0, 1.0, 1.0)))
 	m.set_shader_parameter("moos_oben", optionen.get("moos_oben", 0.6))
 	m.set_shader_parameter("flechten", optionen.get("flechten", 0.6))
 	m.set_shader_parameter("moos_nord", optionen.get("moos_nord", 0.8))
-	m.set_shader_parameter("welt_kachel", optionen.get("welt_kachel", Vector2(0.5, 0.14)))
+	m.set_shader_parameter("streifen", optionen.get("streifen", 0.55 if fern else 0.0))
+	var t := smoothstep(1.0, 6.0, float(optionen.get("radius", 0.0)))
+	m.set_shader_parameter("welt_kachel", optionen.get("welt_kachel",
+			Vector2(lerpf(0.5, 0.2, t), lerpf(0.14, 0.1, t))))
 	_stoffe[schluessel] = m
 	return m
 
@@ -1152,6 +1182,9 @@ uniform float moos_oben = 0.6;
 uniform float moos_nord = 0.8;
 uniform float flechten = 0.6;
 uniform vec2 welt_kachel = vec2(0.5, 0.14);
+// Senkrechte Moos- und Efeustreifen (Fernfassung der Riesen).
+uniform float streifen = 0.0;
+uniform float relief = 0.6;
 
 varying vec3 v_wn;
 #ifdef WELT
@@ -1176,7 +1209,6 @@ void fragment() {
 	float az = wn.z * wn.z;
 	float wx = ax / max(ax + az, 0.0001);
 	vec3 rc = mix(texture(rinde, uv_z).rgb, texture(rinde, uv_x).rgb, wx);
-	vec3 rn = mix(texture(rinde_normal, uv_z).rgb, texture(rinde_normal, uv_x).rgb, wx);
 	vec2 moos_uv = mix(uv_z, uv_x, step(0.5, wx)) * vec2(1.6, 5.0);
 #else
 	vec3 rc = texture(rinde, UV).rgb;
@@ -1189,6 +1221,12 @@ void fragment() {
 	float m = COLOR.a;
 	m += moos_oben * smoothstep(0.45, 0.95, wn.y);
 	m += moos_nord * UV2.y * smoothstep(0.05, 0.85, -wn.z);
+	if (streifen > 0.0) {
+		// rundum schmal, längs sehr lang gezogen: Streifen, die den Stamm
+		// hinablaufen und den Umriss aus der Ferne gliedern
+		float lauf = texture(moos, vec2(moos_uv.x * 0.22, moos_uv.y * 0.012) + vec2(0.21, 0.43)).a;
+		m += streifen * smoothstep(0.55, 0.72, lauf);
+	}
 	float anteil = smoothstep(0.42, 0.62, m * 0.8 + (mt.a - 0.5) * 0.75) * borke;
 	float flechte = smoothstep(0.6, 0.8, gross.a) * (1.0 - anteil) * flechten;
 
@@ -1198,8 +1236,23 @@ void fragment() {
 	vec3 moos_farbe_ = mt.rgb * moos_farbe.rgb;
 	vec3 flaeche = mix(borke_farbe_, moos_farbe_, anteil) * COLOR.rgb;
 	ALBEDO = mix(COLOR.rgb, flaeche, borke);
+#ifdef WELT
+	// Relief aus den Bildschirmableitungen der Rindenhelligkeit (wie
+	// `Fremdmodelle._SHADER_HART`): kein Tangentenraum nötig.
+	float h = dot(rc, vec3(0.333)) * borke * (1.0 - anteil * 0.75);
+	vec3 dpx = dFdx(VERTEX);
+	vec3 dpy = dFdy(VERTEX);
+	float dhx = dFdx(h);
+	float dhy = dFdy(h);
+	vec3 r1 = cross(dpy, NORMAL);
+	vec3 r2 = cross(NORMAL, dpx);
+	float det = dot(dpx, r1);
+	vec3 gefaelle = sign(det) * (dhx * r1 + dhy * r2);
+	NORMAL = normalize(abs(det) * NORMAL - gefaelle * relief * 0.9);
+#else
 	NORMAL_MAP = mix(vec3(0.5, 0.5, 1.0), rn, borke * (1.0 - anteil * 0.75));
 	NORMAL_MAP_DEPTH = 1.6;
+#endif
 	ROUGHNESS = mix(0.7, 0.95, borke);
 	SPECULAR = 0.3;
 	EMISSION = COLOR.rgb * 1.8 * step(1.5, art);
