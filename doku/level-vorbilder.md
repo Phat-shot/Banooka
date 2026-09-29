@@ -955,6 +955,26 @@ ein Bauteil zu prüfen ist.
 | `Hangelgitter` | 5-5 | neuer Bewegungszustand: eigene Hitbox, eigener Clip, eigene Steuerung |
 | `Flugmodus` | 5-2 | eigener Controller ohne Levelkurve, Schuss, Trefferanzeige, Zielzähler |
 
+### Neu aus der Verschönerung von Level 01
+
+Diese Bauteile stammen aus keinem Vorbild, sondern aus der Überarbeitung der
+Wurzelschlucht. Sie stehen hier, damit neue Level sie finden; einsetzbar sind
+sie in jeder Schlucht. Die neuen Netze werfen keinen Schatten, und ohne die
+neuen Schalter bleibt jedes ältere Level unverändert. Einzelheiten stehen in
+`ARCHITEKTUR.md` („Levelbau" und „Props").
+
+| Werkzeug | Datei | Kurz |
+|---|---|---|
+| `Schluchtsaum.bauen` | `scenes/props/schluchtsaum.gd` | Bewuchs an der Schluchtwand: Blattsaum, Ranken über die Simse, Wurzeln, Farne, Großblätter am Wandfuß; braucht `schluchtwand` mit `kronen_merken` |
+| `Schluchtsaum.wurzeltor` | `scenes/props/schluchtsaum.gd` | Wurzelbogen von Wand zu Wand, Scheitel über Doppelsprung und Kamera; Sichtsperre wie `torbogen` |
+| `Schluchtsaum.baumstamm` | `scenes/props/schluchtsaum.gd` | umgestürzter Stamm von Krone zu Krone, Ranken nie unter einer gesetzten Höhe |
+| `Schluchtsaum.blaetterdach` | `scenes/props/schluchtsaum.gd` | viele Baumkronen in zwei Netzen (Kronen, Stämme) – Wald, auf den man von oben schaut |
+| `Wasserfall.an_schluchtwand` | `scenes/props/wasserfall.gd` | Wasserfall, der der Wandform folgt; unbeleuchteter Shader ohne Bild- oder Tiefenpuffer |
+| `Lichtschacht` | `scenes/props/lichtschacht.gd` | gemalte Sonnenstrahlen (MultiMesh, additiv, zur Kamera gedreht); `decke` blendet sie über der Wandkrone aus |
+| `schluchtwand`-Optionen | `scripts/level_werkzeuge.gd` | `welt_projektion`, `welt_kachel`, `helligkeit` (auch je Abschnitt), `kronen_merken` |
+| `Stimmungszone`, relativ | `scripts/stimmungszone.gd` | `nebel_faktor`, `licht_faktor`, `farbanteil` – Abschnittsstimmung relativ zur Grundstimmung der Szene |
+| `Baum`, `Kleinzeug`, `Horizont` | `scenes/props/` | `hoechsthoehe`, `eigenbau`, `kronenfuelle`; `eigenbau`; `kronen`, `nur_nah` |
+
 ### Offen – aus der ersten Fassung
 
 | Werkzeug | Aus | Warum es fehlt auffällt |
@@ -990,7 +1010,14 @@ ein Bauteil zu prüfen ist.
 ## Abgleich: Vorbild gegen unser Level
 
 Gemessen über alle Bildschirmfotos je Vorbild und über je sieben gerenderte
-Stellen je eigenem Level. Die Zahlen sind mit `werkzeuge/foto.sh` reproduzierbar.
+Stellen je eigenem Level; die Aufnahmen macht `werkzeuge/foto.sh`. Die
+Farbwerte rechnet heute `werkzeuge/kontaktbogen.py` nach einer im Dateikopf
+festgelegten Definition: `hell` ist die mittlere Luma (0–255), `warm` und
+`kühl` sind der Anteil aller Pixel, die kräftig sind (Sättigung ≥ 25 %,
+Helligkeit ≥ 15 %) und deren Farbton zwischen 330° und 60° bzw. 180° und
+260° liegt. Ob die Tabelle unten genau so gerechnet wurde, lässt sich nicht
+mehr belegen. Neue Messungen sind deshalb untereinander vergleichbar, mit
+diesen Zahlen nur der Richtung nach.
 
 | | Vorbild | warm | kühl | hell | | unser Level | warm | kühl | hell |
 |---|---|---|---|---|---|---|---|---|---|

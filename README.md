@@ -10,6 +10,15 @@ Alle 25 Level und der Portalraum sind gebaut und spielbar. Der Portalraum
 gliedert sie in fünf Räume zu je fünf Leveln; ein Raum öffnet, wenn der
 vorige abgeschlossen ist.
 
+Danach kam ein Verschönerungsdurchgang in acht Paketen – Level 01, Licht,
+Portalraum, Spieler, Kisten, Gegner, Menüs, HUD – auf zwei gemeinsamen
+Grundlagen: `scripts/effekte.gd` (Staub, Funken, Kamerawackeln,
+Trefferpause) und `scripts/ui_stil.gd` (ein Aussehen für alle Menüs und
+Anzeigen). Physik, Hitboxen, Zeiten, Eingabe und Spielstand blieben dabei
+unverändert. Was sich an Bild und Kosten getan hat, zeigt das Schaufenster
+(siehe „Bildvergleich und Kostenmessung"); die Schnittstellen stehen in
+`ARCHITEKTUR.md`.
+
 | Bereich | Status |
 |---|---|
 | Projektstruktur, Autoloads, Input-Map | fertig |
@@ -25,6 +34,7 @@ vorige abgeschlossen ist.
 | Level 01–25 | fertig |
 | Zeitmodus mit Zeitkisten und Zeitrelikten | fertig |
 | Eigene Spielfigur in den Einstellungen | fertig |
+| Verschönerungsdurchgang (acht Pakete, siehe oben) | fertig |
 
 ## Die 25 Level
 
@@ -50,13 +60,27 @@ gebaut.
 | Strecke | Abschnitt | Inhalt |
 |---|---|---|
 | 0–42 m | Waldrand | Anlaufstrecke, erste Kisten, Sumpfkröten für den Drehschlag |
-| 42–100 m | Schlucht | Rechtskurve, Bach mit Lücken, Federkiste, Panzerkäfer |
-| 100–158 m | Stacheln | Linkskurve, Stachelfelder, Stelzenvögel, TNT-Kette |
+| 42–100 m | Schlucht | Rechtskurve, Bach mit Lücken, Federkiste, Panzerkäfer, TNT-Kette |
+| 100–158 m | Stacheln | Linkskurve, Stachelfelder, Stelzenspinnen, Nitro |
 | 158–208 m | Baumkronen | Anstieg, schmaler Grat, Sprungfeder, Nitro |
 | 208–236 m | Lichtung | Extraleben, Zielportal |
 
 45 Kisten, 14 Gegner, drei Checkpoints. Wer neben den Pfad fällt, landet
 in der Absturzzone.
+
+**Wahrzeichen.** Die Schluchtwände sind bewachsen: Blattsaum auf der
+Kante, Ranken über den Simsen, Wurzeln, Farne und große Blätter am
+Wandfuß. An den Abschnittswechseln (42, 100 und 157 m) spannen sich
+Wurzeltore hoch über den Weg. Bei 59,5 m stürzt ein Wasserfall die linke
+Wand hinab in die Bachlücke, über der TNT-Kette liegt ein umgestürzter
+Baumriese von Krone zu Krone, und an vier Stellen bis 158 m fallen
+Lichtschächte schräg über die Wandkante. Über den Baumkronen werden die
+Wände niedrig und der Blick geht auf ein Meer aus Wipfeln unter dem Grat,
+daneben stehen einzelne Baumriesen. Am Ziel rahmt ein Wurzelbogen das
+Portal, links daneben steigt der Weltenbaum aus dem Tal, und bewaldete
+Hügel schließen den Horizont. Jeder Abschnitt hat sein eigenes Licht: die
+Schlucht kühl und dunstig, die Baumkronen hell und golden, die Lichtung
+warm.
 
 ### Gegner
 
@@ -169,10 +193,10 @@ SCHAUFENSTER_TEILE=l01 bash werkzeuge/schaufenster.sh /tmp/schau   # nur ein Tei
 
   Kleinere Unterschiede als diese sind also kein Befund.
 - **`VORHER=<ref>`** rendert aus `git archive`, das Arbeitsverzeichnis bleibt unberührt. Werkzeug von heute, Spiel von damals: `foto.gd` und `Foto.tscn` kommen aus dem Arbeitsstand, damit auch alte Stände Kostenwerte liefern.
-- **Ohne Bildschirm:** Ohne `DISPLAY` startet `foto.sh` selbst einen unsichtbaren X-Server (`xvfb-run`). Gezeichnet wird dann mit Mesa/llvmpipe, langsam (2–3 Bilder/s), aber pixelgenau. Der ganze Satz dauert rund 4 min.
+- **Ohne Bildschirm:** Ohne `DISPLAY` startet `foto.sh` selbst einen unsichtbaren X-Server (`xvfb-run`). Gezeichnet wird dann mit Mesa/llvmpipe, langsam (2–3 Bilder/s), aber pixelgenau. Der ganze Satz dauerte vor der Verschönerung rund 4 min, heute deutlich länger (siehe unten).
 - **Kostenzeile je Aufnahme** (`foto.gd`): `draw 2025  obj 2043  prim 859k  vram 94.4 MB  knoten 3555`. Das sind Zählwerte, keine Zeiten; sie sind also zwischen Rechnern vergleichbar. `draw` schließt die Schattenkarten der Sonne ein. Getrennt ausweisen kann der Compatibility-Renderer sie nicht.
-  - Gemessen an Level 01: Ohne Sonnenschatten sind es bei 4 m 1286 statt 2026 Draw-Calls, bei 170 m 480 statt 1027.
-  - Die Sonne läuft dort mit vier Schattenstufen. `cast_shadow` aus bei Kleinkram spart deshalb bis zu vier Draw-Calls je Objekt.
+  - Gemessen an Level 01 (Stand 612b7de): Ohne Sonnenschatten sind es bei 4 m 1286 statt 2026 Draw-Calls, bei 170 m 480 statt 1027.
+  - Jede Fläche kostet in jeder Schattenstufe der Sonne einen Draw-Call. `cast_shadow` aus bei Kleinkram spart deshalb je Objekt so viele Draw-Calls, wie die Sonne Stufen hat – in Level 01 waren es vier, seit der Verschönerung sind es zwei.
 
   `FOTO_BUDGET_DRAW=N` warnt, wenn ein Bild das Budget überschreitet.
 - **Neu in `foto.sh`** (Aufruf wie bisher):
@@ -182,18 +206,35 @@ SCHAUFENSTER_TEILE=l01 bash werkzeuge/schaufenster.sh /tmp/schau   # nur ein Tei
   - `FOTO_ZEITLIMIT` begrenzt die Laufzeit.
   - `FOTO_WERTE` ist die Datei für die Kostentabelle.
   - Skriptfehler aus dem Import werden angezeigt, statt nur als fehlende Bilder aufzufallen.
-- **Kontaktbogen einzeln:** `uvx --with pillow python werkzeuge/kontaktbogen.py <ordner>` oder `… --vergleich --diff <vorher> <jetzt> -o out.png`. Die Beschriftung zeigt die Kosten und die Farbwerte `hell` (mittlere Luma 0–255), `warm` (Farbton 330–60°) und `kühl` (180–260°), jeweils in % der kräftigen Pixel.
+- **Kontaktbogen einzeln:** `uvx --with pillow python werkzeuge/kontaktbogen.py <ordner>` oder `… --vergleich --diff <vorher> <jetzt> -o out.png`. Die Beschriftung zeigt die Kosten und die Farbwerte `hell` (mittlere Luma 0–255), `warm` (Farbton 330–60°) und `kühl` (180–260°). `warm` und `kühl` sind Anteile aller Pixel in %; gezählt werden nur kräftige (Sättigung ≥ 25 %, Helligkeit ≥ 15 %).
 
-**Ausgangswerte vor der Verschönerung** (HEAD 612b7de, Draw-Calls je Aufnahme):
+**Vor und nach der Verschönerung** (Draw-Calls je Aufnahme; vorher Stand
+612b7de, nachher der zusammengeführte Stand 16227ef):
 
-| Teil | Werte |
-|---|---|
-| Splash | 214 / 216 |
-| Hub | 662 / 671 / 654 |
-| Level 01, verfolger | 4 m 2025 · 30 m 2005 · 50 m 1912 · 75 m 2151 · 112 m 1717 · 136 m 1559 · 170 m 1027 · 192 m 833 · 216 m 566 · 233 m 302 |
-| Level 01, seite | 50 m 1026 · 170 m 2916 |
-| Level 01, nah | 30 m 382 |
-| VRAM | Level 01 94,4 MB, Hub 59,6 MB, Splash 63,7 MB |
+| Teil | vorher | nachher |
+|---|---|---|
+| Splash | 214 / 216 | 247 / 249 |
+| Hub | 662 / 671 / 654 | 476 / 497 / 496 |
+| Level 01, verfolger | 4 m 2025 · 30 m 2005 · 50 m 1912 · 75 m 2151 · 112 m 1717 · 136 m 1559 · 170 m 1027 · 192 m 833 · 216 m 566 · 233 m 302 | 4 m 611 · 30 m 981 · 50 m 892 · 75 m 730 · 112 m 553 · 136 m 649 · 170 m 511 · 192 m 414 · 216 m 323 · 233 m 225 |
+| Level 01, seite | 50 m 1026 · 170 m 2916 | 50 m 428 · 170 m 1036 |
+| Level 01, nah | 30 m 382 | 30 m 228 |
+| VRAM | Level 01 94,4 MB, Hub 59,6 MB, Splash 63,7 MB | Level 01 108,7 MB, Hub 83,8 MB, Splash 79,2 MB |
+
+Level 01 kostet trotz Bewuchs, Wasserfall und Lichtschächten je nach
+Stelle 25 bis 70 % weniger: Die Sonne zeichnet nur noch zwei statt vier Schattenstufen,
+Kisten, Früchte und Bewuchs werfen keinen oder einen zusammengefassten
+Schatten, und Wald wächst nur, wo man hineinschaut. Der Portalraum spart
+über Sammelnetze. Der Splash legt zu (Himmel, Lichtfahnen, Glühen); gut
+drei Draw-Calls davon kommen aus dem Speicherstand des Messrechners, der
+dort „5 geschafft" zeigt. Der Rundgang im Portalraum folgt jetzt dem
+Hallenbogen, die Aufnahmen 14 und 60 stehen deshalb etwas anders als
+vorher. Der VRAM wächst um 14 bis 24 MB; rund 14 MB davon kostet 2× MSAA
+am Rechner (bei 720p).
+
+Level 01 rendert seit der Verschönerung deutlich langsamer: Unter
+llvmpipe mit geteilten Kernen brauchte `l01` gut 15 min, mehr als das
+Zeitlimit von 900 s je Teil. Für solche Läufe `SCHAUFENSTER_ZEITLIMIT`
+anheben (Sekunden je Teil).
 
 ## Im Browser starten
 
@@ -406,6 +447,9 @@ Datei kaputt oder verschwunden, erscheint wieder der Beuteldachs.
 △ (bzw. Tab) hält das Spiel an und zeigt eine Übersicht: wo man gerade
 ist, Früchte, Leben, Kisten, freigeschaltete Level und die vollständige
 Steuerung. Erneutes △, Abbrechen oder ein Tippen ins Bild schließt sie.
+Darunter stehen drei Knöpfe: Weiterspielen (vorgewählt), Neu starten (nur
+im Level) und Level verlassen (im Portalraum: Zum Hauptmenü); ✕ löst den
+gewählten aus.
 
 ## Physikwerte
 
@@ -419,24 +463,32 @@ Alle Werte stammen 1:1 aus `plattformer-demo.html` und sind in
 autoload/GameState.gd      Früchte, Leben, Kisten-Zähler, Checkpoint
 autoload/Einstellungen.gd  eigene Spielfigur, bleibt über Sitzungen erhalten
 autoload/InputHub.gd       Tastatur, Gamepad und Touch zu einem Eingabezustand
+autoload/Spielfluss.gd     Speicherplätze, Levelnamen, Szenenwechsel
+autoload/Ladeschirm.gd     Ladeschirm über jedem Szenenwechsel
 scenes/player/             Player.tscn, player.gd, beuteldachs.gd (Modell)
 scenes/camera/             CorridorCamera.tscn
-scenes/crates/             Kiste.tscn + kiste.gd (alle neun Arten)
+scenes/crates/             Kiste.tscn + kiste.gd (13 Arten), explosion.gd
 scenes/enemies/            gegner.gd + Sumpfkroete/Stelzenspinne/Panzerkaefer
 scenes/fruits/             Frucht.tscn
 scenes/hazards/            Wasser.tscn, Stacheln.tscn
 scenes/portals/            StartPortal.tscn, ZielPortal.tscn
-scenes/props/              Baum, Wurzel, Stein, Gras, Kleinzeug, Waldstreuer
+scenes/hub/                Hub.tscn, hub.gd, levelportal.gd, wegweiser.gd
+scenes/props/              Baum, Wurzel, Stein, Gras, Kleinzeug, Waldstreuer,
+                           Horizont, Schluchtsaum, Wasserfall, Lichtschacht
 scenes/levels/             level_basis.gd, korridor_level.gd,
-                           Level01–Level05.tscn, Testlevel.tscn
+                           Level01–Level25.tscn, Testlevel.tscn, Werkstatt.tscn
 scenes/mounts/             katze.gd (Reittier, Level 04)
-scenes/vehicles/           kart.gd (Level 05)
+scenes/vehicles/           kart.gd (Level 06)
 scenes/ui/                 HUD.tscn, TouchControls.tscn, statustafel.gd,
-                           Splash.tscn, Optionen.tscn (Einstellungen)
+                           menue_eintrag.gd, Splash.tscn, Optionen.tscn
+                           (Einstellungen)
 scripts/                   angriff, farben, materialbibliothek, level_werkzeuge,
                            pad_symbole (Controller-Zeichen ✕ ○ □ △),
-                           modell_lader (eigene glTF-Figur einpassen)
-shaders/                   wasser.gdshader
+                           modell_lader (eigene glTF-Figur einpassen),
+                           effekte, ui_stil, bildrahmen, bodenschatten,
+                           stimmungszone
+shaders/                   wasser, himmel, portal_wirbel, gegner_glanz,
+                           bildrahmen (.gdshader)
 werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Spieltest-Bot,
                            Bild- und Messwerkzeuge, Webserver
 assets/CREDITS.md          Quellen und Lizenzen
