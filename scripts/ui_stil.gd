@@ -62,6 +62,12 @@ class_name UiStil
 ##     Ist ein Feld mit voller Rundung quadratisch oder hochkant, zeigt
 ##     Godots StyleBoxFlat (Kantenglättung + Rahmen) eine senkrechte Naht
 ##     durch die Mitte. Kreise immer mit `fassung()` oder draw_circle.
+##     Auch breiter als hoch bleibt ein Rest: Ist der Eckradius GENAU die
+##     halbe Höhe (volle Rundung), kann an den Kapselenden ein einzelnes
+##     helles Nahtpixel stehen. Gesehen bei &"pille" und &"schalter" (Radius
+##     64, also immer voll gerundet) und bei &"chip" unter 46 px Höhe –
+##     &"chip" deshalb in der vorgesehenen Höhe von 46 px benutzen; wer eine
+##     Kapsel ohne Naht braucht, nimmt einen Radius von halber Höhe − 1.
 ##
 ##   Text        text(), absatz(), textbreite(), passend(), kuerzen(),
 ##               konturstaerke()
@@ -131,6 +137,10 @@ static var _texturen: Dictionary[StringName, Texture2D] = {}
 static var _thema: Theme = null
 static var _iris_shader: Shader = null
 static var _herzform := PackedVector2Array()
+## Punkte der Herzkurve. Die Spitze unten liegt bei t = π, also beim
+## mittleren Punkt (HERZ_PUNKTE / 2).
+const HERZ_PUNKTE := 40
+const HERZ_SPITZE := 20
 
 
 # ------------------------------------------------------------ Schriften
@@ -685,10 +695,20 @@ static func frucht(auf: CanvasItem, mitte: Vector2, r: float,
 static func herz(auf: CanvasItem, mitte: Vector2, r: float, voll: bool = true,
 		deckung: float = 1.0) -> void:
 	var form := PackedVector2Array()
-	for punkt in _herzpunkte():
-		form.append(mitte + punkt * r)
+	var umriss := PackedVector2Array()
+	var punkte := _herzpunkte()
+	for i in punkte.size():
+		form.append(mitte + punkte[i] * r)
+		# Die Spitze unten fehlt im Umriss: Dort treffen sich die beiden
+		# Flanken fast parallel, und die Linie setzt an so einem Knick eine
+		# Gehrung an – ein Dorn, gut dreimal so lang wie die Kontur breit.
+		# Ohne den Punkt endet die Kontur dort stumpf statt in einem Dorn.
+		# Die Füllung behält ihre Spitze; die liegt nur Bruchteile eines
+		# Pixels unter der Sehne und bleibt innerhalb der Konturbreite.
+		if i != HERZ_SPITZE:
+			umriss.append(form[i])
 	var rand := maxf(1.5, r * 0.16)
-	auf.draw_polyline(_geschlossen(form), _kontur(deckung), rand * 2.0, true)
+	auf.draw_polyline(_geschlossen(umriss), _kontur(deckung), rand * 2.0, true)
 	if not voll:
 		auf.draw_colored_polygon(form, Color(1, 1, 1, 0.16 * deckung))
 		return
@@ -729,8 +749,8 @@ static func kiste(auf: CanvasItem, mitte: Vector2, r: float,
 ## Dreiecks – nur so lässt sie sich als Ganzes umranden.
 static func _herzpunkte() -> PackedVector2Array:
 	if _herzform.is_empty():
-		for i in 40:
-			var t := TAU * float(i) / 40.0
+		for i in HERZ_PUNKTE:
+			var t := TAU * float(i) / float(HERZ_PUNKTE)
 			var s := sin(t)
 			var x := 16.0 * s * s * s
 			var y := -(13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t)

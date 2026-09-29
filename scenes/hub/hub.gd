@@ -500,6 +500,9 @@ func _ready() -> void:
 		_baue_raum(i, raumwinkel(i))
 	_baue_torschmuck()
 	_baue_hallenluft()
+	# Dieselben dunklen Bildecken wie in Level 01, nur schwächer und kühler:
+	# Sie rahmen die leuchtenden Tore, ohne die HUD-Ecken zu schlucken.
+	Bildrahmen.einsetzen(self, 0.25, Color(0.03, 0.03, 0.05), 0.03)
 
 	_baue_rundgang()
 	_spieler_setzen()
@@ -2480,7 +2483,7 @@ func _nach_dem_einblenden() -> void:
 				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 		# Ein durchsichtiges Netz kostet weiter Füllrate – danach weg damit.
 		tween.tween_callback(schleier.queue_free)
-	Klang.spiele("checkpoint", 1.1)
+	Klang.spiele("portal", 1.1)
 	var namen := PackedStringArray()
 	for index: int in _siegel_neu:
 		namen.append(String(Spielfluss.RAUM_NAMEN[index]))

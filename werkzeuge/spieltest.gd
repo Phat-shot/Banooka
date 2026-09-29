@@ -33,6 +33,10 @@ const KEY_AUF := 4194320
 ## Mittelpunkt des Halbkreises im Portalraum (hub.gd: BOGEN_MITTE).
 const BOGEN_MITTE := Vector3(0.0, 0.0, 36.0)
 const HALLE_RADIUS := 33.5      ## hub.gd: START_R
+## Größter Winkelschritt auf dem Hallenbogen. Die Südkante liegt bei 29 m
+## (hub.gd: HALLE_R); eine Sehne auf 33,5 m bleibt bis 60° Öffnung über
+## ihr – 20° lassen reichlich Luft für Ausweichschritte.
+const BOGEN_SCHRITT := 20.0
 
 const VORAUS := 5.0             ## Zielpunkt so viele Meter voraus
 const LUECKE_VORAUS := 4.2      ## so weit voraus wird auf Boden geprüft
@@ -76,6 +80,13 @@ func _ready() -> void:
 
 	GameState.nachricht.connect(func(text: String, _d: float) -> void:
 		_notiz("Meldung: %s" % text))
+	# Die großen Momente (Extraleben, alle Kisten, Game Over) laufen als
+	# Band über ein eigenes Signal. Nur verbinden, wo es das gibt: Das
+	# dritte Argument von spieltest.sh lässt den Bot auch ältere
+	# Projektstände prüfen, und dort fehlt es.
+	if GameState.has_signal(&"banner"):
+		GameState.connect(&"banner", func(text: String, _f: Color, _d: float) -> void:
+			_notiz("Band: %s" % text))
 	GameState.leben_geaendert.connect(func(anzahl: int) -> void:
 		_notiz("Leben: %d" % anzahl))
 
@@ -187,12 +198,12 @@ func _spiele(nummer: int) -> void:
 		return
 
 	_notiz("--- Level %02d: Weg zum Portal ---" % nummer)
-	# Erst in die Hallenmitte vor dem Raum, dann zum Portal – sonst läuft
-	# der Bot bei den hinteren Räumen gegen eine Trennmauer.
-	var richtung := (portal.global_position - BOGEN_MITTE)
-	richtung.y = 0.0
-	var vorplatz := BOGEN_MITTE + richtung.normalized() * HALLE_RADIUS
-	await _gehe_zu(vorplatz, 25.0, 2.0)
+	# Erst über den Hallenbogen vor den Raum, dann zum Portal – sonst läuft
+	# der Bot bei den hinteren Räumen gegen eine Trennmauer. Der Portalraum
+	# setzt die Figur vor den Raum, um den es gerade geht, nicht mehr immer
+	# auf 0°; eine gerade Sehne zu einem fernen Raum liefe dann durch die
+	# Südmauer. Also in Schritten am Bogen entlang.
+	await _bogen_entlang(_bogenwinkel(portal.global_position))
 	if not await _gehe_zu(portal.global_position, 25.0, 0.6):
 		_fehler.append("Level %02d: Portal nicht erreicht" % nummer)
 		await _bild("level%02d_portal_verfehlt" % nummer)
@@ -216,6 +227,34 @@ func _spiele(nummer: int) -> void:
 
 	var ergebnis := await _durchlaufen(nummer)
 	_ergebnisse.append(ergebnis)
+
+
+## Läuft auf dem Hallenbogen (Radius HALLE_RADIUS) von der Figur bis zum
+## Winkel `ziel`, in Schritten von höchstens BOGEN_SCHRITT Grad.
+func _bogen_entlang(ziel: float) -> void:
+	var spieler := _spieler()
+	if spieler == null:
+		return
+	var von := _bogenwinkel(spieler.global_position)
+	var schritte := maxi(ceili(absf(ziel - von) / BOGEN_SCHRITT), 1)
+	for i in range(1, schritte + 1):
+		var grad := lerpf(von, ziel, float(i) / float(schritte))
+		# Zwischenpunkte großzügig abhaken, nur den letzten genau anlaufen.
+		var nahe := 2.0 if i == schritte else 3.0
+		if not await _gehe_zu(_bogenort(grad), 12.0, nahe):
+			_notiz("Bogen: %.0f° nicht erreicht" % grad)
+
+
+## Winkel eines Punkts um BOGEN_MITTE wie in hub.gd: 0° zeigt nach -Z,
+## positive Winkel nach rechts (+X).
+func _bogenwinkel(punkt: Vector3) -> float:
+	var d := punkt - BOGEN_MITTE
+	return rad_to_deg(atan2(d.x, -d.z))
+
+
+func _bogenort(grad: float) -> Vector3:
+	var t := deg_to_rad(grad)
+	return BOGEN_MITTE + Vector3(sin(t) * HALLE_RADIUS, 0.0, -cos(t) * HALLE_RADIUS)
 
 
 ## Zurück in den Portalraum, wenn ein Level abgebrochen wurde.

@@ -144,8 +144,7 @@ func wert_geschoben(richtung: int) -> void:
 	_wecken()
 
 
-## Klang beim Wechseln der Auswahl. Eigene Menüklänge, sobald `Klang`
-## sie kennt; bis dahin ein hoch gestimmter, leiser Sprungton.
+## Klang beim Wechseln der Auswahl: ein leises Ticken (`menue_wahl`).
 ##
 ## Gespielt wird erst am Ende des Bildes, und mehrere Wahlen im selben Bild
 ## klingen einmal (siehe `_wahl_wartet`).
@@ -160,19 +159,13 @@ static func _wahl_nachholen() -> void:
 	if not _wahl_wartet:
 		return
 	_wahl_wartet = false
-	if Klang.namen().has("menue_wahl"):
-		Klang.spiele("menue_wahl")
-	else:
-		Klang.spiele("sprung", 1.7, 0.22)
+	Klang.spiele("menue_wahl")
 
 
-## Klang beim Bestätigen: die zwei Glöckchen der Frucht, etwas gedämpft.
+## Klang beim Bestätigen: zwei Glöckchen aufwärts (`menue_ok`).
 static func klang_ok() -> void:
 	_wahl_wartet = false
-	if Klang.namen().has("menue_ok"):
-		Klang.spiele("menue_ok")
-	else:
-		Klang.spiele("frucht", 1.0, 0.5)
+	Klang.spiele("menue_ok")
 
 
 func _wecken() -> void:

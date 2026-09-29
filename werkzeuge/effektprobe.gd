@@ -247,6 +247,13 @@ func _pruefe_kamera() -> void:
 	_pruefe("halber Abstand: halbe Wucht",
 			_kamera.aufrufe == vorher + 1 and is_equal_approx(_kamera.letzte, 0.4),
 			"Wert %.3f" % _kamera.letzte)
+	# Einstellung „Bildschirmwackeln" aus: gar kein Aufruf mehr.
+	var ruhig_vorher := Effekte.ruhig
+	Effekte.ruhig = true
+	vorher = _kamera.aufrufe
+	Effekte.erschuettern(self, 0.8)
+	_pruefe("ruhiges Bild: kein Wackeln", _kamera.aufrufe == vorher, "gerufen")
+	Effekte.ruhig = ruhig_vorher
 
 
 ## Mit Bildschirm muss das Tempo sinken und von selbst zurückkommen; im

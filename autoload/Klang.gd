@@ -207,7 +207,7 @@ func _freie_stimme() -> AudioStreamPlayer:
 
 # ---------------------------------------------------------- Klangbau
 
-## Baut alle Klänge einmal auf. Zusammen sind das rund 80 000 Abtastwerte –
+## Baut alle Klänge einmal auf. Zusammen sind das rund 100 000 Abtastwerte –
 ## im Millisekundenbereich, einmalig beim Programmstart.
 func _baue_kloenge() -> void:
 	_zufall.seed = 20260825
@@ -226,6 +226,11 @@ func _baue_kloenge() -> void:
 	_kloenge["schaden"] = _fertig(_bau_schaden(), 0.60)
 	_kloenge["tod"] = _fertig(_bau_tod(), 0.70)
 	_kloenge["checkpoint"] = _fertig(_bau_checkpoint(), 0.60)
+	_kloenge["portal"] = _fertig(_bau_portal(), 0.60)
+	# Menüklänge leiser als alles im Spiel: Sie kommen bei jedem Tastendruck
+	# und sollen bestätigen, nicht auffallen.
+	_kloenge["menue_wahl"] = _fertig(_bau_menue_wahl(), 0.16)
+	_kloenge["menue_ok"] = _fertig(_bau_menue_ok(), 0.32)
 
 	# Abweichende Sperrzeiten: Landungen sollen nicht klappern, Früchte
 	# dürfen schnell perlen, Explosionen reißen Nachbarkisten mit.
@@ -234,6 +239,8 @@ func _baue_kloenge() -> void:
 	_abstaende["kiste"] = 0.06
 	_abstaende["explosion"] = 0.09
 	_abstaende["gegner"] = 0.06
+	# Wer die Pfeiltaste gedrückt hält, hört jeden Schritt.
+	_abstaende["menue_wahl"] = 0.03
 
 
 ## Kurzer Aufwärtsschwung – hell, aber nicht schrill.
@@ -359,6 +366,40 @@ func _bau_checkpoint() -> PackedFloat32Array:
 				Welle.SINUS, 0.005, 2.5)
 	_ton(p, 0.255, 0.26, 1046.5, 1046.5, 0.8, Welle.SINUS, 0.006, 2.0)
 	_ton(p, 0.255, 0.20, 2093.0, 2093.0, 0.18, Welle.SINUS, 0.006, 3.0)
+	return p
+
+
+## Portal: ein Sog, der über zwei Oktaven aufsteigt und anschwillt statt
+## anzuschlagen, darüber ein Luftzug und am Ende helles Glitzern in einer
+## Dur-Folge. So lang wie das Einsaugen am Tor (0,6 s) plus Nachklang.
+func _bau_portal() -> PackedFloat32Array:
+	var p := _puffer(0.82)
+	_ton(p, 0.0, 0.64, 196.0, 784.0, 0.75, Welle.DREIECK, 0.40, 1.3)
+	_ton(p, 0.0, 0.64, 392.0, 1568.0, 0.22, Welle.SINUS, 0.40, 1.5)
+	_rauschen(p, 0.0, 0.62, 0.40, 500.0, 5200.0, 300.0, 0.36, 1.6)
+	var glitzer := [1318.5, 1568.0, 2093.0, 2637.0, 3136.0]
+	for i in glitzer.size():
+		_ton(p, 0.30 + float(i) * 0.07, 0.24, glitzer[i], glitzer[i], 0.26,
+				Welle.SINUS, 0.004, 3.0)
+	return p
+
+
+## Menü, Auswahl gewechselt: ein weiches, kurzes Ticken um 1,8 kHz.
+func _bau_menue_wahl() -> PackedFloat32Array:
+	var p := _puffer(0.045)
+	_ton(p, 0.0, 0.04, 1800.0, 1650.0, 1.0, Welle.SINUS, 0.002, 3.5)
+	_ton(p, 0.0, 0.02, 3600.0, 3300.0, 0.12, Welle.SINUS, 0.001, 4.0)
+	return p
+
+
+## Menü, bestätigt: zwei Glöckchen eine Quarte aufwärts (G5–C6), kürzer
+## und tiefer als die Frucht, damit man beide auseinanderhält.
+func _bau_menue_ok() -> PackedFloat32Array:
+	var p := _puffer(0.17)
+	_ton(p, 0.0, 0.06, 784.0, 784.0, 0.7, Welle.SINUS, 0.003, 2.5)
+	_ton(p, 0.0, 0.05, 1568.0, 1568.0, 0.14, Welle.SINUS, 0.003, 3.0)
+	_ton(p, 0.055, 0.11, 1046.5, 1046.5, 0.8, Welle.SINUS, 0.003, 2.2)
+	_ton(p, 0.055, 0.08, 2093.0, 2093.0, 0.14, Welle.SINUS, 0.003, 3.0)
 	return p
 
 

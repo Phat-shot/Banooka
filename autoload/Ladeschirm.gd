@@ -223,8 +223,10 @@ func _process(delta: float) -> void:
 # ------------------------------------------------------------ Inhalt
 
 ## Kicker und Titel. Im Level: "LEVEL 01 · WURZELWALD" über dem
-## Levelnamen – sofern der Spielfluss Namen kennt; sonst steht "Level 01"
-## als Titel und darüber nur der Raum.
+## Levelnamen. `Spielfluss.zum_level()` übergibt "Level 01"; Name und
+## Kopfzeile kommen aus dem Spielfluss – dieselben wie über der Blende des
+## Portals und auf der Titelkarte des HUD. Ohne Namen (unbekannte Nummer)
+## bleibt "Level 01" der Titel, darüber steht nur der Raum.
 func _kopf_setzen(titel: String) -> void:
 	_titel = titel
 	_kicker = ""
@@ -234,26 +236,18 @@ func _kopf_setzen(titel: String) -> void:
 				mini(Spielfluss.freigeschaltet, Spielfluss.LEVEL_GESAMT),
 				Spielfluss.LEVEL_GESAMT]
 		return
-	var raum := Spielfluss.raum_von_level(nummer)
-	var namen: Array = Spielfluss.RAUM_NAMEN
-	var raumname := String(namen[clampi(raum - 1, 0, namen.size() - 1)]).to_upper()
 	var nur_nummer := "Level %02d" % nummer
 	if titel == nur_nummer:
-		var name := _levelname(nummer)
+		var name := Spielfluss.level_name(nummer)
 		if not name.is_empty():
 			_titel = name
 	if _titel == nur_nummer:
-		_kicker = "RAUM %d · %s" % [raum, raumname]
+		var raum := Spielfluss.raum_von_level(nummer)
+		var namen: Array = Spielfluss.RAUM_NAMEN
+		_kicker = "RAUM %d · %s" % [raum,
+				String(namen[clampi(raum - 1, 0, namen.size() - 1)]).to_upper()]
 	else:
-		_kicker = "LEVEL %02d · %s" % [nummer, raumname]
-
-
-## Name eines Levels, falls der Spielfluss welche führt (`level_name`).
-## Über `has_method`, damit der Ladeschirm auch ohne sie auskommt.
-func _levelname(nummer: int) -> String:
-	if not Spielfluss.has_method(&"level_name"):
-		return ""
-	return String(Spielfluss.call(&"level_name", nummer))
+		_kicker = Spielfluss.level_kopfzeile(nummer)
 
 
 func _raum_jetzt() -> int:

@@ -77,6 +77,8 @@ class_name Effekte
 ## Zustand (statisch, überlebt Szenenwechsel):
 ##   reduziert: bool   halbiert die Mengen und schaltet Wackeln,
 ##                     Trefferpause, Bildblitz und Blitzlicht ab.
+##   ruhig: bool       nur Wackeln, Trefferpause und Bildblitz aus – die
+##                     Einstellung „Bildschirmwackeln" (Einstellungen.gd).
 ##   staubfarbe: Color Farbe für Staub ohne eigene Farbe. Sie überlebt den
 ##                     Szenenwechsel – deshalb setzt JEDES Level sie beim
 ##                     Aufbau, auch das mit Waldstaub (`STAUBFARBE_VORGABE`),
@@ -159,6 +161,12 @@ enum Stoff { ALPHA, ADDITIV, RING, SAEULE }
 ## Blitzlicht ab. Vorbelegt für Browser auf Handys, wo Füllrate knapp ist;
 ## später kommt ein Schalter in den Optionen dazu (Einstellungen.gd).
 static var reduziert: bool = _vorbelegung()
+## Ruhiges Bild: kein Wackeln, keine Trefferpause, kein Bildblitz. Für
+## alle, denen von einem wackelnden Bild übel wird oder die Blitze meiden
+## müssen. Anders als `reduziert` bleiben Mengen und Blitzlicht, wie sie
+## sind – es geht um das Bild als Ganzes, nicht um Füllrate. Gesetzt von
+## `Einstellungen` (Zeile „Bildschirmwackeln" in den Optionen).
+static var ruhig: bool = false
 ## Staubfarbe des laufenden Levels (siehe Kopfkommentar: je Level setzen).
 static var staubfarbe: Color = STAUBFARBE_VORGABE
 
@@ -446,7 +454,7 @@ static func blitzlicht(bei: Node, pos: Vector3, farbe: Color,
 ## mit dem Abstand zwischen Ereignis und Figur ab.
 static func erschuettern(bei: Node, staerke: float,
 		pos: Vector3 = Vector3.INF) -> void:
-	if reduziert or not _im_baum(bei):
+	if reduziert or ruhig or not _im_baum(bei):
 		return
 	var kamera := bei.get_viewport().get_camera_3d()
 	if kamera == null or not kamera.has_method("erschuettern"):
@@ -476,7 +484,7 @@ static func erschuettern(bei: Node, staerke: float,
 ## HEADLESS: Die Prüfwerkzeuge (Hangeltest, Kriechtest, Zeitprobe ...)
 ## messen in Physikbildern; eine Pause verschöbe dort die Messwerte.
 static func trefferpause(bei: Node, dauer: float = 0.05) -> void:
-	if reduziert or not _im_baum(bei):
+	if reduziert or ruhig or not _im_baum(bei):
 		return
 	if DisplayServer.get_name() == "headless":
 		return
@@ -495,7 +503,7 @@ static func trefferpause(bei: Node, dauer: float = 0.05) -> void:
 ## die Anfangsdeckkraft. Die Schicht liegt auf Ebene 0, also UNTER dem HUD
 ## (Standardebene 1) – Punktzahl und Leben bleiben lesbar.
 static func bildblitz(bei: Node, farbe: Color, dauer: float = 0.25) -> void:
-	if reduziert or not _im_baum(bei):
+	if reduziert or ruhig or not _im_baum(bei):
 		return
 	var flaeche := _blitzflaeche_holen(bei)
 	if flaeche == null:

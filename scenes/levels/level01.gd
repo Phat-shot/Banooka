@@ -569,6 +569,10 @@ func _wasser(strecke: float, flaeche: Vector2, hoehe: float,
 	w.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, hoehe)
 	w.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(w)
+	# Der Bach spiegelt den Horizont des Himmels statt eines Weißschleiers
+	# und glitzert in der Sonne; Level 01 hat Glow, dort blühen die Punkte.
+	w.himmel_farbe = Color(0.70, 0.80, 0.84)
+	w.glitzer = 1.0
 	return w
 
 
