@@ -15,7 +15,10 @@ Portalraum, Spieler, Kisten, Gegner, Menüs, HUD – auf zwei gemeinsamen
 Grundlagen: `scripts/effekte.gd` (Staub, Funken, Kamerawackeln,
 Trefferpause) und `scripts/ui_stil.gd` (ein Aussehen für alle Menüs und
 Anzeigen). Physik, Hitboxen, Zeiten, Eingabe und Spielstand blieben dabei
-unverändert. Was sich an Bild und Kosten getan hat, zeigt das Schaufenster
+unverändert; die wenigen bewussten Ausnahmen (Wurfpunkt der Werfer,
+Fruchtbogen, Stämme in Level 01, Startplatz im Portalraum) stehen in
+`ARCHITEKTUR.md` unter „Bewusste Abweichungen im Verschönerungsdurchgang".
+Was sich an Bild und Kosten getan hat, zeigt das Schaufenster
 (siehe „Bildvergleich und Kostenmessung"); die Schnittstellen stehen in
 `ARCHITEKTUR.md`.
 

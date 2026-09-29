@@ -91,12 +91,17 @@ const SCHRIFT_FERN := 19.0
 const SCHRIFT_NAH := 11.0
 
 # --- Pflaster ---
-const PFLASTER_Y := 0.075      ## Oberkante der Steine
+## Oberkante der Steine = Oberkante des Kollisionskastens (y = 0). Das
+## Pflaster ist reine Zeichnung ohne eigene Kollision: Mit 7,5 cm darüber
+## standen die Füße der Figur überall im Stein, und der Bodenfleck (4 cm
+## über dem Kollisionsboden) lag unter den Steinen. Fase und Fuge liegen
+## deshalb UNTER null.
+const PFLASTER_Y := 0.0
 ## Unterkante der Fase. Flach (gut 25 Grad): Eine steile Fase stand der
 ## tiefen Sonne fast senkrecht entgegen und zog um jeden Stein eine helle
 ## Linie – zusammen ein Gitter über die ganze Halle.
-const PFLASTER_FUSS := 0.05
-const FUGE_Y := 0.03           ## Fugenbett
+const PFLASTER_FUSS := -0.025
+const FUGE_Y := -0.045         ## Fugenbett
 ## Schmale Fugen, schmale Fasen: Mit 9 cm fast schwarzer Fuge und heller
 ## Fase um jeden Stein las sich der Boden wie Rechenpapier und war das
 ## Unruhigste im Bild – lauter als die Portale.
@@ -108,7 +113,10 @@ const PLATTEN_BAENDER := 9     ## Steinreihen zwischen Süd- und Torkante
 ## und am wenigsten Gesättigte im Bild (Lesbarkeitsvertrag).
 const PFLASTER_TON := Color(1.0, 0.96, 0.9)
 const MITTELSTEIN_R := 3.45
-const LEITLINIE_Y := 0.088
+## Der Mittelstein liegt kaum über dem Pflaster (Ring 3 cm, Buckel 3,5 cm):
+## Auf ihm steht die Figur beim Start vor Raum 3.
+const MITTELSTEIN_Y := 0.03
+const LEITLINIE_Y := 0.013
 
 # --- Bogenreihe über den Portalen ---
 const BOGEN_INNEN := 1.34
@@ -510,6 +518,28 @@ func _ready() -> void:
 	# Der Portalraum ist der einzige Ort, an dem gespeichert wird.
 	Spielfluss.speichern()
 	# Der Portalraum wird über den Ladebildschirm betreten – er steht jetzt.
+	_vorwaermen_und_zeigen()
+
+
+## Teilchen-Shader übersetzen, solange der Ladeschirm noch deckt (wie in
+## `LevelBasis`), und erst danach ausblenden. Ohne das übersetzte der
+## Renderer die Stoffe von Lichtsäule und Ring genau bei der Ankunft, vor
+## den Augen des Spielers.
+##
+## Nicht gleich in `_ready`: Das erste Bild nach dem Aufbau hat ein Delta
+## so lang wie der Aufbau selbst, das zweite eines so lang wie das erste
+## Zeichnen des Saals. Das Ausblenden (0,45 s) wäre darin schon vorbei,
+## und das Übersetzen fiele ins erste Bild ohne Ladeschirm.
+func _vorwaermen_und_zeigen() -> void:
+	for i in 2:
+		await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	Effekte.vorwaermen(self)
+	for i in 2:
+		await get_tree().process_frame
+	if not is_inside_tree():
+		return
 	Ladeschirm.verbergen()
 	_nach_dem_einblenden()
 
@@ -999,7 +1029,7 @@ func _baue_schwellen(st: SurfaceTool) -> void:
 		var halb := rad_to_deg((_torbreite() * 0.5 - 0.5) / TOR_R)
 		var ton := PFLASTER_TON.darkened(0.04)
 		_platte(st, BOGEN_MITTE, TOR_R - 0.45, TOR_R + 0.45, grad - halb, grad + halb,
-				ton, 0.1, 0.0)
+				ton, PFLASTER_Y + 0.025, PFLASTER_Y)
 
 
 ## Mittelstein: eine runde Steinscheibe mitten in der Halle. Fünf Strahlen
@@ -1015,7 +1045,8 @@ func _baue_mittelstein(st: SurfaceTool, einlage: SurfaceTool, strahlen: SurfaceT
 		var a0 := 360.0 * float(i) / float(ring)
 		var a1 := 360.0 * float(i + 1) / float(ring)
 		var ton := PFLASTER_TON.lightened(0.1 if i % 2 == 0 else 0.04)
-		_platte(st, m, MITTELSTEIN_R - 0.55, MITTELSTEIN_R, a0, a1, ton, 0.105, 0.05)
+		_platte(st, m, MITTELSTEIN_R - 0.55, MITTELSTEIN_R, a0, a1, ton,
+				MITTELSTEIN_Y, PFLASTER_FUSS)
 	# Innenfeld: zehn Fächersteine, etwas dunkler als der Ring – Grund für
 	# die Strahlen, aber kein Loch im Boden.
 	var innen_r := MITTELSTEIN_R - 0.58
@@ -1024,39 +1055,43 @@ func _baue_mittelstein(st: SurfaceTool, einlage: SurfaceTool, strahlen: SurfaceT
 		var a0 := 360.0 * float(i) / float(faecher) + 18.0
 		var a1 := 360.0 * float(i + 1) / float(faecher) + 18.0
 		var ton := PFLASTER_TON.darkened(0.16 if i % 2 == 0 else 0.1)
-		_platte(st, m, 0.45, innen_r, a0, a1, ton, 0.095, 0.05)
+		_platte(st, m, 0.45, innen_r, a0, a1, ton, MITTELSTEIN_Y - 0.01, PFLASTER_FUSS)
 	# Messingreif um den Stein
 	for i in 48:
 		var a0 := 360.0 * float(i) / 48.0
 		var a1 := 360.0 * float(i + 1) / 48.0
-		_viereck(einlage, _um(m, a0, MITTELSTEIN_R + 0.02, 0.09),
-				_um(m, a0, MITTELSTEIN_R + 0.14, 0.09),
-				_um(m, a1, MITTELSTEIN_R + 0.02, 0.09),
-				_um(m, a1, MITTELSTEIN_R + 0.14, 0.09), Vector3.UP)
+		var reif_y := MITTELSTEIN_Y - 0.015
+		_viereck(einlage, _um(m, a0, MITTELSTEIN_R + 0.02, reif_y),
+				_um(m, a0, MITTELSTEIN_R + 0.14, reif_y),
+				_um(m, a1, MITTELSTEIN_R + 0.02, reif_y),
+				_um(m, a1, MITTELSTEIN_R + 0.14, reif_y), Vector3.UP)
 
 	for i in Spielfluss.RAEUME:
 		var ziel := ort(raumwinkel(i), TOR_R)
 		var richtung := Vector3(ziel.x - m.x, 0.0, ziel.z - m.z).normalized()
 		var seite := richtung.cross(Vector3.UP)
 		var ton := _strahlfarbe(i)
-		var y := 0.1
+		var y := MITTELSTEIN_Y - 0.005
 		var fuss := m + richtung * 0.6 + Vector3.UP * y
 		var spitze := m + richtung * (innen_r - 0.1) + Vector3.UP * y
 		var bauch := m + richtung * 1.25 + Vector3.UP * y
 		_dreieck(strahlen, fuss, bauch + seite * 0.26, spitze, Vector3.UP, ton)
 		_dreieck(strahlen, fuss, spitze, bauch - seite * 0.26, Vector3.UP, ton)
-	# Buckel in der Mitte
+	# Buckel in der Mitte. Flach: Genau hier steht die Figur beim Start
+	# vor Raum 3, und der Kollisionsboden liegt bei null.
 	var buckel := PFLASTER_TON.lightened(0.12)
+	var buckel_y := MITTELSTEIN_Y + 0.005
+	var feld_y := MITTELSTEIN_Y - 0.01
 	var ecken := 8
 	for i in ecken:
 		var a0 := 360.0 * float(i) / float(ecken) + 22.5
 		var a1 := 360.0 * float(i + 1) / float(ecken) + 22.5
-		_dreieck(st, _um(m, 0.0, 0.0, 0.17), _um(m, a0, 0.36, 0.17),
-				_um(m, a1, 0.36, 0.17), Vector3.UP, buckel)
-		var u0 := _um(m, a0, 0.5, 0.095)
-		var u1 := _um(m, a1, 0.5, 0.095)
-		var o0 := _um(m, a0, 0.36, 0.17)
-		var o1 := _um(m, a1, 0.36, 0.17)
+		_dreieck(st, _um(m, 0.0, 0.0, buckel_y), _um(m, a0, 0.36, buckel_y),
+				_um(m, a1, 0.36, buckel_y), Vector3.UP, buckel)
+		var u0 := _um(m, a0, 0.5, feld_y)
+		var u1 := _um(m, a1, 0.5, feld_y)
+		var o0 := _um(m, a0, 0.36, buckel_y)
+		var o1 := _um(m, a1, 0.36, buckel_y)
 		var nrm := (u1 - u0).cross(o0 - u0).normalized()
 		if nrm.y < 0.0:
 			nrm = -nrm
@@ -1088,10 +1123,11 @@ func _baue_leitlinien(einlage: SurfaceTool, pulse: SurfaceTool) -> void:
 		var strecke := laenge - MITTELSTEIN_R - 0.2
 		var bis := von + richtung * strecke
 		var h := 0.075
-		_viereck(einlage, von - seite * h + Vector3.UP * 0.086,
-				von + seite * h + Vector3.UP * 0.086,
-				bis - seite * h + Vector3.UP * 0.086,
-				bis + seite * h + Vector3.UP * 0.086, Vector3.UP)
+		var band_y := LEITLINIE_Y - 0.002
+		_viereck(einlage, von - seite * h + Vector3.UP * band_y,
+				von + seite * h + Vector3.UP * band_y,
+				bis - seite * h + Vector3.UP * band_y,
+				bis + seite * h + Vector3.UP * band_y, Vector3.UP)
 		if not Spielfluss.raum_offen(i + 1):
 			continue
 		# Pulsband: kaum breiter als das Messing.
@@ -1397,8 +1433,10 @@ func _baue_raum(index: int, grad: float) -> void:
 	raum.name = "Raum%d" % (index + 1)
 	_objekte.add_child(raum)
 
+	# Beginnt erst hinter dem letzten Pflasterband (bis UEBERGANG_R + 0,6):
+	# Beide liegen auf null, übereinander flimmerten sie.
 	var boden := _neuer_bauer()
-	_bogenflaeche(boden, UEBERGANG_R, AUSSEN_R,
+	_bogenflaeche(boden, UEBERGANG_R + 0.6, AUSSEN_R,
 			grad - SEKTOR_HALB, grad + SEKTOR_HALB, 0.0, 8)
 	_flaeche_anhaengen(_geometrie, boden, _bodenmaterial(index),
 			"Raumboden%d" % (index + 1))
@@ -1726,8 +1764,11 @@ func _baue_torbogen(index: int, grad: float) -> void:
 
 	# Höhe und Größe sind knapp bemessen: Die Verfolgerkamera steht 6,4 m
 	# über dem Spieler und schaut 31 Grad nach unten, ihr oberer Bildrand
-	# liegt damit fast waagerecht. Mit den früheren 96 pt auf 6,2 m Höhe
-	# ragte der Schriftzug oben aus dem Bild und war halb abgeschnitten.
+	# liegt damit fast waagerecht und sinkt mit dem Abstand (bei 16 m auf
+	# rund 5,9 m). Mit den früheren 96 pt auf 6,2 m Höhe ragte der
+	# Schriftzug oben aus dem Bild; auf 6,3 m war er vom Hallenboden aus
+	# nie zu sehen, nur im Sprung. Auf 5,2 m steht er von fast überall in
+	# der Halle ganz im Bild, sobald er eingeblendet ist.
 	var beschriftung := Label3D.new()
 	beschriftung.text = Spielfluss.RAUM_NAMEN[index]
 	beschriftung.font = UiStil.schrift(&"titel")
@@ -1738,7 +1779,7 @@ func _baue_torbogen(index: int, grad: float) -> void:
 	beschriftung.modulate = _akzent(index).lightened(0.45) if offen \
 			else Color(0.78, 0.76, 0.8)
 	beschriftung.outline_modulate = Farben.UI_KONTUR
-	beschriftung.position = ort(grad, TOR_R, 6.3)
+	beschriftung.position = ort(grad, TOR_R, 5.2)
 	beschriftung.rotation.y = -deg_to_rad(grad)
 	_geometrie.add_child(beschriftung)
 	_beschriftungen.append(beschriftung)
@@ -1757,7 +1798,7 @@ func _baue_fortschritt(index: int, grad: float) -> void:
 	var basis := Basis(Vector3.UP, -deg_to_rad(grad))
 	for k in nummern.size():
 		var seitlich := (float(k) - 2.0) * 0.85
-		var mitte := stelle(grad, TOR_R, seitlich, 0.1)
+		var mitte := stelle(grad, TOR_R, seitlich, PFLASTER_Y + 0.025)
 		var geschafft := Spielfluss.geschafft.has(nummern[k])
 		var ziel := _st_perlen_hell if geschafft else _st_perlen_matt
 		var ton := Color.WHITE
@@ -2257,7 +2298,8 @@ func _deko_rost_und_ranken(grad: float) -> void:
 
 ## Raum 5: Sand und Neon. Die Felsbrocken bleiben mit ihrer Kollision an
 ## ihrem Platz, bekommen aber Sandsteinfarbe. Statt Glutrissen und zwei
-## Punktlichtern: zwei Obelisken mit Leuchtbändern und Leuchtlinien im Sand.
+## Punktlichtern: zwei Obelisken mit Leuchtbändern in der Rückwand und
+## Leuchtlinien im Sand.
 func _deko_sand_und_neon(grad: float) -> void:
 	var sandstein := _getoent(Materialbibliothek.fels(), Color(1.5, 1.12, 0.72), "sandstein_brocken")
 	var brocken := [[54.5, -8.0, 2.4], [54.0, 8.0, 2.1], [44.5, -6.4, 1.8],
@@ -2280,13 +2322,19 @@ func _deko_sand_und_neon(grad: float) -> void:
 	var c := Neonmaterial.NEON_CYAN
 	cyan.albedo_color = Color(c.r * 1.05, c.g * 1.05, c.b * 1.05)
 
-	# Obelisken hinten links und rechts, mit zwei Leuchtringen
+	# Obelisken hinten links und rechts, mit zwei Leuchtringen. Sie stecken
+	# zur Hälfte in der Rückwand, vor den äußeren Wandpfeilern, und ragen
+	# höchstens 0,3 m heraus – weniger als der Radius der Figur (0,38 m).
+	# So brauchen sie keinen eigenen Körper: Frei hinter der Portalreihe
+	# (mit einem Sprung über die Pfeilerkästen erreichbar) hätten sie einen
+	# gebraucht, und die Kollision des Portalraums bleibt, wie sie war.
 	var stein_st := _neuer_bauer()
 	var band_st := _neuer_bauer()
 	for vorzeichen: float in [-1.0, 1.0]:
-		var fuss := stelle(grad, 54.2, vorzeichen * 1.5 * PORTAL_ABSTAND)
-		var basis := Basis(Vector3.UP, nach_aussen(grad) + PI * 0.25)
-		_kasten(stein_st, fuss + Vector3.UP * 0.2, Vector3(1.6, 0.4, 1.6), basis)
+		var winkel := grad + rad_to_deg(vorzeichen * 1.5 * PORTAL_ABSTAND / PORTAL_R)
+		var fuss := ort(winkel, AUSSEN_R + 0.3)
+		var basis := Basis(Vector3.UP, nach_aussen(winkel))
+		_kasten(stein_st, fuss + Vector3.UP * 0.2, Vector3(1.6, 0.4, 1.2), basis)
 		var e := PackedVector3Array()
 		for y: float in [0.4, 5.6]:
 			var halb := 0.56 if y < 1.0 else 0.3
@@ -2306,22 +2354,6 @@ func _deko_sand_und_neon(grad: float) -> void:
 			_kasten(band_st, fuss + Vector3.UP * band, Vector3(halb * 2.0, 0.12, halb * 2.0),
 					basis)
 	_flaeche_anhaengen(_deko, stein_st, sandstein, "Obelisken")
-	# Ein Kasten um den Sockel: Hinter die Portalreihe kommt man mit einem
-	# Sprung über die Pfeilerkästen, und durch einen Obelisken zu laufen
-	# sähe aus wie ein Fehler.
-	for vorzeichen: float in [-1.0, 1.0]:
-		var koerper := StaticBody3D.new()
-		koerper.name = "Obelisk"
-		koerper.collision_layer = 1
-		koerper.collision_mask = 0
-		koerper.position = stelle(grad, 54.2, vorzeichen * 1.5 * PORTAL_ABSTAND, 2.8)
-		koerper.rotation.y = nach_aussen(grad) + PI * 0.25
-		var form := CollisionShape3D.new()
-		var kasten := BoxShape3D.new()
-		kasten.size = Vector3(1.2, 5.6, 1.2)
-		form.shape = kasten
-		koerper.add_child(form)
-		_deko.add_child(koerper)
 	_flaeche_anhaengen(_deko, band_st, leuchten, "Obeliskbaender", false)
 
 	# Leuchtlinie im Sand hinter der Portalreihe. Vor den Toren liegt keine:
@@ -2461,7 +2493,9 @@ func _nach_dem_einblenden() -> void:
 	# sie gleich woandershin).
 	if spieler != null and is_instance_valid(spieler) \
 			and spieler.global_position.distance_to(ankunft) < 1.5:
-		var fuss := ankunft + Vector3.DOWN * 0.8
+		# Am Boden, nicht an der Figur gemessen: Sie startet 0,9 m darüber
+		# und kann nach dem Vorwärmen schon gelandet sein.
+		var fuss := Vector3(ankunft.x, 0.1, ankunft.z)
 		Effekte.lichtsaeule(self, fuss, Farben.PORTAL_START, 4.5, 0.8, 0.9)
 		Effekte.ring(self, fuss + Vector3.UP * 0.05, Farben.PORTAL_START, 2.2, 0.45)
 	if _siegel_neu.is_empty():

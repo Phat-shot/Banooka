@@ -43,8 +43,9 @@ var _sichtbarkeit := 0.0
 ## normalisiert bleiben, sonst kann sie nicht mehr geslerpt werden.
 const GROESSE := 1.45
 ## Höhe des Kompassrings über dem Boden. Der Portalraum ist eben (Pflaster
-## 7,5 cm, Räume 0 cm); der Ring bleibt beim Springen unten wie ein Schatten.
-const RING_Y := 0.11
+## und Räume auf 0 cm, Mittelstein und Schwellen gut 3 cm darüber); der
+## Ring bleibt beim Springen unten wie ein Schatten.
+const RING_Y := 0.05
 ## Kern des Winkels: warmweiß und über 1, damit er leicht glüht.
 const KERN := Color(1.25, 1.2, 1.05)
 ## Maße eines Arms (Breite, Dicke, Länge) und wie weit der Rand übersteht.

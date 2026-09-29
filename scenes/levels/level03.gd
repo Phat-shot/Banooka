@@ -148,6 +148,9 @@ func _verlauf_anlegen() -> void:
 # =========================================================== Boden
 
 func _boden_bauen() -> void:
+	# Staub der Figur: feuchtes Graubraun der Bohlen. Ohne eigene Farbe
+	# staubte es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = Farben.BOHLE.lightened(0.35)
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": Materialbibliothek.bohlen(),
 		"kante": Materialbibliothek.algen(),

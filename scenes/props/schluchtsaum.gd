@@ -53,6 +53,13 @@ const MINDESTHOEHE := 1.3
 ## So weit dürfen Ranken und Wurzeln unterhalb von 5 m vor den Sollabstand
 ## der Wand treten. Mehr wäre schon der Streifen vor der Leitwand.
 const VORTRITT := 0.25
+## Bis in diese Höhe über dem Weg kommt die Verfolgerkamera: 6 m über der
+## Figur, im Doppelsprung 2,4 m mehr, dazu Luft. Was über dem Weg hängt
+## (Ranken am Baumstamm), endet samt Blättern darüber – sonst fährt die
+## Linse bei einem gewöhnlichen Sprung hindurch.
+const KAMERA_FREI := 8.8
+## So weit hängen die Blätter einer Ranke unter ihren Stängel.
+const BLATT_HANG := 0.45
 
 ## Tönungen relativ zur Grundfarbe des Laubs (dunkles Waldgrün bis
 ## frisches Hellgrün). Scheitelfarben können nur abdunkeln – die
@@ -730,6 +737,9 @@ static func _strang(st: SurfaceTool, punkte: PackedVector3Array, r0: float,
 ## `scheitel`: hoch über Doppelsprung und Kamera. Wie `LevelWerkzeuge.
 ## torbogen` trägt es Sichtkörper auf der Ebene SICHTSPERRE, damit die
 ## Verfolgerkamera nie in die Wurzeln fährt; der Spieler bemerkt sie nicht.
+## Sie umfassen die ganzen Stränge, nicht nur die Bogenlinie: Die winden
+## sich bis 1,25 m um sie herum, und die Kamera (6 m über dem Weg, im
+## Doppelsprung 8,4 m) steckte sonst mitten darin.
 static func wurzeltor(eltern: Node3D, kurve: Curve3D, strecke: float,
 		abstand: float, saat: int, fuss: float = 3.2,
 		scheitel: float = 9.2) -> Node3D:
@@ -767,8 +777,9 @@ static func wurzeltor(eltern: Node3D, kurve: Curve3D, strecke: float,
 				punkte.append(bogen + (normale * cos(w) + vor * sin(w)) * aus)
 			_strang(holz, punkte, r * 1.5, r * 0.75, 7)
 
-	# Bewuchs obenauf und einige Ranken, die nur vom Scheitel herabhängen –
-	# dort, wo sie hoch genug über Figur und Kamera enden.
+	# Bewuchs obenauf. Freie Ranken hängen hier keine: Unter dem Scheitel
+	# fährt die Kamera durch, und jede Ranke, die tiefer als die Stränge
+	# reicht, hing ihr schon bei einem gewöhnlichen Sprung ins Bild.
 	for i in 7:
 		var t := rng.randf_range(-0.9, 0.9)
 		var auf := mitte + rechts * sin(t) * weite \
@@ -779,14 +790,6 @@ static func wurzeltor(eltern: Node3D, kurve: Curve3D, strecke: float,
 				Vector3(g * 1.2, g * 0.6, g), Vector3(0.0, rng.randf() * TAU, 0.0),
 				8, 4, 0.35, false, Color(ton.r * 0.32, ton.g * 0.36, ton.b * 0.32),
 				ton, auf.y - g * 0.6, auf.y + g * 0.6)
-	for i in 6:
-		var t := rng.randf_range(-0.55, 0.55)
-		var y := fuss + (scheitel - fuss) * cos(t)
-		var laenge := minf(rng.randf_range(0.8, 2.2), y - 7.2)
-		if laenge < 0.5:
-			continue
-		_freie_ranke(laub, rng, mitte + rechts * sin(t) * weite + Vector3.UP * (y - 0.3)
-				+ vor * rng.randf_range(-0.3, 0.3), laenge, vor, -vor)
 
 	_knoten(tor, "Holz", PropWerkzeug.fertig(holz), wurzelholz(), true)
 	_knoten(tor, "Laub", _blattnetz(laub),
@@ -807,7 +810,11 @@ static func wurzeltor(eltern: Node3D, kurve: Curve3D, strecke: float,
 		var b := mitte + rechts * sin(t1) * weite + Vector3.UP * (fuss + (scheitel - fuss) * cos(t1))
 		var form := CollisionShape3D.new()
 		var kasten := BoxShape3D.new()
-		kasten.size = Vector3(1.1, 1.1, a.distance_to(b) + 0.2)
+		# Strang: bis 0,6 m neben der Linie, Radius bis 0,63 m – 2,7 m Kasten.
+		# Nur oben, wo die Kamera hinkommt; an den Füßen stünde der dicke
+		# Kasten dem Kamerastrahl einer Figur an der Wand im Weg.
+		var dick := 2.7 if minf(a.y, b.y) - mitte.y > 6.0 else 1.1
+		kasten.size = Vector3(dick, dick, a.distance_to(b) + 0.2)
 		form.shape = kasten
 		form.transform = PropWerkzeug.ausrichten_z(a, b)
 		sperre.add_child(form)
@@ -816,8 +823,9 @@ static func wurzeltor(eltern: Node3D, kurve: Curve3D, strecke: float,
 
 ## Ein umgestürzter Baumstamm, der hoch oben von Krone zu Krone über der
 ## Schlucht liegt. `a` und `b` sind die Auflagepunkte (Welt) der Achse.
-## Moos und Farne obenauf, Ranken hängen herab – aber nie tiefer als
-## `tiefste` (Weltkoordinate), damit sie über Figur und Kamera bleiben.
+## Moos und Farne obenauf, Ranken hängen herab – samt Blättern nie tiefer
+## als `tiefste` (Weltkoordinate), damit sie über Figur und Kamera bleiben
+## (dafür `KAMERA_FREI` über dem Weg).
 static func baumstamm(eltern: Node3D, a: Vector3, b: Vector3, dicke: float,
 		tiefste: float, saat: int) -> Node3D:
 	var rng := PropWerkzeug.zufall(saat)
@@ -859,7 +867,7 @@ static func baumstamm(eltern: Node3D, a: Vector3, b: Vector3, dicke: float,
 	for i in 10:
 		var t := rng.randf_range(0.1, 0.9)
 		var unter := a.lerp(b, t) + Vector3.DOWN * (sin(t * PI) * 0.35 + dicke * 0.8)
-		var laenge := minf(rng.randf_range(1.0, 3.4), unter.y - tiefste)
+		var laenge := minf(rng.randf_range(1.0, 3.4), unter.y - tiefste - BLATT_HANG)
 		if laenge < 0.5:
 			continue
 		_freie_ranke(laub, rng, unter + quer * rng.randf_range(-0.3, 0.3), laenge,

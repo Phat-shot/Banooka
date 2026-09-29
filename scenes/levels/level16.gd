@@ -174,6 +174,9 @@ func _verlauf_anlegen() -> void:
 # =========================================================== Grund
 
 func _boden_bauen() -> void:
+	# Staub der Figur: matter Rost vom Laufrost, nicht hell. Ohne eigene Farbe
+	# staubte es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = MESSING.lightened(0.3)
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": Materialbibliothek.metall(MESSING.darkened(0.34)),
 		"kante": Materialbibliothek.metall(KANALGRUEN),

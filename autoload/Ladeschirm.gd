@@ -103,6 +103,12 @@ var _umriss_vorn := PackedVector2Array()
 ## Einzelteile, die nicht aus dem Boden wachsen (Steg, Portalringe):
 ## ["steg", Rect2] oder ["ring", Mitte, Radius, Farbe]
 var _umriss_extra: Array = []
+## Schon zerlegte Scherenschnitte je Raum und Bildgröße (Schlüssel wie
+## `_umriss_fuer`, Wert [hinten, vorn, extra]). Mit nur einem Eintrag
+## wurde bei jedem Wechsel Portalraum → Level neu zerlegt.
+var _umrisse: Dictionary[String, Array] = {}
+## Mehr Einträge verwirft der Zwischenspeicher (Fenster, das gezogen wird).
+const UMRISSE_HOECHSTENS := 12
 
 
 func _ready() -> void:
@@ -409,7 +415,16 @@ func _zeichne_scherenschnitt(groesse: Vector2, schein: Color) -> void:
 	var kennung := "%d|%d|%d" % [_raum, roundi(groesse.x), roundi(groesse.y)]
 	if kennung != _umriss_fuer:
 		_umriss_fuer = kennung
-		_baue_umriss(groesse)
+		if _umrisse.has(kennung):
+			var fertig: Array = _umrisse[kennung]
+			_umriss_hinten = fertig[0]
+			_umriss_vorn = fertig[1]
+			_umriss_extra = fertig[2]
+		else:
+			_baue_umriss(groesse)
+			if _umrisse.size() >= UMRISSE_HOECHSTENS:
+				_umrisse.clear()
+			_umrisse[kennung] = [_umriss_hinten, _umriss_vorn, _umriss_extra]
 	# Bis zum unteren Rand, sonst endete der Schein an der Grundlinie mit
 	# einer harten Kante.
 	var horizont := groesse.y * REIHE_HINTEN.x
@@ -681,12 +696,23 @@ static func zerlege(formen: Array, breite: float, grund_y: float,
 			if k > -UMRISS_SCHRITT and k < breite + UMRISS_SCHRITT:
 				stellen.append(k)
 	stellen.sort()
+	# Jede Form zählt nur über ihrer eigenen Breite (mitte ± w, außerhalb
+	# liefert `_formhoehe` -1). Alle Formen an allen Stellen zu fragen
+	# kostete im Schilf der Nebelsümpfe über 200 000 Aufrufe und eine
+	# Viertelsekunde vor dem ersten Bild des Ladeschirms.
+	var hoehen := PackedFloat64Array()
+	hoehen.resize(stellen.size())
+	hoehen.fill(0.0)
+	for form in formen:
+		var f := form as Array
+		var bis := float(f[1]) + float(f[2])
+		var i := stellen.bsearch(float(f[1]) - float(f[2]))
+		while i < stellen.size() and stellen[i] <= bis:
+			hoehen[i] = maxf(hoehen[i], _formhoehe(f, stellen[i]))
+			i += 1
 	var kante := PackedVector2Array()
-	for sx in stellen:
-		var hoehe := 0.0
-		for form in formen:
-			hoehe = maxf(hoehe, _formhoehe(form as Array, sx))
-		kante.append(Vector2(sx, grund_y - hoehe))
+	for i in stellen.size():
+		kante.append(Vector2(stellen[i], grund_y - hoehen[i]))
 	var dreiecke := PackedVector2Array()
 	for i in kante.size() - 1:
 		var a := kante[i]

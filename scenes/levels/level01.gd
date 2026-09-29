@@ -313,11 +313,12 @@ func _bewuchs_bauen() -> void:
 
 	# Ein umgestürzter Baumriese, der hoch über der TNT-Kiste von Krone zu
 	# Krone liegt – aus der Schlucht schon von Weitem als Silhouette gegen
-	# den Himmel zu sehen. Seine Ranken enden hoch über der Kamera.
+	# den Himmel zu sehen. Seine Ranken enden über der Kamera, auch wenn
+	# die Figur darunter doppelt springt.
 	var a := _kronenpunkt(kronen, 85.5, -1.0)
 	var b := _kronenpunkt(kronen, 93.5, 1.0)
 	Schluchtsaum.baumstamm(deko, a, b, 0.85,
-			LevelWerkzeuge.punkt(verlauf, 89.5).y + 7.5, 9001)
+			LevelWerkzeuge.punkt(verlauf, 89.5).y + Schluchtsaum.KAMERA_FREI, 9001)
 
 
 ## Auflagepunkt auf der Wandkrone bei `strecke`: ein Stück hinter der

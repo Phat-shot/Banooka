@@ -639,6 +639,9 @@ func _auf_koerper(koerper: Node3D) -> void:
 ## Scheibe, dann startet das Level. Vorher wuchs das ganze Tor samt
 ## Steinpfeilern auf 1,3 und die Szene brach hart zum Ladebildschirm ab.
 func _eintreten(spieler: Node3D) -> void:
+	# Sperrt die Statustafel bis zum Szenenwechsel (siehe
+	# `Statustafel.setzen`): Die Blende unten liegt über dem HUD.
+	add_to_group(&"uebergang")
 	if "gesperrt" in spieler:
 		spieler.gesperrt = true
 	var figur := spieler as CharacterBody3D
@@ -697,6 +700,7 @@ func _eintreten(spieler: Node3D) -> void:
 		return
 
 	# Sollte nicht vorkommen – Tor und Figur wieder freigeben.
+	remove_from_group(&"uebergang")
 	get_tree().root.remove_meta(schluessel)
 	if blende != null:
 		blende.auf(0.2)

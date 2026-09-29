@@ -713,8 +713,11 @@ func _auf_kisten(zerbrochen: int, gesamt: int) -> void:
 
 func _auf_schutz(anzahl: int) -> void:
 	# Eine Ladung weniger heißt: Ein Treffer wurde abgefangen. Rot am Rand
-	# statt Blitz über alles – man lebt ja noch.
-	if _bereit and anzahl == _schutz - 1 and _auswertung == null:
+	# statt Blitz über alles – man lebt ja noch. Auch der Rand ist ein
+	# Blitz: Mit „Bildschirmwackeln aus" bleibt er weg wie jeder Bildblitz
+	# (`_ohne_blitze()`); das Zerspringen der Maske zeigt den Treffer.
+	if _bereit and anzahl == _schutz - 1 and _auswertung == null \
+			and not _ohne_blitze():
 		if _treffer_tween != null and _treffer_tween.is_valid():
 			_treffer_tween.kill()
 		_treffer.modulate.a = 1.0
@@ -731,11 +734,21 @@ func _auf_schutz(anzahl: int) -> void:
 ## setzt sie zurück, bevor das Signal kommt). Der Blitz deckt den Sprung
 ## der Kamera und macht aus dem Versetzen einen gewollten Schnitt. Kurz,
 ## weil das Spiel darunter weiterläuft; bei Game Over hält er einen Moment.
+## Mit „Bildschirmwackeln aus" entfällt er: Die Einstellung verspricht
+## „keine Blitze", und ein fast deckendes Rot ist der stärkste im Spiel.
 func _auf_tod(von_vorn: bool) -> void:
+	if _ohne_blitze():
+		return
 	if von_vorn:
 		_blende.blitz(Color(Farben.UI_TREFFER, 0.94), 0.6, 0.55)
 	else:
 		_blende.blitz(Color(Farben.UI_TREFFER, 0.9), 0.4, 0.08)
+
+
+## Dieselbe Sperre wie `Effekte.bildblitz`: keine Blitze bei ruhigem Bild
+## (Einstellung „Bildschirmwackeln" aus) und im Handy-Browser.
+func _ohne_blitze() -> bool:
+	return Effekte.ruhig or Effekte.reduziert
 
 
 func _auf_zeit(sekunden: float, frost: float) -> void:

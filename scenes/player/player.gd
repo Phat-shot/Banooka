@@ -636,13 +636,18 @@ func _schockwelle() -> void:
 	# acht Effekte je Bild – käme der Ring danach, fiele ausgerechnet er
 	# unter einem Kistenhaufen weg, dabei zeigt er die Reichweite.
 	_schockwellen_optik()
-	# Nur mitgezählt für die Optik (Trefferpause, wenn etwas getroffen wurde).
+	# Nur mitgezählt für die Optik (Trefferpause, wenn etwas zerbrochen ist).
+	# Gezählt wird, was sich dabei freigibt: Eisen- und Sprungkisten, ein
+	# Umriss, der noch nicht da ist, und glimmendes TNT bleiben stehen –
+	# ohne Bruch stockte das Bild sonst grundlos.
 	var getroffen := 0
 	for kiste in get_tree().get_nodes_in_group("kisten"):
 		if kiste is Node3D and kiste.has_method("zerbrechen"):
 			if kiste.global_position.distance_to(global_position) < SLAM_RADIUS:
+				var stand_vorher: bool = kiste.is_queued_for_deletion()
 				kiste.zerbrechen(Angriff.SLAM)
-				getroffen += 1
+				if not stand_vorher and kiste.is_queued_for_deletion():
+					getroffen += 1
 	if getroffen > 0:
 		Effekte.trefferpause(self, 0.045)
 

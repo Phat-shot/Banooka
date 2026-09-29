@@ -81,6 +81,12 @@ func _ready() -> void:
 	GameState.debug = debug
 	Zeitlauf.aktiv = zeitmodus
 	Effekte.ruhig = not bildwackeln
+	# Handys im Browser zeichnen ohne MSAA: Dort zählt jede Füllrate
+	# (ARCHITEKTUR.md, „Bild und Licht"). Den Browser am Rechner glättet
+	# MSAA wie am Rechner selbst. FXAA wäre kein Ersatz – unter
+	# gl_compatibility gibt es kein `screen_space_aa`.
+	if Effekte.reduziert:
+		get_tree().root.msaa_3d = Viewport.MSAA_DISABLED
 
 
 ## Pfad des gewählten Modells, oder "" für den Beuteldachs.

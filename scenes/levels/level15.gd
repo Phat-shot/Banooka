@@ -259,6 +259,9 @@ func _fugenkraut() -> StandardMaterial3D:
 
 
 func _boden_bauen() -> void:
+	# Staub der Figur: kühler Steinstaub der Ruinen. Ohne eigene Farbe staubte
+	# es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = RUINENSTEIN_HELL.lightened(0.25)
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": _ruinenstein(),
 		"kante": _fugenkraut(),

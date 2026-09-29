@@ -193,6 +193,9 @@ func _verlauf_anlegen() -> void:
 ## zweite legt als schmales Band den Sandstreifen darüber – vier Zentimeter
 ## höher, ohne Kollision, damit er nur Zeichnung ist und keine Stufe.
 func _boden_bauen() -> void:
+	# Staub der Figur: roter Dschungelweg. Ohne eigene Farbe staubte es hier
+	# im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = WEG_ROT.lerp(Farben.WEG_HELL, 0.4)
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": _wegstoff(),
 		"kante": Materialbibliothek.moos(),

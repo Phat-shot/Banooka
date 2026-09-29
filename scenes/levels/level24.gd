@@ -298,6 +298,9 @@ func _stegboden() -> StandardMaterial3D:
 ## die ganzen 344 m mit und steht in jeder Einstellung genau dort, wo das
 ## Auge ohnehin hinsieht – an der Kante zwischen Steg und Leere.
 func _boden_bauen() -> void:
+	# Staub der Figur: der Ton der Stege, nachtgedämpft. Ohne eigene Farbe
+	# staubte es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = STEG_TIEF.lerp(STEG, 0.4)
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": _stegboden(),
 		"kante": _kantenlicht(),

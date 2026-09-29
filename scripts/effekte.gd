@@ -80,9 +80,11 @@ class_name Effekte
 ##   ruhig: bool       nur Wackeln, Trefferpause und Bildblitz aus – die
 ##                     Einstellung „Bildschirmwackeln" (Einstellungen.gd).
 ##   staubfarbe: Color Farbe für Staub ohne eigene Farbe. Sie überlebt den
-##                     Szenenwechsel – deshalb setzt JEDES Level sie beim
-##                     Aufbau, auch das mit Waldstaub (`STAUBFARBE_VORGABE`),
-##                     sonst staubt es in Level 01 noch weiß vom Frostgrat.
+##                     Szenenwechsel – deshalb setzt `LevelBasis` sie vor
+##                     JEDEM Aufbau auf `STAUBFARBE_VORGABE` (Waldweg), sonst
+##                     staubte es in Level 01 noch weiß vom Frostgrat. Jedes
+##                     Level, dessen Boden kein Waldweg ist, setzt beim Bauen
+##                     seine eigene (Schnee, Bohlen, Stein, Blech, Sand …).
 ##
 ## ------------------------------------------------------------ KAMERAVERTRAG
 ## Eine Kamera, die wackeln kann, hat die Methode
@@ -143,6 +145,9 @@ const PAUSE_TEMPO := 0.05
 ## Längste erlaubte Trefferpause. Was länger steht, fühlt sich nicht mehr
 ## wie Wucht an, sondern wie ein Hänger.
 const PAUSE_HOECHSTENS := 0.2
+## Tempo der Vorwärmteilchen (siehe `vorwaermen`): 0,2 s Lebenszeit
+## reichen so für ein erstes Bild von 20 s.
+const VORWAERM_ZEITLUPE := 0.01
 ## Wegstaub im Wald – die Vorgabe für `staubfarbe`.
 const STAUBFARBE_VORGABE := Farben.WEG_HELL
 ## Platzhalter für „keine Farbe angegeben" (Alpha 0).
@@ -665,6 +670,13 @@ static func dauerfunken(traeger: Node3D, ort: Vector3,
 ## noch steht. Erzeugt KEIN Licht, die Lichtgrenze bleibt unberührt.
 ## Teilchen auf einem MultiMesh brauchen eine eigene Shaderfassung;
 ## deshalb auch das Kistenholz, obwohl die Kisten selbst es schon zeigen.
+##
+## Die Teilchen laufen in Zeitlupe (`VORWAERM_ZEITLUPE`): Das Bild nach
+## einem Aufbau ist lang – es zeichnet die ganze Szene zum ersten Mal. Mit
+## gewöhnlichem Tempo verglühten die Teilchen (0,2 s) in diesem einen
+## Schritt, ehe sie je gezeichnet wurden, und übersetzt wurde nichts.
+## Weggeräumt werden sie trotzdem pünktlich, über den Zeitgeber aus
+## `_emitter` (0,8 s).
 static func vorwaermen(bei: Node) -> void:
 	if not _im_baum(bei):
 		return
@@ -677,6 +689,7 @@ static func vorwaermen(bei: Node) -> void:
 		var p := _emitter(bei, ort, 1, 0.2, false)
 		if p == null:
 			return
+		p.speed_scale = VORWAERM_ZEITLUPE
 		match art:
 			Stoff.RING:
 				p.mesh = _scheiben_netz()
@@ -692,6 +705,7 @@ static func vorwaermen(bei: Node) -> void:
 		p.color = unsichtbar
 	var b := _emitter(bei, ort, 1, 0.2, false)
 	if b != null:
+		b.speed_scale = VORWAERM_ZEITLUPE
 		b.mesh = _brett_netz()
 		b.material_override = Materialbibliothek.kistenholz(Farben.HOLZ)
 		b.initial_velocity_max = 0.0

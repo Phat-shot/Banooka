@@ -240,6 +240,10 @@ func _sockelstein() -> StandardMaterial3D:
 # =========================================================== Grund
 
 func _boden_bauen() -> void:
+	# Staub der Figur: Lehm, bewusst dunkel – Staub ist unbeleuchtet und
+	# leuchtete im Dunkellevel sonst hell auf. Ohne eigene Farbe staubte es
+	# hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = LEHM
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": _grabboden(),
 		"kante": _sockelstein(),

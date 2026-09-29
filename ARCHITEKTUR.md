@@ -18,6 +18,26 @@ hält sich exakt an diese Schnittstellen – nur so passen die Teile zusammen.
 4. **Deutsch** für Kommentare, Bezeichner und UI-Texte.
 5. Nach jeder Änderung `bash werkzeuge/pruefe.sh` – muss `SAUBER` melden.
 
+### Bewusste Abweichungen im Verschönerungsdurchgang
+
+Physik, Hitboxen und Kollision sollten dabei unverändert bleiben. An diesen
+Stellen hat sich das Spiel trotzdem geändert, jeweils mit Absicht:
+
+- **Werfer** (Level 11, 12, 13, 15, 16): Das Modell schaut jetzt richtig
+  zum Spieler (`_blickwinkel`), und das Geschoss startet an seiner Hand.
+  Der Abwurfpunkt liegt dadurch bis gut 1 m anders als vorher, als die
+  Hand oft hinter dem Rücken saß; Ziel, Tempo und Vorhalt sind gleich.
+- **Früchte** aus Kisten, Gegnern und den Ballons in Level 22: Der
+  Wurfbogen endet auf Abwurfhöhe statt nach fester Flugzeit – rund 0,9 m
+  höher und 0,25 m näher an der Quelle, nie mehr halb im Boden.
+- **Level 01:** Der Kronenwald ersetzt die Rahmenbäume; deren 27
+  Stammkollisionen entfallen. Neben dem Grat (158–208 m) konnte man vorher
+  auf einem Stamm unterhalb der Kante stranden, ohne Weg zurück.
+- **Portalraum:** Die Figur startet vor dem Raum, um den es gerade geht
+  (siehe „Startplatz"), nicht mehr in der Hallenmitte. Die Kollision ist
+  unverändert; die Obelisken in Raum 5 stecken ohne eigenen Körper in der
+  Rückwand.
+
 ## Kollisionsebenen
 
 | Ebene | Wert | Belegung |
@@ -85,7 +105,10 @@ Figur nur lesen – Tempo, Hitbox und Zeitgeber schreiben sie nie.
 Die Bauchplatscher-Optik läuft vor der Kistenschleife, damit der Ring nie
 an der Grenze von 8 Effekten je Bild scheitert. Die Trefferpause
 (`Effekte.trefferpause`) löst die Figur nur beim Bauchplatscher mit
-Kistentreffer und beim Schutzbruch aus.
+Kistentreffer und beim Schutzbruch aus. Als Treffer zählt nur eine Kiste,
+die dabei wirklich zerbricht (sie gibt sich frei): Eisen- und
+Sprungkisten, ein Umriss, der noch nicht da ist, und schon glimmendes TNT
+halten das Bild nicht an.
 
 Bodenfleck, Lauf- und Slidestaub und das Auftauchen bekommt nur die Figur
 zu Fuß (`_mit_bodeneffekten()`). Reiter, Rennfahrer und Flieger werden
@@ -440,6 +463,9 @@ und ihre Knöpfe.
 - **Inhalt:** Die Legende misst ihre Zeilen, lange Erklärungen brechen um;
   die Tastenhinweise folgen der Eingabeart.
 - **Schnittstelle:** `setzen(an)`, `umschalten()`, Signal `umgeschaltet(offen)`.
+- **Gesperrt** bleibt sie, solange ein Knoten in der Gruppe `auswertung`
+  (Auswertung am Ziel) oder `uebergang` (ein Levelportal saugt die Figur
+  ein) steht.
 
 ## Eigene Spielfigur (`autoload/Einstellungen.gd`, `scripts/modell_lader.gd`)
 
@@ -529,8 +555,11 @@ zählt die Kisten und verbindet das Signal `level_geschafft`. Steht alles,
 sendet sie `aufbau_fertig`.
 
 - **Vor dem Aufbau** setzt die Basis `Effekte.staubfarbe` auf
-  `Effekte.STAUBFARBE_VORGABE`; wer eine eigene Farbe will, setzt sie in
-  `_baue()` bzw. einem Bauschritt.
+  `Effekte.STAUBFARBE_VORGABE` (Waldweg); wer eine eigene Farbe will,
+  setzt sie in `_baue()` bzw. einem Bauschritt. Jedes Lauflevel, dessen
+  Boden kein Waldweg ist, tut das in `_boden_bauen()` (Schnee, Bohlen,
+  Schlick, Stein, Blech, Sand, Dächer). Der Staub ist unbeleuchtet: In
+  dunklen Leveln bleibt seine Farbe dunkel, sonst glimmt er auf.
 - **Nach dem Ausrichten der Kamera** ruft sie `Effekte.vorwaermen(self)`,
   solange der Ladeschirm noch steht. Explosion und Lichtsäule des
   Zielportals wärmen ihre Shader selbst vor.
@@ -631,9 +660,14 @@ Blatt- und Blütennetze werden vor dem Tangentenbau verschmolzen
 - `Schluchtsaum.wurzeltor(eltern, kurve, strecke, abstand, saat, fuss := 3.2, scheitel := 9.2)`
   – Wurzelbogen von Wand zu Wand, Scheitel hoch über Doppelsprung und
   Kamera, mit Sichtkörpern auf der Sichtsperre wie `LevelWerkzeuge.torbogen`.
+  Oberhalb von 6 m umfassen die Sichtkörper die ganzen Stränge (2,7 m
+  Querschnitt), nicht nur die Bogenlinie. Freie Ranken hängen am Tor
+  keine: Die Kamera (6 m über dem Weg, im Doppelsprung 8,4 m) fuhr durch
+  sie hindurch.
 - `Schluchtsaum.baumstamm(eltern, a, b, dicke, tiefste, saat)` –
-  umgestürzter Stamm von Krone zu Krone; Ranken nie tiefer als `tiefste`
-  (Welt-Y).
+  umgestürzter Stamm von Krone zu Krone; Ranken samt Blättern nie tiefer
+  als `tiefste` (Welt-Y). Level 01 gibt Weghöhe + `Schluchtsaum.KAMERA_FREI`
+  (8,8 m) an.
 - `Schluchtsaum.blaetterdach(eltern, baeume, saat, laubfarbe)` – viele
   Baumkronen in zwei Netzen (Kronen, Stämme), für Wald, auf den man von
   oben schaut. `baeume`: `[{"fuss", "hoehe", "breite"}]`.
@@ -710,7 +744,19 @@ Umgebung, Licht, Spieler, Kamera und HUD.
 - **Betreten:** Die Figur wird eingesogen, dazu Funken, Blitz, Ring und
   eine Kreisblende auf die Scheibe; der Levelname steht groß über der Iris
   (CanvasLayer 50). Der Wirbel dreht dabei über `drall`/`sog`/`helligkeit`
-  und die Drehung des Knotens auf, nie über `tempo`.
+  und die Drehung des Knotens auf, nie über `tempo`. Bis zum Szenenwechsel
+  steht das Tor in der Gruppe `uebergang`, und die Statustafel bleibt zu:
+  Die Iris liegt über dem HUD und schließt sich auch bei angehaltenem Spiel.
+- **Pflaster:** Die Oberkante der Steine liegt auf dem Kollisionsboden
+  (y = 0), Fase und Fugen darunter; Mittelstein und Schwellen stehen 2,5
+  bis 3,5 cm darüber. Das Pflaster hat keine eigene Kollision – lag es
+  höher, standen die Füße im Stein, und der Bodenfleck verschwand darunter.
+  Die Raumböden beginnen erst hinter dem letzten Pflasterband.
+- **Raumnamen** über den Toren auf 5,2 m: Höher lagen sie über dem oberen
+  Bildrand der Portalraum-Kamera und waren nur im Sprung zu sehen.
+- **Ankunft:** Vor dem Ausblenden des Ladeschirms wärmt der Portalraum
+  die Teilchen-Shader vor (`Effekte.vorwaermen`, zwei Bilder nach dem
+  Aufbau), damit Lichtsäule und Ring der Ankunft nicht stocken.
 - **Torpfeiler:** Steht einer zwischen Kamera und Figur, löst er sich samt
   Kragstein, Kappe, Fahne, Halter und Flamme in ein Pixelraster auf
   (Distance-Fade-Dither; die Sammel-Shader bekommen die Werte je Torseite
@@ -739,7 +785,9 @@ Umgebung, Licht, Spieler, Kamera und HUD.
 - **Effekte hängen an `current_scene`**, nie an Kisten oder Früchten. Der `Leuchtmarker` kopiert die Materialien des ganzen Unterbaums der Gruppen „kisten" und „fruechte". Eine eingesammelte Frucht nähme ihre Funken außerdem mit, wenn sie sich freigibt. Ein Szenenwechsel räumt die Effekte von selbst ab.
 - **`CPUParticles3D`, nicht `GPUParticles3D`**, aus demselben Grund wie beim `Staubflug`. Jeder Stoß ist `one_shot` und `top_level`, hat keine Physikinterpolation und räumt sich selbst ab: über `finished` und zusätzlich über einen Zeitgeber.
 - **Grenzen:** höchstens 24 Stöße gleichzeitig, 8 neue je Bild und 2 Blitzlichter. Wer einen Stoß anfordert, muss `null` als Rückgabe vertragen. Die Reihenfolge der Aufrufe ist der Rang: Wer mehrere Stöße auf einmal anlegt, legt die wichtigsten zuerst an. Eine Kiste legt beim Bruch zuerst ihre eigenen Stöße an (`_truemmer`) und erst danach alles, was sie auslöst (Früchte, Umrisse); die Explosion reiht Feuerball, Ring, Glut und Rauch in dieser Folge.
-- **`Effekte.staubfarbe` überlebt den Szenenwechsel.** `LevelBasis` setzt sie deshalb vor jedem Aufbau auf `Effekte.STAUBFARBE_VORGABE`; ein Level mit eigener Farbe setzt sie beim Bauen.
+- **`Effekte.staubfarbe` überlebt den Szenenwechsel.** `LevelBasis` setzt sie deshalb vor jedem Aufbau auf `Effekte.STAUBFARBE_VORGABE` (Waldweg); ein Level mit eigenem Boden setzt sie beim Bauen.
+- **`Effekte.ruhig`** (Einstellung „Bildschirmwackeln" aus) schaltet Wackeln, Trefferpause und Bildblitz ab. Auch das HUD blitzt dann nicht: kein roter Schleier beim Tod, kein roter Rand beim Schutzbruch.
+- **Vorwärmen:** Die Teilchen von `vorwaermen()` laufen in Zeitlupe (`VORWAERM_ZEITLUPE`). Das erste Bild nach einem Aufbau ist lang, und mit gewöhnlichem Tempo verglühten sie darin, ehe sie gezeichnet wurden.
 - **`Effekte.reduziert`** halbiert die Mengen und schaltet Wackeln, Trefferpause, Bildblitz und Blitzlicht ab. Vorbelegt ist es nur in Handy-Browsern.
 - **Trefferpause:** `Engine.time_scale` wird für höchstens 0,2 s auf 0,05 gesetzt. Im Headless-Betrieb ist sie aus, damit die Messungen der Prüfwerkzeuge stimmen. Für den Zeitmodus ist sie fair, weil die Uhr mit dem verlangsamten Delta zählt.
 - **Bildblitz** liegt auf CanvasLayer-Ebene 0, also unter dem HUD (Ebene 10, siehe HUD).
@@ -800,9 +848,13 @@ nachsehen, was wirklich gilt: `ProjectSettings.get_setting("rendering/…")`.
 
 | `rendering/…` | Rechner | Browser (`.web`) | Warum |
 |---|---|---|---|
-| `anti_aliasing/quality/msaa_3d` | 1 (2x) | 0 | Glättet Stacheln, Kisten- und Wandkanten. Kostet am Rechner rund 14 MB Grafikspeicher bei 720p, gut 30 MB bei 1080p, keine Draw-Calls. |
-| `anti_aliasing/quality/screen_space_aa` | 0 | 1 (FXAA) | Ein Vollbild-Durchgang statt eines mehrfach abgetasteten Bildes samt Auflösen – auf Handys der billigere Weg. |
+| `anti_aliasing/quality/msaa_3d` | 1 (2x) | 1 (2x), Handy 0 | Glättet Stacheln, Kisten- und Wandkanten. Kostet rund 14 MB Grafikspeicher bei 720p, gut 30 MB bei 1080p, keine Draw-Calls. Handys im Browser (`Effekte.reduziert`) schaltet `Einstellungen._ready()` zur Laufzeit ab – dort zählt die Füllrate. |
 | `lights_and_shadows/directional_shadow/size` | 4096 | 2048 | 16 statt 64 MB. Level 01 sieht in der Nahansicht fast gleich aus. |
+
+**Kein FXAA.** `screen_space_aa` gibt es unter gl_compatibility nicht: Godot
+4.7.2 meldet „Screen-space AA is only available when using the Forward+ or
+Mobile renderer" und lässt die Einstellung fallen. Handys im Browser
+zeichnen deshalb ungeglättet.
 
 **Sonnen prüfen.** `.tscn` speichert eine `Transform3D` zeilenweise (Zeilen
 der Basis, nicht Spalten). Ein abgeschriebener Wert lässt das Licht leicht
@@ -926,7 +978,8 @@ Anhalten verdeckt.
   der Mitte, `GameState.zeige_banner()` als großes schräges Band.
 - **Tod und Treffer:** `level_zuruecksetzen` löst einen dunkelroten Blitz
   aus (`UiStil.Blende`, unter den Zählern). Ein vom Schutz abgefangener
-  Treffer färbt den Bildrand rot.
+  Treffer färbt den Bildrand rot. Beides entfällt wie jeder Bildblitz bei
+  `Effekte.ruhig` („Bildschirmwackeln" aus) und `Effekte.reduziert`.
 - **Titelkarte:** „LEVEL 01 · WURZELWALD / Wurzelschlucht" links unten, am
   Signal `aufbau_fertig` des Levels – nur, wenn es über
   `Spielfluss.zum_level()` betreten wurde (`titelkarte_faellig`).
@@ -1013,5 +1066,7 @@ ein Scherenschnitt im unteren Drittel (Tannen, Schilf und Steg, Mauer und
 Türme, Schlote, Dünen und Dächer, im Portalraum die fünf Portalringe). Die
 Formen liefern statische Helfer (`reihe()`, `baum()`, `zerlege()`, über
 `preload` des Skripts); auch die Einstellungen zeichnen damit ihren
-Waldrand. Zerlegt wird einmal je Raum und Bildgröße, gezeichnet mit
-`RenderingServer.canvas_item_add_triangle_array`.
+Waldrand. Zerlegt wird einmal je Raum und Bildgröße (Zwischenspeicher für
+bis zu 12), gezeichnet mit `RenderingServer.canvas_item_add_triangle_array`.
+`zerlege()` fragt jede Form nur über ihrer eigenen Breite ab; über alle
+Stellen dauerte das Schilf der Nebelsümpfe eine Viertelsekunde.

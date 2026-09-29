@@ -229,6 +229,9 @@ func _verlauf_anlegen() -> void:
 # =========================================================== Grund
 
 func _boden_bauen() -> void:
+	# Staub der Figur: Firn wie der Weg. Ohne eigene Farbe staubte es hier im
+	# Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = Farben.FIRN
 	var form := {"tiefe": 1.4, "schritt": 0.9,
 			"kante_hoehe": 0.16, "kante_breite": 0.45}
 	LevelWerkzeuge.korridor(geometrie, verlauf, BODEN_FELS, {

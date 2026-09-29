@@ -160,6 +160,12 @@ func setzen(an: bool) -> void:
 	# In gut vier Sekunden geht es ohnehin von selbst in den Portalraum.
 	if an and not get_tree().get_nodes_in_group(&"auswertung").is_empty():
 		return
+	# Ebenso, solange ein Levelportal die Figur einsaugt (Gruppe
+	# „uebergang"): Seine Irisblende liegt auf Ebene 50 über dem HUD und
+	# schließt sich auch bei angehaltenem Spiel. Die Tafel stünde sonst
+	# unsichtbar, aber bedienbar hinter einem schwarzen Bild.
+	if an and not get_tree().get_nodes_in_group(&"uebergang").is_empty():
+		return
 	offen = an
 	_auf_seit = Time.get_ticks_msec() * 0.001
 	if an:

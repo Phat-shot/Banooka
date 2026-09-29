@@ -18,6 +18,9 @@ const HOEHE := 1.15
 const TEMPO := 1.5          ## Umdrehungen pro Sekunde × 2π
 const NICK := 0.22          ## Auf-und-ab-Schwingen
 const MASKENHOEHE := 0.42
+## Wie schnell eine Maske auf ihren neuen Platz im Kreis rückt (1/s).
+## Rund 0,25 s, bis sie dort ist.
+const NACHRUECKEN := 12.0
 
 ## Die Figur, an der die Masken hängen. Wird beim Eintreten gemerkt:
 ## `get_parent_node_3d()` liefert bei einem `top_level`-Knoten immer null,
@@ -26,6 +29,10 @@ const MASKENHOEHE := 0.42
 var _traeger: Node3D
 
 var _masken: Array[Node3D] = []
+## Platz jeder Maske im Kreis (Winkel zur Phase), parallel zu `_masken`.
+## Er rückt weich nach, wenn eine Maske dazukommt oder wegfällt – sonst
+## sprängen die übrigen im Moment des Treffers um fast einen Meter.
+var _versatz: Array[float] = []
 var _phase := 0.0
 var _anzahl := -1
 
@@ -51,8 +58,10 @@ func _process(delta: float) -> void:
 	if _masken.is_empty():
 		return
 	_phase += delta * TEMPO
+	var folgen := 1.0 - exp(-NACHRUECKEN * delta)
 	for i in _masken.size():
-		var winkel := _phase + TAU * float(i) / float(_masken.size())
+		_versatz[i] = lerp_angle(_versatz[i], _platz(i, _masken.size()), folgen)
+		var winkel := _phase + _versatz[i]
 		var maske := _masken[i]
 		maske.position = Vector3(sin(winkel) * RADIUS,
 				HOEHE + sin(winkel * 2.0) * NICK, cos(winkel) * RADIUS)
@@ -66,9 +75,15 @@ func _auf_schutz(anzahl: int) -> void:
 	_setze_anzahl(anzahl)
 
 
+## Der Zielplatz der Maske `i` bei `anzahl` Masken: gleich verteilt.
+static func _platz(i: int, anzahl: int) -> float:
+	return TAU * float(i) / float(maxi(anzahl, 1))
+
+
 ## Gleicht die Masken an die Zahl der Ladungen an. Nur die Differenz
 ## wird gebaut oder abgeräumt: Beim Verlust einer Ladung ploppen die
 ## übrigen nicht neu auf – sonst sähe ein Treffer aus wie ein Geschenk.
+## Die übrigen rücken in `_process` weich auf ihre neuen Plätze.
 func _setze_anzahl(anzahl: int) -> void:
 	anzahl = clampi(anzahl, 0, GameState.SCHUTZ_MAX)
 	if anzahl == _anzahl:
@@ -77,12 +92,15 @@ func _setze_anzahl(anzahl: int) -> void:
 	_anzahl = anzahl
 	while _masken.size() > anzahl:
 		var weg: Node3D = _masken.pop_back()
+		_versatz.pop_back()
 		if not erstes_mal and weg.is_inside_tree():
 			_zerspringen(weg.global_position)
 		weg.queue_free()
 	while _masken.size() < anzahl:
 		var maske := _baue_maske()
 		add_child(maske)
+		# Die neue Maske entsteht gleich auf ihrem Platz; nur die alten rücken.
+		_versatz.append(_platz(_masken.size(), anzahl))
 		_masken.append(maske)
 		# Neu dazugekommene Maske kurz aufploppen lassen.
 		maske.scale = Vector3.ZERO

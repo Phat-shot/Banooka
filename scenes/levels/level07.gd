@@ -112,6 +112,9 @@ func _verlauf_anlegen() -> void:
 # =========================================================== Boden
 
 func _boden_bauen() -> void:
+	# Staub der Figur: feuchtes Graubraun der Bohlen. Ohne eigene Farbe
+	# staubte es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = Farben.BOHLE.lightened(0.35)
 	# Ufer und Anhöhe sind Torf, der Mittelteil ist Bohlensteg. Der
 	# Korridor kennt nur ein Material je Fläche, deshalb liegt hier Holz
 	# als Wegdecke und der Torf bleibt der Kulisse unten überlassen.
