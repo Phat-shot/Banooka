@@ -10,10 +10,13 @@ class_name Wegweiser
 ## Ziel ist das nächste Tor, das offen UND noch nicht geschafft ist; erst
 ## wenn es keins mehr gibt, irgendein offenes. Sonst zeigte der Pfeil nach
 ## der Rückkehr aus Level 01 stur auf Level 01 – das nächstgelegene Tor.
+## Im Raum dieses Tors gewinnt dann die kleinste Nummer: Beim neuen Spiel
+## steht man mittig vor dem Wurzelwald, das nächste Tor wäre 03 – gemeint
+## ist aber 01, das Tor mit dem Vorhof.
 ##
-## Farbe: die des Raums, in dem das Ziel liegt (`Levelportal.akzent`). So
-## sagt schon der Pfeil, wohin es geht – grün in den Wurzelwald, blaugrün in
-## die Nebelsümpfe.
+## Farbe: Der Winkel selbst ist warmweiß – in der Raumfarbe verschwand er
+## auf dem Gras des Wurzelwalds und dem Stein der Feste. Die Farbe des
+## Zielraums (`Levelportal.akzent`) tragen sein Rand und der Kompassring.
 
 ## Höhe über dem Spieler.
 @export var hoehe := 2.5
@@ -27,6 +30,7 @@ class_name Wegweiser
 var _spieler: Node3D
 var _ziel: Node3D
 var _material: StandardMaterial3D
+var _randmaterial: StandardMaterial3D
 var _ringmaterial: StandardMaterial3D
 var _ring: Node3D
 var _farbe := Farben.PORTAL_START
@@ -41,6 +45,11 @@ const GROESSE := 1.45
 ## Höhe des Kompassrings über dem Boden. Der Portalraum ist eben (Pflaster
 ## 7,5 cm, Räume 0 cm); der Ring bleibt beim Springen unten wie ein Schatten.
 const RING_Y := 0.11
+## Kern des Winkels: warmweiß und über 1, damit er leicht glüht.
+const KERN := Color(1.25, 1.2, 1.05)
+## Maße eines Arms (Breite, Dicke, Länge) und wie weit der Rand übersteht.
+const ARM := Vector3(0.17, 0.08, 0.55)
+const RAND := 0.035
 
 func _ready() -> void:
 	_baue()
@@ -55,25 +64,16 @@ func _baue() -> void:
 	# soll ja gerade den Weg durch den Raum weisen.
 	_material.no_depth_test = true
 	_material.render_priority = 4
+	_randmaterial = _material.duplicate() as StandardMaterial3D
+	_randmaterial.render_priority = 3
 	_setze_farbe(_farbe)
 
 	# Winkel statt Schaft und Kegel: zwei flache Balken, die sich vorn
 	# treffen. Er liest sich von oben wie von hinten als Richtung, und
-	# anders als der Kegel verdeckt er die Figur kaum.
-	for seite in [-1.0, 1.0]:
-		var balken := BoxMesh.new()
-		balken.size = Vector3(0.1, 0.06, 0.5)
-		var arm := MeshInstance3D.new()
-		arm.name = "Winkel"
-		arm.mesh = balken
-		arm.material_override = _material
-		arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		# Spitze bei -Z (Blickrichtung), die Arme laufen nach hinten auseinander.
-		var dreh := deg_to_rad(42.0) * float(seite)
-		arm.rotation.y = dreh
-		arm.position = Vector3(sin(dreh) * 0.25, 0.0, cos(dreh) * 0.25 - 0.22) * GROESSE
-		arm.scale = Vector3.ONE * GROESSE
-		add_child(arm)
+	# anders als der Kegel verdeckt er die Figur kaum. Beide Arme sind EIN
+	# Netz, der Rand in Raumfarbe ein zweites, etwas größeres dahinter.
+	_winkel("Winkel", ARM, _material)
+	_winkel("Winkelrand", ARM + Vector3(RAND, RAND, RAND) * 2.0, _randmaterial)
 
 	# Kompassring am Boden. Er hängt NICHT unter diesem Knoten – der dreht
 	# und schwebt; der Ring liegt still und nur seine Kerbe zeigt zum Ziel.
@@ -109,11 +109,33 @@ func _baue() -> void:
 	_ring.add_child(kerbe)
 
 
+## Beide Arme des Winkels als ein Netz. Spitze bei -Z (Blickrichtung), die
+## Arme laufen nach hinten auseinander.
+func _winkel(bezeichnung: String, groesse: Vector3, stoff: Material) -> void:
+	var balken := BoxMesh.new()
+	balken.size = groesse
+	var st := SurfaceTool.new()
+	for seite: float in [-1.0, 1.0]:
+		var dreh := deg_to_rad(42.0) * seite
+		var halb := ARM.z * 0.5
+		var mitte := Vector3(sin(dreh) * halb, 0.0, cos(dreh) * halb - 0.22) * GROESSE
+		st.append_from(balken, 0, Transform3D(
+				Basis(Vector3.UP, dreh).scaled(Vector3.ONE * GROESSE), mitte))
+	var mi := MeshInstance3D.new()
+	mi.name = bezeichnung
+	mi.mesh = st.commit()
+	mi.material_override = stoff
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+
 func _setze_farbe(ton: Color) -> void:
 	_farbe = ton
 	var hell := ton.lightened(0.25)
 	if _material != null:
-		_material.albedo_color = Color(hell, _material.albedo_color.a)
+		_material.albedo_color = Color(KERN, _material.albedo_color.a)
+	if _randmaterial != null:
+		_randmaterial.albedo_color = Color(ton, _randmaterial.albedo_color.a)
 	if _ringmaterial != null:
 		_ringmaterial.albedo_color = Color(hell, _ringmaterial.albedo_color.a)
 
@@ -166,16 +188,20 @@ func _setze_sichtbarkeit(ziel_alpha: float, delta: float) -> void:
 	var puls := 0.82 + 0.18 * sin(_phase * 1.6)
 	if _material != null:
 		_material.albedo_color.a = _sichtbarkeit * puls
+	if _randmaterial != null:
+		_randmaterial.albedo_color.a = _sichtbarkeit * puls
 	if _ringmaterial != null:
 		_ringmaterial.albedo_color.a = _sichtbarkeit * (0.35 + 0.25 * puls)
 
 
 ## Nächstes Portal, das tatsächlich betreten werden kann – bevorzugt eines,
-## das noch nicht geschafft ist.
+## das noch nicht geschafft ist, und in dessen Raum das mit der kleinsten
+## Nummer.
 func _naechstes_offenes_portal() -> Node3D:
 	var bestes: Node3D = null
 	var beste_entfernung := INF
 	var neues_gefunden := false
+	var offene: Array[Node3D] = []
 	for knoten in get_tree().get_nodes_in_group("levelportale"):
 		var portal := knoten as Node3D
 		if portal == null or not ("nummer" in portal):
@@ -184,6 +210,8 @@ func _naechstes_offenes_portal() -> Node3D:
 		if not Spielfluss.level_offen(nummer):
 			continue
 		var neu := not Spielfluss.geschafft.has(nummer)
+		if neu:
+			offene.append(portal)
 		# Ein ungeschafftes Tor schlägt jedes geschaffte, egal wie nah.
 		if neues_gefunden and not neu:
 			continue
@@ -192,4 +220,13 @@ func _naechstes_offenes_portal() -> Node3D:
 			beste_entfernung = entfernung
 			bestes = portal
 			neues_gefunden = neues_gefunden or neu
+	if not neues_gefunden:
+		return bestes
+	var kleinste := int(bestes.get("nummer"))
+	var raum := Spielfluss.raum_von_level(kleinste)
+	for portal in offene:
+		var nummer := int(portal.get("nummer"))
+		if nummer < kleinste and Spielfluss.raum_von_level(nummer) == raum:
+			kleinste = nummer
+			bestes = portal
 	return bestes

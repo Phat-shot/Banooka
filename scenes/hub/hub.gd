@@ -26,21 +26,29 @@ extends Node3D
 ## auf der Südmauer läge dagegen als Balken quer über dem Bild – die Kamera
 ## steht beim Start 1,6 m über ihr, 4 m davor.
 ##
-## LICHT (Hub.tscn): Die Sonne steht tief im Nordwesten, hinter den
-## Räumen. Die Rückwände liegen dadurch im Schatten und rahmen die
-## leuchtenden Portale dunkel ein, der Hallenboden liegt in der Sonne –
-## Lesbarkeitsvertrag: dunkler Rahmen, helle Lauffläche. Leuchten entsteht
-## über das Glühen der Umgebung (Glow), nicht über Punktlichter: Unter
-## gl_compatibility kostet jedes Punktlicht jedes Objekt in seiner
-## Reichweite einen weiteren Durchgang, und ab acht Lichtern je Netz fallen
-## welche weg. Was glühen soll, ist deshalb heller als 1 (Ringe, Flammen,
-## Siegel, Strahlen des Mittelsteins); alles andere bleibt darunter.
+## LICHT (Hub.tscn): Die Sonne steht tief im Nordosten (gut 30 Grad hoch),
+## hinter den Räumen. Die Rückwände liegen dadurch im Schatten und rahmen
+## die leuchtenden Portale dunkel ein, der Hallenboden liegt in der Sonne –
+## Lesbarkeitsvertrag: dunkler Rahmen, helle Lauffläche. Ein schwaches,
+## kühles Himmelslicht kommt von Südwesten, von der Kameraseite: Es hebt
+## die beschatteten, der Kamera zugewandten Wände und Bögen gerade so weit
+## an, dass man ihren Stein noch sieht, und wirft keinen Schatten. Vorher
+## schien es von unter dem Horizont nach oben und erreichte den Boden nie.
+## Leuchten entsteht über das Glühen der Umgebung (Glow), nicht über
+## Punktlichter: Unter gl_compatibility kostet jedes Punktlicht jedes
+## Objekt in seiner Reichweite einen weiteren Durchgang, und ab acht
+## Lichtern je Netz fallen welche weg. Was glühen soll, ist deshalb heller
+## als 1 (Ringe, Flammen, Siegel, Strahlen des Mittelsteins); alles andere
+## bleibt darunter.
 ##
 ## KOSTEN: Wiederkehrende Teile (Pflaster, Säulen und Bögen, Wandhalter,
-## Fahnen, Flammen, Fortschrittssteine) sind je Raum oder für den ganzen
-## Saal zu EINEM Netz zusammengefasst. Das Sperrgitter vor einem Raum
+## Fahnen, Flammen, Fortschrittssteine, Brüstung) sind je Raum oder für den
+## ganzen Saal zu EINEM Netz zusammengefasst. Das Sperrgitter vor einem Raum
 ## bestand aus 43 Einzelnetzen, die Gitter vor 20 Portalen aus weiteren
 ## hundert – jetzt ist es ein Schleier aus einem Netz.
+##
+## TORPFEILER: Steht einer zwischen Kamera und Figur, löst er sich samt
+## Fahne, Halter und Flamme in ein Pixelraster auf (`_torpfeiler_aufloesen`).
 ##
 ## WICHTIG: Position immer VOR `add_child()` setzen.
 
@@ -84,10 +92,16 @@ const SCHRIFT_NAH := 11.0
 
 # --- Pflaster ---
 const PFLASTER_Y := 0.075      ## Oberkante der Steine
-const PFLASTER_FUSS := 0.036   ## Unterkante der Fase, knapp über dem Fugenbett
-const FUGE_Y := 0.03           ## Fugenbett (Moos)
-const FUGE := 0.045            ## halbe Fugenbreite
-const FASE := 0.07             ## waagerechte Breite der Kantenfase
+## Unterkante der Fase. Flach (gut 25 Grad): Eine steile Fase stand der
+## tiefen Sonne fast senkrecht entgegen und zog um jeden Stein eine helle
+## Linie – zusammen ein Gitter über die ganze Halle.
+const PFLASTER_FUSS := 0.05
+const FUGE_Y := 0.03           ## Fugenbett
+## Schmale Fugen, schmale Fasen: Mit 9 cm fast schwarzer Fuge und heller
+## Fase um jeden Stein las sich der Boden wie Rechenpapier und war das
+## Unruhigste im Bild – lauter als die Portale.
+const FUGE := 0.03             ## halbe Fugenbreite
+const FASE := 0.05             ## waagerechte Breite der Kantenfase
 const PLATTE_LAENGE := 1.7     ## mittlere Steinlänge entlang des Bogens
 const PLATTEN_BAENDER := 9     ## Steinreihen zwischen Süd- und Torkante
 ## Warmer, heller Grundton des Pflasters: Die Lauffläche ist das Hellste
@@ -165,7 +179,9 @@ void fragment() {
 	// Langsame Lichtwelle, die nach oben steigt
 	float welle = 0.5 + 0.5 * sin(p.y * 2.2 - TIME * 1.3 + p.x * 0.35);
 	float oben = 1.0 - smoothstep(0.3, 1.0, UV.y);
-	float seiten = smoothstep(0.0, 0.5, p.x) * smoothstep(laenge, laenge - 0.5, p.x);
+	// smoothstep nur mit steigenden Kanten: umgekehrt ist es in GLSL ES 3.0
+	// undefiniert, und manche Mobiltreiber rechnen dann Unsinn.
+	float seiten = smoothstep(0.0, 0.5, p.x) * (1.0 - smoothstep(laenge - 0.5, laenge, p.x));
 
 	// Siegel: zwei Ringe und ein Schlüsselloch
 	vec2 q = p - vec2(laenge * 0.5, zeichen_y);
@@ -176,7 +192,9 @@ void fragment() {
 	float zeichen = clamp(ring + loch + keil, 0.0, 1.0);
 
 	float g = gitter * (0.16 + 0.3 * welle);
-	vec3 licht = farbe.rgb * (0.6 + 1.2 * g) + (farbe.rgb * 1.5 + vec3(0.3)) * zeichen;
+	// Das Zeichen glüht in der Farbe des Siegels. Mit einem weißen Anteil las
+	// es sich wie ein Symbol aus dem Menü, nicht wie ein Siegel im Raum.
+	vec3 licht = farbe.rgb * (0.6 + 1.2 * g) + (farbe.rgb * 1.2 + vec3(0.15)) * zeichen;
 	ALBEDO = licht;
 	ALPHA = clamp(((0.1 + 0.08 * welle) + g) * oben + zeichen * 0.92, 0.0, 1.0)
 			* seiten * deckkraft;
@@ -199,42 +217,89 @@ uniform float staerke = 1.5;
 void fragment() {
 	// Der Kopf jedes Pulses liegt vorn (zum Raum hin), der Schweif dahinter.
 	float s = fract(UV.x / abstand - TIME * tempo);
-	float puls = pow(s, 5.0) * smoothstep(1.0, 0.94, s);
+	float puls = pow(s, 5.0) * (1.0 - smoothstep(0.94, 1.0, s));
 	float quer = 1.0 - abs(UV.y * 2.0 - 1.0);
-	float enden = smoothstep(0.0, 0.06, UV2.x) * smoothstep(1.0, 0.9, UV2.x);
+	float enden = smoothstep(0.0, 0.06, UV2.x) * (1.0 - smoothstep(0.9, 1.0, UV2.x));
 	ALBEDO = COLOR.rgb * staerke;
 	ALPHA = 0.85 * puls * smoothstep(0.0, 0.6, quer) * enden;
+}
+"""
+
+## Gemeinsamer Teil der Shader für den Torschmuck (Flammen, Fahnen,
+## Halter): Jedes Teil löst sich mit seinem Torpfeiler auf. Die Weite kommt
+## je Torseite aus einer Liste; der Vertex-Shader liest sie (dort ist
+## beliebiges Indizieren überall erlaubt) und reicht sie weiter.
+const AUFLOESEN_GLSL := """
+// Auflösen vor der Kamera (siehe `_torpfeiler_aufloesen`): je Torseite
+// die Weite der Überblendung, 0 = ganz da. Dasselbe Pixelraster wie Godots
+// Distance Fade am Pfeiler selbst – Pfeiler, Fahne, Halter und Flamme
+// lösen sich gemeinsam auf.
+uniform float aufloesen[10];
+
+float _weite(float seite) {
+	int i = int(seite + 0.5);
+	return (i >= 0 && i < 10) ? aufloesen[i] : 0.0;
+}
+
+bool _weg(float bis, vec3 ansicht, vec2 pixel) {
+	if (bis <= 0.02) {
+		return false;
+	}
+	float deckung = smoothstep(0.0, bis, length(ansicht));
+	return deckung < 0.001
+			|| deckung < fract(52.9829189 * fract(dot(pixel, vec2(0.06711056, 0.00583715))));
 }
 """
 
 ## Flammen der Feuerschalen – alle in EINEM MultiMesh. Die Form entsteht im
 ## Shader (Tropfen mit flackernder Spitze), gedreht wird nur um die
 ## Senkrechte: Eine Flamme kippt nicht, wenn die Kamera von oben schaut.
-## Instanzfarbe: RGB = Flammenfarbe, Alpha = Phase.
+## Instanzfarbe: RGB = Flammenfarbe, Alpha = Phase. Die Instanzgröße ist
+## die der Flamme; das Viereck ist größer, denn um die Flamme liegt ein
+## weicher Hof aus Licht – ohne ihn waren es harte kleine Kerzentropfen.
+##
+## Vormultipliertes Alpha: Die Flamme deckt (Alpha = Form), der Hof hat
+## Alpha 0 und wird nur addiert. So hellt er Pfeiler und Fahne auf, ohne
+## sie grau zu überdecken – beides in EINEM Zeichenaufruf.
 const FLAMME_SHADER := """
 shader_type spatial;
-render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabled,
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, shadows_disabled,
 		fog_disabled, skip_vertex_transform;
+
+const float HOF_BREITE = 2.4;   // Viereck = 2,4 Flammenbreiten
+const float HOF_UNTEN = 0.45;   // reicht so weit unter den Fuß …
+const float HOF_OBEN = 1.5;     // … und so weit hinauf (in Flammenhöhen)
+const float HOF_MITTE = 0.45;
+const float HOF_HOCH = 0.9;
 
 varying vec3 ton;
 varying float phase;
+// Flammenkoordinaten: x -1..1 über die Flammenbreite, y 0 (Fuß) bis 1 (Spitze)
+varying vec2 fl;
+varying float weite;
 
+""" + AUFLOESEN_GLSL + """
 void vertex() {
 	ton = COLOR.rgb;
 	phase = COLOR.a * 6.2831;
+	weite = _weite(INSTANCE_CUSTOM.r);
 	float breite = length(MODEL_MATRIX[0].xyz);
 	float hoehe = length(MODEL_MATRIX[1].xyz);
 	vec3 fuss = MODEL_MATRIX[3].xyz;
-	vec3 zur_kamera = INV_VIEW_MATRIX[3].xyz - fuss;
-	zur_kamera.y = 0.0;
-	vec3 rechts = normalize(cross(vec3(0.0, 1.0, 0.0), zur_kamera + vec3(0.0001)));
-	vec3 welt = fuss + rechts * VERTEX.x * breite + vec3(0.0, (VERTEX.y + 0.5) * hoehe, 0.0);
+	vec3 zur_kamera = normalize(INV_VIEW_MATRIX[3].xyz * vec3(1.0, 0.0, 1.0)
+			- fuss * vec3(1.0, 0.0, 1.0) + vec3(0.0001));
+	vec3 rechts = normalize(cross(vec3(0.0, 1.0, 0.0), zur_kamera));
+	fl = vec2(VERTEX.x * 2.0 * HOF_BREITE, mix(-HOF_UNTEN, HOF_OBEN, VERTEX.y + 0.5));
+	vec3 welt = fuss + rechts * fl.x * 0.5 * breite + vec3(0.0, fl.y * hoehe, 0.0);
 	VERTEX = (VIEW_MATRIX * vec4(welt, 1.0)).xyz;
-	NORMAL = normalize((VIEW_MATRIX * vec4(normalize(zur_kamera + vec3(0.0001)), 0.0)).xyz);
+	NORMAL = normalize((VIEW_MATRIX * vec4(zur_kamera, 0.0)).xyz);
 }
 
 void fragment() {
-	vec2 p = vec2(UV.x * 2.0 - 1.0, 1.0 - UV.y);
+	if (_weg(weite, VERTEX, FRAGCOORD.xy)) {
+		discard;
+	}
+	vec2 p = fl;
 	float t = TIME * 7.0 + phase;
 	// Die Spitze zuckt, der Fuß bleibt ruhig.
 	float y = p.y / (0.84 + 0.09 * sin(t) + 0.05 * sin(t * 2.3 + 1.0));
@@ -244,7 +309,13 @@ void fragment() {
 	float kante = abs(x) / max(w, 0.001);
 	float form = (1.0 - smoothstep(0.6, 1.0, kante)) * step(0.0, y) * step(y, 1.0);
 	float kern = (1.0 - smoothstep(0.0, 0.65, kante)) * (1.0 - smoothstep(0.1, 0.65, y));
-	ALBEDO = mix(ton, vec3(1.0, 0.94, 0.78), kern * 0.55) * (1.25 + 1.1 * kern);
+	vec3 flamme = mix(ton, vec3(1.0, 0.94, 0.78), kern * 0.55) * (1.25 + 1.1 * kern);
+	// Hof: weiche Ellipse um die Flammenmitte, am Rand des Vierecks auf null.
+	vec2 h = vec2(p.x / HOF_BREITE, (p.y - HOF_MITTE) / HOF_HOCH);
+	float d = length(h);
+	float hof = exp(-d * d * 4.0) * (1.0 - smoothstep(0.7, 1.0, d));
+	hof *= 0.9 + 0.1 * sin(t * 0.9);
+	ALBEDO = flamme * form + ton * hof * 0.42;
 	ALPHA = form;
 }
 """
@@ -253,14 +324,17 @@ void fragment() {
 ## bewegt sich im Vertex-Shader (unten mehr als oben), das Wappen des Raums
 ## entsteht im Fragment-Shader aus einfachen Formen – keine Textur.
 ## UV = 0..1 (y nach unten), UV2.x = Wappen (0 Blatt, 1 Tropfen, 2 Turm,
-## 3 Zahnrad, 4 Sonne), UV2.y = Phase, COLOR = Grundton.
+## 3 Zahnrad, 4 Sonne), UV2.y = Phase, COLOR.rgb = Grundton,
+## COLOR.a = Torseite (siehe `_seitenfarbe`).
 const FAHNE_SHADER := """
 shader_type spatial;
 render_mode cull_disabled;
 
 uniform vec4 zier : source_color = vec4(0.96, 0.86, 0.58, 1.0);
 varying float wappen;
+varying float weite;
 
+""" + AUFLOESEN_GLSL + """
 float _flaeche(float d) {
 	return 1.0 - smoothstep(-0.006, 0.006, d);
 }
@@ -299,12 +373,16 @@ float _zeichen(vec2 q, float art) {
 
 void vertex() {
 	wappen = UV2.x;
+	weite = _weite(COLOR.a * 16.0 - 1.0);
 	float frei = UV.y * UV.y;
 	float t = TIME * 1.4 + UV2.y * 6.2831;
 	VERTEX += NORMAL * (sin(t + UV.y * 2.6) * 0.09 + sin(t * 1.7 + UV.x * 3.0) * 0.03) * frei;
 }
 
 void fragment() {
+	if (_weg(weite, VERTEX, FRAGCOORD.xy)) {
+		discard;
+	}
 	vec2 uv = UV;
 	// Schwalbenschwanz unten
 	float kerbe = 0.9 + abs(uv.x - 0.5) * 0.2;
@@ -316,11 +394,44 @@ void fragment() {
 	vec2 q = (uv - vec2(0.5, 0.34)) * vec2(1.0, 2.3);
 	float zeichen = _zeichen(q, wappen);
 	vec3 grund = COLOR.rgb * (0.9 + 0.1 * sin(uv.y * 40.0));
-	ALBEDO = mix(grund, zier.rgb, max(rand * 0.85, zeichen));
+	vec3 stoff = mix(grund, zier.rgb, max(rand * 0.85, zeichen));
+	ALBEDO = stoff;
+	// Ein Hauch Eigenleuchten: Die Sonne steht hinter den Toren, und im
+	// Gegenlicht las sich jede Fahne fast schwarz – Raumfarbe und Wappen
+	// waren weg. So scheint der Stoff wie von hinten durchleuchtet.
+	EMISSION = stoff * 0.28;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.2;
 }
 """
+
+## Halter, Schalen und Fahnenstangen am Torpfeiler, alle in einem Netz.
+## Wie ein StandardMaterial mit Scheitelfarbe (sRGB), nur dass sich jeder
+## Halter mit seinem Pfeiler auflösen kann. COLOR.a = Torseite.
+const HALTER_SHADER := """
+shader_type spatial;
+
+varying vec3 ton;
+varying float weite;
+
+""" + AUFLOESEN_GLSL + """
+void vertex() {
+	vec3 c = COLOR.rgb;
+	ton = mix(pow((c + vec3(0.055)) * (1.0 / 1.055), vec3(2.4)), c * (1.0 / 12.92),
+			lessThan(c, vec3(0.04045)));
+	weite = _weite(COLOR.a * 16.0 - 1.0);
+}
+
+void fragment() {
+	if (_weg(weite, VERTEX, FRAGCOORD.xy)) {
+		discard;
+	}
+	ALBEDO = ton;
+	ROUGHNESS = 0.55;
+	METALLIC = 0.35;
+}
+"""
+
 
 ## Rundgang nur für die Bildvorschau (`werkzeuge/foto.sh`): Das Werkzeug
 ## setzt den Spieler auf diese Kurve und fotografiert mit der Spielkamera.
@@ -348,9 +459,26 @@ var _flammen: Array[Transform3D] = []
 var _flammenfarben: Array[Color] = []
 ## Räume, die in diesem Besuch entsiegelt werden (Index 0-basiert).
 var _entsiegeln: Array[int] = []
+## Die zehn Torpfeiler, die sich vor der Kamera auflösen können, und die
+## Sammelnetz-Materialien, die ihre Werte als Liste bekommen (Halter,
+## Fahnen, Flammen – jedes Teil trägt die Nummer seiner Torseite).
+var _torseiten: Array[Torseite] = []
+var _aufloesen := PackedFloat32Array()
+var _aufloesstoffe: Array[ShaderMaterial] = []
+var _seite_nr := 0
+var _flammenseiten: Array[int] = []
+var _spieler_knoten: Node3D = null
 var _siegel_neu: Dictionary[int, MeshInstance3D] = {}
 
 static var _shader: Dictionary[String, Shader] = {}
+
+
+## Ein Torpfeiler samt Kragstein und Kappe, der sich in ein Pixelraster
+## auflöst, wenn er der Kamera den Blick auf die Figur verstellt.
+class Torseite:
+	var ort := Vector2.ZERO
+	var stoffe: Array[StandardMaterial3D] = []
+	var durchsicht := 0.0
 
 
 func _ready() -> void:
@@ -650,20 +778,21 @@ func _baue_boden() -> void:
 	# Sockel: ragt unter den Mauern hervor. Die Kamera steht beim Laufen
 	# oft außerhalb der Mauern – ohne diesen Rand sähe sie dort ins Leere.
 	# Wiese statt Fels: Der Saal liegt in einer Landschaft, nicht auf einer
-	# grauen Platte. Gedämpft – das Pflaster bleibt die hellste Fläche.
+	# grauen Platte. Dunkel und matt – in der Sonne leuchtete sie sonst als
+	# grelle, leere Rasenfläche unter der Südkante und sah begehbar aus.
 	var sockel := _neuer_bauer()
 	_bogenflaeche(sockel, HALLE_R - 7.0, AUSSEN_R + 3.5, -SEITE - 6.0,
 			SEITE + 6.0, -0.09, 22)
 	_flaeche_anhaengen(_geometrie, sockel, _getoent(Materialbibliothek.gras(),
-			Color(0.5, 0.56, 0.42), "wiese"), "Sockel", false)
+			Color(0.32, 0.36, 0.25), "wiese"), "Sockel", false)
 
-	# Fugenbett: dunkle, bemooste Erde zwischen den Steinen. Dunkel, nicht
-	# grün – ein Moosband zeichnete ein grelles Gitter über die ganze Halle.
+	# Fugenbett: derselbe Stein, nur dunkler. Moosgrün zeichnete ein grelles
+	# Gitter über die Halle, fast schwarze Erde ein hartes – so trennt die
+	# Fuge die Steine, ohne selbst zum Muster zu werden.
 	var halle := _neuer_bauer()
 	_bogenflaeche(halle, HALLE_R, UEBERGANG_R + 0.6, -SEITE, SEITE, FUGE_Y, 30)
 	_flaeche_anhaengen(_geometrie, halle, Materialbibliothek.einfarbig(
-			Farben.ERDE_DUNKEL.lerp(Farben.MOOS, 0.35).darkened(0.25), 0.95),
-			"Hallenboden", false)
+			PFLASTER_TON.darkened(0.55), 0.95), "Hallenboden", false)
 
 	for i in Spielfluss.RAEUME:
 		var grad := raumwinkel(i)
@@ -677,17 +806,20 @@ func _baue_boden() -> void:
 	var pulse := _neuer_bauer()
 	_baue_pflaster(pflaster)
 	_baue_randstein(pflaster)
+	_baue_bruestung()
 	_baue_schwellen(pflaster)
 	_baue_mittelstein(pflaster, einlage, strahlen)
 	_baue_leitlinien(einlage, pulse)
 	_uv_versatz = Vector2.ZERO
 
 	# Das Pflaster wirft keinen Schatten (es liegt flach), empfängt aber.
+	# Heller als der rohe Fels, aber nicht die hellste Fläche im Bild – die
+	# gehört den Portalen. Mit 1,2 blendete der Boden in der Sonne.
 	var pflasterstoff := _scheitelstoff(Materialbibliothek.fels(),
-			Color(1.2, 1.17, 1.12), "pflaster")
-	# Halbe Texturfrequenz: Auf einem 1,7-m-Stein wirkte das Felsmuster
-	# unruhig wie Geröll; so trägt jeder Stein ein, zwei ruhige Flecken.
-	pflasterstoff.uv1_scale = Vector3(0.5, 0.5, 1.0)
+			Color(1.06, 1.03, 0.98), "pflaster")
+	# Niedrige Texturfrequenz: Auf einem 1,7-m-Stein wirkte das Felsmuster
+	# unruhig wie Geröll; so trägt jeder Stein nur ruhige, große Flecken.
+	pflasterstoff.uv1_scale = Vector3(0.3, 0.3, 1.0)
 	_flaeche_anhaengen(_geometrie, pflaster, pflasterstoff, "Pflaster", false)
 	_flaeche_anhaengen(_geometrie, einlage,
 			Materialbibliothek.einfarbig(Color(0.72, 0.56, 0.28), 0.4, 0.45),
@@ -713,7 +845,7 @@ func _baue_boden() -> void:
 ##   * Verdeckung: dunkler an der Südkante und um die Torpfeiler
 ##   * Laufspuren: heller in den fünf Achsen zu den Räumen – ein
 ##     ausgetretener Weg, der unaufdringlich zum Tor führt
-## Die Werte bleiben ruhig (0,84–1,03): Der Boden soll kein Muster werden.
+## Die Werte bleiben ruhig (0,9–1,0): Der Boden soll kein Muster werden.
 func _baue_pflaster(st: SurfaceTool) -> void:
 	var zufall := RandomNumberGenerator.new()
 	zufall.seed = 20260928
@@ -746,7 +878,7 @@ func _baue_pflaster(st: SurfaceTool) -> void:
 
 
 func _plattenfarbe(zufall: RandomNumberGenerator, zentrum: Vector3, rm: float) -> Color:
-	var hell := zufall.randf_range(0.84, 1.03)
+	var hell := zufall.randf_range(0.9, 1.0)
 	var ton := zufall.randf_range(-1.0, 1.0)
 	var farbe := Color(PFLASTER_TON.r * hell * (1.0 + 0.04 * ton),
 			PFLASTER_TON.g * hell, PFLASTER_TON.b * hell * (1.0 - 0.06 * ton))
@@ -784,7 +916,9 @@ func _platte(st: SurfaceTool, mitte: Vector3, ri: float, ra: float, g0: float,
 			FUGE + FASE, hoehe)
 	_dreieck(st, oben[0], oben[1], oben[2], Vector3.UP, farbe)
 	_dreieck(st, oben[0], oben[2], oben[3], Vector3.UP, farbe)
-	var kante := farbe.darkened(0.06)
+	# Dunkler als die Deckfläche: Die der Sonne zugewandte Fase bekommt fast
+	# doppelt so viel Licht und wäre sonst heller als der Stein selbst.
+	var kante := farbe.darkened(0.28)
 	for k in 4:
 		var k1 := (k + 1) % 4
 		var a := unten[k]
@@ -817,6 +951,42 @@ func _baue_randstein(st: SurfaceTool) -> void:
 			var ecken := _plattenecken(BOGEN_MITTE, innen, aussen, g0, g1, 0.02, y)
 			e.append_array(ecken)
 		_hexaeder(st, e, ton, true)
+
+
+## Steinbrüstung auf dem Randstein: Die Südmauer ist unsichtbar, und ohne
+## Brüstung sah die Wiese dahinter begehbar aus – bis man gegen die
+## unsichtbare Wand lief. Jetzt sieht man die Grenze, bevor man sie
+## erreicht. Sie steht ganz im Kollisionskasten der Mauer (27,8 bis 29 m
+## vom Bogenmittelpunkt) und ist so niedrig, dass die Kamera beim Start
+## darüber hinwegschaut. EIN Netz, ohne Schatten – der fiele nach Süden
+## auf die Wiese, wo ihn niemand braucht.
+func _baue_bruestung() -> void:
+	var st := _neuer_bauer()
+	var r := HALLE_R - 0.4
+	var laenge := deg_to_rad(SEITE * 2.0) * r
+	# Docken im Abstand von gut einem halben Meter, alle neun ein Pfosten
+	var docken := int(laenge / 0.58)
+	for i in docken + 1:
+		var g := lerpf(-SEITE + 0.6, SEITE - 0.6, float(i) / float(docken))
+		var basis := Basis(Vector3.UP, nach_aussen(g))
+		var fuss := ort(g, r, 0.3)
+		if i % 9 == 0:
+			_kasten(st, fuss + Vector3.UP * 0.36, Vector3(0.38, 0.72, 0.38), basis)
+			_kasten(st, fuss + Vector3.UP * 0.79, Vector3(0.46, 0.14, 0.46), basis)
+			continue
+		_kasten(st, fuss + Vector3.UP * 0.06, Vector3(0.2, 0.12, 0.2), basis)
+		_kasten(st, fuss + Vector3.UP * 0.33, Vector3(0.12, 0.42, 0.12), basis)
+		_kasten(st, fuss + Vector3.UP * 0.58, Vector3(0.18, 0.08, 0.18), basis)
+	# Handlauf
+	var stuecke := 72
+	for i in stuecke:
+		var g0 := lerpf(-SEITE + 0.4, SEITE - 0.4, float(i) / float(stuecke))
+		var g1 := lerpf(-SEITE + 0.4, SEITE - 0.4, float(i + 1) / float(stuecke))
+		var e := PackedVector3Array()
+		for y: float in [0.92, 1.04]:
+			e.append_array(_plattenecken(BOGEN_MITTE, r - 0.15, r + 0.15, g0, g1, 0.0, y))
+		_hexaeder(st, e, KEINE_FARBE, false)
+	_flaeche_anhaengen(_geometrie, st, _baustein(), "Bruestung", false)
 
 
 ## Schwellen: eine Steinstufe unter jedem Tor, über die Grenze Halle/Raum.
@@ -897,7 +1067,8 @@ func _strahlfarbe(index: int) -> Color:
 		return _akzent(index).lerp(Farben.ERFOLG_SCHEIN, 0.35)
 	if Spielfluss.raum_offen(raum):
 		return _akzent(index).darkened(0.3)
-	return Color(0.24, 0.22, 0.24)
+	# Mal 1,6 im Material – so bleibt es dunkler Stein und wird nicht lila.
+	return Color(0.12, 0.11, 0.13)
 
 
 ## Leitlinien: ein Messingband im Pflaster vom Mittelstein zu jedem Tor.
@@ -1159,8 +1330,10 @@ func _baue_leuchtband(von: float, bis: float) -> void:
 					ort(g1, AUSSEN_R + 0.12, y0), ort(g1, AUSSEN_R + 0.12, y1), -_aussen(gm))
 	var stoff := StandardMaterial3D.new()
 	stoff.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# Knapp über der Glühschwelle (0,95): Es glüht, aber der Ton bleibt
+	# Cyan. Mit 1,9 brannte es nach Glühen und Tonemapping zu Weiß aus.
 	var c := Neonmaterial.NEON_CYAN
-	stoff.albedo_color = Color(c.r * 1.9, c.g * 1.9, c.b * 1.9)
+	stoff.albedo_color = Color(c.r * 1.1, c.g * 1.1, c.b * 1.1)
 	_flaeche_anhaengen(_geometrie, st, stoff, "Leuchtband", false)
 
 
@@ -1178,9 +1351,12 @@ func _baue_umland() -> void:
 	horizont.zacken = 58
 	horizont.fuss = -2.0
 	horizont.saat = 5150
-	horizont.farbe_nah = Color(0.42, 0.47, 0.38)
-	horizont.farbe_fern = Color(0.68, 0.66, 0.6)
-	horizont.boden_farbe = Color(0.36, 0.4, 0.28)
+	# Nah satt und dunkel, fern im Dunst des Himmels (Horizontfarbe in
+	# Hub.tscn) – so staffeln sich die Hügel, statt als blasse Zacken
+	# nebeneinander zu stehen.
+	horizont.farbe_nah = Color(0.30, 0.36, 0.26)
+	horizont.farbe_fern = Color(0.80, 0.74, 0.64)
+	horizont.boden_farbe = Color(0.30, 0.34, 0.24)
 	horizont.position = BOGEN_MITTE
 	_deko.add_child(horizont)
 
@@ -1243,6 +1419,7 @@ func _baue_raum(index: int, grad: float) -> void:
 		portal.name = "Portal%02d" % nummern[i]
 		portal.eigene_pfeiler = false
 		portal.akzent = _akzent(index)
+		portal.wirbel = _wirbelfarben(index)
 		portal.position = ort(winkel, PORTAL_R)
 		portal.rotation.y = -deg_to_rad(winkel)
 		raum.add_child(portal)
@@ -1299,39 +1476,55 @@ func _baue_sperre(index: int, grad: float) -> void:
 
 	_baue_siegel(sperre, index, grad)
 
-	# Steintafel mit dem Grund, vor dem Siegel
-	var tafel := _quader(sperre, ort(grad, TOR_R - 0.3, 1.25),
-			Vector3(3.5, 1.15, 0.14),
-			Materialbibliothek.einfarbig(Farben.FELS_DUNKEL.darkened(0.25), 0.9),
+	# Steintafel mit dem Grund, vor dem Siegel. Groß genug, um sie aus der
+	# Hallenmitte zu lesen: Das alte rote Warnband war nicht zu übersehen,
+	# eine kleine Tafel schon – und dann weiß man nicht, warum es nicht
+	# weitergeht.
+	var tafel := _quader(sperre, ort(grad, TOR_R - 0.3, 1.3),
+			Vector3(4.2, 1.45, 0.14),
+			_getoent(Materialbibliothek.fels(), Color(0.46, 0.44, 0.45), "siegeltafel"),
 			nach_aussen(grad))
 	tafel.name = "Tafel"
-	_quader(sperre, ort(grad, TOR_R - 0.3, 1.86), Vector3(3.7, 0.1, 0.2),
-			Materialbibliothek.einfarbig(SIEGELRAHMEN, 0.5, 0.4), nach_aussen(grad))
-	_quader(sperre, ort(grad, TOR_R - 0.3, 0.64), Vector3(3.7, 0.1, 0.2),
-			Materialbibliothek.einfarbig(SIEGELRAHMEN, 0.5, 0.4), nach_aussen(grad))
+	var rahmen := Materialbibliothek.einfarbig(SIEGELRAHMEN, 0.5, 0.4)
+	_quader(sperre, ort(grad, TOR_R - 0.3, 2.06), Vector3(4.4, 0.1, 0.2), rahmen,
+			nach_aussen(grad))
+	_quader(sperre, ort(grad, TOR_R - 0.3, 0.54), Vector3(4.4, 0.1, 0.2), rahmen,
+			nach_aussen(grad))
 
-	# Der Schriftzug muss in den Sektor passen. Bei 96 pt und 0,012 m je
-	# Pixel war er rund 15 m breit – so breit wie der ganze Raum – und
-	# ragte beidseitig über die Trennmauern in die Nachbarräume.
+	# Zwei Zeilen, zwei Schriften: oben das Wort in Gold, darunter der Grund.
+	# Die Breite muss in den Sektor passen – bei 96 pt und 0,012 m je Pixel
+	# war ein Schriftzug früher so breit wie der ganze Raum und ragte über
+	# die Trennmauern in die Nachbarräume.
+	var kopf := _tafelschrift("Versiegelt", &"titel", 64, Farben.UI_GOLD_HELL)
+	kopf.position = ort(grad, TOR_R - 0.39, 1.74)
+	sperre.add_child(kopf)
+	kopf.rotation.y = nach_aussen(grad) + PI
+	var grund := _tafelschrift("Erst %s abschließen"
+			% Spielfluss.RAUM_NAMEN[maxi(index - 1, 0)], &"fett", 44, Farben.UI_HELL)
+	grund.width = 3.9 / grund.pixel_size
+	grund.autowrap_mode = TextServer.AUTOWRAP_WORD
+	grund.line_spacing = -6.0
+	grund.position = ort(grad, TOR_R - 0.39, 1.06)
+	sperre.add_child(grund)
+	grund.rotation.y = nach_aussen(grad) + PI
+
+
+## Schrift auf der Siegeltafel: flach an der Tafel, nur von vorn lesbar.
+func _tafelschrift(inhalt: String, art: StringName, groesse: int,
+		farbe: Color) -> Label3D:
 	var schild := Label3D.new()
-	schild.text = "Versiegelt\nErst %s abschließen" \
-			% Spielfluss.RAUM_NAMEN[maxi(index - 1, 0)]
-	schild.font = UiStil.schrift(&"fett")
-	schild.font_size = 46
-	schild.pixel_size = 0.0062
-	schild.line_spacing = -4.0
-	schild.width = 3.3 / schild.pixel_size
-	schild.autowrap_mode = TextServer.AUTOWRAP_WORD
+	schild.text = inhalt
+	schild.font = UiStil.schrift(art)
+	schild.font_size = groesse
+	schild.pixel_size = 0.0072
 	schild.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	schild.modulate = Farben.UI_HELL
-	schild.outline_size = 10
+	schild.modulate = farbe
+	schild.outline_size = 12
 	schild.outline_modulate = Farben.UI_KONTUR
 	schild.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	schild.double_sided = false
 	schild.no_depth_test = false
-	schild.position = ort(grad, TOR_R - 0.39, 1.25)
-	sperre.add_child(schild)
-	schild.rotation.y = nach_aussen(grad) + PI
+	return schild
 
 
 
@@ -1412,6 +1605,30 @@ func _akzent(index: int) -> Color:
 			return Neonmaterial.NEON_CYAN
 
 
+## Wirbel in den offenen Toren eines Raums: [Grundton, Kern, Saum]. Der
+## Ring bleibt grün (offen), der Wirbel trägt die Welt dahinter: frisches
+## Grün im Wald, Moorwasser im Sumpf, Himmelblau über der Feste (Wolkensteg,
+## Abendruinen), Rost mit Kanalwasser im Kern, Cyan mit Magenta-Saum bei
+## Sand und Neon. Kein Gold – das gehört dem Schein geschaffter Tore.
+func _wirbelfarben(index: int) -> PackedColorArray:
+	match index:
+		0:
+			return PackedColorArray([Color(0.40, 0.88, 0.45), Color(0.03, 0.14, 0.06),
+					Color(0.86, 1.0, 0.70)])
+		1:
+			return PackedColorArray([Color(0.26, 0.76, 0.78), Color(0.02, 0.09, 0.13),
+					Color(0.74, 1.0, 0.94)])
+		2:
+			return PackedColorArray([Color(0.50, 0.62, 1.0), Color(0.05, 0.06, 0.20),
+					Color(0.88, 0.92, 1.0)])
+		3:
+			return PackedColorArray([Color(0.92, 0.44, 0.20), Color(0.03, 0.10, 0.08),
+					Color(0.62, 1.0, 0.86)])
+		_:
+			return PackedColorArray([Color(0.22, 0.88, 1.0), Color(0.10, 0.02, 0.16),
+					Color(1.0, 0.50, 0.90)])
+
+
 ## Farbe der Flammen in den Feuerschalen eines offenen Raums.
 func _flammenfarbe(index: int) -> Color:
 	if Spielfluss.raum_abgeschlossen(index + 1):
@@ -1436,6 +1653,21 @@ func _torbreite() -> float:
 	return 2.0 * (TOR_R * deg_to_rad(SEKTOR_HALB) - 1.0)
 
 
+## Eigene Kopie eines Materials für EINEN Torpfeiler, die sich auflösen
+## kann: Pixelraster nach Kameraabstand (Distance Fade, Dither). Das ist
+## undurchsichtig gezeichnet – keine Sortierung, der Schatten bleibt. Ruht
+## der Pfeiler, reicht die Überblendung nur 1 cm weit, er ist also ganz
+## da; `_torpfeiler_aufloesen` zieht sie bei Bedarf weit auf. Nur Werte
+## ändern sich, nie der Modus – sonst übersetzte Godot mitten im Spiel
+## einen neuen Shader.
+func _aufloesbar(grund: StandardMaterial3D) -> StandardMaterial3D:
+	var m := grund.duplicate() as StandardMaterial3D
+	m.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+	m.distance_fade_min_distance = 0.0
+	m.distance_fade_max_distance = 0.01
+	return m
+
+
 ## Torbogen am Eingang eines Raums, darüber Name und Fortschritt.
 func _baue_torbogen(index: int, grad: float) -> void:
 	var stein := _baustein()
@@ -1450,25 +1682,36 @@ func _baue_torbogen(index: int, grad: float) -> void:
 	# Die Kappen liegen auf Kamerahöhe: Beim Durchlaufen des Tors füllt eine
 	# davon das halbe Bild. Deshalb glüht nur die eines geschafften Raums,
 	# die übrigen sind Stein mit einem Hauch Raumfarbe.
-	var kappe: Material
+	# Die Kappe ist behauener Stein mit einem Hauch Raumfarbe – eine flache,
+	# helle Farbe las sich aus der Nähe wie ein unfertiger Klotz.
+	var kappe: StandardMaterial3D
 	if fertig:
 		kappe = Materialbibliothek.leuchtend(Farben.ERFOLG_SCHEIN, 1.1)
 	elif offen:
-		kappe = Materialbibliothek.einfarbig(_akzent(index).lerp(Farben.FELS_HELL, 0.6), 0.8)
+		kappe = _getoent(Materialbibliothek.fels(), Color(1.0, 0.93, 0.82).lerp(
+				_akzent(index), 0.18), "kappe%d" % index)
 	else:
-		kappe = Materialbibliothek.einfarbig(Farben.FELS_DUNKEL, 0.9)
+		kappe = _getoent(Materialbibliothek.fels(), Color(0.62, 0.6, 0.6), "kappe_zu")
 	for vorzeichen in [-1.0, 1.0]:
 		var seite: float = float(vorzeichen) * breite * 0.5
+		var torseite := Torseite.new()
+		var fusspunkt := stelle(grad, TOR_R, seite)
+		torseite.ort = Vector2(fusspunkt.x, fusspunkt.z)
+		var pfeilerstein := _aufloesbar(stein)
+		var kappenstein := _aufloesbar(kappe)
+		torseite.stoffe = [pfeilerstein, kappenstein]
+		_seite_nr = _torseiten.size()
+		_torseiten.append(torseite)
 		var pfeiler := LevelWerkzeuge.plattform(_geometrie,
 				stelle(grad, TOR_R, seite, TOR_HOEHE * 0.5),
-				Vector3(1.0, TOR_HOEHE, 1.0), stein, drehung)
+				Vector3(1.0, TOR_HOEHE, 1.0), pfeilerstein, drehung)
 		pfeiler.name = "Torpfeiler"
 		# Kurze Kragsteine: Die langen (2,8 m) lagen beim Durchlaufen des Tors
 		# auf Kamerahöhe und deckten Tor 01 fast ganz zu.
 		_quader(_geometrie, stelle(grad, TOR_R, seite - vorzeichen * 0.35,
-				TOR_HOEHE + 0.24), Vector3(1.5, 0.48, 1.1), stein, drehung)
+				TOR_HOEHE + 0.24), Vector3(1.5, 0.48, 1.1), pfeilerstein, drehung)
 		_quader(_geometrie, stelle(grad, TOR_R, seite, TOR_HOEHE + 0.6),
-				Vector3(1.12, 0.2, 1.12), kappe, drehung, false)
+				Vector3(1.12, 0.2, 1.12), kappenstein, drehung, false)
 		_baue_feuerschale(index, grad, seite, offen)
 		_baue_fahne(index, grad, seite, float(vorzeichen))
 
@@ -1545,7 +1788,7 @@ func _baue_feuerschale(index: int, grad: float, seite: float, offen: bool) -> vo
 	var vorn := fuss + nach_innen * 0.5
 	var schale := vorn + nach_innen * 0.42
 	var basis := Basis(Vector3.UP, nach_aussen(grad))
-	var eisen := Color(0.2, 0.18, 0.17)
+	var eisen := _seitenfarbe(Color(0.2, 0.18, 0.17))
 	# Halter: waagerechter Arm und schräge Strebe
 	_kasten(_st_halter, (vorn + schale) * 0.5 + Vector3.DOWN * 0.08,
 			Vector3(0.1, 0.1, 0.46), basis, eisen, false)
@@ -1566,14 +1809,15 @@ func _baue_feuerschale(index: int, grad: float, seite: float, offen: bool) -> vo
 		_viereck(_st_halter, u0, o0, u1, o1, n, eisen)
 		# Innenseite (Glut, wenn der Raum offen ist)
 		var glut := Farben.GLUT.darkened(0.3) if offen else Color(0.12, 0.11, 0.1)
-		_viereck(_st_halter, u0, o0, u1, o1, -n, glut)
+		_viereck(_st_halter, u0, o0, u1, o1, -n, _seitenfarbe(glut))
 	if not offen:
 		return
-	var flamme := Transform3D(Basis.from_scale(Vector3(0.6, 0.95, 1.0)),
+	var flamme := Transform3D(Basis.from_scale(Vector3(0.84, 1.33, 1.0)),
 			schale + Vector3.UP * 0.02)
 	if Spielfluss.raum_abgeschlossen(index + 1):
 		flamme = flamme.scaled_local(Vector3(1.2, 1.25, 1.0))
 	_flammen.append(flamme)
+	_flammenseiten.append(_seite_nr)
 	var ton := _flammenfarbe(index)
 	_flammenfarben.append(Color(ton.r, ton.g, ton.b, fposmod(seite * 0.37 + grad * 0.05, 1.0)))
 
@@ -1587,6 +1831,7 @@ func _baue_fahne(index: int, grad: float, seite: float, vorzeichen: float) -> vo
 	var ton := _fahnenfarbe(index)
 	if not Spielfluss.raum_offen(index + 1):
 		ton = ton.lerp(Color(0.2, 0.2, 0.22), 0.6)
+	ton = _seitenfarbe(ton)
 	var reihen := 10
 	var phase := fposmod(float(index) * 0.23 + vorzeichen * 0.31, 1.0)
 	for r in reihen:
@@ -1604,10 +1849,16 @@ func _baue_fahne(index: int, grad: float, seite: float, vorzeichen: float) -> vo
 			_st_fahnen.set_uv2(Vector2(float(index), phase))
 			_st_fahnen.add_vertex((ecke[0] as Vector3) + Vector3.UP * float(ecke[1]))
 	# Stange über der Fahne
-	var eisen := Color(0.2, 0.18, 0.17)
+	var eisen := _seitenfarbe(Color(0.2, 0.18, 0.17))
 	_kasten(_st_halter, mitte + Vector3.UP * (FAHNE_OBEN + 0.04),
 			Vector3(FAHNE_BREITE + 0.2, 0.06, 0.06), Basis(Vector3.UP, nach_aussen(grad)),
 			eisen, false)
+
+
+## Scheitelfarbe für den Torschmuck der gerade gebauten Torseite: Alpha
+## trägt deren Nummer ((n + 1) / 16, übersteht auch 8 Bit je Kanal).
+func _seitenfarbe(ton: Color) -> Color:
+	return Color(ton.r, ton.g, ton.b, (float(_seite_nr) + 1.0) / 16.0)
 
 
 ## Grundton der Fahne eines Raums – satter als der Akzent, damit das
@@ -1629,16 +1880,17 @@ func _fahnenfarbe(index: int) -> Color:
 ## Legt die Sammelnetze des Torschmucks aller Räume an: Halter und Schalen,
 ## Fahnen, Fortschrittssteine und die Flammen.
 func _baue_torschmuck() -> void:
-	var halterstoff := StandardMaterial3D.new()
-	halterstoff.vertex_color_use_as_albedo = true
-	halterstoff.vertex_color_is_srgb = true
-	halterstoff.roughness = 0.55
-	halterstoff.metallic = 0.35
+	_aufloesen.resize(_torseiten.size())
+	_aufloesen.fill(0.0)
+	var halterstoff := ShaderMaterial.new()
+	halterstoff.shader = _shader_holen("halter", HALTER_SHADER)
 	_flaeche_anhaengen(_geometrie, _st_halter, halterstoff, "Feuerschalen")
+	_aufloesstoffe.append(halterstoff)
 
 	var fahnenstoff := ShaderMaterial.new()
 	fahnenstoff.shader = _shader_holen("fahne", FAHNE_SHADER)
 	_flaeche_anhaengen(_geometrie, _st_fahnen, fahnenstoff, "Fahnen", false)
+	_aufloesstoffe.append(fahnenstoff)
 
 	_flaeche_anhaengen(_geometrie, _st_perlen_hell,
 			Materialbibliothek.leuchtend(Farben.ERFOLG_SCHEIN, 2.0),
@@ -1655,6 +1907,8 @@ func _baue_torschmuck() -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
+	# Eigene Daten: R = Torseite (zum Auflösen mit dem Pfeiler)
+	mm.use_custom_data = true
 	var viereck := QuadMesh.new()
 	viereck.size = Vector2.ONE
 	mm.mesh = viereck
@@ -1663,6 +1917,7 @@ func _baue_torschmuck() -> void:
 	for i in _flammen.size():
 		mm.set_instance_transform(i, _flammen[i])
 		mm.set_instance_color(i, _flammenfarben[i])
+		mm.set_instance_custom_data(i, Color(float(_flammenseiten[i]), 0.0, 0.0, 0.0))
 		var p := _flammen[i].origin
 		huelle = AABB(p, Vector3.ZERO) if i == 0 else huelle.expand(p)
 	var flammen := MultiMeshInstance3D.new()
@@ -1671,19 +1926,23 @@ func _baue_torschmuck() -> void:
 	var stoff := ShaderMaterial.new()
 	stoff.shader = _shader_holen("flamme", FLAMME_SHADER)
 	flammen.material_override = stoff
+	_aufloesstoffe.append(stoff)
 	flammen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Die Form entsteht erst im Shader – die Hülle muss sie selbst umfassen.
-	flammen.custom_aabb = huelle.grow(1.2)
+	# Die Form entsteht erst im Shader – die Hülle muss sie samt Hof
+	# umfassen (bis zu zwei Flammenhöhen über dem Fuß).
+	flammen.custom_aabb = huelle.grow(2.8)
 	_geometrie.add_child(flammen)
 
 
-## Die Torbeschriftungen blenden aus, wenn die Kamera dicht davor steht –
-## sonst legt sich der Schriftzug beim Durchlaufen über das halbe Bild.
-func _process(_delta: float) -> void:
+## Jedes Bild: Torpfeiler vor der Figur auflösen, und die Torbeschriftungen
+## ausblenden, wenn die Kamera dicht davor steht – sonst legt sich der
+## Schriftzug beim Durchlaufen über das halbe Bild.
+func _process(delta: float) -> void:
 	var kamera := get_viewport().get_camera_3d()
 	if kamera == null:
 		return
 	var kamera_ort := kamera.global_position
+	_torpfeiler_aufloesen(kamera_ort, delta)
 	for schild in _beschriftungen:
 		if not is_instance_valid(schild):
 			continue
@@ -1694,6 +1953,55 @@ func _process(_delta: float) -> void:
 		# Der Umriss hat seine eigene Deckkraft – sonst bliebe ein schwarzer
 		# Schattenriss stehen, während die Schrift schon weg ist.
 		schild.outline_modulate.a = sicht * Farben.UI_KONTUR.a
+
+
+## Ein Torpfeiler, der zwischen Kamera und Figur steht, löst sich auf.
+##
+## Die Kamera steht immer südlich der Figur. Läuft man durch ein Tor oder
+## daran entlang, stand ein 6 m hoher Pfeiler mitten im Bild – er füllte
+## ein Drittel davon und verdeckte genau die Tore, zu denen man wollte.
+## Gemessen wird waagerecht: Wie weit liegt der Pfeiler seitlich neben der
+## Linie Kamera–Figur? Nah an der Kamera deckt er mehr vom Bild, dort darf
+## er weiter seitlich stehen.
+##
+## Aufgelöst ist er nicht weg: Die Überblendung reicht dann 26 m weit, bei
+## gut 10 m Abstand steht noch ein Drittel der Pixel, und was näher an der
+## Kamera ist, verschwindet mehr.
+func _torpfeiler_aufloesen(kamera_ort: Vector3, delta: float) -> void:
+	if _spieler_knoten == null or not is_instance_valid(_spieler_knoten):
+		_spieler_knoten = get_tree().get_first_node_in_group("spieler") as Node3D
+		if _spieler_knoten == null:
+			return
+	var k := Vector2(kamera_ort.x, kamera_ort.z)
+	var f := Vector2(_spieler_knoten.global_position.x, _spieler_knoten.global_position.z)
+	var strecke := f - k
+	var laenge := strecke.length()
+	if laenge < 0.5:
+		return
+	var richtung := strecke / laenge
+	var geaendert := false
+	for n in _torseiten.size():
+		var seite := _torseiten[n]
+		var rel := seite.ort - k
+		var tiefe := rel.dot(richtung)
+		var quer := absf(rel.cross(richtung))
+		var ziel := 0.0
+		if tiefe > -0.5 and tiefe < laenge + 0.4:
+			var grenze := lerpf(3.4, 1.5, clampf(tiefe / laenge, 0.0, 1.0))
+			ziel = clampf((grenze - quer) / 0.9, 0.0, 1.0)
+		var neu := move_toward(seite.durchsicht, ziel, delta * 3.0)
+		if is_equal_approx(neu, seite.durchsicht):
+			continue
+		seite.durchsicht = neu
+		var weite := 0.01 if neu <= 0.001 else lerpf(5.0, 26.0, neu)
+		for stoff in seite.stoffe:
+			stoff.distance_fade_max_distance = weite
+		if n < _aufloesen.size():
+			_aufloesen[n] = weite
+			geaendert = true
+	if geaendert:
+		for stoff in _aufloesstoffe:
+			stoff.set_shader_parameter("aufloesen", _aufloesen)
 
 
 ## Bogenreihe über den fünf Portalen eines Raums: sechs Säulen, fünf Bögen,
@@ -1819,11 +2127,13 @@ func _deko_nebelsuempfe(grad: float) -> void:
 	_prop(BAUM, stelle(grad, 45.2, -8.0), {
 		"art": Baum.Art.TOTHOLZ, "hoehe": 6.0, "saat": 54, "staerke": 1.3})
 
-	# Stille, dunkle Tümpel
+	# Stille, dunkle Tümpel mit bemoostem Rand. Nicht spiegelglatt: Die
+	# Sonne steht hinter den Räumen, ihr Glanz auf glattem Wasser lag genau
+	# im Blick der Kamera und machte aus jedem Tümpel eine blasse Scheibe.
 	var wasser := Materialbibliothek.einfarbig(
-			Farben.WASSER.lerp(Farben.FELS_DUNKEL, 0.62), 0.22)
+			Farben.WASSER.lerp(Farben.FELS_DUNKEL, 0.8).darkened(0.45), 0.45)
 	var schlamm := Materialbibliothek.einfarbig(
-			Farben.ERDE_DUNKEL.lerp(Farben.MOOS, 0.3), 0.95)
+			Farben.MOOS.lerp(Farben.ERDE_DUNKEL, 0.45), 0.95)
 	for eintrag in [[45.0, -2.2, 2.6], [48.0, 4.4, 2.0], [54.5, -1.5, 2.4]]:
 		var e: Array = eintrag
 		for rand in [true, false]:
@@ -1956,14 +2266,16 @@ func _deko_sand_und_neon(grad: float) -> void:
 			"saat": 91 + i, "zerklueftung": 0.44})
 		_umfaerben(stein, sandstein)
 
+	# Knapp über der Glühschwelle, wie das Leuchtband: Neon soll farbig
+	# glühen, nicht weiß ausbrennen.
 	var leuchten := StandardMaterial3D.new()
 	leuchten.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var m := Neonmaterial.NEON_MAGENTA
-	leuchten.albedo_color = Color(m.r * 1.8, m.g * 1.8, m.b * 1.8)
+	leuchten.albedo_color = Color(m.r * 1.3, m.g * 1.3, m.b * 1.3)
 	var cyan := StandardMaterial3D.new()
 	cyan.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var c := Neonmaterial.NEON_CYAN
-	cyan.albedo_color = Color(c.r * 1.7, c.g * 1.7, c.b * 1.7)
+	cyan.albedo_color = Color(c.r * 1.05, c.g * 1.05, c.b * 1.05)
 
 	# Obelisken hinten links und rechts, mit zwei Leuchtringen
 	var stein_st := _neuer_bauer()
@@ -1991,11 +2303,29 @@ func _deko_sand_und_neon(grad: float) -> void:
 			_kasten(band_st, fuss + Vector3.UP * band, Vector3(halb * 2.0, 0.12, halb * 2.0),
 					basis)
 	_flaeche_anhaengen(_deko, stein_st, sandstein, "Obelisken")
+	# Ein Kasten um den Sockel: Hinter die Portalreihe kommt man mit einem
+	# Sprung über die Pfeilerkästen, und durch einen Obelisken zu laufen
+	# sähe aus wie ein Fehler.
+	for vorzeichen: float in [-1.0, 1.0]:
+		var koerper := StaticBody3D.new()
+		koerper.name = "Obelisk"
+		koerper.collision_layer = 1
+		koerper.collision_mask = 0
+		koerper.position = stelle(grad, 54.2, vorzeichen * 1.5 * PORTAL_ABSTAND, 2.8)
+		koerper.rotation.y = nach_aussen(grad) + PI * 0.25
+		var form := CollisionShape3D.new()
+		var kasten := BoxShape3D.new()
+		kasten.size = Vector3(1.2, 5.6, 1.2)
+		form.shape = kasten
+		koerper.add_child(form)
+		_deko.add_child(koerper)
 	_flaeche_anhaengen(_deko, band_st, leuchten, "Obeliskbaender", false)
 
-	# Leuchtlinien im Sand: ein Band quer vor der Portalreihe
+	# Leuchtlinie im Sand hinter der Portalreihe. Vor den Toren liegt keine:
+	# Quer über den Vorplatz sah sie aus wie eine Hilfslinie aus dem Editor,
+	# gestrichelt wie eine Fahrbahnmarkierung.
 	var linien := _neuer_bauer()
-	for r: float in [PORTAL_R - 2.2, PORTAL_R + 2.4]:
+	for r: float in [PORTAL_R + 2.4]:
 		var schritte := 12
 		for s in schritte:
 			var g0 := lerpf(grad - SEKTOR_HALB + 0.6, grad + SEKTOR_HALB - 0.6,
@@ -2067,6 +2397,8 @@ func _offene_raeume_abgleichen() -> void:
 		if not Spielfluss.raum_offen(raum):
 			erster_besuch = true
 			gesehen.clear()
+			# Auch das zuletzt betretene Level gehört zum alten Stand.
+			wurzel.remove_meta(Levelportal.letztes_level_schluessel())
 			break
 	for i in Spielfluss.RAEUME:
 		if not Spielfluss.raum_offen(i + 1) or gesehen.has(i + 1):
@@ -2080,16 +2412,20 @@ func _offene_raeume_abgleichen() -> void:
 ## Startwinkel: vor dem Raum, um den es gerade geht.
 ##   1. Wird ein Raum gerade entsiegelt, davor – das ist der Moment.
 ##   2. Nach einem Level vor dessen Raum: Man kommt dort heraus, wo man
-##      hineinging.
+##      hineinging. Gemerkt wird je Speicherplatz, und nur ein offener Raum
+##      zählt – nach einem neuen Spiel stand man sonst vor dem versiegelten
+##      Raum, in dem man auf dem alten Stand zuletzt war.
 ##   3. Sonst vor dem letzten offenen, noch nicht abgeschlossenen Raum.
 ##      Beim neuen Spiel ist das der Wurzelwald mit Tor 01 – vorher stand
 ##      man vor dem vergitterten Tor der Steinfeste.
 func _startwinkel() -> float:
 	if not _entsiegeln.is_empty():
 		return raumwinkel(int(_entsiegeln.max()))
-	var zuletzt := int(get_tree().root.get_meta(Levelportal.LETZTES_LEVEL, 0))
+	var zuletzt := int(get_tree().root.get_meta(Levelportal.letztes_level_schluessel(), 0))
 	if zuletzt >= 1 and zuletzt <= Spielfluss.LEVEL_GESAMT:
-		return raumwinkel(Spielfluss.raum_von_level(zuletzt) - 1)
+		var raum := Spielfluss.raum_von_level(zuletzt)
+		if Spielfluss.raum_offen(raum):
+			return raumwinkel(raum - 1)
 	for i in range(Spielfluss.RAEUME - 1, -1, -1):
 		if Spielfluss.raum_offen(i + 1) and not Spielfluss.raum_abgeschlossen(i + 1):
 			return raumwinkel(i)
@@ -2145,7 +2481,15 @@ func _nach_dem_einblenden() -> void:
 		# Ein durchsichtiges Netz kostet weiter Füllrate – danach weg damit.
 		tween.tween_callback(schleier.queue_free)
 	Klang.spiele("checkpoint", 1.1)
-	var namen: Array[String] = []
+	var namen := PackedStringArray()
 	for index: int in _siegel_neu:
 		namen.append(String(Spielfluss.RAUM_NAMEN[index]))
-	GameState.zeige_nachricht("%s ist offen!" % " und ".join(PackedStringArray(namen)), 2.2)
+	GameState.zeige_nachricht(_aufzaehlung(namen)
+			+ (" sind offen!" if namen.size() > 1 else " ist offen!"), 2.2)
+
+
+## „A", „A und B", „A, B und C".
+static func _aufzaehlung(namen: PackedStringArray) -> String:
+	if namen.size() <= 1:
+		return "".join(namen)
+	return ", ".join(namen.slice(0, namen.size() - 1)) + " und " + namen[namen.size() - 1]

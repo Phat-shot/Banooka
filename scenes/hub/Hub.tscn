@@ -63,9 +63,9 @@ directional_shadow_max_distance = 60.0
 directional_shadow_split_1 = 0.25
 
 [node name="Himmelslicht" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.70711, 0, -0.70711, -0.54168, 0.64279, -0.54168, 0.45452, 0.76604, 0.45452, 0, 30, 0)
+transform = Transform3D(0.85442, 0.25978, -0.44998, 0, 0.86604, 0.49998, 0.51958, -0.42719, 0.73996, 0, 30, 0)
 light_color = Color(0.62, 0.72, 0.95, 1)
-light_energy = 0.42
+light_energy = 0.3
 light_specular = 0.0
 sky_mode = 1
 

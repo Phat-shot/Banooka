@@ -34,8 +34,9 @@ class_name Levelportal
 ## Glühen der Umgebung (Glow in Hub.tscn). Deshalb sind die leuchtenden
 ## Teile hier bewusst heller als 1: Nur was darüber liegt, glüht.
 ##
-## `nummer`, `eigene_pfeiler` und `akzent` müssen VOR `add_child()` gesetzt
-## werden – `_ready()` baut daraus die gesamte Optik auf.
+## `nummer`, `eigene_pfeiler`, `akzent` und `wirbel` müssen VOR
+## `add_child()` gesetzt werden – `_ready()` baut daraus die gesamte Optik
+## auf.
 
 enum Zustand { OFFEN, VERSCHLOSSEN, IN_ARBEIT }
 
@@ -50,20 +51,27 @@ const PFEILER_X := RADIUS + 0.62
 const PFEILER_GROESSE := Vector3(0.52, 1.7, 0.52)
 
 ## Ab diesem Abstand (Meter) beginnt ein offenes Tor zu erwachen, ab dem
-## zweiten ist es ganz wach. Bei 3,6 m Torabstand ist so immer nur der
-## Name des nächsten Tors zu lesen.
+## zweiten ist es ganz wach. Den Namen zeigt nur das nächste Tor (siehe
+## `_namenstor`) – bei 3,6 m Torabstand standen sonst zwei, drei Namen
+## halb durchsichtig nebeneinander.
 const NAH_BEGINN := 6.0
-const NAH_VOLL := 3.2
+const NAH_VOLL := 4.0
 ## Dauer des Einsaugens beim Betreten.
 const EINSAUG_ZEIT := 0.6
+## Ruhewerte des Wirbelshaders (shaders/portal_wirbel.gdshader), zu denen
+## ein abgebrochenes Betreten zurückkehrt.
+const WIRBEL_DRALL := 4.0
+const WIRBEL_SOG := 0.7
 ## Unter diesem Namen merkt sich der Baum das zuletzt betretene Level – der
 ## Portalraum setzt den Spieler bei der Rückkehr vor dessen Raum. Eine
 ## Metaangabe an der Wurzel überlebt den Szenenwechsel, gehört aber nicht
-## zum Spielstand (nichts davon wird gespeichert).
-const LETZTES_LEVEL := &"portalraum_letztes_level"
+## zum Spielstand (nichts davon wird gespeichert). Je Speicherplatz: Wer
+## nach Platz 1 ein neues Spiel beginnt, soll nicht vor dem Raum stehen,
+## in dem er auf Platz 1 zuletzt war (siehe `letztes_level_schluessel`).
+const LETZTES_LEVEL := "portalraum_letztes_level_%d"
 
 ## Die Levelnamen (aus CLAUDE.md). Sie stehen über dem Tor, sobald man
-## davorsteht, und in der Meldung beim Betreten.
+## davorsteht, und groß über der Blende beim Betreten.
 const LEVEL_NAMEN := [
 	"Wurzelschlucht", "Frostgrat", "Treibgut", "Katzensprung", "Hauerjagd",
 	"Wettrennen", "Moorbrücken", "Torfstich", "Sumpfgeysir", "Hebewerk",
@@ -84,6 +92,12 @@ var eigene_pfeiler := true
 ## Akzentfarbe des Raums. Färbt die schlafende Scheibe eines verschlossenen
 ## Tors; Alpha 0 heißt „keine" (dann Eisengrau).
 var akzent := Color(0.0, 0.0, 0.0, 0.0)
+## Farben des Wirbels in einem offenen Tor: [Grundton, Kern, Saum]. Leer
+## heißt Portalgrün. Der Ring bleibt immer grün – er sagt „offen" –, der
+## Wirbel darin sagt, wohin: Sonst hätten der Wurzelwald und „Sand und
+## Neon" genau dasselbe Tor, und gerade das Tor ist, wohin das Auge zuerst
+## geht.
+var wirbel := PackedColorArray()
 
 var _ring: MeshInstance3D = null
 var _scheibe: MeshInstance3D = null
@@ -97,11 +111,16 @@ var _scheinmaterial: StandardMaterial3D = null
 var _spieler: Node3D = null
 var _phase := 0.0
 var _naehe := 0.0
+var _namenssicht := 0.0
 var _helligkeit := -1.0
 var _ausgeloest := false
 
 ## Weicher Lichtfleck (einmal gebaut, von allen Toren geteilt).
 static var _fleckbild: GradientTexture2D = null
+## Das Tor, dessen Name gerade stehen darf, und sein Abstand zum Spieler.
+## Jedes offene Tor vergleicht sich in `_erwachen` damit.
+static var _namenstor: Levelportal = null
+static var _namensabstand := INF
 
 
 func _ready() -> void:
@@ -123,6 +142,9 @@ func _ready() -> void:
 	if zustand == Zustand.OFFEN:
 		_baue_name()
 	_baue_erfolg()
+	if _name != null:
+		var ueber_steinen := not _edelsteine.is_empty()
+		_name.position = Vector3(0.0, _zahl_hoehe() + (1.55 if ueber_steinen else 0.78), 0.0)
 	_baue_zone()
 
 	set_process(zustand == Zustand.OFFEN or not _edelsteine.is_empty()
@@ -146,6 +168,19 @@ func farbe() -> Color:
 			return Farben.KISTE_EISEN.darkened(0.35)
 		_:
 			return Farben.FELS_DUNKEL
+
+
+## Grundton des Wirbels und von allem, was von ihm ausgeht (Lichtfleck,
+## Funken beim Betreten). Bei einem Tor ohne eigenen Wirbel der Grundton.
+func wirbelfarbe() -> Color:
+	if zustand == Zustand.OFFEN and wirbel.size() > 0:
+		return wirbel[0]
+	return farbe()
+
+
+## Metaschlüssel für das zuletzt betretene Level des laufenden Speicherplatzes.
+static func letztes_level_schluessel() -> String:
+	return LETZTES_LEVEL % Spielfluss.aktueller_slot
 
 
 ## Name eines Levels (1-basiert), leer für unbekannte Nummern.
@@ -231,7 +266,10 @@ func _baue_ring() -> void:
 ## über TIME – pro Bild setzt das Skript nur noch `puls`.
 func _baue_scheibe() -> void:
 	_scheibe = _scheibenviereck()
-	_scheibenmaterial = Effekte.wirbelstoff(farbe())
+	if wirbel.size() >= 3:
+		_scheibenmaterial = Effekte.wirbelstoff(wirbel[0], wirbel[1], wirbel[2])
+	else:
+		_scheibenmaterial = Effekte.wirbelstoff(farbe())
 	_scheibe.material_override = _scheibenmaterial
 	add_child(_scheibe)
 
@@ -290,7 +328,7 @@ func _baue_lichtfleck() -> void:
 ## Farbe des Lichtflecks bei Puls `p` (0..1). Geschaffte Tore mischen Gold
 ## hinein, damit auch der Boden sagt, dass man hier schon war.
 func _fleckfarbe(p: float) -> Color:
-	var ton := farbe()
+	var ton := wirbelfarbe()
 	if Spielfluss.geschafft.has(nummer):
 		ton = ton.lerp(Farben.ERFOLG_SCHEIN, 0.55)
 	var k := (0.42 + 0.16 * p) * (1.0 + 0.6 * _naehe)
@@ -369,18 +407,22 @@ func _baue_zahl() -> void:
 	add_child(_zahl)
 
 
-## Levelname über dem Tor – unsichtbar, bis man davorsteht.
+## Levelname über dem Tor – unsichtbar, bis man davorsteht. Er sitzt
+## dicht über der Nummer; nur wenn Edelsteine darüber schweben, rückt er
+## über sie. Kräftige Kontur, weil hinter ihm Baumkronen und Rückwand
+## liegen – mit dünner Kontur las er sich wie ein Aufdruck auf der Mauer.
 func _baue_name() -> void:
 	_name = Label3D.new()
 	_name.name = "Levelname"
 	_name.text = levelname(nummer)
 	_name.font = UiStil.schrift(&"titel")
 	_name.font_size = 48
-	_name.outline_size = 14
+	_name.outline_size = 18
 	_name.pixel_size = 0.0068
+	_name.render_priority = 2
+	_name.outline_render_priority = 1
 	_name.modulate = Color(Farben.UI_GOLD_HELL, 0.0)
 	_name.outline_modulate = Color(Farben.UI_KONTUR, 0.0)
-	_name.position = Vector3(0.0, _zahl_hoehe() + 1.55, 0.0)
 	_name.visible = false
 	add_child(_name)
 
@@ -539,8 +581,9 @@ func _erwachen(delta: float) -> void:
 	if _spieler == null or not is_instance_valid(_spieler):
 		_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
 	var ziel := 0.0
+	var abstand := INF
 	if _spieler != null:
-		var abstand := global_position.distance_to(_spieler.global_position)
+		abstand = global_position.distance_to(_spieler.global_position)
 		ziel = clampf(inverse_lerp(NAH_BEGINN, NAH_VOLL, abstand), 0.0, 1.0)
 	_naehe = move_toward(_naehe, ziel, delta * 2.5)
 
@@ -559,9 +602,30 @@ func _erwachen(delta: float) -> void:
 	if _zahl != null:
 		_zahl.scale = Vector3.ONE * (1.0 + 0.12 * _naehe)
 	if _name != null:
-		_name.visible = _naehe > 0.01
-		_name.modulate.a = _naehe
-		_name.outline_modulate.a = _naehe * Farben.UI_KONTUR.a
+		var ziel_sicht := _naehe if _name_frei(abstand) else 0.0
+		_namenssicht = move_toward(_namenssicht, ziel_sicht, delta * 3.0)
+		_name.visible = _namenssicht > 0.01
+		_name.modulate.a = _namenssicht
+		_name.outline_modulate.a = _namenssicht * Farben.UI_KONTUR.a
+
+
+## Darf dieses Tor seinen Namen zeigen? Nur das dem Spieler nächste offene
+## Tor. Ein anderes übernimmt erst, wenn es ein Stück näher ist – sonst
+## flackerte der Name genau zwischen zwei Toren hin und her.
+func _name_frei(abstand: float) -> bool:
+	var halter_da := _namenstor != null and is_instance_valid(_namenstor) \
+			and not _namenstor._ausgeloest
+	if halter_da and _namenstor == self:
+		if abstand > NAH_BEGINN:
+			_namenstor = null
+			return false
+		_namensabstand = abstand
+		return true
+	if abstand < NAH_BEGINN and (not halter_da or abstand < _namensabstand - 0.4):
+		_namenstor = self
+		_namensabstand = abstand
+		return true
+	return false
 
 
 # ------------------------------------------------------------------ Betreten
@@ -592,16 +656,14 @@ func _eintreten(spieler: Node3D) -> void:
 		figur.velocity = Vector3.ZERO
 	# Physik anhalten, damit die Schwerkraft nicht gegen das Einsaugen zieht.
 	spieler.set_physics_process(false)
-	get_tree().root.set_meta(LETZTES_LEVEL, nummer)
-
-	var name_text := levelname(nummer)
-	GameState.zeige_nachricht("Level %02d · %s" % [nummer, name_text] \
-			if not name_text.is_empty() else "Level %02d" % nummer, 1.4)
+	var schluessel := letztes_level_schluessel()
+	get_tree().root.set_meta(schluessel, nummer)
 
 	var mitte := to_global(Vector3(0.0, MITTE_Y, 0.0))
-	Effekte.aufblitzen(self, mitte, farbe().lightened(0.35), 2.6, 0.3)
-	Effekte.funken(self, mitte, farbe(), 22, 4.0, 0.2)
-	Effekte.ring(self, to_global(Vector3(0.0, 0.08, 0.4)), farbe(), 2.4, 0.45)
+	var ton := wirbelfarbe()
+	Effekte.aufblitzen(self, mitte, ton.lightened(0.35), 2.6, 0.3)
+	Effekte.funken(self, mitte, ton, 22, 4.0, 0.2)
+	Effekte.ring(self, to_global(Vector3(0.0, 0.08, 0.4)), ton, 2.4, 0.45)
 	Klang.spiele("checkpoint", 0.8)
 
 	var modell := spieler.get_node_or_null("Modell") as Node3D
@@ -620,13 +682,23 @@ func _eintreten(spieler: Node3D) -> void:
 		if is_instance_valid(teil):
 			tween.tween_property(teil, "scale", teil.scale * 1.2, EINSAUG_ZEIT) \
 					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	if _scheibenmaterial != null:
-		tween.tween_method(_scheibe_aufdrehen, 1.8, 3.4, EINSAUG_ZEIT)
+	if _scheibenmaterial != null and is_instance_valid(_scheibe):
+		var hell_start := _helligkeit if _helligkeit > 0.0 else 1.25
+		tween.tween_method(_scheibe_aufdrehen.bind(hell_start), 0.0, 1.0, EINSAUG_ZEIT)
+		# Schneller drehen über den Knoten, nicht über `tempo` (siehe unten).
+		# Positiv um Z ist der Drehsinn des Wirbels, von vorn gesehen.
+		tween.tween_property(_scheibe, "rotation:z", TAU * 1.5, EINSAUG_ZEIT) \
+				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
-	var blende := _blende_anlegen()
+	var name_text := levelname(nummer)
+	var blende := _blende_anlegen(name_text)
 	var kamera := get_viewport().get_camera_3d()
 	if blende != null and kamera != null and not kamera.is_position_behind(mitte):
 		blende.iris_zu(kamera.unproject_position(mitte), EINSAUG_ZEIT + 0.12)
+	if blende == null:
+		# Ohne Blende steht der Name als Meldung im HUD.
+		GameState.zeige_nachricht("Level %02d · %s" % [nummer, name_text] \
+				if not name_text.is_empty() else "Level %02d" % nummer, 1.4)
 
 	await tween.finished
 	if not is_instance_valid(self):
@@ -635,12 +707,23 @@ func _eintreten(spieler: Node3D) -> void:
 		return
 
 	# Sollte nicht vorkommen – Tor und Figur wieder freigeben.
-	get_tree().root.remove_meta(LETZTES_LEVEL)
+	get_tree().root.remove_meta(schluessel)
 	if blende != null:
 		blende.auf(0.2)
+		var schicht := blende.get_parent()
+		if schicht != null:
+			get_tree().create_timer(0.3).timeout.connect(schicht.queue_free)
 	for teil: Node3D in [_scheibe, _ring]:
 		if is_instance_valid(teil):
 			teil.scale = Vector3.ONE
+	if is_instance_valid(_scheibe):
+		_scheibe.rotation.z = 0.0
+	if _scheibenmaterial != null:
+		_scheibenmaterial.set_shader_parameter("drall", WIRBEL_DRALL)
+		_scheibenmaterial.set_shader_parameter("sog", WIRBEL_SOG)
+		# Den Merkwert verwerfen, sonst hielte `_erwachen` die hochgedrehte
+		# Helligkeit für schon gesetzt.
+		_helligkeit = -1.0
 	_ausgeloest = false
 	if is_instance_valid(spieler):
 		spieler.set_physics_process(true)
@@ -650,15 +733,27 @@ func _eintreten(spieler: Node3D) -> void:
 			spieler.gesperrt = false
 
 
-func _scheibe_aufdrehen(wert: float) -> void:
-	if _scheibenmaterial != null:
-		_scheibenmaterial.set_shader_parameter("helligkeit", wert)
-		_scheibenmaterial.set_shader_parameter("tempo", 0.9 + (wert - 1.8) * 2.0)
+## Der Wirbel dreht beim Betreten auf: Die Arme wickeln sich enger
+## (`drall`), die Mitte zieht heller (`sog`), alles wird heller.
+##
+## NIE über `tempo` oder `richtung`: Der Shader rechnet `TIME * tempo`, und
+## TIME zählt seit Spielstart. Jede Änderung von `tempo` ließe den Winkel
+## um TIME·Δtempo springen – nach fünf Minuten Spielzeit um mehrere
+## Umdrehungen je Bild. Die Scheibe flackerte dann wild, statt schneller zu
+## werden. Das Schnellerwerden übernimmt die Drehung des Knotens.
+func _scheibe_aufdrehen(anteil: float, hell_start: float) -> void:
+	if _scheibenmaterial == null:
+		return
+	_scheibenmaterial.set_shader_parameter("helligkeit", lerpf(hell_start, 3.4, anteil))
+	_scheibenmaterial.set_shader_parameter("drall", lerpf(WIRBEL_DRALL, 10.0, anteil))
+	_scheibenmaterial.set_shader_parameter("sog", lerpf(WIRBEL_SOG, 2.0, anteil))
 
 
 ## Eigene Blende über dem HUD, unter dem Ladebildschirm. Sie hängt an der
-## laufenden Szene und verschwindet mit ihr.
-func _blende_anlegen() -> UiStil.Blende:
+## laufenden Szene und verschwindet mit ihr. Der Levelname steht auf
+## derselben Schicht ÜBER der Blende: Als Meldung im HUD lag er unter ihr,
+## und die Iris schluckte ihn, kaum dass er erschienen war.
+func _blende_anlegen(name_text: String) -> UiStil.Blende:
 	var szene := get_tree().current_scene
 	if szene == null:
 		return null
@@ -667,5 +762,22 @@ func _blende_anlegen() -> UiStil.Blende:
 	schicht.layer = 50
 	var blende := UiStil.Blende.new(Farben.UI_NACHT)
 	schicht.add_child(blende)
+
+	var titel := Control.new()
+	titel.name = "Levelname"
+	titel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	titel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var kopf := "LEVEL %02d" % nummer
+	titel.draw.connect(func() -> void:
+		var feld := titel.size
+		var x := feld.x * 0.5
+		var y := feld.y * 0.7
+		UiStil.text(titel, Vector2(x, y), kopf, UiStil.GROESSE_KNOPF,
+				Farben.UI_GOLD_HELL, &"sperr", -1, HORIZONTAL_ALIGNMENT_CENTER)
+		if not name_text.is_empty():
+			UiStil.text(titel, Vector2(x, y + 62.0), name_text, UiStil.GROESSE_TITEL,
+					Farben.UI_HELL, &"titel", -1, HORIZONTAL_ALIGNMENT_CENTER))
+	schicht.add_child(titel)
 	szene.add_child(schicht)
+	UiStil.einschweben(titel, Vector2(0.0, 22.0), 0.4, 0.08)
 	return blende
