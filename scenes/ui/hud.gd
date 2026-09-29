@@ -1260,7 +1260,9 @@ class Auswertung extends Control:
 		UiStil.text(self, Vector2(mitte.x, y), _kopfzeile, 14,
 				Farben.UI_GOLD, &"sperr", -1, HORIZONTAL_ALIGNMENT_CENTER)
 		y += 36.0
-		UiStil.text(self, Vector2(mitte.x, y), String(daten.get("name", "")), 32,
+		# 36 px: Lilita läuft schmaler als die frühere Grundschrift, bei 32 px
+		# stand der Name klein unter dem breiten Band.
+		UiStil.text(self, Vector2(mitte.x, y), String(daten.get("name", "")), 36,
 				Farben.UI_TITEL_FUELLUNG, &"titel", -1, HORIZONTAL_ALIGNMENT_CENTER)
 		if platz > 0:
 			y += 40.0

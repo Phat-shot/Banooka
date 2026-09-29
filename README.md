@@ -243,6 +243,10 @@ anheben (Sekunden je Teil).
 Der Web-Export ist als Preset **Web** in `export_presets.cfg` hinterlegt
 (Ausgabe nach `export/web/`, ohne Thread-Unterstützung – damit läuft der
 Build auf jedem beliebigen Webserver, auch auf GitHub Pages oder itch.io).
+Die Anzeigeschrift Lilita One reist als importierte Ressource mit
+(`export_filter="all_resources"`); ihr Lizenztext `assets/schrift/OFL.txt`
+ist keine Ressource und steht deshalb in `include_filter` beider Presets.
+Zusammen machen beide das `.pck` um gut 25 KB größer.
 
 ### Bereits exportierten Build starten
 
@@ -493,6 +497,8 @@ shaders/                   wasser, himmel, portal_wirbel, gegner_glanz,
                            bildrahmen (.gdshader)
 werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Spieltest-Bot,
                            Bild- und Messwerkzeuge, Webserver
+assets/schrift/            LilitaOne-Regular.ttf (Anzeigeschrift, SIL OFL 1.1)
+                           samt Lizenztext OFL.txt
 assets/CREDITS.md          Quellen und Lizenzen
 ARCHITEKTUR.md             verbindliche Schnittstellen
 ```

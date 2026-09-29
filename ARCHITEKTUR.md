@@ -910,15 +910,35 @@ oberem Bildrand; vor hellem Himmel wäscht er das Blau grau.
 ## UI-Stil (`scripts/ui_stil.gd`, `class_name UiStil`)
 
 Eine Stelle für das Aussehen aller Menüs und Anzeigen, im Code gebaut wie
-`Materialbibliothek` – ohne `.tres` und ohne Schriftdateien. Farben stehen
+`Materialbibliothek` – ohne `.tres`. Die einzige Datei ist die
+Anzeigeschrift Lilita One (`assets/schrift/`, SIL OFL 1.1). Farben stehen
 in `Farben` im Abschnitt `UI_*` (Gold, Hell, Matt, Kontur, Grund, Nacht,
 Treffer, Herz, Silber, Bronze). Für Früchte, Kisten, Warnung und
 Edelsteine gelten die Spielfarben, damit ein HUD-Symbol so aussieht wie das
 Ding in der Welt.
 
 - **Schriften:** `UiStil.schrift(&"text" | &"fett" | &"zahl" | &"titel" | &"logo" | &"sperr" | &"schwung")`
-  – FontVariations der eingebauten Schrift. `&"zahl"` hat gleich breite
-  Ziffern, `&"logo"` ist der alte Schriftzug des Startbildschirms.
+  – FontVariations zweier Schnitte. Was man **liest** – Fließtext,
+  Menüeinträge, Beschriftungen, Hinweise, Kicker (`&"text"`, `&"fett"`,
+  `&"sperr"`) –, steht in der eingebauten Schrift (Open Sans SemiBold).
+  Was man **auf einen Blick erfasst** – Schriftzug, Titel, Banner, Zähler,
+  Uhren (`&"logo"`, `&"titel"`, `&"schwung"`, `&"zahl"`) –, in Lilita One.
+  Die Datei wird einmal geladen und nie verändert; jede Lilita-Art hat
+  die Grundschrift (fett, gleiche Schräge) als `fallbacks` für Zeichen,
+  die Lilita fehlen (Latin Extended-A wie Ā ł; ✕ ○ □ △ fehlen beiden und
+  kommen als Formen aus `PadSymbole`). Weil `get_ascent()` das Maximum
+  über die Ersatzschriften nimmt, melden Lilita-Arten die Oberlänge der
+  Grundschrift – Grundlinien, die daraus gerechnet werden, bleiben
+  stehen. Fehlt die Datei, schreibt alles in der Grundschrift.
+  Lilita hat nur **proportionale Ziffern** und kein `tnum`. Deshalb setzen
+  `text()` und `textbreite()` bei `&"zahl"` jede Ziffer mittig in ein Fach
+  von der Breite der breitesten Ziffer – die Uhr des Zeitmodus zittert
+  nicht. Wer `schrift(&"zahl")` direkt an `draw_string` oder ein
+  `Label3D` gibt, bekommt proportionale Ziffern; für feste Zahlen (Portal-
+  nummern) ist das gleich. Kleine Zahlen, die neben Text stehen
+  (Ladeprozent, Stufenwert „80 %" im Menü), bleiben in `&"fett"`: Open
+  Sans hat von Haus aus gleich breite Ziffern, bleibt klein sauberer und
+  passt zu den Wahlwerten derselben Menüzeilen.
 - **Flächen:** `UiStil.flaeche(art)` / `UiStil.zeichne(auf, feld, art)` mit
   `&"tafel"`, `&"kachel"`, `&"chip"`, `&"knopf"`, `&"knopf_gewaehlt"`, `&"balken"`,
   `&"balken_voll"`, `&"pille"`, `&"band"`, `&"schalter"`, `&"mulde"`. **Geteilt,

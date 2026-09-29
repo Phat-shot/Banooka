@@ -3,9 +3,11 @@ class_name UiStil
 ## Gemeinsamer Stil aller Menüs und Anzeigen: Schriften, Flächen, Theme,
 ## Zeichenhelfer, Bewegungen und eine Vollbild-Blende für Übergänge.
 ##
-## Alles wird im Code gebaut, wie bei `Materialbibliothek`: keine .tres,
-## keine Schriftdateien. Die Schriften sind Abwandlungen (FontVariation)
-## der eingebauten Godot-Schrift, die Flächen sind StyleBoxFlat.
+## Alles wird im Code gebaut, wie bei `Materialbibliothek`: keine .tres.
+## Die Schriften sind Abwandlungen (FontVariation) zweier Schnitte – der
+## eingebauten Godot-Schrift (Open Sans) für Text und der Anzeigeschrift
+## Lilita One (`assets/schrift/`, SIL OFL 1.1) für Titel, Banner und
+## Zahlen. Die Flächen sind StyleBoxFlat.
 ##
 ## Warum es das gibt: Vorher hatte jede UI-Datei ihre eigenen Helfer –
 ## vier Sätze `_runde_flaeche`/`_rahmen`, sechs `_text`-Funktionen –, und
@@ -35,15 +37,22 @@ class_name UiStil
 ## ÜBERSICHT
 ##
 ##   Schriften   schrift(art) -> Font
+##     Grundschrift (Open Sans) – alles, was man LIEST:
 ##       &"text"     Fließtext; kaum fetter als die Grundschrift (Theme-Vorgabe)
-##       &"fett"     Überschriften, Knöpfe, Zeilen, die sich abheben sollen
-##       &"zahl"     Zähler und Uhren; alle Ziffern gleich breit
-##       &"titel"    Seiten-, Level- und Tafeltitel ab etwa 34 px
-##       &"logo"     nur der Schriftzug BANOOKA: weit gesperrt, wie bisher
-##                   `_titelschrift` im Startbildschirm
+##       &"fett"     Menüeinträge, Beschriftungen, Hinweise, Zeilen, die sich
+##                   abheben sollen
 ##       &"sperr"    gesperrte Kicker-Zeilen ("LEVEL 01 · WURZELWALD"),
 ##                   wie bisher `_sperrschrift`
-##       &"schwung"  schräg und fett, für Banner wie "GESCHAFFT!"
+##     Anzeigeschrift (Lilita One) – alles, was man auf einen Blick ERFASST:
+##       &"zahl"     Zähler und Uhren; alle Ziffern gleich breit (siehe
+##                   `text()`: Lilita hat nur proportionale Ziffern)
+##       &"titel"    Seiten-, Level- und Tafeltitel ab etwa 24 px
+##       &"logo"     nur der Schriftzug BANOOKA, leicht gesperrt
+##       &"schwung"  schräg, für Banner wie "GESCHAFFT!"
+##     Zeichen, die Lilita One fehlen (Latin Extended-A wie Ā ć ł), kommen
+##     aus der Grundschrift – jede Anzeige-Art hat sie als Ersatz
+##     (`fallbacks`), in ähnlicher Stärke und Schräge. ✕ ○ □ △ und Pfeile
+##     fehlen beiden Schriften; die zeichnet `PadSymbole` als Formen.
 ##
 ##   Flächen     flaeche(art) -> StyleBoxFlat,  zeichne(auf, feld, art)
 ##       &"tafel"           große Tafel: Statustafel, Auswertung, Overlays
@@ -99,23 +108,40 @@ const GROESSE_TITEL := 52    ## Level- und Seitentitel
 ## allein trennt Schrift vom Grund; der Schatten hebt sie davon ab.
 const SCHATTEN := 0.30
 
-## Schriftarten: [Fettung, Sperrung in px, Schräge].
+## Schriftarten: [Schnitt, Fettung, Sperrung in px, Schräge].
 ##
-## Fettung verschmiert kleine Schrift (≤ 13 px) schnell – deshalb hat
-## &"text" nur 0.15. &"logo" entspricht exakt der alten `_titelschrift`
-## (0.55, 12 px), damit der Schriftzug beim Umstellen nicht springt. Die
-## Sperrung ist in Pixeln, nicht relativ zur Größe: Was bei 104 px luftig
-## wirkt, reißt ein halb so großes Wort auseinander. Deshalb hat &"titel"
-## nur 3 px.
+## Schnitt &"grund" ist die eingebaute Godot-Schrift, &"anzeige" Lilita
+## One. Lilita ist von sich aus schwer – Fettung darauf liefe in den
+## Punzen zu, deshalb hat keine Anzeige-Art welche. Auch kleine
+## Grundschrift (≤ 13 px) verschmiert mit Fettung schnell – deshalb hat
+## &"text" nur 0.15. Die Sperrung ist in Pixeln, nicht relativ zur Größe:
+## Was bei 116 px luftig wirkt, reißt ein halb so großes Wort auseinander.
+## Lilita läuft von Haus aus eng; der Schriftzug bekommt etwas Luft,
+## Titel und Banner nur 1 px.
 const _SCHRIFTARTEN := {
-	&"text": [0.15, 0, 0.0],
-	&"fett": [0.45, 0, 0.0],
-	&"zahl": [0.55, 1, 0.0],
-	&"titel": [0.6, 3, 0.0],
-	&"logo": [0.55, 12, 0.0],
-	&"sperr": [0.0, 3, 0.0],
-	&"schwung": [0.55, 1, 0.2],
+	&"text": [&"grund", 0.15, 0, 0.0],
+	&"fett": [&"grund", 0.45, 0, 0.0],
+	&"sperr": [&"grund", 0.0, 3, 0.0],
+	&"zahl": [&"anzeige", 0.0, 0, 0.0],
+	&"titel": [&"anzeige", 0.0, 1, 0.0],
+	&"logo": [&"anzeige", 0.0, 7, 0.0],
+	&"schwung": [&"anzeige", 0.0, 1, 0.14],
 }
+
+## Arten, deren Ziffern `text()` und `textbreite()` in gleich breite
+## Fächer setzen. Lilita One hat nur proportionale Ziffern (die 1 ist zwei
+## Drittel so breit wie die 0) und kein OpenType-`tnum`; ohne Fächer
+## zitterte die Uhr des Zeitmodus bei jedem Zehntel hin und her.
+const _FESTE_ZIFFERN: Array[StringName] = [&"zahl"]
+
+## Fettung der Grundschrift, wenn sie für eine Anzeige-Art einspringt –
+## so fett, dass ein ersetztes Zeichen (etwa ein Ā) neben Lilita nicht
+## dünn wirkt.
+const _ERSATZ_FETTUNG := 0.6
+
+## Die Anzeigeschrift. Fehlt die Datei, nimmt `_anzeigeschrift()` die
+## Grundschrift – dann sieht alles aus wie vor Lilita, nichts bricht.
+const ANZEIGESCHRIFT := "res://assets/schrift/LilitaOne-Regular.ttf"
 
 const _IRIS_CODE := """shader_type canvas_item;
 // Kreisblende: deckt alles außerhalb von `radius` um `mitte` ab.
@@ -132,6 +158,9 @@ void fragment() {
 """
 
 static var _schriften: Dictionary[StringName, Font] = {}
+static var _anzeige: Font = null
+## Breite eines Ziffernfachs je "art|groesse" (siehe `_FESTE_ZIFFERN`).
+static var _ziffernfaecher: Dictionary[String, float] = {}
 static var _flaechen: Dictionary[StringName, StyleBoxFlat] = {}
 static var _texturen: Dictionary[StringName, Texture2D] = {}
 static var _thema: Theme = null
@@ -154,25 +183,54 @@ static func schrift(art: StringName = &"text") -> Font:
 		push_warning("UiStil: unbekannte Schriftart '%s'" % art)
 		return schrift(&"text")
 	var werte: Array = _SCHRIFTARTEN[art]
+	var anzeige := StringName(werte[0]) == &"anzeige"
+	var schraege := float(werte[3])
+	var v := _abwandlung(_anzeigeschrift() if anzeige else _grundschrift(),
+			float(werte[1]), int(werte[2]), schraege)
+	if anzeige:
+		# Ersatz für Zeichen, die Lilita fehlt. Die Liste gehört dieser
+		# FontVariation, nicht der geteilten FontFile – die bleibt unberührt.
+		# Nebenwirkung, gewollt: get_ascent()/get_height() nehmen das
+		# Maximum über alle Ersatzschriften. Lilita-Arten melden also die
+		# Oberlänge der Grundschrift (bei 52 px 56 statt 48), und alles, was
+		# mit get_ascent() eine Grundlinie setzt – Schriftzug, Label3D –,
+		# bleibt beim Umstellen stehen, wo es war.
+		v.fallbacks = [_abwandlung(_grundschrift(), _ERSATZ_FETTUNG,
+				int(werte[2]), schraege)]
+	_schriften[art] = v
+	return v
+
+
+static func _abwandlung(grund: Font, fettung: float, sperrung: int,
+		schraege: float) -> FontVariation:
 	var v := FontVariation.new()
-	v.base_font = _grundschrift()
-	v.variation_embolden = float(werte[0])
-	v.spacing_glyph = int(werte[1])
-	var schraege := float(werte[2])
+	v.base_font = grund
+	v.variation_embolden = fettung
+	v.spacing_glyph = sperrung
 	if schraege != 0.0:
 		# Die Matrix wirkt auf die Glyphenumrisse, dort zeigt y nach OBEN:
 		# x' = x + schraege * y neigt die Oberlängen nach rechts.
 		v.variation_transform = Transform2D(Vector2(1.0, schraege),
 				Vector2(0.0, 1.0), Vector2.ZERO)
-	_schriften[art] = v
 	return v
 
 
-## Die eine Stelle, an der die Grundschrift gewählt wird. Soll später eine
-## eigene Titelschrift dazukommen, wird sie hier je Art eingesetzt – alle
-## Aufrufer bleiben unverändert.
+## Grundschrift für Text: die eingebaute Godot-Schrift (Open Sans).
 static func _grundschrift() -> Font:
 	return ThemeDB.fallback_font
+
+
+## Anzeigeschrift für Titel, Banner und Zahlen: Lilita One. Einmal
+## geladen und geteilt – NIE verändern (Ersatzschriften, Sperrung usw.
+## gehören an die FontVariation in `schrift()`).
+static func _anzeigeschrift() -> Font:
+	if _anzeige == null:
+		if ResourceLoader.exists(ANZEIGESCHRIFT):
+			_anzeige = load(ANZEIGESCHRIFT) as Font
+		if _anzeige == null:
+			push_warning("UiStil: %s fehlt, nehme die Grundschrift" % ANZEIGESCHRIFT)
+			_anzeige = _grundschrift()
+	return _anzeige
 
 
 # ------------------------------------------------------------ Flächen
@@ -407,6 +465,11 @@ static func konturstaerke(groesse: int) -> int:
 ## hellem Himmel ganz, voll deckend bekam er einen schweren dunklen Hof.
 ## Blendet `farbe.a` auf 0, verschwindet die Kontur mit.
 ##
+## Arten mit festen Ziffern (&"zahl") setzt `text()` Zeichen für Zeichen:
+## jede Ziffer mittig in ein Fach von der Breite der breitesten Ziffer,
+## alles andere mit seiner eigenen Breite. Unterschneidung entfällt dabei
+## – bei Zahlen ist das gewollt, "11" und "88" sind gleich breit.
+##
 ## Rückgabe: die Breite des Textes in px (für Unterstreichungen usw.).
 static func text(auf: CanvasItem, pos: Vector2, inhalt: String, groesse: int,
 		farbe: Color, art: StringName = &"text", kontur: int = -1,
@@ -415,10 +478,20 @@ static func text(auf: CanvasItem, pos: Vector2, inhalt: String, groesse: int,
 	if inhalt.is_empty() or groesse <= 0:
 		return 0.0
 	var zs := schrift(art)
-	var weite := zs.get_string_size(inhalt, HORIZONTAL_ALIGNMENT_LEFT, -1, groesse).x
+	var fest := _FESTE_ZIFFERN.has(art)
+	var weite := textbreite(inhalt, groesse, art)
 	var ort := pos
 	var ausr := ausrichtung
-	if breite < 0.0:
+	var feld := breite
+	if fest and breite >= 0.0:
+		# Zeichenweise gesetzt richtet Godot nichts im Feld aus – also den
+		# Anker selbst ins Feld legen und wie ohne Feld weitermachen.
+		if ausrichtung == HORIZONTAL_ALIGNMENT_CENTER:
+			ort.x += breite * 0.5
+		elif ausrichtung == HORIZONTAL_ALIGNMENT_RIGHT:
+			ort.x += breite
+		feld = -1.0
+	if feld < 0.0:
 		if ausrichtung == HORIZONTAL_ALIGNMENT_CENTER:
 			ort.x -= weite * 0.5
 		elif ausrichtung == HORIZONTAL_ALIGNMENT_RIGHT:
@@ -426,13 +499,63 @@ static func text(auf: CanvasItem, pos: Vector2, inhalt: String, groesse: int,
 		ausr = HORIZONTAL_ALIGNMENT_LEFT
 	var staerke := kontur if kontur >= 0 else konturstaerke(groesse)
 	if staerke > 0:
-		auf.draw_string_outline(zs, ort + Vector2(0.0, maxf(1.0, staerke * 0.45)),
-				inhalt, ausr, breite, groesse, staerke,
-				Color(0, 0, 0, SCHATTEN * farbe.a))
-		auf.draw_string_outline(zs, ort, inhalt, ausr, breite, groesse, staerke,
-				_kontur(sqrt(farbe.a)))
-	auf.draw_string(zs, ort, inhalt, ausr, breite, groesse, farbe)
+		_zeile(auf, zs, ort + Vector2(0.0, maxf(1.0, staerke * 0.45)), inhalt, ausr,
+				feld, groesse, Color(0, 0, 0, SCHATTEN * farbe.a), staerke, fest, art)
+		_zeile(auf, zs, ort, inhalt, ausr, feld, groesse, _kontur(sqrt(farbe.a)),
+				staerke, fest, art)
+	_zeile(auf, zs, ort, inhalt, ausr, feld, groesse, farbe, 0, fest, art)
 	return weite
+
+
+## Ein Durchgang von `text()`: Kontur (`kontur` > 0) oder Füllung, als
+## ganze Zeile oder – bei festen Ziffern – Zeichen für Zeichen. Alle
+## Zeichen eines Durchgangs vor dem nächsten, damit keine Kontur über die
+## Füllung des Nachbarn malt.
+static func _zeile(auf: CanvasItem, zs: Font, ort: Vector2, inhalt: String,
+		ausr: HorizontalAlignment, breite: float, groesse: int, farbe: Color,
+		kontur: int, fest: bool, art: StringName) -> void:
+	if not fest:
+		if kontur > 0:
+			auf.draw_string_outline(zs, ort, inhalt, ausr, breite, groesse, kontur, farbe)
+		else:
+			auf.draw_string(zs, ort, inhalt, ausr, breite, groesse, farbe)
+		return
+	var fach := _ziffernfach(art, groesse)
+	var x := ort.x
+	for i in inhalt.length():
+		var zeichen := inhalt[i]
+		var eigen := _weite(zs, zeichen, groesse)
+		var versatz := 0.0
+		var schritt := eigen
+		if _ist_ziffer(inhalt.unicode_at(i)):
+			versatz = (fach - eigen) * 0.5
+			schritt = fach
+		var stelle := Vector2(x + versatz, ort.y)
+		if kontur > 0:
+			auf.draw_string_outline(zs, stelle, zeichen, HORIZONTAL_ALIGNMENT_LEFT, -1,
+					groesse, kontur, farbe)
+		else:
+			auf.draw_string(zs, stelle, zeichen, HORIZONTAL_ALIGNMENT_LEFT, -1, groesse,
+					farbe)
+		x += schritt
+
+
+static func _ist_ziffer(code: int) -> bool:
+	return code >= 48 and code <= 57
+
+
+## Breite des Fachs, in dem bei `_FESTE_ZIFFERN` jede Ziffer steht: die
+## der breitesten Ziffer (bei Lilita die 0), einmal je Größe gemessen.
+static func _ziffernfach(art: StringName, groesse: int) -> float:
+	var schluessel := "%s|%d" % [art, groesse]
+	if _ziffernfaecher.has(schluessel):
+		return _ziffernfaecher[schluessel]
+	var zs := schrift(art)
+	var fach := 0.0
+	for ziffer in 10:
+		fach = maxf(fach, _weite(zs, str(ziffer), groesse))
+	_ziffernfaecher[schluessel] = fach
+	return fach
 
 
 ## Mehrzeiliger Text mit Kontur, umbrochen auf `breite`. `pos` ist die
@@ -458,10 +581,20 @@ static func absatz(auf: CanvasItem, pos: Vector2, inhalt: String, groesse: int,
 			max_zeilen).y
 
 
-## Breite einer Textzeile in px.
+## Breite einer Textzeile in px – bei festen Ziffern (&"zahl") so, wie
+## `text()` sie setzt.
 static func textbreite(inhalt: String, groesse: int, art: StringName = &"text") -> float:
-	return schrift(art).get_string_size(inhalt, HORIZONTAL_ALIGNMENT_LEFT, -1,
-			groesse).x
+	var zs := schrift(art)
+	if not _FESTE_ZIFFERN.has(art):
+		return _weite(zs, inhalt, groesse)
+	var fach := _ziffernfach(art, groesse)
+	var summe := 0.0
+	for i in inhalt.length():
+		if _ist_ziffer(inhalt.unicode_at(i)):
+			summe += fach
+		else:
+			summe += _weite(zs, inhalt[i], groesse)
+	return summe
 
 
 ## Größte Schriftgröße ≤ `groesse`, bei der `inhalt` in `max_breite` passt –

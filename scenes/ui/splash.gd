@@ -23,8 +23,14 @@ extends Control
 
 # --- Maße (Entwurfsgröße 1280 x 720, Ränder wachsen mit dem Fenster) ---
 const RAND := 96.0
-const TITEL_OBEN := 104.0
-const TITEL_GROESSE := 104
+## Der Schriftzug steht in Lilita One (`UiStil`, &"logo"). Sie läuft
+## schmaler als die frühere Grundschrift; mit 116 px statt 104 px steht
+## das Wort wieder etwa so breit da wie vorher. Die Grundlinie liegt bei
+## `TITEL_OBEN + get_ascent()`, und die Oberlänge wächst mit der Größe –
+## das Feld steht deshalb 12 px höher, damit die Grundlinie bleibt, wo sie
+## war (y = 217), und die braune Tiefe nicht an den Untertitel stößt.
+const TITEL_OBEN := 92.0
+const TITEL_GROESSE := 116
 const UNTERTITEL_OBEN := 252.0
 const UNTERTITEL_GROESSE := 21
 const MENUE_OBEN := 344.0
