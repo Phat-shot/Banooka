@@ -43,8 +43,10 @@ const SCHRITT_TEMPO := 5.0   ## Taktrate des Sechsbeinlaufs
 	set(wert):
 		farbe_streifen = wert
 		_neu_faerben()
-## Mittelnaht und Zangen – die Bruchstelle auf dem Rücken.
-@export var farbe_naht: Color = Farben.FELS_HELL.darkened(0.1):
+## Mittelnaht und Zangen – die Bruchstelle auf dem Rücken. Ein warmes
+## Creme und kein Felsgrau: Grau las sich auf dem glänzenden Panzer wie
+## ein Klebeband oder ein Blechstreifen, nicht wie ein heller Riss.
+@export var farbe_naht: Color = Color(0.95, 0.86, 0.62):
 	set(wert):
 		farbe_naht = wert
 		_neu_faerben()
@@ -75,8 +77,8 @@ var _panzer: MeshInstance3D
 var _kopf: Node3D
 var _beine: Array[Node3D] = []
 var _fuehler: Array[Node3D] = []
-## Material des sichtbaren Panzers – die Scherben beim Knacken tragen es.
-var _panzerstoff: Material
+## Material der hellen Naht – die Scherben beim Knacken tragen es.
+var _nahtstoff: Material
 
 ## Bemalungen des mitgelieferten Modells, je Farbsatz einmal gebaut.
 static var _zeichnungen: Dictionary[String, ArrayMesh] = {}
@@ -108,17 +110,27 @@ func fremdmodell() -> Dictionary:
 	# Oberfläche: Die matte Vorgabe der Fremdmodelle (für Laub und Fels)
 	# ließ den Panzer aussehen wie Ton. Chitin glänzt – und ein Glanzlicht
 	# oben auf der Wölbung zeigt zugleich, wo man landet. Die schwarzen
-	# Teile (Beine, Kopf, Flecken) lagen unter der Grenze, ab der
-	# `_struktur_geben` Oberfläche verleiht, und standen als flache Löcher
-	# im Bild; ein warmes Fastschwarz hebt sie knapp darüber.
+	# Teile (Fühler und Fleckkugeln: "black"; der Kopf: "black.001")
+	# standen als flache Löcher im Bild, der Kopf als schwarze Scheibe ohne
+	# Form. Ein warmes Braun mit etwas Glanz zeigt seine Rundung und bleibt
+	# doch dunkler als der Panzer. Fast schwarz und glänzend spiegelte er
+	# nur noch den Himmel und stand als blaugraue Scheibe vor dem Käfer.
 	return {
 		"datei": "kaefer", "groesse": 1.30, "drehung": PI,
 		"farben": {"red": farbe_fremdmodell},
 		"stoff": {
 			"red": {"rauheit": 0.4, "glanz": 0.3},
-			"black": {"farbe": Color(0.10, 0.08, 0.06), "rauheit": 0.5, "glanz": 0.25},
+			"black": {"farbe": CHITIN_DUNKEL, "rauheit": 0.5, "glanz": 0.2},
+			"black.001": {"farbe": KOPF, "rauheit": 0.4, "glanz": 0.3},
 		},
 	}
+
+
+## Fühler (und die Fleckkugeln unter der Zeichnung) des Modells.
+const CHITIN_DUNKEL := Color(0.24, 0.16, 0.10)
+## Kopf des Modells: dunkles Braun, heller als die Fühler – er ist groß
+## genug, um Form zu zeigen, und muss es, sonst ist er ein Loch.
+const KOPF := Color(0.32, 0.22, 0.14)
 
 
 ## Die Zeichnung des Marienkäfers wird zur Anleitung umgedeutet: Die
@@ -130,21 +142,23 @@ func _zeichen_am_fremdmodell(figur: Node3D) -> void:
 	var netz := _hauptnetz(figur)
 	if netz == null:
 		return
-	var panzer_nr := _flaeche_nach_name(netz.mesh, "red")
-	if panzer_nr >= 0:
-		_panzerstoff = netz.get_surface_override_material(panzer_nr)
 	var schluessel := "%s|%s" % [farbe_naht.to_html(), farbe_streifen.to_html()]
 	if not _zeichnungen.has(schluessel):
 		var naht := farbe_naht
 		var flecken := farbe_streifen
 		# Netzraum des Käfers: x quer, y längs (negativ = Kopf), z oben.
-		# Der Panzer reicht von y -0,004 bis 0,030 und bis z 0,013.
-		var auswahl := func(mitte: Vector3, normale: Vector3) -> Color:
-			if mitte.z < NAHT_UNTERKANTE or normale.z < 0.3 or mitte.y < PANZER_VORNE:
+		# Die schwarze Fläche besteht aus elf Stücken: acht Flecken (je eine
+		# halb in den Panzer gesteckte Kugel), die Naht (ein Streifen über
+		# den ganzen Rücken, Dreiecksmitten bis |x| 0,0028) und die beiden
+		# Fühler vorn (y unter -0,016). Gefärbt wird jedes Stück GANZ: Nur
+		# die Oberseite gefärbt, blieb unten an jedem Fleck eine schwarze
+		# Sichel stehen, und die Naht endete in einem schwarzen Stummel.
+		var auswahl := func(mitte: Vector3, _normale: Vector3) -> Color:
+			if mitte.y < PANZER_VORNE:
 				return Effekte.KEINE_FARBE
 			return naht if absf(mitte.x) < NAHT_BREITE else flecken
 		var bild := _bemalung(netz.mesh, _flaeche_nach_name(netz.mesh, "black"),
-				auswahl, 0.0005)
+				auswahl, 0.0003)
 		if bild == null:
 			return
 		_zeichnungen[schluessel] = bild
@@ -153,9 +167,11 @@ func _zeichen_am_fremdmodell(figur: Node3D) -> void:
 		zeichnung.set_meta("ohne_glanz", true)
 
 
-## Grenzen der Bemalung im Netzraum des Käfermodells (siehe oben).
-const NAHT_BREITE := 0.0016
-const NAHT_UNTERKANTE := 0.0035
+## Grenzen der Bemalung im Netzraum des Käfermodells (siehe oben). Die
+## Naht reicht bis |x| 0,0028, der nächste Fleck beginnt bei 0,0031 – die
+## Grenze liegt dazwischen. Schmaler (früher 0,0016) färbte die Ränder der
+## Naht als Fleck, und sie zerfiel in einen gelb gesäumten Strich.
+const NAHT_BREITE := 0.003
 const PANZER_VORNE := -0.0035
 
 
@@ -169,10 +185,10 @@ func _klanghoehe() -> float:
 
 func _baue() -> void:
 	var panzer_mat := Materialbibliothek.einfarbig(farbe_panzer, 0.35, 0.25)
-	_panzerstoff = panzer_mat
 	var chitin := Materialbibliothek.einfarbig(farbe_chitin, 0.55)
 	var streifen_mat := Materialbibliothek.einfarbig(farbe_streifen, 0.5)
 	var naht_mat := Materialbibliothek.einfarbig(farbe_naht, 0.4, 0.3)
+	_nahtstoff = naht_mat
 	var glut := Materialbibliothek.leuchtend(farbe_augen, 1.3)
 
 	# --- Sechs Laufbeine, jeweils an einem eigenen Drehpunkt ---
@@ -306,14 +322,16 @@ func _todesstart(art: int) -> void:
 	_geknackt = (art & (Angriff.FALLEN | Angriff.SLAM)) != 0
 	if not _geknackt:
 		return
-	# Der Panzer springt: Scherben in seinem eigenen Material fliegen
-	# davon, flach über den Boden läuft ein Ring. Die Splitter der Kisten
-	# sind Bretter; kleiner skaliert lesen sie sich als Panzerstücke.
+	# Der Panzer springt entlang der Naht: helle Scherben fliegen davon,
+	# flach über den Boden läuft ein Ring. Die Splitter der Kisten sind
+	# Bretter; kleiner skaliert lesen sie sich als Panzerstücke. In der
+	# Farbe der Naht und nicht des Panzers – dunkle Scherben vor dem
+	# dunklen Weg sah niemand, Ring und Funken taten die ganze Arbeit.
 	var mitte := global_position + Vector3.UP * 0.3
-	if _panzerstoff != null:
-		var scherben := Effekte.splitter(self, mitte, _panzerstoff, 7)
+	if _nahtstoff != null:
+		var scherben := Effekte.splitter(self, mitte, _nahtstoff, 6)
 		if scherben != null:
-			scherben.emission_box_extents = Vector3(0.35, 0.1, 0.45)
+			scherben.emission_box_extents = Vector3(0.12, 0.1, 0.45)
 			scherben.scale_amount_min = 0.3
 			scherben.scale_amount_max = 0.5
 			scherben.initial_velocity_min = 3.5

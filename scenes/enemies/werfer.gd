@@ -122,6 +122,9 @@ func _init() -> void:
 	patrouille_weite = 0.0
 	tempo = 0.0
 	fruechte = 2
+	# Rumpfmitte über dem Podest; liegend etwa eine Brustkorbhälfte hoch.
+	_todes_mitte = 1.15
+	_liege_hoehe = 0.45
 
 
 func _ready() -> void:
@@ -390,15 +393,15 @@ func _podest_abhaengen(eltern: Node, ort: Transform3D) -> void:
 
 
 func _todesanimation(delta: float) -> void:
-	_wegflug.y += TODES_G * delta
-	global_position += _wegflug * delta
+	var fliegt := _flugschritt(delta)
+	_taumeln(delta, 7.0, 4.0)
 	if is_instance_valid(modell):
-		modell.rotation.x += delta * 7.0
-		modell.rotation.z += delta * 4.0
 		modell.scale = modell.scale.lerp(Vector3(0.55, 0.55, 0.55),
 				minf(delta * 3.0, 1.0))
 	# Die Arme rudern noch – das liest sich als "getroffen", nicht als
-	# "ausgeschaltet".
+	# "ausgeschaltet". Liegt er, ist Ruhe.
+	if not fliegt:
+		return
 	if is_instance_valid(_wurfarm):
 		_wurfarm.rotation.x = sin(_zeit * 22.0) * 1.1
 	if is_instance_valid(_haltearm):

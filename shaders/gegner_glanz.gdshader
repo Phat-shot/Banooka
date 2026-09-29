@@ -15,7 +15,9 @@ shader_type spatial;
 // unbeleuchteter Saum leuchtete in dunklen Ecken wie ein Warnschild.
 //
 // TREFFERBLITZ: `blitz` 1 → 0 färbt den ganzen Gegner einen Augenblick
-// weiß – über EMISSION, also unabhängig vom Licht.
+// hell – über EMISSION, also unabhängig vom Licht. Warmweiß wie die
+// Waldsonne, nicht reinweiß: Die vier Meter hohe Spinne füllt im Blitz
+// ein gutes Stück des Bildes, und reines Weiß stach daraus hervor.
 //
 // RENDERER: gl_compatibility. Keine Bildschirm- oder Tiefentextur.
 // `fog_disabled`, weil Nebel ein ADDITIVES Material nicht ausblendet,
@@ -36,15 +38,16 @@ uniform float rand_schaerfe : hint_range(1.0, 8.0) = 3.0;
 uniform float umgriff : hint_range(0.0, 1.0) = 0.5;
 // Ab hier (Meter) ist der Saum ganz weg; ab 60 % davon blendet er aus.
 uniform float fern = 34.0;
-// Trefferblitz, 0..1.
+// Trefferblitz, 0..1, und seine Farbe.
 uniform float blitz : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 blitz_farbe : source_color = vec4(1.0, 0.97, 0.92, 1.0);
 
 void fragment() {
 	float kante = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	float saum = pow(kante, rand_schaerfe);
 	float nah = 1.0 - smoothstep(fern * 0.6, fern, -VERTEX.z);
 	ALBEDO = rand_farbe.rgb * rand_staerke * saum * nah;
-	EMISSION = vec3(blitz);
+	EMISSION = blitz_farbe.rgb * blitz;
 }
 
 void light() {

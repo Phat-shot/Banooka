@@ -79,6 +79,9 @@ func _init() -> void:
 	patrouille_weite = 6.0
 	tempo = SPRINT
 	fruechte = 2
+	# Schlanker Leib auf 0,52 m; liegend nur so hoch wie dick.
+	_todes_mitte = 0.5
+	_liege_hoehe = 0.2
 
 
 func _ready() -> void:
@@ -201,10 +204,9 @@ func _todesstart(_art: int) -> void:
 
 
 func _todesanimation(delta: float) -> void:
-	_wegflug.y += TODES_G * delta
-	global_position += _wegflug * delta
+	_flugschritt(delta)
+	_taumeln(delta, 10.0, 0.0)
 	if is_instance_valid(modell):
-		modell.rotation.x += delta * 10.0
 		modell.scale = modell.scale.lerp(Vector3(0.6, 0.6, 0.6), minf(delta * 3.0, 1.0))
 
 

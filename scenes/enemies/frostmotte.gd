@@ -67,6 +67,10 @@ func _init() -> void:
 	patrouille_weite = 5.0
 	tempo = 1.7
 	fruechte = 2
+	# Sie schwebt: Der Leib hängt 1,35 m über ihrem Ursprung am Boden.
+	# Aus der Luft geschlagen, liegt sie danach flach im Schnee.
+	_todes_mitte = SCHWEBE_HOEHE
+	_liege_hoehe = 0.18
 
 
 # ---------------------------------------------------------- Optik
@@ -146,13 +150,20 @@ func _bewegung(delta: float) -> void:
 func _todesstart(_art: int) -> void:
 	# Der Drehschlag schlägt sie aus der Luft.
 	_wegflug = _weg_richtung() * 7.0 + Vector3.UP * 3.0
+	# Ihr Ursprung wippt mit dem Schweben bis 0,32 m unter die Startebene,
+	# also unter den Boden – von dort fände der Bodenstrahl im Wegflug
+	# keinen Boden mehr. Der Ursprung geht zurück auf die Startebene, das
+	# Modell bleibt, wo es zu sehen ist.
+	var hub := global_position.y - _start_position.y
+	_setze_hoehe(0.0)
+	if is_instance_valid(modell):
+		modell.position.y += hub
 
 
 func _todesanimation(delta: float) -> void:
-	_wegflug.y += TODES_G * delta
-	global_position += _wegflug * delta
+	_flugschritt(delta)
+	_taumeln(delta, 0.0, 14.0)
 	if is_instance_valid(modell):
-		modell.rotation.z += delta * 14.0
 		modell.scale = modell.scale.lerp(Vector3(0.5, 0.5, 0.5), minf(delta * 3.0, 1.0))
 
 

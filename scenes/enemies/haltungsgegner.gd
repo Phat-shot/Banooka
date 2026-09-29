@@ -181,6 +181,10 @@ func _init() -> void:
 	tempo = 1.5
 	abprall_hoehe = 14.0
 	fruechte = 2
+	# Vom Slide weggefegt (Wegflug der Basisklasse): Rumpfmitte gut
+	# hüfthoch, liegend so hoch wie der Rumpf tief ist.
+	_todes_mitte = 0.8
+	_liege_hoehe = 0.22
 
 
 func _ready() -> void:

@@ -228,18 +228,38 @@ func _pruefe_gegner_patrouille() -> void:
 ## Geradeaus-Strecke sieht man das nicht. Hier wird der Blick ohne
 ## Weichzeichnung gesetzt (Gewicht 1), in Weltrichtung gemessen und
 ## zurückgestellt: reine Rechnung, keine Simulation.
+##
+## Jede Art über den Weg, den sie im Spiel nimmt: die meisten über
+## `_blick_ausrichten` (die Krabbe mit eigener Fassung, sie läuft
+## seitwärts, +X voran), der Werfer über `_zum_spieler_drehen` zu einem
+## Probepunkt schräg hinter ihm. Der Schwarm dreht keinen Körper, nur
+## seine Tiere – er zählt als "ohne Blickrichtung", statt still zu bestehen.
 func _pruefe_gegner_blick() -> void:
 	var schlecht := 0
 	var geprueft := 0
+	var ohne := 0
+	var probe := Node3D.new()
+	add_child(probe)
 	for knoten in get_tree().get_nodes_in_group("gegner"):
 		var g := knoten as Gegner
 		if g == null or g.besiegt or not is_instance_valid(g.modell):
 			continue
+		if g is Schwarm:
+			ohne += 1
+			continue
 		var vorher := g.modell.rotation.y
-		g._blick_ausrichten(1.0, 1.0)
-		var blick := -g.modell.global_basis.z
-		g.modell.rotation.y = vorher
 		var soll := g.achse() * g.richtung
+		if g is Werfer:
+			# Ein Punkt 6 m entfernt, schräg zur Korridorachse: So fällt
+			# eine vergessene Korridordrehung in jeder Lage auf.
+			soll = (g.global_basis.z + g.global_basis.x * 0.6).normalized()
+			probe.global_position = g.global_position + soll * 6.0
+			(g as Werfer)._zum_spieler_drehen(1.0, probe)
+		else:
+			g._blick_ausrichten(1.0, 1.0)
+		var blick := g.modell.global_basis.x if g is Gletscherkrabbe \
+				else -g.modell.global_basis.z
+		g.modell.rotation.y = vorher
 		blick.y = 0.0
 		soll.y = 0.0
 		if blick.length() < 0.01 or soll.length() < 0.01:
@@ -247,10 +267,13 @@ func _pruefe_gegner_blick() -> void:
 		geprueft += 1
 		var treue := blick.normalized().dot(soll.normalized())
 		if treue < 0.95:
-			print("  FEHLER  Gegner bei Strecke %.0f m blickt %.0f Grad neben seine Laufrichtung"
-					% [_strecke(g.global_position), rad_to_deg(acos(clampf(treue, -1.0, 1.0)))])
+			print("  FEHLER  %s bei Strecke %.0f m blickt %.0f Grad neben seine Laufrichtung"
+					% [g.get_script().get_global_name(), _strecke(g.global_position),
+					rad_to_deg(acos(clampf(treue, -1.0, 1.0)))])
 			_fehler += 1; schlecht += 1
-	print("  Gegnerblick: %d geprüft, %d schräg" % [geprueft, schlecht])
+	probe.queue_free()
+	print("  Gegnerblick: %d geprüft, %d schräg, %d ohne Blickrichtung (Schwarm)"
+			% [geprueft, schlecht, ohne])
 
 
 ## Leben die Gegner, und sterben sie sauber?

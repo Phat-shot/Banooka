@@ -111,6 +111,10 @@ func _init() -> void:
 	besiegbar_durch = Angriff.SPIN | Angriff.SLAM
 	patrouille_weite = 4.0
 	tempo = 2.4
+	# Auf den Rücken legt sie ihr Todesclip selbst, bodennah wie im Stand;
+	# das Modell bleibt dafür auf seiner Standhöhe (Liegehöhe = Mitte).
+	_todes_mitte = 0.3
+	_liege_hoehe = 0.3
 
 
 func _ready() -> void:
@@ -149,7 +153,7 @@ func fremdmodell() -> Dictionary:
 ##
 ## Netzraum des Froschs: x quer, y längs (negativ = Kopf), z oben; der
 ## Rücken liegt bei y -0,006 bis 0,012 und reicht bis z 0,014. Die Flecken
-## werden aus der Haut selbst herausgelöst (`_bemalung`) und tragen deren
+## sind runde Scheiben, auf die Haut gelegt (`_tupfen`), und tragen deren
 ## Knochengewichte: Sie gehen in jedem Clip mit.
 func _zeichen_am_fremdmodell(figur: Node3D) -> void:
 	var netz := _hauptnetz(figur)
@@ -158,16 +162,8 @@ func _zeichen_am_fremdmodell(figur: Node3D) -> void:
 
 	var schluessel := farbe_flecken.to_html()
 	if not _zeichnungen.has(schluessel):
-		var fleckfarbe := farbe_flecken
-		var auswahl := func(mitte: Vector3, normale: Vector3) -> Color:
-			if normale.z < 0.45:
-				return Effekte.KEINE_FARBE
-			for f: Vector3 in FLECKEN:
-				if Vector2(mitte.x - f.x, mitte.y - f.y).length() < f.z:
-					return fleckfarbe
-			return Effekte.KEINE_FARBE
-		var bild := _bemalung(netz.mesh, _flaeche_nach_name(netz.mesh, "Green"),
-				auswahl, 0.00012)
+		var bild := _tupfen(netz.mesh, _flaeche_nach_name(netz.mesh, "Green"),
+				FLECKEN, farbe_flecken, TUPF_ABSTAND)
 		if bild != null:
 			_zeichnungen[schluessel] = bild
 	if _zeichnungen.has(schluessel):
@@ -203,6 +199,9 @@ const FLECKEN: Array[Vector3] = [
 	Vector3(-0.0034, -0.0045, 0.0013), Vector3(0.0034, -0.0045, 0.0013),
 	Vector3(0.0, 0.0085, 0.0016),
 ]
+## So weit liegen die Flecken über der Haut (Netzeinheiten, rund 7 mm).
+## Knapper stachen die Grate der eckigen Haut durch die Scheiben.
+const TUPF_ABSTAND := 0.0002
 ## Glanzpunkt auf der Vorderkante des rechten Auges (links gespiegelt).
 const GLANZ_ORT := Vector3(0.0036, -0.0116, 0.0133)
 const GLANZ_RADIUS := 0.0006
@@ -420,9 +419,11 @@ func _animiere() -> void:
 
 func _todesstart(art: int) -> void:
 	# Der Drehschlag schleudert sie seitlich weg; der Bauchplatscher
-	# drückt sie an Ort und Stelle platt.
+	# drückt sie an Ort und Stelle platt. Weggeschleudert fliegt sie nur so
+	# weit, dass sie noch im Korridor aufschlägt und dort liegen bleibt –
+	# mit 8 m/s landete sie im Fels, und das Ende sah niemand.
 	_platt = (art & Angriff.SPIN) == 0 and (art & Angriff.SLAM) != 0
-	_wegflug = Vector3.ZERO if _platt else _weg_richtung() * 8.0 + Vector3.UP * 6.5
+	_wegflug = Vector3.ZERO if _platt else _weg_richtung() * 5.0 + Vector3.UP * 6.0
 	# Der Wegflug beginnt dort, wo der Treffer saß – auch mitten im
 	# Hüpfer. Früher sprang die Kröte dafür erst auf den Boden zurück, bis
 	# zu einen Meter in einem einzigen Bild. Die Todesanimation braucht
@@ -441,13 +442,15 @@ func _todesanimation(delta: float) -> void:
 		if is_instance_valid(modell):
 			modell.scale = modell.scale.lerp(Vector3(1.45, 0.12, 1.35), minf(delta * 11.0, 1.0))
 		return
-	# Überschlägt sich im Flug und wird dabei kleiner.
-	_wegflug.y += TODES_G * delta
-	global_position += _wegflug * delta
+	# Überschlägt sich im Flug, schlägt auf, federt einmal nach und bleibt
+	# auf dem Rücken liegen, die Beine in der Luft, bis sie verpufft (auf
+	# den Rücken dreht sie ihr Todesclip, das Modell stellt sich dafür
+	# gerade). Sie schrumpft nur wenig: Die Figur soll bis zuletzt als
+	# Kröte zu erkennen sein.
+	_flugschritt(delta)
+	_taumeln(delta, 8.0, 12.0, true)
 	if is_instance_valid(modell):
-		modell.rotation.x += delta * 8.0
-		modell.rotation.z += delta * 12.0
-		modell.scale = modell.scale.lerp(Vector3(0.6, 0.6, 0.6), minf(delta * 3.0, 1.0))
+		modell.scale = modell.scale.lerp(Vector3(0.8, 0.8, 0.8), minf(delta * 3.0, 1.0))
 
 
 # ---------------------------------------------------------- Umfärben

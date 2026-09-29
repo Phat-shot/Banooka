@@ -29,7 +29,9 @@ class_name Gegner
 ## Umgekehrt gilt: Die Stelle, an der es wirkt, bleibt frei und ist hell
 ## abgesetzt – bei der Gletscherkrabbe etwa die leuchtende Panzernaht.
 ## Das gilt auch für die mitgelieferten Modelle: Deren Zeichnung malt
-## `_zeichen_am_fremdmodell()` nach (`_bemalung()`, `_an_knochen()`).
+## `_zeichen_am_fremdmodell()` nach (`_bemalung()` färbt Dreiecke des
+## Modells um, `_tupfen()` legt runde Flecken auf, `_an_knochen()` hängt
+## Teile wie einen Stachelkamm an).
 ##
 ## MITGELIEFERTE MODELLE: Das Modell hängt unter `fremdhalter`; Stauchen
 ## und Wippen gehen auf den Halter, die Einpassung bleibt am Modell. Bringt
@@ -39,7 +41,10 @@ class_name Gegner
 ##
 ## BESIEGT: Blitz, kurzes Erstarren, Funken und Kameraruck, dann die
 ## Todesanimation des Gegners, am Ende ein Rauchwölkchen, in dem er
-## verschwindet (`_treffer_zeigen()`, `_verpuffen()`).
+## verschwindet (`_treffer_zeigen()`, `_verpuffen()`). Wer weggeschleudert
+## wird, fliegt über `_flugschritt()`: Er prallt an Boden und Wand ab,
+## statt durch den Weg zu fallen, und bleibt bis zum Wölkchen liegen
+## (`_taumeln()`).
 
 ## Gravitation der Todesanimation.
 const TODES_G := -32.0
@@ -59,19 +64,30 @@ const GLANZ_SHADER: Shader = preload("res://shaders/gegner_glanz.gdshader")
 ## er ist: Der Saum ist Licht (siehe Shader) und entsteht nur an Kanten,
 ## die ein Licht streift; bei 0,6 war er im Spielbild nicht zu finden.
 const RAND_STAERKE := 1.4
+## In dieser Zeit erlischt der Saum eines besiegten Gegners. Ein
+## plattgedrückter Gegner zeigt der Kamera seine ganze Oberseite unter
+## streifendem Winkel – der Saum lag dann auf ALLEM und färbte die
+## schwarze Spinne blaugrau. Ein Sterbender braucht keine Silhouette mehr.
+const RAND_AUS := 0.25
 ## Ab dieser Entfernung zur Kamera stehen die Clips still. Jeder Knochen
 ## kostet je Bild Rechenzeit, und auf 40 m sieht niemand ein Bein zucken.
-const ANIM_WEITE := 40.0
+const ANIM_WEITE := 38.0
 ## Bis hierher (Meter zur Kamera) trägt ein mitgeliefertes Modell sein
 ## Overlay; der Shader blendet den Saum bis dahin aus. Dahinter kostete
 ## es nur noch einen Draw-Call je Fläche, für nichts.
 const GLANZ_WEITE := 34.0
 ## Bis hierher werfen mitgelieferte Modelle einen Sonnenschatten. Jede
-## Fläche kostet in jeder der vier Schattenstufen einen Draw-Call (der
-## Frosch hat vier Flächen); der Schatten eines Käfers in 30 m Entfernung
-## ist ein paar Pixel groß und liegt im Nebel. Das bezahlt Overlay und
-## Zeichnung der nahen Gegner.
-const SCHATTEN_WEITE := 28.0
+## Fläche kostet in jeder Schattenstufe, in der sie liegt, einen Draw-Call
+## (der Frosch hat vier Flächen). Bei 28 m schwebten die Gegner weiter
+## vorn im Korridor sichtbar über dem Weg; 34 m kostet in Level 01 ein
+## paar Draw-Calls mehr, und die bezahlen Overlay und Zeichnung nicht mehr
+## ganz, aber die Rechnung bleibt im Rahmen (siehe Bericht zum Paket).
+const SCHATTEN_WEITE := 34.0
+## Abgeschaltet wird erst so viel weiter draußen, als angeschaltet wird.
+## Ohne diese Spanne schaltete ein Gegner, der an der Grenze patrouilliert,
+## vor einer stehenden Kamera bei jedem Umdrehen seinen Schatten an und
+## aus – der Schatten blinkte.
+const HYSTERESE := 4.0
 ## So lange steht ein getroffener Gegner starr und aufgebläht da, bevor
 ## er kippt oder fliegt – das Einzelbild, in dem der Treffer "sitzt".
 const STARRE := 0.07
@@ -82,6 +98,14 @@ const PUFF_VORLAUF := 0.15
 ## Farbe dieses Wölkchens: hell und warm, wie aufgewirbelter Staub im
 ## Sonnenlicht. Nicht grau – Grau liest sich als Brand.
 const PUFF_FARBE := Color(1.0, 0.95, 0.86, 0.9)
+## Weggeschleudert und aufgeschlagen: So viel der Fallgeschwindigkeit
+## bleibt für den einen Nachhopser, so viel vom Schwung über den Boden.
+const PRALL := 0.3
+const PRALL_BREMSE := 0.5
+## So hoch über den Füßen beginnt der Strahl, der im Flug nach Boden und
+## Wand sucht. Tiefer als die Körpermitte, höher als jede Bodenwelle, die
+## ein Bild Flug überspringen kann.
+const PRALL_STRAHL := 0.3
 
 ## Bitmaske der Angriffsarten, die diesen Gegner besiegen (siehe Angriff).
 @export var besiegbar_durch: int = Angriff.SLAM
@@ -114,6 +138,19 @@ var _zeit := 0.0
 var _phase := 0.0
 var _tot_zeit := 0.0
 var _wegflug := Vector3.ZERO
+## Für das Liegen nach dem Wegflug (`_taumeln()`): Höhe der Körpermitte im
+## Modell, um die er sich flach dreht, und ihre Höhe über dem Boden, wenn
+## er liegt – beides vor der Skalierung. Wer weggeschleudert wird, setzt
+## das in `_init()` auf seine Figur (die Frostmotte etwa schwebt: Mitte
+## 1,35 m, liegend aber dicht am Boden).
+var _todes_mitte := 0.4
+var _liege_hoehe := 0.3
+## Lage des Modells beim ersten Taumeln (INF = noch nicht gemessen).
+var _flug_versatz := Vector3.INF
+## Wie oft der Weggeschleuderte schon aufgeschlagen ist.
+var _aufpraelle := 0
+## Liegt er still? Dann fliegt und taumelt er nicht mehr.
+var _liegt := false
 
 ## Clips des mitgelieferten Modells (null ohne Modell oder ohne Skelett).
 var _fremd_anim: AnimationPlayer
@@ -298,14 +335,98 @@ func _todesstart(_art: int) -> void:
 	pass
 
 
-## Todesanimation pro Frame: wegschleudern und überschlagen.
+## Todesanimation pro Frame: wegschleudern, überschlagen, liegen bleiben.
 func _todesanimation(delta: float) -> void:
-	_wegflug.y += TODES_G * delta
-	global_position += _wegflug * delta
+	_flugschritt(delta)
+	_taumeln(delta, 9.0, 5.0)
 	if is_instance_valid(modell):
-		modell.rotation.x += delta * 9.0
-		modell.rotation.z += delta * 5.0
 		modell.scale = modell.scale.lerp(Vector3(0.55, 0.55, 0.55), minf(delta * 3.0, 1.0))
+
+
+## Ein Bild Wegflug: Schwerkraft, und an Boden oder Wand prallt der
+## Gegner ab, statt hindurchzufliegen. Gibt true zurück, solange er fliegt.
+##
+## Früher flog jeder Weggeschleuderte ohne Bodenprüfung: Nach 0,4 s war
+## er unter dem Weg verschwunden, und das Rauchwölkchen am Ende entstand
+## sechs Meter unter der Erde – der häufigste Tod in Level 01 (Kröte per
+## Drehschlag) endete im Nichts. Ein Strahl je Bild auf die Weltgeometrie
+## (Ebene 1, wie beim Geschoss) findet Boden und Wand auch an Stufen und
+## Hängen, wo eine feste Bodenhöhe falsch wäre. Über einem Abgrund findet
+## er nichts; dort fällt der Gegner weiter, wie es sich gehört.
+##
+## Einmal federt er nach (`PRALL`), beim zweiten Aufschlag bleibt er liegen.
+func _flugschritt(delta: float) -> bool:
+	if _liegt:
+		return false
+	_wegflug.y += TODES_G * delta
+	var von := global_position
+	var nach := von + _wegflug * delta
+	var treffer := _weltstrahl(von + Vector3.UP * PRALL_STRAHL, nach)
+	if treffer.is_empty():
+		global_position = nach
+		return true
+	var normale: Vector3 = treffer["normal"]
+	if normale.y < 0.6:
+		# Wand (oder Decke): Er prallt zurück und bleibt, wo er war – so
+		# fliegt er nicht in den Fels, sondern zurück auf den Weg.
+		_wegflug = _wegflug.bounce(normale) * PRALL_BREMSE
+		return true
+	var boden: Vector3 = treffer["position"]
+	global_position = boden
+	_aufpraelle += 1
+	# Schon langsam aufgekommen (Nachhopser, flacher Wurf): liegen bleiben.
+	if _aufpraelle >= 2 or _wegflug.y > -4.0:
+		_liegt = true
+		_wegflug = Vector3.ZERO
+		return false
+	_wegflug = Vector3(_wegflug.x * PRALL_BREMSE, -_wegflug.y * PRALL, _wegflug.z * PRALL_BREMSE)
+	Effekte.staubwolke(self, boden, 0.3)
+	return true
+
+
+## Strahl auf die Weltgeometrie (Ebene 1). Leer = freie Bahn.
+func _weltstrahl(von: Vector3, nach: Vector3) -> Dictionary:
+	var raum := get_world_3d().direct_space_state
+	if raum == null:
+		return {}
+	var abfrage := PhysicsRayQueryParameters3D.create(von, nach)
+	abfrage.collision_mask = 1
+	return raum.intersect_ray(abfrage)
+
+
+## Im Flug überschlägt sich der Gegner (`dreh_x`, `dreh_z` in rad/s); liegt
+## er, dreht er sich weich flach – auf den Bauch oder den Rücken, was
+## näher ist. Mit `aufrecht` stellt sich das Modell wieder gerade hin: für
+## Figuren, deren Todesclip sie selbst hinlegt (die Kröte dreht sich darin
+## auf den Rücken, ein zweites Umdrehen legte sie wieder auf den Bauch).
+##
+## Gedreht wird um die Körpermitte (`_todes_mitte`), nicht um die Füße:
+## Um die Füße gedreht schwang der Leib im Überschlag durch den Boden
+## (die Frostmotte, deren Leib 1,35 m über ihrem Ursprung schwebt, im
+## weiten Bogen), und kopfüber liegend steckte er ganz darin – genau
+## dort, unsichtbar, wäre er verpufft. Im Flug behält die Mitte ihre
+## Höhe über den Füßen, liegend kommt sie auf `_liege_hoehe`.
+func _taumeln(delta: float, dreh_x: float, dreh_z: float,
+		aufrecht: bool = false) -> void:
+	if not is_instance_valid(modell):
+		return
+	# Wo das Modell beim Treffer stand (Wippen, Schweben), bleibt es im Flug.
+	if _flug_versatz == Vector3.INF:
+		_flug_versatz = modell.position
+	var mitte := Vector3.UP * _todes_mitte
+	if not _liegt:
+		modell.rotation.x += delta * dreh_x
+		modell.rotation.z += delta * dreh_z
+		modell.position = _flug_versatz + mitte * modell.scale.y - modell.basis * mitte
+		return
+	var weich := minf(delta * 12.0, 1.0)
+	var flach := TAU if aufrecht else PI
+	var ziel_x := snappedf(modell.rotation.x, flach)
+	var ziel_z := snappedf(modell.rotation.z, flach)
+	modell.rotation.x = lerp_angle(modell.rotation.x, ziel_x, weich)
+	modell.rotation.z = lerp_angle(modell.rotation.z, ziel_z, weich)
+	var lage := Vector3.UP * _liege_hoehe * modell.scale.y - modell.basis * mitte
+	modell.position = modell.position.lerp(lage, weich)
 
 
 # ---------------------------------------------------------- Trefferlogik
@@ -412,8 +533,14 @@ func _treffer_zeigen() -> void:
 	if _glanz != null:
 		var stoff := _glanz
 		stoff.set_shader_parameter("blitz", 1.0)
-		var setzen := func(w: float) -> void: stoff.set_shader_parameter("blitz", w)
-		create_tween().tween_method(setzen, 1.0, 0.0, BLITZ_DAUER)
+		var rand_jetzt: Variant = stoff.get_shader_parameter("rand_staerke")
+		var rand := float(rand_jetzt) if rand_jetzt != null else 0.0
+		var blitz_setzen := func(w: float) -> void: stoff.set_shader_parameter("blitz", w)
+		var rand_setzen := func(w: float) -> void: stoff.set_shader_parameter("rand_staerke", w)
+		var ablauf := create_tween().set_parallel()
+		ablauf.tween_method(blitz_setzen, 1.0, 0.0, BLITZ_DAUER)
+		if rand > 0.0:
+			ablauf.tween_method(rand_setzen, rand, 0.0, RAND_AUS)
 
 	# Zwischen Figur und Gegner, etwas über dem Boden: Dort "trifft" es.
 	var ort := global_position + Vector3.UP * 0.6
@@ -435,9 +562,12 @@ func _treffer_zeigen() -> void:
 ## macht die Basis singulär, und Godot meldet das bei jeder Abfrage.
 func _verpuffen() -> void:
 	_verpufft = true
-	var mitte := global_position + Vector3.UP * 0.4
+	# In der Körpermitte, wie immer der Gegner gerade liegt – aber nie im
+	# Boden: Ein plattgedrückter Gegner hat seine Mitte fast auf dem Weg.
+	var mitte := global_position + Vector3.UP * _todes_mitte
 	if is_instance_valid(modell):
-		mitte = modell.global_position + Vector3.UP * 0.4
+		mitte = modell.global_transform * (Vector3.UP * _todes_mitte)
+	mitte.y = maxf(mitte.y, global_position.y + 0.25)
 	Effekte.rauch(self, mitte, PUFF_FARBE, 1.0, 9)
 	create_tween().tween_property(self, "scale", Vector3.ONE * 0.02, PUFF_VORLAUF) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
@@ -636,8 +766,8 @@ func _koerper_halten(clip: String) -> void:
 
 
 ## Schaltet ab, was aus der Ferne niemand sieht: Clips (`ANIM_WEITE`),
-## Sonnenschatten (`SCHATTEN_WEITE`) und Overlay (`GLANZ_WEITE`). Nur bei
-## einem Wechsel wird etwas gesetzt.
+## Sonnenschatten (`SCHATTEN_WEITE`) und Overlay (`GLANZ_WEITE`), jeweils
+## mit `HYSTERESE`. Nur bei einem Wechsel wird etwas gesetzt.
 func _nach_abstand() -> void:
 	if fremdhalter == null:
 		return
@@ -645,9 +775,9 @@ func _nach_abstand() -> void:
 	if kamera == null:
 		return
 	var abstand := kamera.global_position.distance_to(global_position)
-	var stufe := (1 if abstand < ANIM_WEITE else 0) \
-			| (2 if abstand < SCHATTEN_WEITE else 0) \
-			| (4 if abstand < GLANZ_WEITE else 0)
+	var stufe := _stufenbit(1, abstand, ANIM_WEITE) \
+			| _stufenbit(2, abstand, SCHATTEN_WEITE) \
+			| _stufenbit(4, abstand, GLANZ_WEITE)
 	if stufe == _stufe:
 		return
 	_stufe = stufe
@@ -659,6 +789,17 @@ func _nach_abstand() -> void:
 		netz.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if (stufe & 2) != 0 \
 				else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		netz.material_overlay = _glanz if (stufe & 4) != 0 else null
+
+
+## Ein Bit der Abstandsstufe: an diesseits von `weite`, aus jenseits von
+## `weite + HYSTERESE`, dazwischen bleibt es, wie es war. Vor der ersten
+## Messung (`_stufe` = -1) gilt es als an.
+func _stufenbit(bit: int, abstand: float, weite: float) -> int:
+	if abstand < weite:
+		return bit
+	if abstand > weite + HYSTERESE:
+		return 0
+	return _stufe & bit
 
 
 # ---------------------------------------------------------- Overlay
@@ -745,11 +886,20 @@ static func _flaeche_nach_name(netz: Mesh, name: String) -> int:
 ## Aus einer Fläche des Netzes werden die Dreiecke herausgelöst, denen
 ## `auswahl.call(mitte, normale) -> Color` eine Farbe gibt (Alpha 0 = nicht
 ## dabei; beide Werte im Netzraum). Sie rücken `abstand` Netzeinheiten
-## entlang ihrer Normalen nach außen und tragen die Farbe als
-## Scheitelfarbe. Das Ergebnis liegt passgenau auf der gewölbten
-## Oberfläche – ein aufgesetzter Kasten stünde an den Rändern ab oder
-## tauchte in die Wölbung ein. Knochen und Gewichte bleiben erhalten:
-## Auf einem gehäuteten Modell geht die Zeichnung in jeden Clip mit.
+## nach außen und tragen die Farbe als Scheitelfarbe. Das Ergebnis liegt
+## passgenau auf der gewölbten Oberfläche – ein aufgesetzter Kasten stünde
+## an den Rändern ab oder tauchte in die Wölbung ein. Knochen und Gewichte
+## bleiben erhalten: Auf einem gehäuteten Modell geht die Zeichnung in
+## jeden Clip mit.
+##
+## NACH AUSSEN heißt: entlang der Normalen, die über alle ausgewählten
+## Ecken am SELBEN ORT gemittelt ist. Die Modelle sind flach schattiert,
+## jede Ecke steht mehrfach da, je Fläche mit deren eigener Normale (beim
+## Käfer 9000 von 14700 Ecken). Rückte jede Ecke entlang ihrer eigenen
+## Normalen, klafften die Dreiecke auseinander, und durch die Fugen schien
+## die dunkle Fläche darunter: ein Netz schwarzer Risse in jedem gelben
+## Fleck. Die Schattierung behält die eigene Normale, die Kanten bleiben
+## also so scharf wie am Modell.
 ##
 ## Teuer (einmal über alle Dreiecke); die Gegner halten das Ergebnis
 ## deshalb je Farbsatz in einem statischen Zwischenspeicher.
@@ -778,11 +928,10 @@ static func _bemalung(netz: Mesh, flaeche: int, auswahl: Callable,
 	var je := 8 if (netz.surface_get_format(flaeche) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS) != 0 else 4
 	var gehaeutet := not knochen.is_empty() and knochen.size() >= ecken.size() * je
 
-	var neu_ecken := PackedVector3Array()
-	var neu_normalen := PackedVector3Array()
-	var neu_farben := PackedColorArray()
-	var neu_knochen := PackedInt32Array()
-	var neu_gewichte := PackedFloat32Array()
+	# Erst auswählen und dabei die Normalen je Ort aufsummieren ...
+	var gewaehlt := PackedInt32Array()
+	var farben := PackedColorArray()
+	var schub: Dictionary[Vector3, Vector3] = {}
 	for d in range(0, folge.size() - 2, 3):
 		var a := folge[d]
 		var b := folge[d + 1]
@@ -792,16 +941,36 @@ static func _bemalung(netz: Mesh, flaeche: int, auswahl: Callable,
 		var farbe: Color = auswahl.call(mitte, normale)
 		if farbe.a <= 0.0:
 			continue
+		farben.append(Color(farbe.r, farbe.g, farbe.b, 1.0))
 		for i: int in [a, b, c]:
-			neu_ecken.append(ecken[i] + normalen[i] * abstand)
+			gewaehlt.append(i)
+			var ort := ecken[i].snapped(EINRASTEN)
+			if schub.has(ort):
+				schub[ort] += normalen[i]
+			else:
+				schub[ort] = normalen[i]
+	if gewaehlt.is_empty():
+		return null
+
+	# ... dann jede Ecke entlang der gemittelten Normalen ihres Orts rücken.
+	var neu_ecken := PackedVector3Array()
+	var neu_normalen := PackedVector3Array()
+	var neu_farben := PackedColorArray()
+	var neu_knochen := PackedInt32Array()
+	var neu_gewichte := PackedFloat32Array()
+	for dreieck in farben.size():
+		for ecke in 3:
+			var i := gewaehlt[dreieck * 3 + ecke]
+			var richtung: Vector3 = schub[ecken[i].snapped(EINRASTEN)]
+			# Heben sich die Normalen auf (hauchdünne Kante): die eigene.
+			richtung = richtung.normalized() if richtung.length() > 0.001 else normalen[i]
+			neu_ecken.append(ecken[i] + richtung * abstand)
 			neu_normalen.append(normalen[i])
-			neu_farben.append(Color(farbe.r, farbe.g, farbe.b, 1.0))
+			neu_farben.append(farben[dreieck])
 			if gehaeutet:
 				for j in je:
 					neu_knochen.append(knochen[i * je + j])
 					neu_gewichte.append(gewichte[i * je + j])
-	if neu_ecken.is_empty():
-		return null
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = neu_ecken
@@ -818,8 +987,182 @@ static func _bemalung(netz: Mesh, flaeche: int, auswahl: Callable,
 	return ergebnis
 
 
+## Malt runde Flecken auf ein mitgeliefertes Modell: je Fleck eine
+## Scheibe, deren Ecken senkrecht (entlang Netz-z) auf die Oberseite der
+## Fläche `flaeche` fallen und `abstand` Netzeinheiten darüber liegen.
+## `flecken` enthält je Fleck Mitte (x, y) und Radius (z) im Netzraum.
+##
+## Für Netze, deren Dreiecke für eine Zeichnung zu grob sind: Beim Frosch
+## trug ein Fleck aus `_bemalung()` nur sieben Dreiecke, und die Kröte
+## sah aus wie in Tarnfleck gekleidet. Die Scheiben sind rund und liegen
+## trotzdem passgenau auf der Wölbung. Jede Ecke übernimmt die
+## Knochengewichte der nächsten Modellecke, so geht die Zeichnung in jedem
+## Clip mit. Gibt null zurück, wenn kein Fleck die Fläche trifft.
+static func _tupfen(netz: Mesh, flaeche: int, flecken: Array[Vector3],
+		farbe: Color, abstand: float) -> ArrayMesh:
+	if netz == null or flaeche < 0 or flaeche >= netz.get_surface_count():
+		return null
+	var roh := netz.surface_get_arrays(flaeche)
+	var ecken: PackedVector3Array = roh[Mesh.ARRAY_VERTEX]
+	var normalen: PackedVector3Array = roh[Mesh.ARRAY_NORMAL]
+	if ecken.is_empty() or normalen.size() != ecken.size():
+		return null
+	var folge := PackedInt32Array()
+	if roh[Mesh.ARRAY_INDEX] != null:
+		folge = roh[Mesh.ARRAY_INDEX]
+	if folge.is_empty():
+		folge.resize(ecken.size())
+		for i in ecken.size():
+			folge[i] = i
+	var knochen := PackedInt32Array()
+	var gewichte := PackedFloat32Array()
+	if roh[Mesh.ARRAY_BONES] != null and roh[Mesh.ARRAY_WEIGHTS] != null:
+		knochen = roh[Mesh.ARRAY_BONES]
+		gewichte = roh[Mesh.ARRAY_WEIGHTS]
+	var je := 8 if (netz.surface_get_format(flaeche) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS) != 0 else 4
+	var gehaeutet := not knochen.is_empty() and knochen.size() >= ecken.size() * je
+
+	# Nur die Oberseite kommt in Frage (die Modelle sind flach schattiert,
+	# die Normale einer Ecke ist die ihres Dreiecks).
+	var oberseite := PackedInt32Array()
+	for d in range(0, folge.size() - 2, 3):
+		if normalen[folge[d]].z > 0.0:
+			oberseite.append(d)
+
+	var neu_ecken := PackedVector3Array()
+	var neu_normalen := PackedVector3Array()
+	var neu_knochen := PackedInt32Array()
+	var neu_gewichte := PackedFloat32Array()
+	var neu_folge := PackedInt32Array()
+	for fleck in flecken:
+		var mitte := Vector2(fleck.x, fleck.y)
+		# Davon nur die Dreiecke, die den Fleck überhaupt berühren.
+		var kandidaten := PackedInt32Array()
+		for d in oberseite:
+			var a := ecken[folge[d]]
+			var b := ecken[folge[d + 1]]
+			var c := ecken[folge[d + 2]]
+			var klein := Vector2(minf(a.x, minf(b.x, c.x)), minf(a.y, minf(b.y, c.y)))
+			var gross := Vector2(maxf(a.x, maxf(b.x, c.x)), maxf(a.y, maxf(b.y, c.y)))
+			if klein.x > mitte.x + fleck.z or gross.x < mitte.x - fleck.z \
+					or klein.y > mitte.y + fleck.z or gross.y < mitte.y - fleck.z:
+				continue
+			kandidaten.append(d)
+		# Scheibe: Mitte und TUPF_RINGE Ringe zu je TUPF_TEILE Ecken.
+		var erste := neu_ecken.size()
+		var getroffen := true
+		for ring in TUPF_RINGE + 1:
+			var teile := 1 if ring == 0 else TUPF_TEILE
+			for t in teile:
+				var w := TAU * float(t) / float(TUPF_TEILE)
+				var p := mitte + Vector2(cos(w), sin(w)) * fleck.z * float(ring) / float(TUPF_RINGE)
+				var oben := -INF
+				var normale := Vector3.BACK
+				var naechste := -1
+				for d in kandidaten:
+					var a := ecken[folge[d]]
+					var b := ecken[folge[d + 1]]
+					var c := ecken[folge[d + 2]]
+					var hoehe := _hoehe_im_dreieck(p, a, b, c)
+					if is_nan(hoehe) or hoehe <= oben:
+						continue
+					oben = hoehe
+					var ort := Vector3(p.x, p.y, hoehe)
+					normale = (b - a).cross(c - a).normalized()
+					if normale.z < 0.0:
+						normale = -normale
+					naechste = folge[d]
+					for k: int in [folge[d + 1], folge[d + 2]]:
+						if ecken[k].distance_squared_to(ort) < ecken[naechste].distance_squared_to(ort):
+							naechste = k
+				if naechste < 0:
+					getroffen = false
+					break
+				neu_ecken.append(Vector3(p.x, p.y, oben) + normale * abstand)
+				neu_normalen.append(normale)
+				if gehaeutet:
+					for j in je:
+						neu_knochen.append(knochen[naechste * je + j])
+						neu_gewichte.append(gewichte[naechste * je + j])
+			if not getroffen:
+				break
+		if not getroffen:
+			# Fleck ragt über die Fläche hinaus – lieber keiner als ein halber.
+			neu_ecken.resize(erste)
+			neu_normalen.resize(erste)
+			if gehaeutet:
+				neu_knochen.resize(erste * je)
+				neu_gewichte.resize(erste * je)
+			continue
+		# Fächer um die Mitte, dann Viereck-Streifen von Ring zu Ring. Von
+		# oben gesehen im Uhrzeigersinn umlaufen: Das ist in Godot die
+		# Vorderseite.
+		for t in TUPF_TEILE:
+			var t2 := (t + 1) % TUPF_TEILE
+			neu_folge.append_array(PackedInt32Array([erste, erste + 1 + t2, erste + 1 + t]))
+		for ring in range(1, TUPF_RINGE):
+			var innen := erste + 1 + (ring - 1) * TUPF_TEILE
+			var aussen := innen + TUPF_TEILE
+			for t in TUPF_TEILE:
+				var t2 := (t + 1) % TUPF_TEILE
+				neu_folge.append_array(PackedInt32Array([innen + t, innen + t2, aussen + t2,
+						innen + t, aussen + t2, aussen + t]))
+	if neu_ecken.is_empty():
+		return null
+	var neu_farben := PackedColorArray()
+	neu_farben.resize(neu_ecken.size())
+	neu_farben.fill(Color(farbe.r, farbe.g, farbe.b, 1.0))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = neu_ecken
+	arrays[Mesh.ARRAY_NORMAL] = neu_normalen
+	arrays[Mesh.ARRAY_COLOR] = neu_farben
+	arrays[Mesh.ARRAY_INDEX] = neu_folge
+	var format := 0
+	if gehaeutet:
+		arrays[Mesh.ARRAY_BONES] = neu_knochen
+		arrays[Mesh.ARRAY_WEIGHTS] = neu_gewichte
+		if je == 8:
+			format = Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+	var ergebnis := ArrayMesh.new()
+	ergebnis.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, format)
+	return ergebnis
+
+
+## Höhe (z) des Dreiecks a, b, c senkrecht über dem Punkt `p` (x, y), NAN
+## daneben. Selbst gerechnet und nicht über `Geometry3D`: Dessen
+## Strahltest hält Dreiecke dieser Modelle (Kanten von Tausendsteln einer
+## Einheit) für parallel zum Strahl und findet nie etwas.
+static func _hoehe_im_dreieck(p: Vector2, a: Vector3, b: Vector3, c: Vector3) -> float:
+	var ab := Vector2(b.x - a.x, b.y - a.y)
+	var ac := Vector2(c.x - a.x, c.y - a.y)
+	var ap := Vector2(p.x - a.x, p.y - a.y)
+	var nenner := ab.cross(ac)
+	if absf(nenner) < 1e-14:
+		return NAN
+	var u := ap.cross(ac) / nenner
+	var v := ab.cross(ap) / nenner
+	if u < -1e-6 or v < -1e-6 or u + v > 1.0 + 1e-6:
+		return NAN
+	return a.z + u * (b.z - a.z) + v * (c.z - a.z)
+
+
+## Ringe und Ecken je Ring einer Scheibe aus `_tupfen()`: fein genug,
+## dass der Rand rund ist und die Scheibe der Wölbung folgt.
+const TUPF_RINGE := 3
+const TUPF_TEILE := 16
+
+
+## Ecken, die näher beieinander liegen (Netzeinheiten), gelten in
+## `_bemalung()` als derselbe Ort. Die Modelle messen nur wenige
+## Hundertstel Einheiten; doppelte Ecken liegen exakt aufeinander.
+const EINRASTEN := Vector3(1e-6, 1e-6, 1e-6)
+
+
 ## Stoff für jede Bemalung: Die Farbe steckt in den Scheitelfarben, also
 ## genügt ein einziges Material für alle Gegner und alle Farbsätze.
+## Etwas glatter als die Haut darunter: Oben auf der Wölbung, wo man
+## landet, fängt die Zeichnung so ein Glanzlicht.
 static func _stoff_der_bemalung() -> StandardMaterial3D:
 	if _bemalungsstoff == null:
 		var m := StandardMaterial3D.new()
@@ -828,7 +1171,7 @@ static func _stoff_der_bemalung() -> StandardMaterial3D:
 		# `albedo_color`, ein Fleck in `farbe_flecken` hat dann denselben
 		# Ton wie auf der eigenen Optik.
 		m.vertex_color_is_srgb = true
-		m.roughness = 0.55
+		m.roughness = 0.45
 		m.metallic_specular = 0.35
 		_bemalungsstoff = m
 	return _bemalungsstoff

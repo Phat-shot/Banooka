@@ -145,13 +145,20 @@ func _baue() -> void:
 
 # ---------------------------------------------------------- Bewegung
 
+## Krabben laufen seitwärts – der Körper bleibt quer zur Laufrichtung, die
+## rechte Flanke (+X des Modells) voran. Als eigene Fassung des
+## Basis-Blicks, damit die Blickprüfung (`LevelCheck`) auch die Krabbe
+## über denselben Weg misst wie im Spiel.
+func _blick_ausrichten(delta: float, geschwindigkeit := 8.0) -> void:
+	if not is_instance_valid(modell):
+		return
+	var ziel := _blickwinkel(achse() * richtung) + PI * 0.5
+	modell.rotation.y = lerp_angle(modell.rotation.y, ziel, minf(delta * geschwindigkeit, 1.0))
+
+
 func _bewegung(delta: float) -> void:
-	# Krabben laufen seitwärts – der Körper bleibt quer zur Laufrichtung.
 	_patrouille_schritt(tempo * delta)
-	if is_instance_valid(modell):
-		var d := achse() * richtung
-		var ziel := _blickwinkel(d) + PI * 0.5
-		modell.rotation.y = lerp_angle(modell.rotation.y, ziel, minf(delta * 6.0, 1.0))
+	_blick_ausrichten(delta, 6.0)
 
 	for i in _beine.size():
 		var bein := _beine[i]

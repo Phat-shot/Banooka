@@ -102,14 +102,16 @@ func _ready() -> void:
 ## durch die man rutschen soll.
 ##
 ## Die Augen ("Material.001") leuchten in `farbe_augen` wie bei der eigenen
-## Optik; stumpf rot gingen sie im Waldschatten unter. Der Leib bekommt
-## etwas Chitinglanz, damit der dunkle Körper Form zeigt.
+## Optik; stumpf rot gingen sie im Waldschatten unter. Aber schwächer als
+## der Stachelkamm: Das Hellste an der Spinne soll die Warnung auf dem
+## Rücken sein, nicht das Gesicht am anderen Ende. Der Leib bekommt etwas
+## Chitinglanz, damit der dunkle Körper Form zeigt.
 func fremdmodell() -> Dictionary:
 	return {"datei": "spinne", "groesse": 1.30, "nach_hoehe": true,
 			"drehung": PI, "farben": {"Material": farbe_fremdmodell},
 			"stoff": {
 				"Material": {"rauheit": 0.6, "glanz": 0.25},
-				"Material.001": {"farbe": farbe_augen, "leuchten": 1.6},
+				"Material.001": {"farbe": farbe_augen, "leuchten": 1.1},
 			}}
 
 
@@ -117,7 +119,7 @@ func fremdmodell() -> Dictionary:
 ## gesetzt: "hier nicht landen" (ZEICHENSPRACHE in gegner.gd). Er hängt
 ## am Knochen "Abdomen" und geht mit jedem Clip mit.
 ##
-## Die vier Kegel stecken in EINEM Netz (ein Draw-Call statt vier). Gebaut
+## Die fünf Kegel stecken in EINEM Netz (ein Draw-Call statt fünf). Gebaut
 ## im Netzraum der Spinne: x quer, y längs (positiv = hinten), z oben; der
 ## Rücken des Hinterleibs liegt bei y 0,012 bis 0,024 um z 0,016.
 func _zeichen_am_fremdmodell(figur: Node3D) -> void:
@@ -128,7 +130,7 @@ func _zeichen_am_fremdmodell(figur: Node3D) -> void:
 		for stachel: Vector4 in KAMM:
 			var kegel := CylinderMesh.new()
 			kegel.top_radius = 0.0
-			kegel.bottom_radius = 0.055
+			kegel.bottom_radius = 0.07
 			kegel.height = stachel.w
 			kegel.radial_segments = 6
 			kegel.rings = 1
@@ -144,7 +146,7 @@ func _zeichen_am_fremdmodell(figur: Node3D) -> void:
 	var kamm := MeshInstance3D.new()
 	kamm.name = "Stachelkamm"
 	kamm.mesh = _kamm
-	kamm.material_override = Materialbibliothek.leuchtend(farbe_stacheln, 0.9)
+	kamm.material_override = Materialbibliothek.leuchtend(farbe_stacheln, KAMM_LEUCHTEN)
 	kamm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	kamm.set_meta("ohne_glanz", true)
 	_an_knochen(figur, "Abdomen", kamm, Transform3D.IDENTITY)
@@ -155,12 +157,18 @@ func _zeichen_am_fremdmodell(figur: Node3D) -> void:
 const NETZ_JE_METER := 1.30 / (0.019492 * 100.0) * 100.0
 ## Stacheln im Netzraum: y, z des Fußpunkts, Neigung nach hinten (Grad),
 ## Länge (Meter). Der mittlere ist der längste, wie bei der eigenen Optik.
+## Länger als dort: Aus der Spielkamera, acht Meter hinter der Figur und
+## über das Stachelfeld hinweg, lasen sich vier Kegel von gut 0,2 m nur
+## als ein paar orange Punkte.
 const KAMM: Array[Vector4] = [
-	Vector4(0.0115, 0.0158, 8.0, 0.22),
-	Vector4(0.0152, 0.0166, 16.0, 0.27),
-	Vector4(0.0190, 0.0166, 26.0, 0.25),
-	Vector4(0.0222, 0.0154, 40.0, 0.20),
+	Vector4(0.0112, 0.0157, 8.0, 0.30),
+	Vector4(0.0140, 0.0164, 14.0, 0.36),
+	Vector4(0.0168, 0.0167, 22.0, 0.38),
+	Vector4(0.0196, 0.0165, 30.0, 0.35),
+	Vector4(0.0224, 0.0153, 40.0, 0.29),
 ]
+## Leuchtkraft des Kamms – das Hellste an der Spinne.
+const KAMM_LEUCHTEN := 1.2
 
 
 func _trefferfarbe() -> Color:
