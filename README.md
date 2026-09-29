@@ -190,7 +190,7 @@ SCHAUFENSTER_TEILE=l01 bash werkzeuge/schaufenster.sh /tmp/schau   # nur ein Tei
   - `<teil>.png` als Kontaktbogen
 
   Sobald beide Seiten da sind, kommen `vergleich_<teil>.png` dazu (vorher | jetzt | Differenz × 4) und die Tabelle „Draw-Calls vorher -> jetzt“.
-- **Vergleichbarkeit:** Godot läuft mit `--fixed-fps 30`. Jedes Bild ist damit genau 1/30 s Spielzeit, auf einer Grafikkarte wie unter llvmpipe. FOTO_*-Variablen aus der Shell werden verworfen. Gemessenes Rauschen zwischen zwei gleichen Läufen:
+- **Vergleichbarkeit:** Godot läuft mit `--fixed-fps 30`. Jedes Bild ist damit genau 1/30 s Spielzeit, auf einer Grafikkarte wie unter llvmpipe. FOTO_*-Variablen aus der Shell werden verworfen. Jeder Lauf bekommt einen leeren Benutzerordner (`user://` über `XDG_DATA_HOME`): Spielstände und die Figurwahl des Rechners erscheinen also nicht im Bild. Gemessenes Rauschen zwischen zwei gleichen Läufen:
   - Splash und Hub: pixelgleich.
   - Level 01: mittlere Abweichung 0,1–1,0 (Skala 0–255), Draw-Calls ±2. Ursache sind bewegte Gegner.
 
@@ -212,26 +212,25 @@ SCHAUFENSTER_TEILE=l01 bash werkzeuge/schaufenster.sh /tmp/schau   # nur ein Tei
 - **Kontaktbogen einzeln:** `uvx --with pillow python werkzeuge/kontaktbogen.py <ordner>` oder `… --vergleich --diff <vorher> <jetzt> -o out.png`. Die Beschriftung zeigt die Kosten und die Farbwerte `hell` (mittlere Luma 0–255), `warm` (Farbton 330–60°) und `kühl` (180–260°). `warm` und `kühl` sind Anteile aller Pixel in %; gezählt werden nur kräftige (Sättigung ≥ 25 %, Helligkeit ≥ 15 %).
 
 **Vor und nach der Verschönerung** (Draw-Calls je Aufnahme; vorher Stand
-612b7de, nachher der zusammengeführte Stand 16227ef):
+612b7de, nachher der Endstand 4cabea8, beide mit leerem Benutzerordner
+gemessen):
 
 | Teil | vorher | nachher |
 |---|---|---|
-| Splash | 214 / 216 | 247 / 249 |
-| Hub | 662 / 671 / 654 | 476 / 497 / 496 |
-| Level 01, verfolger | 4 m 2025 · 30 m 2005 · 50 m 1912 · 75 m 2151 · 112 m 1717 · 136 m 1559 · 170 m 1027 · 192 m 833 · 216 m 566 · 233 m 302 | 4 m 611 · 30 m 981 · 50 m 892 · 75 m 730 · 112 m 553 · 136 m 649 · 170 m 511 · 192 m 414 · 216 m 323 · 233 m 225 |
+| Splash | 214 / 216 | 244 / 246 |
+| Hub | 662 / 671 / 654 | 479 / 498 / 497 |
+| Level 01, verfolger | 4 m 2025 · 30 m 2005 · 50 m 1912 · 75 m 2151 · 112 m 1717 · 136 m 1559 · 170 m 1027 · 192 m 833 · 216 m 566 · 233 m 302 | 4 m 609 · 30 m 981 · 50 m 892 · 75 m 730 · 112 m 553 · 136 m 649 · 170 m 510 · 192 m 414 · 216 m 323 · 233 m 225 |
 | Level 01, seite | 50 m 1026 · 170 m 2916 | 50 m 428 · 170 m 1036 |
 | Level 01, nah | 30 m 382 | 30 m 228 |
-| VRAM | Level 01 94,4 MB, Hub 59,6 MB, Splash 63,7 MB | Level 01 108,7 MB, Hub 83,8 MB, Splash 79,2 MB |
+| VRAM | Level 01 94,4 MB, Hub 59,6 MB, Splash 63,7 MB | Level 01 108,7 MB, Hub 86,6 MB, Splash 79,2 MB |
 
 Level 01 kostet trotz Bewuchs, Wasserfall und Lichtschächten je nach
 Stelle 25 bis 70 % weniger: Die Sonne zeichnet nur noch zwei statt vier Schattenstufen,
 Kisten, Früchte und Bewuchs werfen keinen oder einen zusammengefassten
 Schatten, und Wald wächst nur, wo man hineinschaut. Der Portalraum spart
-über Sammelnetze. Der Splash legt zu (Himmel, Lichtfahnen, Glühen); gut
-drei Draw-Calls davon kommen aus dem Speicherstand des Messrechners, der
-dort „5 geschafft" zeigt. Der Rundgang im Portalraum folgt jetzt dem
+über Sammelnetze. Der Splash legt zu (Himmel, Lichtfahnen, Glühen). Der Rundgang im Portalraum folgt jetzt dem
 Hallenbogen, die Aufnahmen 14 und 60 stehen deshalb etwas anders als
-vorher. Der VRAM wächst um 14 bis 24 MB; rund 14 MB davon kostet 2× MSAA
+vorher. Der VRAM wächst um 14 bis 27 MB; rund 14 MB davon kostet 2× MSAA
 am Rechner (bei 720p).
 
 Level 01 rendert seit der Verschönerung deutlich langsamer: Unter

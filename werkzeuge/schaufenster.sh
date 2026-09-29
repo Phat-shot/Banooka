@@ -42,7 +42,9 @@
 #     Einblendungen, Partikel und Kamerafahrten stehen bei jedem Lauf gleich;
 #   - werden FOTO_*-Variablen aus der Umgebung verworfen (bis auf
 #     FOTO_BUDGET_DRAW). Ein vergessenes FOTO_STATUS=1 in der Shell hätte
-#     sonst die halbe Vorher-Reihe verdorben.
+#     sonst die halbe Vorher-Reihe verdorben;
+#   - läuft jeder Lauf mit leerem Benutzerordner (user://), also ohne
+#     Spielstand und mit der Standardfigur.
 #
 # VORHER=<git-ref> rendert den Stand dieses Commits aus `git archive` –
 # das Arbeitsverzeichnis bleibt unberührt. Werkzeug von heute, Spiel von
@@ -124,6 +126,12 @@ trap 'rm -rf "$BASIS"' EXIT
 KOPIE="$BASIS/projekt"
 ALT="$BASIS/altes_werkzeug"
 mkdir -p "$KOPIE" "$ALT"
+# Eigener, leerer Benutzerordner (user://): Spielstände und die Figurwahl
+# des Rechners zeigten sonst im Bild – eine fremde Figur und fünf
+# geschaffte Level haben schon einmal einen Nachher-Satz verdorben.
+# Godot legt user:// unter Linux in $XDG_DATA_HOME ab.
+export XDG_DATA_HOME="$BASIS/benutzer"
+mkdir -p "$XDG_DATA_HOME"
 WERKZEUG=(werkzeuge/foto.gd werkzeuge/foto.gd.uid werkzeuge/Foto.tscn)
 
 if [ -n "${VORHER:-}" ]; then
