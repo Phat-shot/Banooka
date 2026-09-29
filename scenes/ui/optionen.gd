@@ -20,15 +20,41 @@ const MENUE_OBEN := 172.0
 const EINTRAG_BREITE := 500.0
 const EINTRAG_HOEHE := 48.0
 const EINTRAG_ABSTAND := 8.0
-## Rechte Spalte: Vorschau (360 x 380, rechts mittig) und darunter Ablage
+## Rechte Spalte: Vorschau (360 x 400, rechts mittig) und darunter Ablage
 ## und Meldungen, in derselben Breite.
-const VORSCHAU := Vector2(360.0, 380.0)
+const VORSCHAU := Vector2(360.0, 400.0)
 const VORSCHAU_RAND := 70.0
 const SPALTE_BREITE := 420.0
 
 ## Waldtöne des Hintergrunds, oben heller.
 const GRUND_OBEN := Color(0.08, 0.13, 0.10)
 const GRUND_UNTEN := Color(0.02, 0.04, 0.035)
+## Waldrand unten: hinten im Dunst heller, vorn dunkel.
+const WALD_HINTEN := Color(0.13, 0.22, 0.15, 0.62)
+const WALD_VORN := Color(0.018, 0.04, 0.03, 0.96)
+## Schnittfläche des Baumstumpfs, von außen nach innen: [Anteil des Radius,
+## an dem der Ring innen endet, Farbe]. Außen die Rinde als dunkler Saum,
+## dann helles Splintholz mit feinen Jahresringen, innen dunkler Kern.
+const JAHRESRINGE := [
+	[0.92, Color(0.30, 0.20, 0.11)],
+	[0.74, Color(0.70, 0.52, 0.31)],
+	[0.70, Color(0.50, 0.34, 0.19)],
+	[0.50, Color(0.68, 0.50, 0.29)],
+	[0.46, Color(0.50, 0.34, 0.19)],
+	[0.24, Color(0.63, 0.45, 0.26)],
+	[0.20, Color(0.48, 0.32, 0.18)],
+	[0.0, Color(0.58, 0.40, 0.22)],
+]
+## Stumpf: Radius oben und unten, Höhe, Kanten (kantig wie die Bäume).
+const STUMPF := Vector3(0.80, 0.90, 0.30)
+const STUMPF_KANTEN := 11
+## Wurzelansätze rundum (Bogenmaß, 0 = zur Kamera). Keiner zeigt gerade
+## nach vorn – der läge dem Bildrand am nächsten.
+const WURZELN := [0.62, 1.85, 3.0, 4.2, 5.5]
+
+## Formen des Ladeschirms für den Waldrand (dieselben kantigen Bäume).
+const UMRISS := preload("res://autoload/Ladeschirm.gd")
+
 const MELDUNG_FARBE := Color(1.0, 0.72, 0.48)
 ## So lange steht eine Meldung, davon die letzten 0,4 s im Ausblenden.
 const MELDUNG_DAUER := 4.0
@@ -56,6 +82,10 @@ var _vorschau_drehung := 0.0
 ## Blickrichtung ändern, wird sie neu bestückt – Zeitmodus und Lautstärke
 ## lassen die Figur weiterdrehen.
 var _vorschau_stand := ""
+## Warum die Vorschau zuletzt auf den Beuteldachs ausweichen musste ("" =
+## sie zeigt, was gewählt ist). Eine Übernahme meldet dann diesen Grund
+## statt "übernommen".
+var _vorschau_fehler := ""
 var _dateiwahl: FileDialog
 var _kopf: Control
 var _fuss: Control
@@ -123,19 +153,61 @@ func _baue_kopf() -> void:
 	add_child(_fuss)
 
 
-## Hintergrund: Waldverlauf, ein warmer Lichtfleck hinter der Vorschau
-## (die Figur steht im Licht wie auf einer Lichtung), ein paar schräge
-## Lichtbahnen von oben rechts wie im Startbildschirm, dazu die Vignette.
+## Hintergrund: Waldverlauf, schräge Lichtbahnen von oben rechts wie im
+## Startbildschirm, ein warmer Lichtfleck hinter der Vorschau und unten ein
+## Waldrand in zwei Reihen. Die Figur steht davor auf einer Lichtung: Unter
+## dem Stumpf liegt ein heller Fleck mit dunklem Kern als Bodenschatten.
+## Gezeichnet wird nur bei Größenänderung, nicht jedes Bild.
 func _zeichne_grund(auf: Control) -> void:
 	var feld := Rect2(Vector2.ZERO, auf.size)
 	UiStil.verlauf(auf, feld, GRUND_OBEN, GRUND_UNTEN)
-	var mitte := _vorschau_mitte(auf.size)
-	var schein := UiStil.radialverlauf(Color(1.0, 0.85, 0.55, 0.22), Color(1.0, 0.85, 0.55, 0.0))
-	auf.draw_texture_rect(schein, Rect2(mitte - Vector2(300, 300), Vector2(600, 600)), false)
 	for i in 3:
 		_lichtbahn(auf, auf.size.x * (0.55 + 0.13 * i), 90.0 + 40.0 * i,
-				0.034 - 0.008 * i)
+				0.075 - 0.015 * i)
+	var mitte := _vorschau_mitte(auf.size)
+	var schein := UiStil.radialverlauf(Color(1.0, 0.85, 0.55, 0.24), Color(1.0, 0.85, 0.55, 0.0))
+	auf.draw_texture_rect(schein, Rect2(mitte - Vector2(300, 300), Vector2(600, 600)), false)
+
+	# Die hintere Reihe steht nur rechts, hinter der Figur, und läuft nach
+	# links unter den Zeilen aus – dort soll nichts durch die Knöpfe scheinen.
+	_waldrand(auf, auf.size.y * 0.84, 170.0, 40.0, WALD_HINTEN, 0.0, true)
+	# Lichtung: flach gedrückter Schein, darin der Schatten des Stumpfs.
+	var fuss := Vector2(mitte.x, mitte.y + VORSCHAU.y * 0.5 - 30.0)
+	var lichtung := UiStil.radialverlauf(Color(1.0, 0.88, 0.62, 0.20),
+			Color(1.0, 0.88, 0.62, 0.0))
+	var schatten := UiStil.radialverlauf(Color(0.0, 0.0, 0.0, 0.55), Color(0.0, 0.0, 0.0, 0.0))
+	auf.draw_set_transform(fuss, 0.0, Vector2(1.0, 0.22))
+	auf.draw_texture_rect(lichtung, Rect2(-280.0, -280.0, 560.0, 560.0), false)
+	auf.draw_texture_rect(schatten, Rect2(-170.0, -170.0, 340.0, 340.0), false)
+	auf.draw_set_transform_matrix(Transform2D.IDENTITY)
+	_waldrand(auf, auf.size.y + 12.0, 140.0, 56.0, WALD_VORN, 20.0, false)
 	UiStil.vignette(auf, feld, 0.5)
+
+
+## Eine Reihe kantiger Bäume von links nach rechts – dieselben Formen wie
+## der Scherenschnitt des Ladeschirms. Die hintere Reihe (`nur_rechts`)
+## mischt Tannen und Laubbäume und blendet nach links hin aus, die vordere
+## hat nur Tannen: Runde Kronen ganz vorn lesen sich als Grabsteine.
+func _waldrand(auf: Control, grund_y: float, hoehe: float, abstand: float,
+		farbe: Color, versatz: float, nur_rechts: bool) -> void:
+	var baeume: Array = []
+	var baum := func(_i: int, z: float) -> Array:
+		var tanne := z < 0.7 or not nur_rechts
+		var zufall := fposmod(z * 7.31 + versatz * 0.1, 1.0)
+		return UMRISS.baum(tanne, hoehe * (0.6 + 0.4 * zufall))
+	UMRISS.reihe(baeume, auf.size.x, abstand, baum, versatz, false)
+	var dreiecke: PackedVector2Array = UMRISS.zerlege(baeume, auf.size.x, grund_y,
+			auf.size.y + 12.0)
+	if dreiecke.is_empty():
+		return
+	var farben := PackedColorArray([farbe])
+	if nur_rechts:
+		farben.resize(dreiecke.size())
+		for i in dreiecke.size():
+			farben[i] = Color(farbe, farbe.a * smoothstep(auf.size.x * 0.40,
+					auf.size.x * 0.62, dreiecke[i].x))
+	RenderingServer.canvas_item_add_triangle_array(auf.get_canvas_item(),
+			PackedInt32Array(), dreiecke, farben)
 
 
 ## Eine schräge Lichtbahn von oben: in der Mitte am hellsten, zu beiden
@@ -339,45 +411,85 @@ func _baue_vorschau() -> void:
 	kante.light_color = Color(0.75, 0.85, 1.0)
 	_vorschau.add_child(kante)
 
+	# Etwas weiter weg und flacher als früher: Der Stumpf samt Wurzeln passt
+	# ganz ins Bild, sein unterer Rand bleibt eine sichtbare Ellipse statt
+	# einer harten Kante am Bildrand.
 	var kamera := Camera3D.new()
-	kamera.position = Vector3(0.0, 0.95, 3.1)
-	kamera.rotation_degrees.x = -8.0
-	kamera.fov = 42.0
+	kamera.position = Vector3(0.0, 0.9, 3.5)
+	kamera.rotation_degrees.x = -6.0
+	kamera.fov = 40.0
 	_vorschau.add_child(kamera)
 
-	# Sockel als Größenbezug – ohne ihn schwebt die Figur im Nichts. Ein
-	# Baumstumpf wie im Wurzelwald: helle Schnittfläche mit einem Jahresring,
-	# darunter die breitere Rinde.
+	# Sockel als Größenbezug – ohne ihn schwebt die Figur im Nichts.
 	var sockel := Node3D.new()
 	sockel.name = "Sockel"
 	_vorschau.add_child(sockel)
-	_scheibe(sockel, 0.95, 0.06, -0.03, Farben.RINDE_HELL)
-	_scheibe(sockel, 0.58, 0.062, -0.03, Farben.RINDE_HELL.darkened(0.12))
-	_scheibe(sockel, 1.02, 0.18, -0.14, Farben.RINDE)
+	_baue_stumpf(sockel)
 	var schatten := Effekte.blobschatten(sockel, 0.6)
 	Effekte.blobschatten_setzen(schatten, Vector3.ZERO, Vector3.UP, 0.5)
 
 	_vorschau_neu_bestuecken()
 
 
-func _scheibe(eltern: Node3D, radius: float, hoehe: float, mitte_y: float,
-		farbe: Color) -> void:
-	var scheibe := MeshInstance3D.new()
-	var zylinder := CylinderMesh.new()
-	zylinder.top_radius = radius
-	zylinder.bottom_radius = radius
-	zylinder.height = hoehe
-	zylinder.radial_segments = 48
-	scheibe.mesh = zylinder
-	scheibe.position.y = mitte_y
-	scheibe.material_override = Materialbibliothek.einfarbig(farbe, 0.8)
-	scheibe.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	eltern.add_child(scheibe)
+## Ein Baumstumpf wie im Wurzelwald: kantig (elf Seiten), mit Rinde und
+## fünf Wurzelansätzen, die in den Boden greifen, obendrauf die Schnitt-
+## fläche mit Jahresringen. Zwei Zeichenaufrufe: Rinde samt Wurzeln in
+## einem Netz, die Schnittfläche mit Scheitelfarben im zweiten.
+func _baue_stumpf(eltern: Node3D) -> void:
+	var rinde := PropWerkzeug.bauer()
+	PropWerkzeug.anfuegen(rinde, PropWerkzeug.stumpf(STUMPF.y, STUMPF.x, STUMPF.z,
+			STUMPF_KANTEN), PropWerkzeug.ort(Vector3(0.0, -STUMPF.z * 0.5, 0.0)))
+	for w in WURZELN:
+		var winkel := float(w)
+		var aussen := Vector3(sin(winkel), 0.0, cos(winkel))
+		# Tief im Stamm ansetzen: Der dicke Deckel der Wurzel darf nicht durch
+		# die Schnittfläche stoßen.
+		PropWerkzeug.anfuegen(rinde, PropWerkzeug.stumpf(0.17, 0.035, 0.52, 5, true),
+				PropWerkzeug.ausrichten(aussen * 0.55 + Vector3.UP * -0.18,
+						aussen * 1.04 + Vector3.UP * -STUMPF.z))
+	var koerper := PropWerkzeug.mesh_knoten("Rinde", PropWerkzeug.fertig(rinde),
+			Materialbibliothek.rinde(), false)
+	if koerper != null:
+		eltern.add_child(koerper)
+
+	# Schnittfläche: Ringe als Bänder zwischen zwei Elfecken, die Ecken
+	# genau über denen der Rinde (CylinderMesh setzt sie bei sin/cos).
+	var flaeche := SurfaceTool.new()
+	flaeche.begin(Mesh.PRIMITIVE_TRIANGLES)
+	flaeche.set_normal(Vector3.UP)
+	var aussen_anteil := 1.0
+	for ring in JAHRESRINGE:
+		var innen_anteil := float(ring[0])
+		flaeche.set_color(ring[1] as Color)
+		for i in STUMPF_KANTEN:
+			var a := _stumpfecke(i, STUMPF.x * aussen_anteil)
+			var b := _stumpfecke(i + 1, STUMPF.x * aussen_anteil)
+			var c := _stumpfecke(i + 1, STUMPF.x * innen_anteil)
+			var d := _stumpfecke(i, STUMPF.x * innen_anteil)
+			# Von oben gesehen im Uhrzeigersinn = Vorderseite
+			for p in [a, c, b]:
+				flaeche.add_vertex(p)
+			if innen_anteil > 0.0:
+				for p in [a, d, c]:
+					flaeche.add_vertex(p)
+		aussen_anteil = innen_anteil
+	var stoff := StandardMaterial3D.new()
+	stoff.vertex_color_use_as_albedo = true
+	stoff.roughness = 0.85
+	var schnitt := PropWerkzeug.mesh_knoten("Schnitt", flaeche.commit(), stoff, false)
+	if schnitt != null:
+		eltern.add_child(schnitt)
+
+
+func _stumpfecke(i: int, radius: float) -> Vector3:
+	var winkel := TAU * float(i) / float(STUMPF_KANTEN)
+	return Vector3(sin(winkel) * radius, 0.0, cos(winkel) * radius)
 
 
 ## Baut die Figur in der Vorschau neu auf – gewählte Datei oder Beuteldachs.
 func _vorschau_neu_bestuecken() -> void:
 	_vorschau_stand = _vorschau_kennung()
+	_vorschau_fehler = ""
 	if is_instance_valid(_vorschau_figur):
 		_vorschau_figur.queue_free()
 	_vorschau_figur = null
@@ -401,8 +513,9 @@ func _vorschau_neu_bestuecken() -> void:
 			# Den echten Grund zeigen statt eines Sammelsatzes – sonst
 			# rät man, ob es an der Datei, am Format oder am Gerät liegt.
 			var grund := ModellLader.letzter_fehler
-			_zeige_meldung("%s – zeige den Beuteldachs"
-					% (grund if not grund.is_empty() else "Datei nicht lesbar"))
+			_vorschau_fehler = "%s – zeige den Beuteldachs" \
+					% (grund if not grund.is_empty() else "Datei nicht lesbar")
+			_zeige_meldung(_vorschau_fehler)
 	halter.add_child(geladen)
 	_vorschau.add_child(halter)
 	_vorschau_figur = halter
@@ -614,15 +727,35 @@ func _auf_web_datei(werte: Array) -> void:
 	if inhalt.is_empty():
 		_zeige_meldung("%s ließ sich nicht lesen" % name)
 		return
+	_vorschau_vergessen()
 	var fehler := Einstellungen.uebernehmen_daten(name,
 			Marshalls.base64_to_raw(inhalt))
-	_zeige_meldung(fehler if not fehler.is_empty() else "%s übernommen" % name)
+	_melde_uebernahme(fehler, name)
 
 
 func _auf_datei(pfad: String) -> void:
+	_vorschau_vergessen()
 	var fehler := Einstellungen.uebernehmen(pfad)
-	_zeige_meldung(fehler if not fehler.is_empty()
-			else "%s übernommen" % pfad.get_file())
+	_melde_uebernahme(fehler, pfad.get_file())
+
+
+## Vor einer Übernahme: Kommt dieselbe Datei neu (gleicher Name, anderer
+## Inhalt), bliebe die Kennung der Vorschau gleich und sie zeigte weiter
+## die alte Figur. Also vergessen, was sie zeigt – dann baut `geaendert`
+## sie in jedem Fall neu.
+func _vorschau_vergessen() -> void:
+	_vorschau_stand = ""
+
+
+## Meldet eine Übernahme: den Fehler der Übernahme, sonst den Grund, aus
+## dem die Vorschau die Datei nicht zeigen kann, sonst "übernommen".
+func _melde_uebernahme(fehler: String, name: String) -> void:
+	if not fehler.is_empty():
+		_zeige_meldung(fehler)
+	elif not _vorschau_fehler.is_empty():
+		_zeige_meldung(_vorschau_fehler)
+	else:
+		_zeige_meldung("%s übernommen" % name)
 
 
 func _auf_geaendert() -> void:

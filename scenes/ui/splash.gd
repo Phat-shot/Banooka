@@ -56,12 +56,15 @@ const HINWEIS_GROESSE := 15
 ## Welle durch das Wort, und alle teilen sich EIN Material.
 ## Glanz: ein schräges Band wandert alle ~8,7 s über den Schriftzug. Es
 ## hellt nur die helle Füllung auf (`hell`), nie die dunklen Konturen und
-## die braune Tiefe – sonst sähe es aus wie ein grauer Wischer.
+## die braune Tiefe – sonst sähe es aus wie ein grauer Wischer. Der Rand
+## läuft glockenförmig aus: Ein hart begrenztes Band sah im Standbild aus
+## wie ein halb weiß gefüllter Buchstabe.
 const TITEL_SHADER := """
 shader_type canvas_item;
 
 uniform float wippen = 2.5;
-uniform float glanz = 0.42;
+uniform float glanz = 0.28;
+uniform float glanz_breite = 18.0;
 
 varying vec2 ort;
 
@@ -73,7 +76,7 @@ void vertex() {
 
 void fragment() {
 	float x = ort.x - ort.y * 0.35 - mod(TIME * 300.0, 2600.0) + 300.0;
-	float band = 1.0 - smoothstep(0.0, 26.0, abs(x));
+	float band = exp(-x * x / (2.0 * glanz_breite * glanz_breite));
 	float hell = smoothstep(0.55, 0.7, max(COLOR.r, COLOR.g));
 	COLOR.rgb += band * hell * glanz;
 }
@@ -512,8 +515,13 @@ func _tafel_zeigen(titel: String, unterzeile: String, eintraege: Array,
 		tafel.ueberfahren.connect(func() -> void:
 			if _tafel_offen:
 				_waehle_tafel(nummer))
+		# Ein Tipp gilt der angetippten Zeile. Leere Plätze (gesperrt) tun
+		# nichts – das Überfahren davor hat die Auswahl schon auf die nächste
+		# offene Zeile geschoben, und die soll nicht ungefragt auslösen.
 		tafel.angetippt.connect(func() -> void:
-			if _tafel_offen:
+			if _tafel_offen and nummer < _tafel_gesperrt.size() \
+					and not _tafel_gesperrt[nummer]:
+				_waehle_tafel(nummer, 1, true)
 				_ausloesen())
 		_tafelkoerper.add_child(tafel)
 		_tafel_eintraege.append(tafel)
@@ -757,7 +765,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _blockiert:
 		# Während der Eröffnung: Einblendung überspringen und den Druck
 		# ganz normal weiterbehandeln. Nur der Szenenwechsel bleibt dicht.
-		if not _einblendung_abkuerzen():
+		# Abgekürzt wird nur für einen echten Druck – eine Mausbewegung über
+		# der Kulisse oder ein leicht verrutschter Stick (unter halbem
+		# Ausschlag gilt er nicht als gedrückt) soll den Buchstabenfall
+		# nicht schlucken.
+		if not event.is_pressed() or event.is_echo() \
+				or not _einblendung_abkuerzen():
 			return
 	if event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
 		_schiebe(1)

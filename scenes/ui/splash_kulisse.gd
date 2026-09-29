@@ -17,9 +17,11 @@ class_name SplashKulisse
 ##   Himmel       eigener Himmelsshader mit Dunstband, warmem Schein auf
 ##                der Sonnenseite, Haufenwolken und Sonnenscheibe
 ##   Glühen       `glow` der Umgebung – Sonne und Lichtfahnen strahlen
-##   Lichtfahnen  schräge Lichtbahnen durch die Stämme, in 3D, damit sie
-##                bei der Kamerafahrt immer von der Sonne herkommen
-##   Pollen       schwebende Flusen (`Staubflug`) zwischen Kamera und Wald
+##   Lichtfahnen  schmale, schräge Lichtbahnen in kleinen Bündeln zwischen
+##                den Stämmen, in 3D, damit sie bei der Kamerafahrt immer
+##                von der Sonne herkommen; über dem Kronendach verlöschen sie
+##   Pollen       schwebende Flusen (`Staubflug`) im Wald, mit Abstand zur
+##                Kamerabahn
 ## Lichtfahnen und Pollen kosten zusammen zwei Draw-Calls, beide ohne
 ## Schatten.
 ##
@@ -56,15 +58,38 @@ const MULDE_HOEHE := 11.0
 ## Silhouetten und lange Lichtfahnen.
 const SONNE_DREHUNG := Vector3(-24.0, 118.0, 0.0)
 
-## Nebel- und Dunstfarbe. Der Himmel nimmt sie für sein Dunstband auf,
-## damit die vernebelten Baumkronen nahtlos in den Horizont laufen.
-const NEBELFARBE := Color(0.495, 0.594, 0.594)
+## Nebel- und Dunstfarbe: der Levelnebel, eine Spur dunkler. Der Himmel
+## nimmt sie für sein Dunstband auf, damit die vernebelten Baumkronen
+## nahtlos in den Horizont laufen. Keine Konstante: Ein Methodenaufruf
+## ergibt in GDScript keinen konstanten Ausdruck.
+static var nebelfarbe: Color = Farben.NEBEL.darkened(0.10)
 
-## Lichtfahnen: Anzahl, Länge (m) und Mindestabstand ihrer Bahn von der
-## Lichtungsmitte – näher liefen sie der Kamera durchs Bild.
-const FAHNEN := 7
-const FAHNEN_LAENGE := 22.0
+## Lichtfahnen: Bündel rundum, Länge einer Bahn (m) und Mindestabstand von
+## der Lichtungsmitte – näher liefen sie der Kamera durchs Bild.
+const FAHNEN_BUENDEL := 5
+const FAHNEN_LAENGE := 15.0
 const FAHNEN_FREIRAUM := 6.0
+## Anteil einer Bahn, der von ihrer Mitte zur Sonne hinauf reicht. Kurz:
+## Die Sonne steht im Startblick hinten links, jede Bahn steigt also nach
+## links oben an – der Schriftzug steht dort, und das obere Ende soll über
+## ihm verlöschen, nicht quer durch ihn laufen.
+const FAHNEN_OBEN := 0.35
+## Richtung des ersten Bündels (Bogenmaß, 0 = Startblick). Negativ heißt
+## rechts im Bild: Es fällt rechts neben dem Schriftzug zwischen die Stämme.
+## Weiter rechts sähe man die Bahnen von hinten (sie laufen vom Betrachter
+## weg), weiter links lägen sie als Schleier hinter Titel und Menü. Mit
+## fünf Bündeln liegt das nächste schon links außerhalb des Startbilds.
+const FAHNEN_START := -0.30
+## Stücke je Bahn. Jedes Stück dreht sich für sich zur Kamera; ein Band aus
+## nur zwei Enden verwände sich über die Länge zu einem hellen Bogen.
+const FAHNEN_STUECKE := 6
+## Höhe über dem Boden (m), in der eine Bahn verlöscht: Lichtbahnen gibt es
+## nur unter dem Kronendach, darüber hinge ein Streifen im freien Himmel.
+const FAHNEN_DACH := Vector2(5.0, 8.0)
+
+## Pollen: So weit (m) bleibt die Lichtungsmitte frei. Die Kamera fährt auf
+## 2,6 m, die Flusen trudeln 0,45 m – so kommt keine näher als gut 1,5 m.
+const POLLEN_FREI := 4.6
 
 ## Laubtöne der Bäume – wenige Töne, damit der Materialspeicher klein bleibt.
 const LAUBTOENE: Array[Color] = [
@@ -85,8 +110,8 @@ const LAUBTOENE: Array[Color] = [
 const HIMMEL_SHADER := """
 shader_type sky;
 
-uniform vec3 zenit : source_color = vec3(0.19, 0.39, 0.68);
-uniform vec3 mitte : source_color = vec3(0.42, 0.62, 0.80);
+uniform vec3 zenit : source_color = vec3(0.14, 0.34, 0.70);
+uniform vec3 mitte : source_color = vec3(0.36, 0.58, 0.82);
 uniform vec3 horizont : source_color = vec3(0.78, 0.84, 0.80);
 uniform vec3 dunstband : source_color = vec3(0.50, 0.59, 0.59);
 uniform vec3 boden : source_color = vec3(0.14, 0.18, 0.13);
@@ -94,11 +119,11 @@ uniform vec3 sonnenschein : source_color = vec3(1.0, 0.80, 0.52);
 uniform float dunst_hoehe = 0.07;
 uniform float schein_staerke = 0.85;
 uniform sampler2D wolken : hint_default_black, filter_linear_mipmap, repeat_enable;
-uniform float wolken_menge = 0.50;
+uniform float wolken_menge = 0.55;
 uniform float wolken_weich = 0.24;
 uniform float wolken_skala = 0.26;
 uniform vec3 wolke_hell : source_color = vec3(1.0, 0.97, 0.92);
-uniform vec3 wolke_schatten : source_color = vec3(0.60, 0.67, 0.78);
+uniform vec3 wolke_schatten : source_color = vec3(0.55, 0.64, 0.80);
 
 void sky() {
 	vec3 d = normalize(EYEDIR);
@@ -145,15 +170,16 @@ void sky() {
 }
 """
 
-## Lichtfahnen: Jede Fahne ist ein Band entlang der Sonnenrichtung, das
+## Lichtfahnen: Jede Bahn ist ein Band entlang der Sonnenrichtung, das
 ## sich um seine eigene Längsachse zur Kamera dreht (wie ein Billboard,
-## nur mit fester Achse). Alle Fahnen stecken in EINEM Netz: ein Draw-Call.
+## nur mit fester Achse). Alle Bahnen stecken in EINEM Netz: ein Draw-Call.
 ##
-## Jede Ecke steht im Netz auf der Achse; die Breite, der Takt und die
-## Stärke kommen als Scheitelfarbe mit (r = Breite / 4 m, g = Takt,
-## b = Stärke), die Seite (-1/1) und die Lage längs (0 oben, 1 unten) als
-## UV. Additiv und ohne Nebel: Nebel würde eine additive Fläche nicht
-## dämpfen, sondern aufhellen – die Ferne blendet der Shader selbst aus.
+## Jede Ecke steht im Netz auf der Achse; Breite, Takt, Stärke und das
+## Verlöschen über dem Kronendach kommen als Scheitelfarbe mit (r = Breite /
+## 4 m, g = Takt, b = Stärke, a = Dach), die Seite (-1/1) und die Lage längs
+## (0 oben, 1 unten) als UV. Additiv und ohne Nebel: Nebel würde eine
+## additive Fläche nicht dämpfen, sondern aufhellen – die Ferne blendet der
+## Shader selbst aus.
 const FAHNEN_SHADER := """
 shader_type spatial;
 render_mode blend_add, unshaded, cull_disabled, depth_draw_never,
@@ -161,7 +187,7 @@ render_mode blend_add, unshaded, cull_disabled, depth_draw_never,
 
 uniform vec3 achse = vec3(0.0, -1.0, 0.0);
 uniform vec4 farbe : source_color = vec4(1.0, 0.86, 0.60, 1.0);
-uniform float staerke = 1.8;
+uniform float staerke = 1.15;
 
 varying float quer;
 varying float laengs;
@@ -173,11 +199,11 @@ void vertex() {
 	float abstand = length(zur_kamera);
 	vec3 seite = normalize(cross(achse, zur_kamera));
 	VERTEX += seite * UV.x * COLOR.r * 2.0;
-	// Blickt man längs der Fahne, schrumpft sie zum Strich, und alle
-	// Fahnen dieser Seite lägen übereinander als heller Fleck: dann weg.
+	// Blickt man längs der Bahn, schrumpft sie zum Strich, und alle
+	// Bahnen dieser Seite lägen übereinander als heller Fleck: dann weg.
 	float laengsblick = abs(dot(zur_kamera / abstand, achse));
-	deckung = COLOR.b * (1.0 - smoothstep(0.78, 0.94, laengsblick));
-	// Langsames Atmen, jede Fahne im eigenen Takt – wie Wolken vor der Sonne.
+	deckung = COLOR.b * COLOR.a * (1.0 - smoothstep(0.78, 0.94, laengsblick));
+	// Langsames Atmen, jede Bahn im eigenen Takt – wie Wolken vor der Sonne.
 	deckung *= 0.62 + 0.38 * sin(TIME * (0.55 + COLOR.g * 0.5) + COLOR.g * 6.2832);
 	// Nicht direkt vor der Linse, und in der Ferne sacht verlöschen.
 	deckung *= smoothstep(2.5, 6.0, abstand) * exp(-abstand * 0.028);
@@ -187,14 +213,18 @@ void vertex() {
 }
 
 void fragment() {
-	// Satter Kern mit weichem Saum, darin zwei, drei feine Streifen – so
-	// liest sich die Fahne als Lichtbahn und nicht als Nebelfleck.
+	// Satter Kern mit weichem Saum, darin ein feiner Streifen – so liest
+	// sich die Bahn als Licht und nicht als Nebelfleck.
 	float x = abs(quer);
-	float kern = 1.0 - smoothstep(0.3, 1.0, x);
-	float streifen = 0.72 + 0.28 * sin(quer * 8.5 + takt * 6.2832);
-	float l = smoothstep(0.0, 0.22, laengs) * (1.0 - smoothstep(0.5, 1.0, laengs));
+	float kern = 1.0 - smoothstep(0.1, 1.0, x);
+	float streifen = 0.8 + 0.2 * sin(quer * 6.0 + takt * 6.2832);
+	float l = smoothstep(0.0, 0.3, laengs) * (1.0 - smoothstep(0.6, 1.0, laengs));
+	// Links im Bild stehen Menü und Schriftzug: Dort verlöschen die Bahnen,
+	// damit nie ein heller Streifen hinter Text liegt. SCREEN_UV ist nur die
+	// Lage im Bild, keine Bildschirmtextur – im Compatibility-Renderer frei.
+	float frei = smoothstep(0.30, 0.58, SCREEN_UV.x);
 	ALBEDO = farbe.rgb * staerke;
-	ALPHA = clamp(deckung * kern * streifen * l, 0.0, 1.0);
+	ALPHA = clamp(deckung * kern * streifen * l * frei, 0.0, 1.0);
 }
 """
 
@@ -232,7 +262,7 @@ func _baue_umgebung() -> void:
 	shader.code = HIMMEL_SHADER
 	var himmelsstoff := ShaderMaterial.new()
 	himmelsstoff.shader = shader
-	himmelsstoff.set_shader_parameter("dunstband", NEBELFARBE)
+	himmelsstoff.set_shader_parameter("dunstband", nebelfarbe)
 	himmelsstoff.set_shader_parameter("wolken", _wolkentextur())
 
 	var himmel := Sky.new()
@@ -252,7 +282,7 @@ func _baue_umgebung() -> void:
 	umgebung.tonemap_white = 6.0
 	umgebung.fog_enabled = true
 	umgebung.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	umgebung.fog_light_color = NEBELFARBE
+	umgebung.fog_light_color = nebelfarbe
 	umgebung.fog_light_energy = 0.70
 	umgebung.fog_density = 0.045
 	# Blick gegen die Sonne färbt den Dunst warm – der Wald steht dann im
@@ -347,17 +377,23 @@ func _stelle_kamera(zeit: float) -> void:
 
 ## Schräge Lichtbahnen, die von der Sonne her durch den Wald fallen.
 ##
-## Jede Fahne endet am Waldboden zwischen den Bäumen und reicht
-## `FAHNEN_LAENGE` Meter zur Sonne hinauf – bei 24° Sonnenhöhe beginnt sie
-## damit oben im Kronendach. Bahnen, die über die Lichtung führen würden,
-## werden verworfen: Dort fährt die Kamera, und eine Fahne quer vor der
-## Linse wäre nur ein heller Schleier.
+## Wie Licht durch Lücken im Laub: rundum `FAHNEN_BUENDEL` Bündel aus zwei
+## oder drei schmalen Bahnen nebeneinander, jede mit eigener Breite, Stärke
+## und eigenem Takt. Eine breite Bahn läge als milchiger Keil über dem Bild.
+## Jede Bahn ist `FAHNEN_LAENGE` Meter lang, blendet zu beiden Enden aus und
+## verlöscht oberhalb von `FAHNEN_DACH` – dort wäre sie ein Streifen im
+## Himmel.
+## Bündel, die über die Lichtung führen würden, rücken zur Seite: Dort
+## fährt die Kamera, und eine Bahn quer vor der Linse wäre nur ein Schleier.
 func _baue_lichtfahnen(sonne: DirectionalLight3D) -> void:
 	# Die Lichtrichtung aus dem Sonnenstand, ohne auf den Baum zu warten:
 	# Das Licht scheint entlang seiner -Z-Achse.
 	var achse := -Basis.from_euler(SONNE_DREHUNG * (PI / 180.0)).z.normalized()
 	if sonne.is_inside_tree():
 		achse = -sonne.global_basis.z.normalized()
+	# Waagerecht quer zur Lichtrichtung: Hier liegen die Bahnen eines Bündels
+	# nebeneinander.
+	var quer := achse.cross(Vector3.UP).normalized()
 	var wuerfel := RandomNumberGenerator.new()
 	wuerfel.seed = SAAT + 77
 
@@ -365,37 +401,37 @@ func _baue_lichtfahnen(sonne: DirectionalLight3D) -> void:
 	var uvs := PackedVector2Array()
 	var farben := PackedColorArray()
 	var indizes := PackedInt32Array()
-	for nummer in FAHNEN:
+	for buendel in FAHNEN_BUENDEL:
 		# Gleichmäßig rundum verteilt – die Kamera schaut ja nacheinander in
-		# jede Richtung. Die erste Fahne liegt in der Startblickrichtung
-		# (+Z), damit schon das erste Bild eine zeigt.
-		var anfang := Vector3.ZERO
-		var ende := Vector3.ZERO
+		# jede Richtung.
+		var mitte := Vector3.ZERO
 		var frei := false
-		for _versuch in 24:
-			var winkel := TAU * float(nummer) / float(FAHNEN) \
-					+ wuerfel.randf_range(-0.25, 0.25)
-			var radius := wuerfel.randf_range(8.0, 15.0)
-			# Die Mitte der Fahne – ihr hellster Teil – schwebt ein paar
+		for versuch in 24:
+			var winkel := FAHNEN_START + TAU * float(buendel) / float(FAHNEN_BUENDEL) \
+					+ (wuerfel.randf_range(-0.2, 0.2) if versuch > 0 else 0.0)
+			var radius := wuerfel.randf_range(10.0, 14.0)
+			# Die Mitte des Bündels – sein hellster Teil – schwebt ein paar
 			# Meter über dem Boden in dieser Richtung.
-			var mitte := Vector3(sin(winkel) * radius, 0.0, cos(winkel) * radius)
-			mitte.y = _boden_hoehe(mitte.x, mitte.z) + wuerfel.randf_range(2.5, 4.5)
-			anfang = mitte - achse * FAHNEN_LAENGE * 0.55
-			ende = mitte + achse * FAHNEN_LAENGE * 0.45
-			if _abstand_zur_mitte(anfang, ende) >= FAHNEN_FREIRAUM:
+			mitte = Vector3(sin(winkel) * radius, 0.0, cos(winkel) * radius)
+			mitte.y = _boden_hoehe(mitte.x, mitte.z) + wuerfel.randf_range(2.6, 3.6)
+			if _abstand_zur_mitte(mitte - achse * FAHNEN_LAENGE * FAHNEN_OBEN,
+					mitte + achse * FAHNEN_LAENGE * (1.0 - FAHNEN_OBEN)) \
+					>= FAHNEN_FREIRAUM + 1.5:
 				frei = true
 				break
 		if not frei:
 			continue
-		var breite := wuerfel.randf_range(1.1, 2.6)
-		var kennung := Color(breite / 4.0, wuerfel.randf(), wuerfel.randf_range(0.55, 1.0))
-		var erste := punkte.size()
-		punkte.append_array(PackedVector3Array([anfang, anfang, ende, ende]))
-		uvs.append_array(PackedVector2Array([Vector2(-1, 0), Vector2(1, 0),
-				Vector2(-1, 1), Vector2(1, 1)]))
-		farben.append_array(PackedColorArray([kennung, kennung, kennung, kennung]))
-		indizes.append_array(PackedInt32Array([erste, erste + 1, erste + 2,
-				erste + 1, erste + 3, erste + 2]))
+		var bahnen := wuerfel.randi_range(2, 3)
+		var seitlich := -wuerfel.randf_range(0.6, 1.1) * float(bahnen - 1) * 0.5
+		for _bahn in bahnen:
+			var breite := wuerfel.randf_range(0.55, 1.3)
+			# Längs etwas versetzt, damit nicht alle Bahnen auf einer Höhe enden.
+			var ort := mitte + quer * seitlich + achse * wuerfel.randf_range(-1.2, 1.2)
+			seitlich += breite * 0.5 + wuerfel.randf_range(0.6, 1.6)
+			var kennung := Color(breite / 4.0, wuerfel.randf(), wuerfel.randf_range(0.5, 1.0))
+			_fahne_anhaengen(ort - achse * FAHNEN_LAENGE * FAHNEN_OBEN,
+					ort + achse * FAHNEN_LAENGE * (1.0 - FAHNEN_OBEN), kennung,
+					punkte, uvs, farben, indizes)
 	if punkte.is_empty():
 		return
 
@@ -424,6 +460,27 @@ func _baue_lichtfahnen(sonne: DirectionalLight3D) -> void:
 	add_child(fahnen)
 
 
+## Hängt eine Bahn von `oben` nach `unten` an das Netz: `FAHNEN_STUECKE`
+## Stücke, je Stückgrenze zwei Ecken auf der Achse. Alpha der Scheitelfarbe
+## ist das Dach – 1 unter den Kronen, 0 darüber.
+func _fahne_anhaengen(oben: Vector3, unten: Vector3, kennung: Color,
+		punkte: PackedVector3Array, uvs: PackedVector2Array,
+		farben: PackedColorArray, indizes: PackedInt32Array) -> void:
+	var erste := punkte.size()
+	for k in FAHNEN_STUECKE + 1:
+		var t := float(k) / float(FAHNEN_STUECKE)
+		var p := oben.lerp(unten, t)
+		var ueber_boden := p.y - _boden_hoehe(p.x, p.z)
+		var farbe := kennung
+		farbe.a = 1.0 - smoothstep(FAHNEN_DACH.x, FAHNEN_DACH.y, ueber_boden)
+		punkte.append_array(PackedVector3Array([p, p]))
+		uvs.append_array(PackedVector2Array([Vector2(-1.0, t), Vector2(1.0, t)]))
+		farben.append_array(PackedColorArray([farbe, farbe]))
+	for k in FAHNEN_STUECKE:
+		var a := erste + k * 2
+		indizes.append_array(PackedInt32Array([a, a + 1, a + 2, a + 1, a + 3, a + 2]))
+
+
 ## Waagerechter Abstand einer Strecke zur Lichtungsmitte.
 func _abstand_zur_mitte(a: Vector3, b: Vector3) -> float:
 	var a2 := Vector2(a.x, a.z)
@@ -443,13 +500,31 @@ func _baue_pollen() -> void:
 	pollen.groesse = 0.04
 	pollen.groessen_streuung = 0.55
 	pollen.farbe = Color(1.0, 0.93, 0.72)
-	pollen.deckkraft = 0.8
+	pollen.deckkraft = 0.6
 	pollen.steiggeschwindigkeit = 0.12
 	pollen.wirbel = 0.45
 	pollen.wirbel_tempo = 0.28
 	pollen.saat = SAAT
 	pollen.position = Vector3(0.0, 0.4, 0.0)
 	add_child(pollen)
+	# Die Mitte freiräumen: Flusen dicht vor der Linse wären nur große helle
+	# Tupfen. Wer innerhalb von `POLLEN_FREI` steht, rückt nach außen. Der
+	# Staubflug hat seine Teilchen in `_ready` gesetzt (Höhe 0, die Höhe
+	# kommt aus dem Shader) – hier werden nur ihre Plätze verschoben, im
+	# eigenen MultiMesh dieser Instanz.
+	var mm := pollen.multimesh
+	if mm == null:
+		return
+	for i in mm.instance_count:
+		var t := mm.get_instance_transform(i)
+		var flach := Vector2(t.origin.x, t.origin.z)
+		var r := flach.length()
+		if r >= POLLEN_FREI:
+			continue
+		var richtung := flach / r if r > 0.001 else Vector2.RIGHT
+		flach = richtung * (POLLEN_FREI + (POLLEN_FREI - r) * 0.6)
+		t.origin = Vector3(flach.x, t.origin.y, flach.y)
+		mm.set_instance_transform(i, t)
 
 
 # --------------------------------------------------------------- Boden

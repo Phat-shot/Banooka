@@ -12,9 +12,13 @@ extends CanvasLayer
 ## Aussehen: Grund im Farbton des Raums, in den es geht (Wurzelwald grün,
 ## Nebelsümpfe blaugrau, Steinfeste warmer Stein, Rost und Ranken
 ## rostrot, Sand und Neon violett), ein Lichtschein hinter dem Titel,
-## aufsteigende Flusen, Vignette. Darauf Kicker ("LEVEL 01 · WURZELWALD"),
-## Titel, was gerade gebaut wird, hüpfende Früchte, ein gerundeter
-## Ladebalken und ein Tipp als Kapsel.
+## aufsteigende Flusen, Vignette. Im unteren Drittel stehen zwei Reihen
+## Scherenschnitt, die den Raum zeigen: Tannen im Wurzelwald, Weiden, Schilf
+## und Bohlensteg in den Sümpfen, Mauer und Türme der Steinfeste, Schlote
+## im Rost, Dünen und Dächer bei Sand und Neon, im Portalraum Hügel mit den
+## fünf Portalringen. Darauf Kicker ("LEVEL 01 · WURZELWALD"), Titel, was
+## gerade gebaut wird, hüpfende Früchte, ein gerundeter Ladebalken und ein
+## Tipp als Kapsel.
 ##
 ## Schnittstelle:
 ##   zeigen(titel, dauer := 0.0)   einblenden; dauer 0 = sofort deckend
@@ -24,6 +28,11 @@ extends CanvasLayer
 ##   abblenden(dauer) / aufblenden(dauer) -> Tween
 ##                                 nur Dunkel, ohne Titel – für Wechsel,
 ##                                 die keinen Ladeschirm brauchen
+##
+## Scherenschnitt als Werkzeug (statisch, über `preload` dieses Skripts):
+##   reihe(formen, breite, schritt, erzeuger, versatz, mitte_flach)
+##   baum(tanne, hoehe) -> Form      zerlege(formen, ...) -> Dreiecke
+## Die Einstellungen zeichnen damit ihren Waldrand.
 ##
 ## Wer einblendet und danach einen blockierenden Szenenwechsel startet,
 ## wartet auf `eingeblendet`:
@@ -50,16 +59,25 @@ const TIPPS := [
 ## Farben je Raum: [oben, unten, Schein]. Eintrag 0 gilt für den
 ## Portalraum und alles ohne Level.
 const RAUMTOENE := [
-	[Color(0.07, 0.10, 0.10), Color(0.02, 0.035, 0.035), Color(1.0, 0.82, 0.50)],
-	[Color(0.08, 0.14, 0.09), Color(0.02, 0.04, 0.03), Color(0.95, 0.85, 0.45)],
-	[Color(0.07, 0.11, 0.11), Color(0.02, 0.04, 0.045), Color(0.55, 0.85, 0.80)],
-	[Color(0.12, 0.10, 0.08), Color(0.035, 0.03, 0.025), Color(1.0, 0.78, 0.52)],
-	[Color(0.13, 0.08, 0.05), Color(0.04, 0.025, 0.02), Color(1.0, 0.58, 0.32)],
-	[Color(0.09, 0.06, 0.13), Color(0.03, 0.02, 0.045), Color(0.82, 0.55, 1.0)],
+	[Color(0.07, 0.10, 0.12), Color(0.02, 0.03, 0.04), Color(1.0, 0.82, 0.50)],
+	[Color(0.07, 0.17, 0.09), Color(0.02, 0.045, 0.03), Color(0.95, 0.86, 0.45)],
+	[Color(0.05, 0.13, 0.14), Color(0.015, 0.04, 0.05), Color(0.55, 0.88, 0.82)],
+	[Color(0.16, 0.12, 0.08), Color(0.04, 0.03, 0.02), Color(1.0, 0.78, 0.50)],
+	[Color(0.18, 0.08, 0.04), Color(0.05, 0.02, 0.015), Color(1.0, 0.56, 0.28)],
+	[Color(0.11, 0.05, 0.18), Color(0.03, 0.015, 0.05), Color(0.84, 0.52, 1.0)],
 ]
 
 ## Aufsteigende Flusen im Hintergrund.
 const FLUSEN := 18
+
+## Scherenschnitt: Grundlinie (Anteil der Bildhöhe) und größte Höhe der
+## Formen (px) für die hintere und die vordere Reihe. In der Bildmitte
+## bleiben die Formen niedriger (`_huelle`) – dort stehen Balken und Tipp.
+const REIHE_HINTEN := Vector2(0.86, 150.0)
+const REIHE_VORN := Vector2(0.955, 95.0)
+## Abstand der Stützstellen des Umrisses (px). Spitzen und Kanten kommen
+## zusätzlich als eigene Stellen hinein, damit sie scharf bleiben.
+const UMRISS_SCHRITT := 4.0
 
 var _flaeche: Control
 var _blende: UiStil.Blende
@@ -76,6 +94,15 @@ var _sichtbar := false
 var _raum := 0
 var _tween: Tween = null
 var _blendet_ein := false
+## Fertig zerlegte Scherenschnitte (Dreieckslisten) für Raum und Bildgröße
+## in `_umriss_fuer`. Der Schirm zeichnet jedes Bild neu; ein Vieleck mit
+## Hunderten Ecken jedes Mal neu zu zerlegen wäre Verschwendung.
+var _umriss_fuer := ""
+var _umriss_hinten := PackedVector2Array()
+var _umriss_vorn := PackedVector2Array()
+## Einzelteile, die nicht aus dem Boden wachsen (Steg, Portalringe):
+## ["steg", Rect2] oder ["ring", Mitte, Radius, Farbe]
+var _umriss_extra: Array = []
 
 
 func _ready() -> void:
@@ -112,11 +139,15 @@ func zeigen(titel: String, dauer: float = 0.0) -> void:
 	_tipp = TIPPS[randi() % TIPPS.size()]
 	_raum = _raum_jetzt()
 	_sichtbar = true
-	_tween_stoppen()
+	# Ein laufendes Einblenden wird hier ersetzt, nicht abgebrochen: Wer
+	# darauf wartet, läuft erst weiter, wenn der Schirm wirklich deckt –
+	# nicht schon bei einem halb durchsichtigen (siehe `_tween_stoppen`).
+	_tween_stoppen(false)
 	_flaeche.visible = true
 	_flaeche.queue_redraw()
 	if dauer <= 0.0 or _flaeche.modulate.a >= 0.999:
 		_flaeche.modulate.a = 1.0
+		_blendet_ein = false
 		eingeblendet.emit.call_deferred()
 		return
 	_blendet_ein = true
@@ -150,7 +181,7 @@ func verbergen() -> void:
 	if not _sichtbar:
 		return
 	_sichtbar = false
-	_tween_stoppen()
+	_tween_stoppen(true)
 	_tween = create_tween()
 	_tween.tween_property(_flaeche, ^"modulate:a", 0.0, 0.45 * _flaeche.modulate.a) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -168,12 +199,15 @@ func aufblenden(dauer: float = 0.3) -> Tween:
 	return _blende.auf(dauer)
 
 
-func _tween_stoppen() -> void:
+## Hält den laufenden Tween an. `melden`: Bricht `verbergen()` ein
+## Einblenden ab, bekommt, wer darauf wartet, sein Signal trotzdem – sonst
+## wartete er ewig. Ersetzt `zeigen()` es durch ein neues, meldet erst
+## dessen Ende.
+func _tween_stoppen(melden: bool) -> void:
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	_tween = null
-	if _blendet_ein:
-		# Wer auf das Einblenden wartet, soll nicht ewig warten.
+	if melden and _blendet_ein:
 		_blendet_ein = false
 		eingeblendet.emit.call_deferred()
 
@@ -242,10 +276,11 @@ func _zeichnen() -> void:
 
 	# Grund im Ton des Raums, Lichtschein hinter dem Titel
 	UiStil.verlauf(_flaeche, feld, oben, unten)
-	var hof := UiStil.radialverlauf(Color(schein, 0.16), Color(schein, 0.0))
+	var hof := UiStil.radialverlauf(Color(schein, 0.28), Color(schein, 0.0))
 	_flaeche.draw_texture_rect(hof, Rect2(mitte - Vector2(520, 330),
 			Vector2(1040, 560)), false)
 	_zeichne_flusen(groesse, schein)
+	_zeichne_scherenschnitt(groesse, schein)
 	UiStil.vignette(_flaeche, feld, 0.55)
 
 	# Kicker mit Zierstrichen, Titel, was gerade geschieht
@@ -335,7 +370,7 @@ func _zeichne_flusen(groesse: Vector2, farbe: Color) -> void:
 		var y := groesse.y + 20.0 - fposmod(_phase * tempo + zufall * groesse.y,
 				groesse.y + 40.0)
 		var r := 1.5 + 2.5 * _zufall(saat + 1.3)
-		var deckung := 0.10 + 0.18 * _zufall(saat + 5.5)
+		var deckung := 0.16 + 0.24 * _zufall(saat + 5.5)
 		# Oben und unten weich ein- und ausblenden
 		deckung *= clampf(y / 120.0, 0.0, 1.0) * clampf((groesse.y - y) / 120.0, 0.0, 1.0)
 		_flaeche.draw_circle(Vector2(x, y), r, Color(farbe, deckung), true, -1.0, true)
@@ -358,13 +393,314 @@ func _zeichne_tipp(groesse: Vector2) -> void:
 	var marke_breite := UiStil.textbreite("TIPP", 12, &"sperr") + 20.0
 	var breite := marke_breite + text_breite + 44.0
 	var chip := Rect2(groesse.x * 0.5 - breite * 0.5, groesse.y - 88.0, breite, 46.0)
-	UiStil.zeichne(_flaeche, chip, &"chip")
+	# Kapsel und Marke knapp unter voller Rundung – bei genau halber Höhe
+	# zeigt StyleBoxFlat an den Enden einen hellen Nahtpunkt.
+	var kapsel := func(s: StyleBoxFlat) -> void: s.set_corner_radius_all(21)
+	UiStil.variante(&"chip", &"tippkapsel", kapsel).draw(_flaeche.get_canvas_item(), chip)
 	var marke := Rect2(chip.position + Vector2(11.0, 11.0), Vector2(marke_breite, 24.0))
-	# Knapp unter voller Rundung – bei genau halber Höhe zeigt StyleBoxFlat
-	# an den Enden einen hellen Nahtpunkt.
 	var rund := func(s: StyleBoxFlat) -> void: s.set_corner_radius_all(11)
 	UiStil.variante(&"pille", &"tippmarke", rund).draw(_flaeche.get_canvas_item(), marke)
 	UiStil.text(_flaeche, Vector2(marke.get_center().x, marke.position.y + 17.0), "TIPP",
 			12, Farben.UI_KONTUR, &"sperr", 0, HORIZONTAL_ALIGNMENT_CENTER)
 	UiStil.text(_flaeche, Vector2(marke.end.x + 14.0, chip.position.y + 29.0), _tipp,
 			text_groesse, Color(0.86, 0.90, 0.84), &"text", 3)
+
+
+# ------------------------------------------------------ Scherenschnitt
+
+## Zwei Reihen Umriss im unteren Drittel: hinten im Schein des Raums, als
+## läge Licht im Dunst, vorn fast schwarz. Darüber ein Hauch Licht am
+## Horizont, damit die hintere Reihe sich abhebt.
+func _zeichne_scherenschnitt(groesse: Vector2, schein: Color) -> void:
+	var kennung := "%d|%d|%d" % [_raum, roundi(groesse.x), roundi(groesse.y)]
+	if kennung != _umriss_fuer:
+		_umriss_fuer = kennung
+		_baue_umriss(groesse)
+	# Bis zum unteren Rand, sonst endete der Schein an der Grundlinie mit
+	# einer harten Kante.
+	var horizont := groesse.y * REIHE_HINTEN.x
+	UiStil.verlauf(_flaeche, Rect2(0.0, horizont - 220.0, groesse.x,
+			groesse.y - horizont + 220.0), Color(schein, 0.0), Color(schein, 0.08))
+	var ci := _flaeche.get_canvas_item()
+	if not _umriss_hinten.is_empty():
+		RenderingServer.canvas_item_add_triangle_array(ci, PackedInt32Array(),
+				_umriss_hinten, PackedColorArray([Color(schein, 0.10)]))
+	var nacht := Color(0.008, 0.012, 0.012, 0.92)
+	# Nach Art gebündelt gezeichnet – erst alle Rechtecke, dann alle
+	# Scheiben, dann alle Ränder: Wechselnde Befehlsarten brächen sonst das
+	# Bündeln der 2D-Zeichenaufrufe (Portalraum: 144 statt gut 100).
+	# Portalring auf einem Sockel: dunkler Rand, darin der Schein des Raums,
+	# in den er führt.
+	for teil in _umriss_extra:
+		var stueck: Array = teil
+		if String(stueck[0]) == "steg":
+			_flaeche.draw_rect(stueck[1] as Rect2, nacht)
+		else:
+			var mitte: Vector2 = stueck[1]
+			var r: float = stueck[2]
+			_flaeche.draw_rect(Rect2(mitte.x - r * 0.75, mitte.y + r * 0.8, r * 1.5,
+					r * 0.9), nacht)
+	for teil in _umriss_extra:
+		var stueck: Array = teil
+		if String(stueck[0]) == "ring":
+			var farbe: Color = stueck[3]
+			_flaeche.draw_circle(stueck[1] as Vector2, float(stueck[2]) * 0.9,
+					Color(farbe, 0.38), true, -1.0, true)
+	for teil in _umriss_extra:
+		var stueck: Array = teil
+		if String(stueck[0]) == "ring":
+			var r: float = stueck[2]
+			_flaeche.draw_arc(stueck[1] as Vector2, r, 0.0, TAU, 32, nacht, r * 0.24, true)
+	if not _umriss_vorn.is_empty():
+		RenderingServer.canvas_item_add_triangle_array(ci, PackedInt32Array(),
+				_umriss_vorn, PackedColorArray([nacht]))
+
+
+## Stellt die Formen des Raums zusammen und zerlegt sie in Dreiecke.
+##
+## Eine Form ist [Art, Mitte x, halbe Breite, Höhe]; `_formhoehe` kennt ihr
+## Profil. Der Umriss einer Reihe ist an jeder Stelle die höchste Form
+## darüber – so überlappen sich Bäume, ohne dass Flächen doppelt gedeckt
+## und damit fleckig heller würden.
+func _baue_umriss(groesse: Vector2) -> void:
+	var hinten: Array = []
+	var vorn: Array = []
+	_umriss_extra = []
+	var b := groesse.x
+	var grund_hinten := groesse.y * REIHE_HINTEN.x
+	var grund_vorn := groesse.y * REIHE_VORN.x
+	var hh := REIHE_HINTEN.y
+	var hv := REIHE_VORN.y
+	match _raum:
+		1:  # Wurzelwald: hinten Tannen und runde Laubbäume, vorn Tannen
+			reihe(hinten, b, 44.0, func(i: int, z: float) -> Array:
+				return baum(z < 0.75, hh * (0.5 + 0.5 * _zufall(i * 1.7))))
+			reihe(vorn, b, 58.0, func(i: int, _z: float) -> Array:
+				return baum(true, hv * (0.6 + 0.4 * _zufall(i * 2.3))))
+		2:  # Nebelsümpfe: Weiden und Schilf, vorn ein Bohlensteg
+			reihe(hinten, b, 90.0, func(_i: int, z: float) -> Array:
+				var h := hh * (0.35 + 0.25 * z)
+				return ["laub", 0.0, h * 0.6, h])
+			reihe(hinten, b, 11.0, func(i: int, _z: float) -> Array:
+				return ["schilf", 0.0, 4.0, hh * (0.14 + 0.16 * _zufall(i * 3.1))])
+			var steg_y := grund_vorn - hv * 0.34
+			_umriss_extra.append(["steg", Rect2(-10.0, steg_y, b + 20.0, 8.0)])
+			var pfahl := 40.0
+			while pfahl < b:
+				_umriss_extra.append(["steg", Rect2(pfahl, steg_y, 7.0,
+						groesse.y - steg_y)])
+				pfahl += 150.0
+			reihe(vorn, b, 7.0, func(i: int, z: float) -> Array:
+				var bueschel := 0.5 + 0.5 * sin(float(i) * 0.33)
+				return ["schilf", 0.0, 3.5, hv * (0.15 + 0.85 * bueschel * z)])
+		3:  # Steinfeste: Mauer mit Zinnen und Türmen, vorn Fels
+			hinten.append(["mauer", b * 0.5, b * 0.5 + 20.0, hh * 0.30])
+			for x: float in PackedFloat32Array([b * 0.10, b * 0.28, b * 0.80]):
+				hinten.append(["turm", x, 30.0, hh * 0.72])
+			hinten.append(["dach", b * 0.28, 40.0, hh])
+			reihe(vorn, b, 120.0, func(i: int, z: float) -> Array:
+				return ["fels", 0.0, 60.0 + 50.0 * z, hv * (0.35 + 0.45 * _zufall(i * 1.9))])
+		4:  # Rost und Ranken: Schlote und Sägedächer, vorn dichtes Laub
+			hinten.append(["saege", b * 0.5, b * 0.5 + 20.0, hh * 0.34])
+			for x: float in PackedFloat32Array([b * 0.13, b * 0.19, b * 0.74, b * 0.88]):
+				hinten.append(["schlot", x, 10.0, hh * (0.7 + 0.3 * _zufall(x))])
+			reihe(vorn, b, 70.0, func(i: int, z: float) -> Array:
+				return ["laub", 0.0, 44.0 + 30.0 * z, hv * (0.45 + 0.4 * _zufall(i * 2.9))])
+		5:  # Sand und Neon: Dünen, davor die Dächer der Stadt
+			reihe(hinten, b, 260.0, func(_i: int, z: float) -> Array:
+				return ["huegel", 0.0, 220.0 + 80.0 * z, hh * (0.24 + 0.2 * z)])
+			reihe(vorn, b, 46.0, func(i: int, z: float) -> Array:
+				return ["block", 0.0, 20.0 + 12.0 * z, hv * (0.3 + 0.7 * _zufall(i * 4.1))])
+		_:  # Portalraum: Hügel mit Bäumen, darauf die fünf Portalringe
+			reihe(hinten, b, 300.0, func(_i: int, z: float) -> Array:
+				return ["huegel", 0.0, 260.0 + 60.0 * z, hh * (0.20 + 0.10 * z)])
+			# Die Ringe stehen auf den Hügeln – erst die Hügel messen, dann
+			# kommen die Bäume dazu.
+			for n in 5:
+				var x := b * (0.2 + 0.15 * float(n))
+				var boden := 0.0
+				for form in hinten:
+					boden = maxf(boden, _formhoehe(form as Array, x))
+				var toene: Array = RAUMTOENE[n + 1]
+				_umriss_extra.append(["ring", Vector2(x, grund_hinten - boden - 30.0),
+						22.0, toene[2]])
+			var baeume := func(_i: int, z: float) -> Array:
+				return baum(z < 0.4, hh * (0.40 + 0.2 * z))
+			reihe(hinten, b, 150.0, baeume, 75.0)
+			reihe(vorn, b, 140.0, func(_i: int, z: float) -> Array:
+				return ["huegel", 0.0, 120.0 + 60.0 * z, hv * (0.25 + 0.2 * z)])
+	_umriss_hinten = zerlege(hinten, b, grund_hinten, groesse.y)
+	_umriss_vorn = zerlege(vorn, b, grund_vorn, groesse.y)
+
+
+## Reiht Formen über die ganze Breite: im Abstand `schritt` (±35 %).
+## `erzeuger(i, zufall)` liefert die Form, die Reihe setzt ihre Mitte. Mit
+## `mitte_flach` drückt sie sie zur Bildmitte hin flacher (`_huelle`).
+##
+## Öffentlich und statisch wie `zerlege()`: Die Einstellungen stellen mit
+## denselben Formen ihren Waldrand auf (über `preload` dieses Skripts).
+static func reihe(formen: Array, breite: float, schritt: float, erzeuger: Callable,
+		versatz: float = 0.0, mitte_flach: bool = true) -> void:
+	var x := -schritt * 0.5 + versatz
+	var i := 0
+	while x < breite + schritt:
+		var z := _zufall(float(i) * 7.13 + schritt)
+		var form: Array = erzeuger.call(i, z)
+		form[1] = x
+		if mitte_flach:
+			form[3] = float(form[3]) * _huelle(x / maxf(breite, 1.0))
+		formen.append(form)
+		x += schritt * (0.65 + 0.7 * _zufall(float(i) * 3.7 + schritt * 0.1))
+		i += 1
+
+
+## Ein Baum für `reihe()`: schlanke Tanne oder Laubbaum mit runder Krone,
+## die Breite passend zur Höhe – zu schmale Kronen sähen aus wie Grabsteine.
+static func baum(tanne: bool, hoehe: float) -> Array:
+	return ["tanne" if tanne else "laub", 0.0, hoehe * (0.30 if tanne else 0.46), hoehe]
+
+
+## In der Bildmitte stehen Ladebalken und Tipp – dort bleibt der Umriss
+## niedriger, zu den Rändern wächst er. Wie ein Tal, in das man hineinsieht.
+static func _huelle(anteil: float) -> float:
+	return lerpf(0.6, 1.0, smoothstep(0.12, 0.38, absf(anteil - 0.5)))
+
+
+## Höhe einer Form an der Stelle x über ihrer Grundlinie (negativ: nichts).
+static func _formhoehe(form: Array, x: float) -> float:
+	var art := String(form[0])
+	var dx := x - float(form[1])
+	var w := float(form[2])
+	var h := float(form[3])
+	var ax := absf(dx)
+	match art:
+		"tanne":
+			# Drei Stufen übereinander, jede ein Dreieck; die obere setzt
+			# über der unteren an – das gibt die Kerben im Umriss.
+			var y := h * 0.14 if ax < w * 0.09 else -1.0
+			for k in 3:
+				var wk := w * (1.0 - 0.25 * float(k))
+				if ax < wk:
+					y = maxf(y, h * (0.10 + 0.25 * float(k)) + h * 0.40 * (1.0 - ax / wk))
+			return y
+		"laub":
+			# Stamm und eine Krone aus Kanten statt eines Kreises – kantig
+			# wie die Bäume im Spiel.
+			var y := h * 0.45 if ax < w * 0.1 else -1.0
+			if ax < w:
+				var winkel := acos(clampf(ax / w, 0.0, 1.0))
+				var stufe := PI / 6.0
+				var a0 := floorf(winkel / stufe) * stufe
+				var a1 := minf(a0 + stufe, PI * 0.5)
+				var t := clampf((ax / w - cos(a0)) / minf(cos(a1) - cos(a0), -0.0001),
+						0.0, 1.0)
+				y = maxf(y, h * 0.62 + h * 0.38 * lerpf(sin(a0), sin(a1), t))
+			return y
+		"schilf":
+			return h * (1.0 - ax / w) if ax < w else -1.0
+		"fels":
+			# Kantiger Brocken mit schiefer Kuppe
+			if ax >= w:
+				return -1.0
+			return h * minf(1.0, (1.0 - ax / w) * 2.2) * (1.0 - 0.18 * dx / w)
+		"huegel":
+			return h * (0.5 + 0.5 * cos(PI * dx / w)) if ax < w else -1.0
+		"mauer":
+			# Zinnen im Takt von 26 px
+			if ax >= w:
+				return -1.0
+			return h + (12.0 if fposmod(x, 26.0) < 13.0 else 0.0)
+		"turm":
+			if ax >= w:
+				return -1.0
+			return h + (10.0 if fposmod(dx + w, 17.0) < 8.5 else 0.0)
+		"dach":
+			return h * 0.72 + h * 0.28 * (1.0 - ax / w) if ax < w else -1.0
+		"saege":
+			if ax >= w:
+				return -1.0
+			return h + 24.0 * fposmod(x, 64.0) / 64.0
+		"schlot":
+			return h if ax < w else -1.0
+		"block":
+			if ax >= w:
+				return -1.0
+			# Manche Dächer tragen eine Antenne.
+			if _zufall(float(form[1])) > 0.7 and absf(dx - w * 0.3) < 1.5:
+				return h + 16.0
+			return h
+	return -1.0
+
+
+## Stellen, an denen der Umriss einen Knick oder eine Kante hat – dort
+## wird zusätzlich gemessen, sonst würden Spitzen gekappt und Kanten schräg.
+static func _formkanten(form: Array) -> PackedFloat32Array:
+	var art := String(form[0])
+	var mx := float(form[1])
+	var w := float(form[2])
+	var stellen := PackedFloat32Array([mx - w, mx, mx + w])
+	match art:
+		"tanne":
+			for k in 3:
+				var wk := w * (1.0 - 0.25 * float(k))
+				stellen.append_array(PackedFloat32Array([mx - wk, mx + wk]))
+		"laub":
+			for k in 7:
+				stellen.append(mx + w * cos(PI * float(k) / 6.0))
+		"mauer", "saege", "turm":
+			var takt := 13.0
+			var x := floorf((mx - w) / takt) * takt
+			if art == "saege":
+				takt = 64.0
+				x = floorf((mx - w) / takt) * takt
+			elif art == "turm":
+				takt = 8.5
+				x = mx - w
+			while x <= mx + w + 0.01:
+				stellen.append_array(PackedFloat32Array([x - 0.01, x + 0.01]))
+				x += takt
+		"schlot", "block":
+			stellen.append_array(PackedFloat32Array([mx - w - 0.01, mx - w + 0.01,
+					mx + w - 0.01, mx + w + 0.01]))
+			if art == "block":
+				var antenne := mx + w * 0.3
+				stellen.append_array(PackedFloat32Array([antenne - 1.51, antenne - 1.49,
+						antenne + 1.49, antenne + 1.51]))
+	return stellen
+
+
+## Misst den Umriss einer Reihe und gibt ihn als Dreiecksliste zurück:
+## je zwei Nachbarstellen ein Streifen von der Kante bis `unten_y`.
+## Zeichnen mit `RenderingServer.canvas_item_add_triangle_array` – fertig
+## zerlegt, ohne dass Godot das Vieleck jedes Bild neu zerlegt.
+static func zerlege(formen: Array, breite: float, grund_y: float,
+		unten_y: float) -> PackedVector2Array:
+	if formen.is_empty():
+		return PackedVector2Array()
+	var stellen := PackedFloat32Array()
+	var x := -UMRISS_SCHRITT
+	while x <= breite + UMRISS_SCHRITT:
+		stellen.append(x)
+		x += UMRISS_SCHRITT
+	for form in formen:
+		for k in _formkanten(form as Array):
+			if k > -UMRISS_SCHRITT and k < breite + UMRISS_SCHRITT:
+				stellen.append(k)
+	stellen.sort()
+	var kante := PackedVector2Array()
+	for sx in stellen:
+		var hoehe := 0.0
+		for form in formen:
+			hoehe = maxf(hoehe, _formhoehe(form as Array, sx))
+		kante.append(Vector2(sx, grund_y - hoehe))
+	var dreiecke := PackedVector2Array()
+	for i in kante.size() - 1:
+		var a := kante[i]
+		var c := kante[i + 1]
+		if c.x - a.x < 0.001:
+			# Senkrechte Kante: zwei Stellen am selben Ort, kein Streifen.
+			continue
+		var a0 := Vector2(a.x, unten_y)
+		var c0 := Vector2(c.x, unten_y)
+		dreiecke.append_array(PackedVector2Array([a, c, c0, a, c0, a0]))
+	return dreiecke

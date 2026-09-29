@@ -18,6 +18,10 @@ class_name MenueEintrag
 ## Klänge spielt der Eintrag nicht selbst – das Menü, dem er gehört, weiß,
 ## ob eine Taste etwas bewirkt hat. Dafür gibt es `klang_wahl()` und
 ## `klang_ok()`, damit alle Menüs gleich klingen.
+##
+## Verborgen ruht der Eintrag ganz (kein `_process`), auch wenn er gewählt
+## ist – die Statustafel lässt ihren Eintrag gewählt stehen, während sie
+## zu ist. Sichtbar geworden läuft er weiter, wo er war.
 
 signal angetippt
 signal ueberfahren
@@ -33,6 +37,10 @@ enum Art { SCHLICHT, WAHL, SCHALTER, STUFEN }
 const TEMPO_AUSWAHL := 7.0
 ## Rand rechts, an dem Pfeil und Wert enden.
 const RAND_RECHTS := 22.0
+## Höchstens so viel der Breite nimmt ein Wert (‹ Wert ›) ein. Figurennamen
+## kommen ungekürzt aus dem Dateinamen; ohne Grenze liefen lange über die
+## Beschriftung.
+const WERT_ANTEIL := 0.58
 
 var beschriftung := "":
 	set(neu):
@@ -88,6 +96,11 @@ var _zeit := 0.0
 var _flaeche: StyleBoxFlat
 var _schalterflaeche: StyleBoxFlat
 
+## Wartet ein Wahlklang auf das Ende des Bildes? Ein Tipp wählt und
+## bestätigt im selben Augenblick – dann soll nur die Bestätigung klingen,
+## nicht beide übereinander. `klang_ok()` verwirft den wartenden Wahlklang.
+static var _wahl_wartet := false
+
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -99,7 +112,8 @@ func _ready() -> void:
 	# zeigt StyleBoxFlat an den Enden einen hellen Nahtpunkt.
 	_schalterflaeche.set_corner_radius_all(11)
 	_schalter = 1.0 if eingeschaltet else 0.0
-	set_process(_unruhig())
+	visibility_changed.connect(_auf_sichtbarkeit)
+	set_process(_unruhig() and is_visible_in_tree())
 
 
 ## Wählt den Eintrag an oder ab. `sofort` springt ohne Überblenden in den
@@ -132,7 +146,20 @@ func wert_geschoben(richtung: int) -> void:
 
 ## Klang beim Wechseln der Auswahl. Eigene Menüklänge, sobald `Klang`
 ## sie kennt; bis dahin ein hoch gestimmter, leiser Sprungton.
+##
+## Gespielt wird erst am Ende des Bildes, und mehrere Wahlen im selben Bild
+## klingen einmal (siehe `_wahl_wartet`).
 static func klang_wahl() -> void:
+	if _wahl_wartet:
+		return
+	_wahl_wartet = true
+	Callable(MenueEintrag, &"_wahl_nachholen").call_deferred()
+
+
+static func _wahl_nachholen() -> void:
+	if not _wahl_wartet:
+		return
+	_wahl_wartet = false
 	if Klang.namen().has("menue_wahl"):
 		Klang.spiele("menue_wahl")
 	else:
@@ -141,6 +168,7 @@ static func klang_wahl() -> void:
 
 ## Klang beim Bestätigen: die zwei Glöckchen der Frucht, etwas gedämpft.
 static func klang_ok() -> void:
+	_wahl_wartet = false
 	if Klang.namen().has("menue_ok"):
 		Klang.spiele("menue_ok")
 	else:
@@ -152,12 +180,21 @@ func _wecken() -> void:
 	queue_redraw()
 
 
+func _auf_sichtbarkeit() -> void:
+	if is_visible_in_tree() and _unruhig():
+		_wecken()
+
+
 func _unruhig() -> bool:
 	return gewaehlt or _anteil > 0.0 or _puls > 0.0 or _druck > 0.0 \
 			or _schub != 0.0 or _schalter != (1.0 if eingeschaltet else 0.0)
 
 
 func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		# Verborgen gibt es nichts zu zeigen; `_auf_sichtbarkeit` weckt wieder.
+		set_process(false)
+		return
 	_anteil = move_toward(_anteil, 1.0 if gewaehlt else 0.0, delta * TEMPO_AUSWAHL)
 	_puls = maxf(_puls - delta * 3.0, 0.0)
 	_druck = maxf(_druck - delta * 6.0, 0.0)
@@ -259,13 +296,19 @@ func _zeichne_wert(feld: Rect2, a: float) -> float:
 ## ‹ Wert ›: Die Pfeile erscheinen nur, wenn der Eintrag gewählt ist –
 ## dann schalten links/rechts den Wert.
 func _zeichne_wahl(rechts: float, mitte_y: float, a: float) -> float:
-	var groesse := maxi(schriftgroesse - 3, 14)
 	var zs := UiStil.schrift(&"fett")
-	var breite := zs.get_string_size(wert, HORIZONTAL_ALIGNMENT_LEFT, -1, groesse).x
+	# Lange Werte erst etwas kleiner, dann hinten gekürzt – nie über die
+	# Beschriftung. Der Platz ist ohne die Pfeile gerechnet, damit der Text
+	# beim Anwählen nicht umbricht oder springt.
+	var platz := size.x * WERT_ANTEIL
+	var voll := maxi(schriftgroesse - 3, 14)
+	var groesse := UiStil.passend(zs, wert, voll, platz, mini(16, voll))
+	var anzeige := UiStil.kuerzen(zs, wert, groesse, platz)
+	var breite := zs.get_string_size(anzeige, HORIZONTAL_ALIGNMENT_LEFT, -1, groesse).x
 	var pfeilraum := 16.0 * a
 	var ende := rechts - pfeilraum
 	var farbe := Farben.UI_TEXT_RUHE.lerp(Farben.UI_GOLD_HELL, a)
-	UiStil.text(self, Vector2(ende, mitte_y + groesse * 0.36), wert, groesse,
+	UiStil.text(self, Vector2(ende, mitte_y + groesse * 0.36), anzeige, groesse,
 			farbe, &"fett", 3, HORIZONTAL_ALIGNMENT_RIGHT)
 	if a > 0.01:
 		var gold := Color(Farben.UI_GOLD, a)
