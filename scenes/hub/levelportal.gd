@@ -114,6 +114,10 @@ static var _namensabstand := INF
 
 
 func _ready() -> void:
+	# Das Tor steht still; bewegt wird darin nur im Bildtakt: die atmende
+	# Scheibe, schwebende Edelsteine, die Zahl, der Sog beim Betreten
+	# (`_process`, Tweens). Ohne Interpolation zeigt es genau das.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_to_group("levelportale")
 	_phase = float(nummer) * 0.83
 	zustand = _bestimme_zustand()
@@ -649,6 +653,10 @@ func _eintreten(spieler: Node3D) -> void:
 		figur.velocity = Vector3.ZERO
 	# Physik anhalten, damit die Schwerkraft nicht gegen das Einsaugen zieht.
 	spieler.set_physics_process(false)
+	# Ab jetzt trägt ein Tween die Figur, und Tweens laufen im Bildtakt.
+	# Interpoliert mischte Godot jedes Bild den Stand des letzten
+	# Physikschritts hinein – die Figur zitterte auf dem Weg ins Tor.
+	spieler.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	var schluessel := letztes_level_schluessel()
 	get_tree().root.set_meta(schluessel, nummer)
 
@@ -720,6 +728,8 @@ func _eintreten(spieler: Node3D) -> void:
 		_helligkeit = -1.0
 	_ausgeloest = false
 	if is_instance_valid(spieler):
+		spieler.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_INHERIT
+		spieler.reset_physics_interpolation()
 		spieler.set_physics_process(true)
 		if modell != null and is_instance_valid(modell):
 			modell.scale = modell_skala

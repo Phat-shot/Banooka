@@ -514,6 +514,8 @@ func _vorschau_neu_bestuecken() -> void:
 
 	var halter := Node3D.new()
 	halter.name = "Figur"
+	# Die Vorschau dreht im Bildtakt – ohne Interpolation.
+	halter.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	# Die Figur blickt in -Z, die Kamera steht bei +Z – ohne die halbe
 	# Drehung sähe man ihr in der Vorschau auf den Rücken.
 	_vorschau_drehung = PI

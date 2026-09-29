@@ -455,7 +455,9 @@ func _flieger_starten(anzahl: int) -> void:
 	var spieler := get_tree().get_first_node_in_group("spieler") as Node3D
 	if kamera == null or spieler == null:
 		return
-	var punkt := spieler.global_position + Vector3.UP * 0.9
+	# Dort, wo die Figur gezeichnet wird – nicht am Stand des letzten
+	# Physikschritts (Bildtakt.ort).
+	var punkt := Bildtakt.ort(spieler) + Vector3.UP * 0.9
 	if kamera.is_position_behind(punkt):
 		return
 	var start := kamera.unproject_position(punkt)

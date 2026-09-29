@@ -184,6 +184,8 @@ func aufspritzen(lokale_stelle: Vector3) -> void:
 		mi.mesh = mesh
 		mi.material_override = material
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Die Tropfen fliegen im Bildtakt (`_process`) – ohne Interpolation.
+		mi.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		add_child(mi)
 		mi.position = lokale_stelle + Vector3(randf_range(-0.2, 0.2), 0.05,
 				randf_range(-0.2, 0.2))

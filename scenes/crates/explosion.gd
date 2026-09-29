@@ -78,6 +78,8 @@ static func erzeugen(elternteil: Node, pos: Vector3, wirkradius: float = 3.0,
 	ex.radius = wirkradius
 	ex.farbe = ton
 	ex.mitte = pos
+	# Die Druckwelle bläht per Tween im Bildtakt auf – ohne Interpolation.
+	ex.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	elternteil.add_child(ex)
 	ex.global_position = pos
 

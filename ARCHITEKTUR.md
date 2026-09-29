@@ -519,6 +519,102 @@ Vorderkante, ohne Bild- und Tiefentextur); ausgeblendet ist er
 `visible = false` und kostet keinen Draw-Call. Der Beuteldachs blinzelt in
 unregelmäßigem Takt.
 
+## Bildtakt und Physiktakt (Physikinterpolation)
+
+`physics/common/physics_interpolation` ist an. Godot zeichnet alles, was im
+Physiktakt (60 Hz) bewegt wird, zwischen seinen letzten beiden
+Physikschritten – auf einem Bildschirm mit 144 Hz läuft die Figur in 144
+Schritten je Sekunde statt in 60 Stufen. Das gilt für jeden `Node3D` mit
+Interpolation, auch für solche, die gar nicht im Physiktakt bewegt werden.
+Daraus folgt eine Regel:
+
+**Was im Bildtakt bewegt wird, wird nicht interpoliert.**
+
+- **Im Physiktakt bewegt** – `_physics_process`, `move_and_slide`, eine
+  `AnimatableBody3D` mit `sync_to_physics` (sie übernimmt ihre Lage am
+  Anfang des Schritts vom Physikserver): Interpolation bleibt an, das ist
+  die Vorgabe. Spieler, Reiter, Karts, Flieger, Katze, Keiler, Gegner samt
+  eigener Optik, Plattformen, Gefahren, Geschosse.
+- **Im Bildtakt bewegt** – `_process`, Tweens (die laufen von Haus aus im
+  Bildtakt), AnimationPlayer, Zeitgeber, `aktualisiere()` aus `_process`:
+  `physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF` am
+  bewegten Knoten. Mit Interpolation mischte Godot jedes Bild den Stand des
+  letzten Physikschritts hinein, und der Knoten zitterte. Ein Knoten ohne
+  Interpolation unter einem interpolierten Elternteil folgt diesem
+  trotzdem weich; nur seine eigene Bewegung wird genau so gezeichnet, wie
+  sie gesetzt wurde. Der Modus vererbt sich: OFF am Wurzelknoten eines
+  Aufbaus gilt für alles darunter. Controls sind von Haus aus OFF, darum
+  ist auch die Kulisse des Startbildschirms nie interpoliert worden.
+- **Beides an einem Knoten:** Der Tween auf einem interpolierten Körper
+  läuft im Physiktakt (`create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)`,
+  so schrumpft ein Gegner beim Verpuffen), oder der Körper ist, solange
+  ihn der Tween trägt, OFF (die Figur im Portalsog; zurück auf `INHERIT`
+  mit `reset_physics_interpolation()`).
+
+Ohne Interpolation laufen heute: `SpielerModell` (auch in Reiter, Flieger
+und der Figurvorschau der Optionen), die drei Kameras, `Schutzmaske`,
+`Bodenschatten`, Wegweiser und Licht des `Lichtkreis`, `Frucht`, `Marke`,
+das Modell der `Kiste`, `Explosion`, Wassertropfen, alle `Effekte`,
+Baumkrone, Kleinzeug im Wind, Vogelkreisel, `Levelportal` und `Portal`,
+Turbospur des Reiters, Propeller des Fliegers, die Eistore in Level 17,
+das Fremdmodell der Gegner (seine Clips und alles an Knochen laufen im
+Bildtakt) und die Kamera des Startbildschirms.
+
+**Folgen im Bildtakt:** Wer einem Physikkörper im Bildtakt folgt (Kameras,
+Bodenfleck, Masken, Wegweiser, Lichtkreis), liest dessen gezeichneten Ort
+über `Bildtakt.ort(ziel)` bzw. `Bildtakt.lage(ziel)` (`scripts/bildtakt.gd`),
+nie `global_position` – das ist der Stand des letzten Physikschritts, eine
+Treppe mit 60 Stufen je Sekunde. Die Hilfe statt
+`get_global_transform_interpolated()`, weil Godot 4.7 den interpolierten Ort
+einmal zu Beginn des Bildes ausrechnet und danach diesen Merkwert
+zurückgibt: Wird der Körper im selben Bild noch versetzt (Respawn aus einem
+Zeitgeber, Bonusraum), wäre er bis zum nächsten Bild veraltet, auch nach
+`reset_physics_interpolation()`, und die Kamera flöge von der
+Absturzstelle zurück. Liegen Merkwert und wirklicher Ort mehr als
+`Bildtakt.VERSETZT` (2 m) auseinander, gilt der wirkliche. Ein Ziel ohne
+Interpolation (die Figur im Portalsog) wird genau an `global_transform`
+gezeichnet; das gibt die Hilfe dann zurück. Spiellogik (Einsammeln,
+Treffer) liest weiter `global_position`.
+
+**Versetzen:** Wer einen interpolierten Körper versetzt, statt ihn zu
+bewegen, ruft danach `reset_physics_interpolation()` – sonst zieht Godot
+einen Physikschritt lang eine Spur vom alten zum neuen Ort. Das tun
+Respawn (Spieler, Reiter, Flieger, Keiler), Levelstart, Startplatz im
+Portalraum, Bonusraum, der Dreher im Kart-Rennen, der Rollbrocken am
+Bahnanfang, die Plattformen beim Aufbau und die Prüfwerkzeuge
+(`foto.gd`, `level_check.gd`). Gerendert nachgeprüft: Im Bildtakt versetzt
+und zurückgesetzt, steht der Körper noch im selben Bild am neuen Ort. Ein
+Knoten, der neu in den Baum kommt, wird von Godot selbst zurückgesetzt.
+
+**Prüfung:** `werkzeuge/Glattprobe.tscn` (in `pruefe.sh`, Stufe 4) lässt
+die Figur in Level 01, im Portalraum und in Level 04 laufen, headless mit
+`--fixed-fps 144` bei 60 Physikschritten je Sekunde. Sie misst, wie
+unruhig Figur und Welt im Bild laufen (zweite Differenz des Bildpunkts,
+Pixel bei 720 Zeilen), und meldet jeden Knoten, der im Bildtakt bewegt,
+aber interpoliert wird (ZITTERT), oder im Physiktakt bewegt, aber nicht
+interpoliert wird (STUFT). Zuletzt ruft sie `respawn()` zwischen zwei
+Physikschritten und prüft, dass die Kamera im selben Bild mitspringt
+(sonst FLIEGT NACH). `GLATT_SZENEN=<Liste>` prüft andere Szenen; über
+alle 25 Level, Werkstatt, Testlevel, Startbildschirm und Bonusraum
+gelaufen, meldete der Wächter nichts mehr.
+
+| Zittern im Bild (px) | Figur vorher | Figur jetzt | Welt vorher | Welt jetzt |
+|---|---|---|---|---|
+| Level 01 | 2,01 | 0,22 | 1,29 | 0,03 |
+| Portalraum | 0,11 | 0,01 | 7,49 | 0,07 |
+| Level 04 (Wildkatze) | 1,68 | 0,00 | 1,06 | 0,01 |
+
+„Vorher" ist f2f77cf, also ohne Interpolation. Die Streuung des Wegs der
+Figur von Bild zu Bild fiel dabei von 1,37 / 1,18 / 1,18 (58–65 % der
+Bilder ohne Bewegung) auf 0,09 / 0,00 / 0,01. Im Portalraum blickt die
+Kamera per `look_at` auf die Figur: Die Figur stand im Bild still, und die
+ganze Welt sprang – das war das Ruckeln dort. Nur den Schalter umzulegen
+hätte nicht gereicht: Dann zitterten in Level 04 216 Knoten (Früchte,
+Baumkronen, die Figur selbst), in Level 01 141, im Portalraum 53, und nach
+einem Respawn zwischen zwei Physikschritten flog die Kamera von der
+Absturzstelle zurück (1 bis 2 m je Bild, die Probe prüft das als
+„Versetzen"). Heute springt sie im selben Bild mit.
+
 ## Kamera (`scripts/corridor_camera.gd`, `class_name KorridorKamera`)
 
 Ohne `kurve_pfad` gerader Korridor Richtung -Z. Mit einem `Path3D` in
@@ -837,14 +933,15 @@ SDFGI oder Volumetric Fog. Gemessen unter Godot 4.7.2, nicht vermutet:
 - **SSAO** gibt es (der Renderer rechnet mit doppelter `ssao_intensity` und
   halbem `ssao_radius`), es kostet aber einen zusätzlichen Tiefendurchgang.
 
-**`project.godot` kennt keine Kommentare.** Godot liest `#` dort nicht als
+**`project.godot` kommentiert nur mit `;`.** `#` ist dort KEIN
 Kommentarzeichen: Die Zeile wird Teil des nächsten Schlüssels, dessen Wert
 unter einem Unsinnsnamen landet, und die gemeinte Einstellung bleibt still
-auf der Vorgabe. Begründungen stehen deshalb hier, nicht in der Datei (der
-Editor verwirft Kommentare beim Speichern ohnehin). Nach jeder Änderung
-nachsehen, was wirklich gilt: `ProjectSettings.get_setting("rendering/…")`.
-**Offen:** Der `#`-Block in `[physics]` verschluckt auf dieselbe Weise
-`common/physics_interpolation=true` – die Physikinterpolation ist aus.
+auf der Vorgabe. So stand `common/physics_interpolation=true` lange unter
+einem `#`-Block – gelesen wurde `physics/#DerSpieler…common/physics_interpolation`,
+die Interpolation war aus. Begründungen stehen deshalb vor allem hier; die
+`;`-Zeilen in der Datei verwirft der Editor beim Speichern ohnehin. Nach
+jeder Änderung nachsehen, was wirklich gilt:
+`ProjectSettings.get_setting("physics/common/physics_interpolation")`.
 
 | `rendering/…` | Rechner | Browser (`.web`) | Warum |
 |---|---|---|---|

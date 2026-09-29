@@ -163,7 +163,12 @@ func _takten(delta: float) -> void:
 
 	var s := lerpf(strecke_von, strecke_bis, anteil)
 	var vorwaerts := _richtung(s)
-	position = _ort(s) + Vector3.UP * fall
+	var ort := _ort(s) + Vector3.UP * fall
+	# Zurück an den Anfang (neue Runde, neuer Abruf) ist ein Versetzen,
+	# kein Rollen. Ohne Rücksetzen zöge die Interpolation den Brocken einen
+	# Physikschritt lang rückwärts über die ganze Bahn.
+	var versetzt := position.distance_to(ort) > Bildtakt.VERSETZT
+	position = ort
 
 	# Rollen statt rutschen: Ein Rad vom Halbmesser r legt bei einer
 	# vollen Umdrehung seinen Umfang U = 2·PI·r zurück. Für die Strecke d
@@ -181,6 +186,8 @@ func _takten(delta: float) -> void:
 	# Die Schadenszone dreht sich mit der Fahrt, aber nicht mit dem Rollen:
 	# ein mitrollender Kasten würde am Fass abwechselnd vorstehen.
 	_zone.basis = ausrichtung
+	if versetzt:
+		reset_physics_interpolation()
 
 
 ## Resthöhe des Brockens über dem Boden, während er an den Startpunkt fällt.

@@ -348,6 +348,7 @@ func _pruefe_absturz() -> void:
 			await get_tree().physics_frame
 		var vorher: int = GameState.leben
 		spieler.global_position = LevelWerkzeuge.punkt(verlauf, s, 26.0, 2.0)
+		spieler.reset_physics_interpolation()
 		spieler.set("velocity", Vector3.ZERO)
 		for i in 90:
 			await get_tree().physics_frame

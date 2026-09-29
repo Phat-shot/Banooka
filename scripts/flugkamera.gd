@@ -116,9 +116,10 @@ func _process(delta: float) -> void:
 
 
 func _folgen(delta: float) -> void:
-	# Interpoliert lesen: `global_transform` liefert die Stellung des
-	# letzten Physikschritts, also eine Treppe mit 60 Stufen je Sekunde.
-	var lage := _ziel.get_global_transform_interpolated()
+	# Die gezeichnete Lage lesen (Bildtakt.lage): `global_transform`
+	# liefert die Stellung des letzten Physikschritts, also eine Treppe mit
+	# 60 Stufen je Sekunde.
+	var lage := Bildtakt.lage(_ziel)
 	var basis := lage.basis.orthonormalized()
 
 	var wunsch := lage.origin + basis * versatz

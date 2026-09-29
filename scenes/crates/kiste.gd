@@ -133,6 +133,10 @@ func _ready() -> void:
 	_trefferzone.collision_layer = 0
 	_trefferzone.collision_mask = 2      # nur den Spieler beachten
 	_trefferzone.monitoring = true
+	# Pulsieren, Wackeln, Federn und Aufploppen setzen das Modell im
+	# Bildtakt (`_process`, Tweens). Ohne Interpolation zeigt es genau das;
+	# auf einem fahrenden Floß folgt es der Kiste trotzdem weich.
+	_modell.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_baue_optik()
 	# Eisenkisten reagieren auf gar nichts – Abfrage kann entfallen.
 	if art == Art.EISEN:

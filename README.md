@@ -141,8 +141,11 @@ Fehler; das Laden und Instanziieren jeder Szene (findet auch Fehler in
 `_ready()`); die Geometrie **jedes** Levels – ob Kisten und Gegner auf festem
 Boden stehen, ob Patrouillen nicht ins Leere laufen, ob die Absturzzone greift;
 und zuletzt alles, was nur in Bewegung zu prüfen ist: Krabbeln, Treibflöße,
-Hangeln, Deckungsflecken, Dunkellevel, Umrisskisten und den Zeitmodus. Muss
-`ERGEBNIS: SAUBER` melden.
+Hangeln, Deckungsflecken, Dunkellevel, Umrisskisten, den Zeitmodus und die
+Glätte des Bildes – ob Figur und Welt bei 144 Bildern je Sekunde ohne
+60-Hz-Stufen laufen und nichts, was im Bildtakt bewegt wird, von der
+Physikinterpolation erfasst ist (`werkzeuge/Glattprobe.tscn`, siehe
+ARCHITEKTUR.md, „Bildtakt und Physiktakt"). Muss `ERGEBNIS: SAUBER` melden.
 
 `PRUEF_LEVEL=08,09 bash werkzeuge/pruefe.sh` grenzt die Geometrieprüfung auf
 einzelne Level ein – der volle Lauf dauert einige Minuten.
@@ -488,11 +491,13 @@ scripts/                   angriff, farben, materialbibliothek, level_werkzeuge,
                            pad_symbole (Controller-Zeichen ✕ ○ □ △),
                            modell_lader (eigene glTF-Figur einpassen),
                            effekte, ui_stil, bildrahmen, bodenschatten,
-                           stimmungszone
+                           stimmungszone, bildtakt (gezeichneter Ort eines
+                           Physikkörpers für alles, was ihm im Bildtakt folgt)
 shaders/                   wasser, himmel, portal_wirbel, gegner_glanz,
                            bildrahmen (.gdshader)
 werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Spieltest-Bot,
-                           Bild- und Messwerkzeuge, Webserver
+                           Glattprobe (Ruckeln im Bildtakt), Bild- und
+                           Messwerkzeuge, Webserver
 assets/CREDITS.md          Quellen und Lizenzen
 ARCHITEKTUR.md             verbindliche Schnittstellen
 ```

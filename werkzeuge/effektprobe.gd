@@ -401,6 +401,8 @@ func _baue_szene() -> void:
 
 	_kamera = Probekamera.new()
 	_kamera.name = "Kamera"
+	# Wackelt und wird versetzt, beides im Bildtakt – ohne Interpolation.
+	_kamera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	# Etwa so weit weg wie die Spielkamera von der Figur (7 bis 11 m):
 	# Größen, die hier stimmen, stimmen auch im Level.
 	_kamera.fov = 60.0

@@ -617,6 +617,9 @@ func _turbo_tor(strecke: float) -> void:
 func _eistor(ausloeser: float, strecke: float) -> void:
 	var knoten := Node3D.new()
 	knoten.name = "Eistor"
+	# Die Flügel schieben sich im Bildtakt zu (`_process`) – ohne
+	# Interpolation, sonst zittern sie.
+	knoten.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	knoten.position = LevelWerkzeuge.punkt(verlauf, strecke, 0.0, 0.0)
 	knoten.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(knoten)
