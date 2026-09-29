@@ -129,6 +129,13 @@ var _lid_zu := 0.0           ## zuletzt gesetzter Schluss der Lider
 
 
 func _ready() -> void:
+	# Die Figur wird im Bildtakt bewegt (`aktualisiere()` aus `_process`,
+	# Tweens, Clips) und hängt an einem Körper, der sich im Physiktakt
+	# bewegt. Interpoliert wird nur der Körper; das Modell folgt ihm weich
+	# und zeigt seine eigene Bewegung genau so, wie sie gesetzt wurde. Mit
+	# Interpolation zitterten Arme, Beine und Ohren (ARCHITEKTUR.md,
+	# „Bildtakt und Physiktakt").
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if not _baue_eigenes():
 		_baue()
 

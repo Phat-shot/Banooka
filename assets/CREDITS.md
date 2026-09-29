@@ -12,6 +12,7 @@ Jede übernommene Datei wird hier mit Quelle und Lizenz eingetragen.
 | `assets/modelle/gegner/kroete.glb` | [Quaternius](https://quaternius.com) über [poly.pizza](https://poly.pizza) | CC0 | Laubfrosch, Optik der Sumpfkröte – **verändert**: Haut sumpfblaugrün (0,22 / 0,55 / 0,50) statt laubgrün, sechs runde helle Rückenflecken (auf die Haut gelegte Scheiben), ein Glanzpunkt in jedem Auge, feucht glänzende Haut und Augen |
 | `assets/modelle/gegner/kaefer.glb` | Exceptional_3D über [poly.pizza](https://poly.pizza) | CC0 | Marienkäfer, Optik des Panzerkäfers – **umgefärbt**: der Panzer dunkles Mahagoni (0,34 / 0,17 / 0,10) statt rot, damit es kein Marienkäfer mehr ist; die Mittelnaht warmes Creme, die acht Fleckkugeln warngelb, der Kopf warmes Braun (0,32 / 0,22 / 0,14), die Fühler dunkelbraun; alle Flächen glänzender |
 | `assets/modelle/gegner/spinne.glb` | [Quaternius](https://quaternius.com) über [poly.pizza](https://poly.pizza) | CC0 | Spinne, Optik der Stelzenspinne – **verändert**: leuchtend rote Augen, ein roter Stachelkamm aus fünf Spitzen auf dem Hinterleib, leichter Glanz auf dem Körper |
+| `assets/schrift/LilitaOne-Regular.ttf` | [Lilita One](https://fonts.google.com/specimen/Lilita+One) von Juan Montoreano, über [google/fonts](https://github.com/google/fonts/tree/main/ofl/lilitaone) | SIL Open Font License 1.1 (OFL-1.1) | Anzeigeschrift der Oberfläche: Schriftzug BANOOKA, Titel, Banner, Zähler und Uhren (`scripts/ui_stil.gd`). **Unverändert** eingebunden – "Lilita" ist ein reservierter Schriftname, eine veränderte Fassung dürfte nicht so heißen. Copyright (c) 2011 Juan Montoreano; Lizenztext `assets/schrift/OFL.txt` liegt daneben |
 
 ## Eigene Figuren einbinden
 
@@ -24,7 +25,9 @@ geprüft wird mit `bash werkzeuge/modelltest.sh`.
 
 Fremde Modelle tragen ausschließlich **Deko und drei Gegner-Silhouetten**.
 Umschaltbar über `Einstellungen.fremde_modelle`; ist der Schalter aus oder
-fehlt eine Datei, baut sich jedes Teil wie bisher selbst auf.
+fehlt eine Datei, baut sich jedes Teil wie bisher selbst auf. Dazu kommt
+eine fremde **Schrift** für Titel und Zahlen; fehlt die Datei, schreibt
+`UiStil` alles in der eingebauten Schrift.
 
 Die Änderungen an den Gegnermodellen geschehen zur Laufzeit im Code
 (`scenes/enemies/`, `scripts/fremdmodelle.gd`): umgefärbt, bemalt und um
@@ -40,6 +43,8 @@ eigene Teile ergänzt. Die `.glb`-Dateien selbst liegen unverändert vor.
 | Kisten, Früchte, Portale, Stacheln, Wasser | selbstgebaut |
 | Gelände, Wurzeln, Grasfelder, Portalraum | selbstgebaut |
 | **sämtliche Texturen** | selbstgebaut (`FastNoiseLite`) |
+| Anzeigeschrift (Logo, Titel, Banner, Zahlen) | Lilita One, SIL OFL 1.1 – die **einzige fremde Schrift** |
+| Text, Hinweise, Beschriftungen | Open Sans SemiBold, in Godot mitgeliefert (SIL OFL 1.1) |
 
 ## Alles Übrige entsteht im Code
 
@@ -56,7 +61,11 @@ Texturen und Effekte entstehen zur Laufzeit im Code:
   (`scripts/level_werkzeuge.gd`).
 - **Wasser** über einen eigenen Shader (`shaders/wasser.gdshader`), ebenso
   Himmel (`shaders/himmel.gdshader`), Wasserfall und Lichtstrahlen.
-- **Schrift** im HUD und auf den Kisten: die in Godot mitgelieferte
-  Standardschrift (Open Sans, Apache-2.0).
+- **Schrift** für Text und auf den Kisten: die in Godot mitgelieferte
+  Standardschrift (Open Sans SemiBold, SIL OFL 1.1 – so steht es in
+  Godots eigener Lizenzliste, `Engine.get_copyright_info()`; früher stand
+  hier irrtümlich Apache-2.0). Titel, Banner und Zahlen stehen
+  in Lilita One (siehe Tabelle oben) – die einzige Schriftdatei im Projekt.
 
-Damit ist das Projekt frei von fremden Marken, Figuren und Assets.
+Damit ist das Projekt frei von fremden Marken und Figuren; fremd sind
+nur die oben aufgeführten freien Modelle und die Schrift Lilita One.

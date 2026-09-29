@@ -98,6 +98,8 @@ func _ready() -> void:
 	_kreisel = PropWerkzeug.kind(self, "Kreisel",
 			func() -> MultiMeshInstance3D: return MultiMeshInstance3D.new())
 	_baue(PropWerkzeug.zufall(saat))
+	# Der Kreisel dreht im Bildtakt; interpoliert zitterte der Schwarm.
+	_kreisel.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	set_process(kreisen)
 
 

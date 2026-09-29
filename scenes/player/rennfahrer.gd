@@ -77,6 +77,9 @@ var _lenkung := 0.0
 ## Wunschspur der Fahrhilfe, wechselt gelegentlich.
 var _ki_spur := 0.0
 var _ki_wechsel := 0.0
+## Der Dreher hat den Wagen zurückgesetzt – beim nächsten Stellen die
+## Interpolation zurücksetzen, sonst glitte er 16 m rückwärts ins Bild.
+var _versetzt := false
 
 @onready var _kart: Kart = $Kart
 
@@ -233,6 +236,7 @@ func _dreher() -> void:
 		versuche += 1
 	strecke = fposmod(zurueck - DREHER_RUECKSETZ, rundenlaenge) \
 			if rundenlaenge > 0.0 else maxf(zurueck - DREHER_RUECKSETZ, 0.0)
+	_versetzt = true
 	_seitlich_ziel = 0.0
 	if ist_spieler:
 		GameState.zeige_nachricht("Dreher!", 1.0)
@@ -243,6 +247,9 @@ func _stellung_setzen(delta: float) -> void:
 		return
 	global_position = LevelWerkzeuge.punkt(verlauf, strecke, _seitlich, _hoehe + 0.02)
 	rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
+	if _versetzt:
+		_versetzt = false
+		reset_physics_interpolation()
 	if is_instance_valid(_kart):
 		var dreh := _lenkung
 		if dreher_rest > 0.0:

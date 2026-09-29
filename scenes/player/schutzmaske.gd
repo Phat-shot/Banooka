@@ -52,7 +52,7 @@ func _process(delta: float) -> void:
 	if is_instance_valid(_traeger):
 		# Interpoliert lesen, sonst hüpfen die Masken im Physiktakt neben
 		# einer Figur her, die weich gezeichnet wird.
-		global_position = _traeger.get_global_transform_interpolated().origin
+		global_position = Bildtakt.ort(_traeger)
 	else:
 		_traeger = get_parent() as Node3D
 	if _masken.is_empty():

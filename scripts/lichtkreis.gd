@@ -114,6 +114,9 @@ func _ready() -> void:
 	# an einer sichtbaren Kante, und die liest sich als Loch im Boden.
 	_licht.omni_attenuation = 1.6
 	_licht.shadow_enabled = false
+	# Das Licht folgt der Figur im Bildtakt (`_process`) – ohne
+	# Interpolation, sonst zittert der Lichtkreis um sie herum.
+	_licht.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(_licht)
 
 	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D
@@ -136,7 +139,8 @@ func _process(delta: float) -> void:
 
 	# Nachziehen bildratenunabhängig: `lerp` mit festem Faktor würde bei
 	# 30 Bildern je Sekunde doppelt so träge folgen wie bei 60.
-	var ziel := _spieler.global_position + Vector3.UP * hoehe
+	# Dem gezeichneten Ort folgen, nicht dem Stand des Physikschritts.
+	var ziel := Bildtakt.ort(_spieler) + Vector3.UP * hoehe
 	_licht.global_position = _licht.global_position.lerp(ziel,
 			1.0 - exp(-nachlauf * delta))
 

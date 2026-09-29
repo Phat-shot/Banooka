@@ -100,6 +100,9 @@ static var _funkenlauf: Gradient = null
 
 
 func _ready() -> void:
+	# Das Portal steht still; bewegt wird darin nur im Bildtakt: die
+	# atmende Scheibe, Ein- und Ausblenden, der Sog (`_process`, Tweens).
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_to_group("portale")
 	add_to_group("zielportale" if ist_ziel else "startportale")
 	collision_layer = 0
@@ -466,6 +469,10 @@ func _einsaugen(spieler: Node3D) -> void:
 		(spieler as CharacterBody3D).velocity = Vector3.ZERO
 	# Physik anhalten, damit die Schwerkraft nicht gegen die Animation arbeitet.
 	spieler.set_physics_process(false)
+	# Ab jetzt trägt ein Tween die Figur, und Tweens laufen im Bildtakt –
+	# ohne Interpolation, sonst zittert sie auf dem Weg in den Wirbel.
+	# Zurück kommt sie nicht mehr: Danach folgt der Levelwechsel.
+	spieler.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 
 	var mitte := global_position + Vector3.UP * radius
 	var modell := spieler.get_node_or_null("Modell") as Node3D

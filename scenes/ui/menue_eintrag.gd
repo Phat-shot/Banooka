@@ -344,8 +344,8 @@ func _zeichne_stufen(rechts: float, mitte_y: float, a: float) -> float:
 	var groesse := maxi(schriftgroesse - 7, 13)
 	var farbe_text := Farben.UI_TEXT_RUHE.lerp(Farben.UI_GOLD_HELL, a)
 	UiStil.text(self, Vector2(links - 12.0, mitte_y + groesse * 0.36), wert, groesse,
-			farbe_text, &"zahl", 3, HORIZONTAL_ALIGNMENT_RIGHT)
-	return links - 12.0 - UiStil.textbreite(wert, groesse, &"zahl") - 14.0
+			farbe_text, &"fett", 3, HORIZONTAL_ALIGNMENT_RIGHT)
+	return links - 12.0 - UiStil.textbreite(wert, groesse, &"fett") - 14.0
 
 
 ## Kleines Dreieck als Zeiger; `seite` 1 zeigt nach rechts, -1 nach links.

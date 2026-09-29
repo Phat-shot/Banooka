@@ -53,6 +53,10 @@ const ARM := Vector3(0.17, 0.08, 0.55)
 const RAND := 0.035
 
 func _ready() -> void:
+	# Pfeil und Kompass folgen der Figur im Bildtakt (`_process`). Ohne
+	# Interpolation, und gelesen wird der gezeichnete Ort der Figur
+	# (Bildtakt.ort) – sonst hüpften beide im 60-Hz-Takt neben ihr her.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_baue()
 	_phase = randf() * TAU
 
@@ -159,8 +163,8 @@ func _process(delta: float) -> void:
 		_setze_farbe(ton as Color)
 
 	# Über dem Spieler schweben, mit leichtem Auf und Ab
-	global_position = _spieler.global_position \
-			+ Vector3.UP * (hoehe + sin(_phase) * 0.13)
+	var figur := Bildtakt.ort(_spieler)
+	global_position = figur + Vector3.UP * (hoehe + sin(_phase) * 0.13)
 
 	# Zum Ziel drehen, waagerecht
 	var blick := _ziel.global_position
@@ -171,12 +175,12 @@ func _process(delta: float) -> void:
 				clampf(drehtempo * delta, 0.0, 1.0))
 
 	# Kompass am Boden: folgt dem Spieler, Kerbe in dieselbe Richtung.
-	var fuss := _spieler.global_position
+	var fuss := figur
 	_ring.global_position = Vector3(fuss.x, RING_Y, fuss.z)
 	_ring.global_rotation = Vector3(0.0, global_rotation.y, 0.0)
 
 	# Nahe am Ziel ausblenden
-	var abstand := _spieler.global_position.distance_to(_ziel.global_position)
+	var abstand := figur.distance_to(_ziel.global_position)
 	var ziel_alpha := clampf(
 			inverse_lerp(ausblenden_ab, voll_ab, abstand), 0.0, 1.0)
 	_setze_sichtbarkeit(ziel_alpha, delta)

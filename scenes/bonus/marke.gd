@@ -46,6 +46,9 @@ var _genommen := false
 
 
 func _ready() -> void:
+	# Drehen, Wippen und Magnetflug laufen im Bildtakt – wie bei der Frucht
+	# ohne Physikinterpolation, sonst zittert die Marke.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_to_group("marken")
 	collision_layer = 0
 	collision_mask = 2       # nur den Spieler beachten

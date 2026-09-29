@@ -69,7 +69,7 @@ done
 # Wasserplattformen (tragen sie den Spieler wirklich mit?), das Hangeln und
 # die Deckungsflecken (hält der Schwarm wirklich ab, oder leuchtet der
 # Fleck nur?). Eine Regel, die keine Prüfung hat, ist eine Behauptung.
-echo "--- 4/4 Krabbeln, Böden, Hangeln, Deckung, Dunkelheit, Zeitmodus ---"
+echo "--- 4/4 Krabbeln, Böden, Hangeln, Deckung, Dunkelheit, Zeitmodus, Glätte ---"
 KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
@@ -97,6 +97,15 @@ ZEIT="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Zeitprobe
 	| grep -Ev "$RAUSCHEN")"
 echo "$ZEIT" | grep -E "Zeitkisten|Uhr|Standzeit|Bestzeit|Lauf|Stufe|Abweichungen"
 
+# Glätte: Läuft das Bild bei 144 Bildern je Sekunde und 60 Physikschritten
+# glatt, ist alles, was im Bildtakt bewegt wird, von der
+# Physikinterpolation ausgenommen, und springt die Kamera bei einem
+# Respawn mit? `--fixed-fps` macht die Messung unabhängig vom Rechner –
+# ohne Bildschirm, in gut zehn Sekunden.
+GLATT="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Glattprobe.tscn \
+	--fixed-fps 144 2>&1 | grep -Ev "$RAUSCHEN")"
+echo "$GLATT" | grep -E "^---|Zittern|ZITTERT|STUFT|Versetzen|Knoten:|Abweichungen"
+
 if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$LEVEL" | grep -qE "FEHLER" \
 		|| echo "$KRIECH" | grep -qE "FALSCH|IM BODEN" \
@@ -105,7 +114,9 @@ if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$DECKUNG" | grep -qE "FALSCH" \
 		|| echo "$DUNKEL" | grep -qE "FALSCH" \
 		|| echo "$UMRISS" | grep -qE "NEIN" \
-		|| echo "$ZEIT" | grep -qE "NEIN"; then
+		|| echo "$ZEIT" | grep -qE "NEIN" \
+		|| echo "$GLATT" | grep -qE "RUCKELT|ZITTERT|STUFT|FLIEGT|SCRIPT ERROR" \
+		|| ! echo "$GLATT" | grep -qE "=== 0 Abweichungen"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1
 fi

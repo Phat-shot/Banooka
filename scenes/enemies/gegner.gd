@@ -319,6 +319,11 @@ func _fremdmodell_einhaengen() -> void:
 	fremdhalter = Node3D.new()
 	fremdhalter.name = "Fremdhalter"
 	modell.add_child(fremdhalter)
+	# Die Clips laufen im Bildtakt (AnimationPlayer), und mit ihnen alles,
+	# was an Knochen hängt (`_an_knochen`). Ohne Interpolation zeigt das
+	# Modell die Clips, wie sie sind, und folgt dem Halter trotzdem weich –
+	# Stauchen und Wippen setzt der Gegner im Physiktakt.
+	figur.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	fremdhalter.add_child(figur)
 	_fremd_anim = ModellLader.spieler_von(figur)
 	_koerper_messen(figur)
@@ -569,7 +574,10 @@ func _verpuffen() -> void:
 		mitte = modell.global_transform * (Vector3.UP * _todes_mitte)
 	mitte.y = maxf(mitte.y, global_position.y + 0.25)
 	Effekte.rauch(self, mitte, PUFF_FARBE, 1.0, 9)
-	create_tween().tween_property(self, "scale", Vector3.ONE * 0.02, PUFF_VORLAUF) \
+	# Im Physiktakt schrumpfen wie alles andere am Gegner: Ein Tween im
+	# Bildtakt auf einem interpolierten Körper zitterte.
+	create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS) \
+			.tween_property(self, "scale", Vector3.ONE * 0.02, PUFF_VORLAUF) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 
 

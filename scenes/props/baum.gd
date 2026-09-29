@@ -111,6 +111,9 @@ func _ready() -> void:
 	# Windstärke je Baum leicht unterschiedlich – so schwanken nicht alle gleich.
 	_wind_x = deg_to_rad(_rng.randf_range(1.0, 2.2))
 	_wind_z = deg_to_rad(_rng.randf_range(0.8, 1.8))
+	# Der Wind wiegt die Krone im Bildtakt (`_process`). Interpoliert
+	# zitterte sie dabei gegen den Stamm.
+	_krone.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	set_process(wind and _krone.get_child_count() > 0)
 
 

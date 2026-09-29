@@ -83,11 +83,13 @@ func _process(delta: float) -> void:
 
 func _folgen(delta: float) -> void:
 	_blick_gesetzt = false
-	# Interpoliert lesen: `global_position` liefert die Stellung des
-	# letzten Physikschritts, also eine Treppe mit 60 Stufen je Sekunde.
-	# Die Kamera läuft im Bildtakt und würde diese Treppe sonst getreu
-	# nachfahren – genau das nimmt man als Ruckeln der Umgebung wahr.
-	var p := _ziel.get_global_transform_interpolated().origin
+	# Den gezeichneten Ort lesen (Bildtakt.ort): `global_position` liefert
+	# die Stellung des letzten Physikschritts, also eine Treppe mit 60
+	# Stufen je Sekunde. Die Kamera läuft im Bildtakt und würde diese
+	# Treppe sonst getreu nachfahren – genau das nimmt man als Ruckeln der
+	# Umgebung wahr, im Portalraum am deutlichsten, weil die Kamera dort
+	# per `look_at` auf die Figur blickt und die ganze Welt mitspringt.
+	var p := Bildtakt.ort(_ziel)
 	var wunsch := p + versatz
 	if totzone > 0.0 and not _muss_springen:
 		if global_position.distance_to(wunsch) < totzone:

@@ -127,6 +127,9 @@ func _ready() -> void:
 	_teile.rotation.y = _rng.randf() * TAU
 	_wind_x = deg_to_rad(_rng.randf_range(2.0, 4.5))
 	_wind_z = deg_to_rad(_rng.randf_range(1.5, 3.5))
+	# Der Wind wiegt die Teile im Bildtakt – ohne Interpolation, wie die
+	# Baumkrone.
+	_teile.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	set_process(wind and art != Art.PILZ and _teile.get_child_count() > 0)
 
 

@@ -106,11 +106,11 @@ status={
 
 [physics]
 
-# Der Spieler bewegt sich im Physiktakt (60 Hz), die Kameras folgen im
-# Bildtakt. Ohne Interpolation springt die Welt dadurch in 60-Hz-Stufen
-# über den Schirm, während die Anzeige schneller läuft – das sah man als
-# Ruckeln, am deutlichsten im Portalraum, wo die Kamera besonders straff
-# folgt. Godot zeichnet die Zwischenschritte jetzt selbst.
+; Der Spieler bewegt sich im Physiktakt (60 Hz), die Kameras folgen im
+; Bildtakt. Ohne Interpolation springt die Welt dadurch in 60-Hz-Stufen
+; über den Schirm, während die Anzeige schneller läuft – das sah man als
+; Ruckeln, am deutlichsten im Portalraum, wo die Kamera besonders straff
+; folgt. Godot zeichnet die Zwischenschritte jetzt selbst.
 common/physics_interpolation=true
 
 [rendering]

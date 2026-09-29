@@ -75,7 +75,7 @@ func _process(_delta: float) -> void:
 		return
 	# Interpoliert lesen wie Kamera und Masken: Die Figur wird weich
 	# gezeichnet, ein Fleck im Physiktakt hüpfte daneben her.
-	var p := _traeger.get_global_transform_interpolated().origin
+	var p := Bildtakt.ort(_traeger)
 	_frage.from = p + Vector3.UP * 0.3
 	_frage.to = p + Vector3.DOWN * REICHWEITE
 	var treffer := welt.direct_space_state.intersect_ray(_frage)

@@ -2473,6 +2473,9 @@ func _spieler_setzen() -> void:
 		return
 	var winkel := _startwinkel()
 	spieler.global_position = ort(winkel, START_R, 0.9)
+	# Versetzt, nicht gelaufen: ohne Rücksetzen zöge die Interpolation die
+	# Figur einen Physikschritt lang vom Szenenursprung herüber.
+	spieler.reset_physics_interpolation()
 	if spieler.has_method("setze_blickrichtung"):
 		spieler.call("setze_blickrichtung", -deg_to_rad(winkel))
 	GameState.level_starten(spieler.global_position)

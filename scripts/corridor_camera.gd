@@ -264,7 +264,7 @@ func _sichtfeld_fuehren(delta: float) -> void:
 		_grund_fov = sichtfeld_begrenzt(self, _szenen_fov)
 	if delta <= 0.0:
 		return
-	var p := _ziel.get_global_transform_interpolated().origin
+	var p := Bildtakt.ort(_ziel)
 	var tempo := _tempo_glatt
 	if _letzter_ort.is_finite():
 		var weg := p - _letzter_ort
@@ -364,11 +364,12 @@ func _strecke_gefuehrt(gemessen: float, laenge: float, delta: float) -> float:
 
 
 func _folgen(delta: float) -> void:
-	# Interpoliert lesen: `global_position` liefert die Stellung des
-	# letzten Physikschritts, also eine Treppe mit 60 Stufen je Sekunde.
-	# Die Kamera läuft im Bildtakt und würde diese Treppe sonst getreu
-	# nachfahren – genau das nimmt man als Ruckeln der Umgebung wahr.
-	var p := _ziel.get_global_transform_interpolated().origin
+	# Den gezeichneten Ort lesen (Bildtakt.ort): `global_position` liefert
+	# die Stellung des letzten Physikschritts, also eine Treppe mit 60
+	# Stufen je Sekunde. Die Kamera läuft im Bildtakt und würde diese
+	# Treppe sonst getreu nachfahren – genau das nimmt man als Ruckeln der
+	# Umgebung wahr.
+	var p := Bildtakt.ort(_ziel)
 	var wunsch: Vector3
 	var blickziel: Vector3
 

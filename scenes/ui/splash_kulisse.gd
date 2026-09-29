@@ -356,6 +356,9 @@ func _baue_kamera() -> void:
 	_kamera.fov = 58.0
 	_kamera.near = 0.1
 	_kamera.far = 400.0
+	# Die Kamera kreist im Bildtakt (`_process`). Interpoliert ruckelte
+	# der ganze Wald auf Bildschirmen mit mehr als 60 Hz.
+	_kamera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(_kamera)
 	_kamera.current = true
 

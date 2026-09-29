@@ -70,13 +70,17 @@ func _keiler_nachziehen(delta: float) -> void:
 	keiler_naehe.emit(naehe)
 
 	if is_instance_valid(keiler):
-		var s := maxf(strecke - abstand_keiler, 0.0)
-		keiler.global_position = LevelWerkzeuge.punkt(verlauf, s, _seitlich * 0.4, 0.0)
-		keiler.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
+		_keiler_stellen()
 		keiler.aktualisiere(delta, tempo / maxf(tempo_max, 0.001), naehe)
 
 	if abstand_keiler <= todesabstand:
 		sterben()
+
+
+func _keiler_stellen() -> void:
+	var s := maxf(strecke - abstand_keiler, 0.0)
+	keiler.global_position = LevelWerkzeuge.punkt(verlauf, s, _seitlich * 0.4, 0.0)
+	keiler.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 
 
 ## Ein Hindernis wirft hier nicht ab, es bremst – und der Keiler kommt
@@ -100,6 +104,12 @@ func respawn() -> void:
 	super.respawn()
 	abstand_keiler = vorsprung
 	_taumel = 0.0
+	# Der Keiler springt mit zurück. Gleich hier stellen und die
+	# Interpolation zurücksetzen – sonst zöge Godot ihn einen Physikschritt
+	# lang quer über die Strecke von der Absturzstelle zum Checkpoint.
+	if is_instance_valid(keiler) and verlauf != null:
+		_keiler_stellen()
+		keiler.reset_physics_interpolation()
 
 
 ## Die Flucht geht zu Fuß – hier wird nicht geritten. Ohne diese

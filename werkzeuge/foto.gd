@@ -182,6 +182,9 @@ func _eigene_kamera() -> void:
 	_kamera = Camera3D.new()
 	_kamera.fov = 55.0
 	_kamera.far = 400.0
+	# Wird zwischen den Aufnahmen versetzt, nie bewegt: ohne Interpolation,
+	# sonst stünde sie im ersten Bild danach noch halb am alten Ort.
+	_kamera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(_kamera)
 	_kamera.current = true
 
@@ -209,6 +212,11 @@ func _fotografiere(stellen: PackedStringArray, modus: String) -> void:
 			var mitte: Vector3 = LevelWerkzeuge.punkt(_verlauf, wert, quer_versatz, 0.0)
 			if _spieler != null:
 				_spieler.global_position = mitte + Vector3.UP * 1.0
+				# Versetzt, nicht gelaufen: Ohne Rücksetzen zeichnete Godot
+				# die Figur bis zum nächsten Physikschritt auf halbem Weg
+				# von der vorigen Stelle – bei festen 30 Bildern je Sekunde
+				# ist das nur das erste Bild, verschmiert wäre es trotzdem.
+				_spieler.reset_physics_interpolation()
 				# Die Verfolgerkamera zieht dem versetzten Spieler nicht von
 				# allein nach: Ohne das zeigt JEDES Bild die Startstelle,
 				# egal welche Strecke angefordert wurde.

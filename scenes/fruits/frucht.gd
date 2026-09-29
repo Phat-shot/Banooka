@@ -40,6 +40,11 @@ static var _stoff: StandardMaterial3D = null
 
 
 func _ready() -> void:
+	# Wippen, Drehen, Wurfbogen und Magnetflug laufen im Bildtakt
+	# (`_process`, Tween). Mit Physikinterpolation mischte Godot jedes Bild
+	# den Stand des letzten Physikschritts hinein – die Frucht zitterte.
+	# Hängt sie an einem fahrenden Floß, folgt sie ihm trotzdem weich.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_baue_modell()
 	add_to_group("fruechte")
 	collision_layer = 0

@@ -43,6 +43,9 @@ func _ready() -> void:
 	var spieler := get_tree().get_first_node_in_group("spieler") as Node3D
 	var kamera := Camera3D.new()
 	kamera.fov = 52.0
+	# Wird je Aufnahme versetzt: ohne Interpolation, sonst stünde sie im
+	# ersten Bild danach noch halb am alten Ort.
+	kamera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(kamera)
 	kamera.current = true
 

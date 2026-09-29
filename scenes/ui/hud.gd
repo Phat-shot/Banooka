@@ -455,7 +455,9 @@ func _flieger_starten(anzahl: int) -> void:
 	var spieler := get_tree().get_first_node_in_group("spieler") as Node3D
 	if kamera == null or spieler == null:
 		return
-	var punkt := spieler.global_position + Vector3.UP * 0.9
+	# Dort, wo die Figur gezeichnet wird – nicht am Stand des letzten
+	# Physikschritts (Bildtakt.ort).
+	var punkt := Bildtakt.ort(spieler) + Vector3.UP * 0.9
 	if kamera.is_position_behind(punkt):
 		return
 	var start := kamera.unproject_position(punkt)
@@ -1260,7 +1262,9 @@ class Auswertung extends Control:
 		UiStil.text(self, Vector2(mitte.x, y), _kopfzeile, 14,
 				Farben.UI_GOLD, &"sperr", -1, HORIZONTAL_ALIGNMENT_CENTER)
 		y += 36.0
-		UiStil.text(self, Vector2(mitte.x, y), String(daten.get("name", "")), 32,
+		# 36 px: Lilita läuft schmaler als die frühere Grundschrift, bei 32 px
+		# stand der Name klein unter dem breiten Band.
+		UiStil.text(self, Vector2(mitte.x, y), String(daten.get("name", "")), 36,
 				Farben.UI_TITEL_FUELLUNG, &"titel", -1, HORIZONTAL_ALIGNMENT_CENTER)
 		if platz > 0:
 			y += 40.0

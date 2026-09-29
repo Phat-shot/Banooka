@@ -332,7 +332,7 @@ func _zeichnen() -> void:
 			_flaeche.draw_colored_polygon(ecken, Color(1, 1, 1, 0.20))
 	UiStil.text(_flaeche, Vector2(mitte.x, balken.end.y + 24.0),
 			"%d %%" % roundi(_anteil_anzeige * 100.0), 15, Color(0.74, 0.80, 0.74),
-			&"zahl", 3, HORIZONTAL_ALIGNMENT_CENTER)
+			&"fett", 3, HORIZONTAL_ALIGNMENT_CENTER)
 
 	_zeichne_tipp(groesse)
 
