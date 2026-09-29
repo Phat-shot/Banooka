@@ -66,6 +66,17 @@ const KRONE_OBEN := Color(1.0, 1.0, 0.97)
 @export var kollision: bool = true
 ## Grundriss der Laubkrone (nur beim Laubbaum wirksam).
 @export var kronenform: Kronenform = Kronenform.ZUFALL
+## Obergrenze für `hoehe`. Die Vorgabe hält jeden bisherigen Baum bei
+## höchstens 14 m; wer einen Baumriesen braucht, hebt sie ausdrücklich an.
+@export_range(14.0, 60.0, 0.5) var hoechsthoehe: float = 14.0
+## Immer selbst bauen, auch wenn mitgelieferte Modelle an sind. Die Kenney-
+## Bäume haben die Wegesrand-Größe im Sinn; auf zwölf Meter und mehr
+## aufgeblasen, werden ihre wenigen Flächen zu großen flachen Platten.
+@export var eigenbau: bool = false
+## Mehr und kleinere Blattballen, feiner unterteilt. Für Baumriesen: Deren
+## Krone ist so groß, dass die Facetten der üblichen Ballen als flache
+## Platten im Bild stehen. 1 = wie bisher.
+@export_range(1.0, 4.0, 0.1) var kronenfuelle: float = 1.0
 
 var _rng: RandomNumberGenerator
 var _phase := 0.0
@@ -84,11 +95,11 @@ func _ready() -> void:
 		saat = randi_range(1, 2_000_000_000)
 	_rng = PropWerkzeug.zufall(saat)
 	_phase = _rng.randf() * TAU
-	hoehe = clampf(hoehe, 3.0, 14.0)
+	hoehe = clampf(hoehe, 3.0, maxf(14.0, hoechsthoehe))
 
 	# Erst versuchen, ein mitgeliefertes Modell zu setzen; klappt das
 	# nicht (Schalter aus oder Datei fehlt), wird wie bisher gebaut.
-	if not _setze_fertiges_modell():
+	if eigenbau or not _setze_fertiges_modell():
 		match art:
 			Art.NADELBAUM:
 				_baue_nadelbaum()
@@ -100,6 +111,9 @@ func _ready() -> void:
 	# Windstärke je Baum leicht unterschiedlich – so schwanken nicht alle gleich.
 	_wind_x = deg_to_rad(_rng.randf_range(1.0, 2.2))
 	_wind_z = deg_to_rad(_rng.randf_range(0.8, 1.8))
+	# Der Wind wiegt die Krone im Bildtakt (`_process`). Interpoliert
+	# zitterte sie dabei gegen den Stamm.
+	_krone.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	set_process(wind and _krone.get_child_count() > 0)
 
 
@@ -210,8 +224,10 @@ func _formwerte(form: Kronenform) -> Dictionary:
 ## zum Kronenknoten). Die Ballen sind bewusst leicht abgeflacht und
 ## unterschiedlich groß – das ergibt die geschichtete Silhouette.
 func _kronen_ballen(werte: Dictionary, radius: float, spanne: float) -> Array:
-	var anzahl: int = int(werte["ballen"]) + _rng.randi_range(-1, 1)
+	var anzahl: int = int(float(werte["ballen"]) * kronenfuelle) + _rng.randi_range(-1, 1)
 	anzahl = maxi(anzahl, 4)
+	# Gleiche Kronenfläche aus mehr Ballen: Jeder wird entsprechend kleiner.
+	var ballgroesse := 1.0 / sqrt(kronenfuelle) if kronenfuelle > 1.0 else 1.0
 
 	var ballen: Array = []
 	var drall := _rng.randf() * TAU
@@ -228,7 +244,7 @@ func _kronen_ballen(werte: Dictionary, radius: float, spanne: float) -> Array:
 		var haenger := 1.0 if i % 3 == 1 else 0.0
 		var winkel := drall + TAU * 0.618 * float(i) + _rng.randf_range(-0.35, 0.35)
 		var r := radius * lerpf(float(werte["ball_unten"]),
-				float(werte["ball_oben"]), t) * _rng.randf_range(0.82, 1.18)
+				float(werte["ball_oben"]), t) * _rng.randf_range(0.82, 1.18) * ballgroesse
 		var pos := Vector3(cos(winkel) * weite,
 				lerpf(-spanne * 0.5, spanne * 0.5, t)
 						+ _rng.randf_range(-0.06, 0.06) * spanne
@@ -260,8 +276,14 @@ func _baue_krone(ballen: Array, kronen_ort: Vector3) -> void:
 		var ton: float = b["ton"]
 		var unten := Color(KRONE_UNTEN.r * ton, KRONE_UNTEN.g * ton, KRONE_UNTEN.b * ton)
 		var oben := Color(KRONE_OBEN.r * ton, KRONE_OBEN.g * ton, KRONE_OBEN.b * ton)
-		PropWerkzeug.klumpen(st, _rng, b["pos"], b["radien"], b["dreh"], 9, 5,
-				0.3, false, unten, oben, von, bis)
+		var fein := kronenfuelle > 1.0
+		PropWerkzeug.klumpen(st, _rng, b["pos"], b["radien"], b["dreh"],
+				12 if fein else 9, 7 if fein else 5, 0.3, false, unten, oben, von, bis)
+	# Die feine Krone der Riesen trägt viele Ecken, und jede stand bis zu
+	# sechsmal im Netz. Verschmolzen einmal. Nur für sie: Alle anderen Bäume
+	# bleiben Scheitel für Scheitel, wie sie waren.
+	if kronenfuelle > 1.0:
+		st.index()
 	_setze_krone(st, kronen_ort)
 
 

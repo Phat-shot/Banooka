@@ -48,6 +48,16 @@ class_name Horizont
 ## Feste Saat, damit die Kette bei jedem Start gleich aussieht.
 @export var saat := 4711
 
+## Bewaldete Kuppen statt kahler Zacken: Jede Zacke bekommt eine runde
+## Oberkante, jede siebte eine Spitze wie ein Nadelbaum, und die Höhen
+## schwanken weniger. Aus der Ferne liest sich das als Waldsaum über
+## Hügeln. Aus lässt die Kette, wie sie war.
+@export var kronen := false
+
+## Nur die nahe Kette. Die ferne steht beim 1,45-fachen Radius und damit
+## schnell hinter der Sichtweite der Kamera – dort kostet sie nur Dreiecke.
+@export var nur_nah := false
+
 ## Die ferne Kette steht so viel weiter draußen und ist so viel höher.
 const FERN_FAKTOR := 1.45
 const FERN_HOEHE := 0.72
@@ -67,8 +77,9 @@ func _aufbauen() -> void:
 	if boden:
 		_scheibe()
 	# Erst fern, dann nah: Die nahe Kette soll die ferne überdecken.
-	_kette(radius * FERN_FAKTOR, hoehe * FERN_HOEHE, farbe_fern,
-			zacken, saat + 17)
+	if not nur_nah:
+		_kette(radius * FERN_FAKTOR, hoehe * FERN_HOEHE, farbe_fern,
+				zacken, saat + 17)
 	_kette(radius, hoehe, farbe_nah, zacken, saat)
 
 
@@ -87,7 +98,8 @@ func _kette(r: float, h: float, farbe: Color, anzahl: int, eigene_saat: int) -> 
 	# und der Ring keine sichtbare Naht bekommt.
 	var hoehen: Array[float] = []
 	for i in anzahl:
-		hoehen.append(h * rng.randf_range(0.28, 1.0))
+		hoehen.append(h * (rng.randf_range(0.62, 1.0) if kronen
+				else rng.randf_range(0.28, 1.0)))
 	hoehen[anzahl - 1] = hoehen[0]
 
 	for i in anzahl:
@@ -95,6 +107,9 @@ func _kette(r: float, h: float, farbe: Color, anzahl: int, eigene_saat: int) -> 
 		var w1 := TAU * float(i + 1) / float(anzahl)
 		var h0: float = hoehen[i]
 		var h1: float = hoehen[(i + 1) % anzahl]
+		if kronen:
+			_kuppe(st, r, w0, w1, h0, h1, i % 7 == 3)
+			continue
 		var a := Vector3(cos(w0) * r, fuss, sin(w0) * r)
 		var b := Vector3(cos(w1) * r, fuss, sin(w1) * r)
 		var c := Vector3(cos(w1) * r, h1, sin(w1) * r)
@@ -110,6 +125,34 @@ func _kette(r: float, h: float, farbe: Color, anzahl: int, eigene_saat: int) -> 
 	mi.material_override = _kulissenstoff(farbe)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+
+
+## Eine Zacke als Baumkrone: fünf Streifen, deren Oberkante einer Kuppe
+## folgt (oder spitz zuläuft). Zwischen zwei Kuppen bleibt eine Kerbe –
+## erst die Kerben machen aus der Linie einzelne Bäume.
+func _kuppe(st: SurfaceTool, r: float, w0: float, w1: float, h0: float,
+		h1: float, spitz: bool) -> void:
+	const STREIFEN := 5
+	for k in STREIFEN:
+		var t0 := float(k) / float(STREIFEN)
+		var t1 := float(k + 1) / float(STREIFEN)
+		var wa := lerpf(w0, w1, t0)
+		var wb := lerpf(w0, w1, t1)
+		var ha := lerpf(h0, h1, t0) * _kronenprofil(t0, spitz)
+		var hb := lerpf(h0, h1, t1) * _kronenprofil(t1, spitz)
+		var a := Vector3(cos(wa) * r, fuss, sin(wa) * r)
+		var b := Vector3(cos(wb) * r, fuss, sin(wb) * r)
+		var c := Vector3(cos(wb) * r, hb, sin(wb) * r)
+		var d := Vector3(cos(wa) * r, ha, sin(wa) * r)
+		var n := -Vector3(cos((wa + wb) * 0.5), 0.0, sin((wa + wb) * 0.5))
+		PropWerkzeug.viereck(st, a, b, c, d, n)
+
+
+## Höhenanteil über eine Zacke: runde Kuppe, oder Spitze mit steilen Flanken.
+func _kronenprofil(t: float, spitz: bool) -> float:
+	if spitz:
+		return lerpf(0.8, 1.22, 1.0 - absf(t * 2.0 - 1.0))
+	return 0.84 + 0.16 * sin(PI * t)
 
 
 ## Bodenscheibe, die unter der Kette bis über den Ring hinausreicht.

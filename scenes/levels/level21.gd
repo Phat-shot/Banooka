@@ -257,6 +257,9 @@ func _kantenstein() -> StandardMaterial3D:
 
 
 func _boden_bauen() -> void:
+	# Staub der Figur: Sand der Grabkammern. Ohne eigene Farbe staubte es hier
+	# im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = SAND
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": _sandboden(),
 		"kante": _kantenstein(),

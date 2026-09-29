@@ -421,6 +421,8 @@ func _baue_doppeldecker() -> void:
 	_propeller = Node3D.new()
 	_propeller.name = "Propeller"
 	_propeller.position = Vector3(0, 0, -1.6)
+	# Dreht im Bildtakt (`_process`) – ohne Interpolation.
+	_propeller.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(_propeller)
 	var stp := PropWerkzeug.bauer()
 	for winkel: float in [0.0, PI * 0.5]:

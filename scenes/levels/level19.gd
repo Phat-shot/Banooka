@@ -206,6 +206,9 @@ func _verlauf_anlegen() -> void:
 ## dunkleren Bruchstein: Man soll auf einen Blick sehen, wo die Platte
 ## aufhört und der Abgrund anfängt.
 func _boden_bauen() -> void:
+	# Staub der Figur: nasser Stein bei Nacht, gedämpft. Ohne eigene Farbe
+	# staubte es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = STURMSTEIN_DUNKEL
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": _steinstoff(STURMSTEIN),
 		"kante": _moosstoff(),

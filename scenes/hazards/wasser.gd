@@ -44,6 +44,21 @@ const SHADER_PFAD := "res://shaders/wasser.gdshader"
 ## ganze Fläche und der Sumpf leuchtet heller als der Himmel.
 @export_range(0.0, 1.0, 0.05) var spiegelung := 0.55
 
+## Farbe, die die Fläche bei flachem Blick spiegelt. Alpha 0 = wie bisher
+## der Schaumton. Ein Level mit eigenem Himmel setzt dessen Horizontfarbe
+## ein – dann spiegelt das Wasser den Himmel statt eines Weißschleiers.
+@export var himmel_farbe := Color(0, 0, 0, 0):
+	set(wert):
+		himmel_farbe = wert
+		_parameter_setzen()
+
+## Sonnenglitzern auf der Oberfläche, 0 = aus. Nur in Leveln mit Glow
+## einschalten: Dort blühen die Punkte auf, ohne Glow flimmern sie bloß.
+@export_range(0.0, 2.0, 0.05) var glitzer := 0.0:
+	set(wert):
+		glitzer = wert
+		_parameter_setzen()
+
 ## Unterteilung des Gitters – je feiner, desto runder die Wellen.
 @export_range(8, 64, 1) var unterteilung := 32
 
@@ -90,6 +105,7 @@ func _aufbauen() -> void:
 	gitter.subdivide_depth = unterteilung
 	_oberflaeche.mesh = gitter
 	_oberflaeche.material_override = _wassermaterial()
+	_parameter_setzen()
 	# Die Wellen schieben Punkte über die AABB hinaus – sonst poppt die Fläche weg.
 	_oberflaeche.extra_cull_margin = 2.0
 	_oberflaeche.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -111,6 +127,21 @@ func _wassermaterial() -> ShaderMaterial:
 	m.set_shader_parameter("rauschen",
 			Materialbibliothek.rauschtextur(1313, 0.9, Color.BLACK, Color.WHITE, 128))
 	return m
+
+
+## Spiegel- und Glitzerwerte ins Material schreiben. Eigene Funktion, weil
+## ein Level sie auch nach dem Einhängen noch setzen darf. Ohne eigene
+## Himmelsfarbe spiegelt die Fläche den Schaumton – wie bisher.
+func _parameter_setzen() -> void:
+	if _oberflaeche == null:
+		return
+	var m := _oberflaeche.material_override as ShaderMaterial
+	if m == null:
+		return
+	var hell := farbe_hell if farbe_hell.a > 0.0 else Farben.WASSER_HELL
+	m.set_shader_parameter("himmel_farbe",
+			himmel_farbe if himmel_farbe.a > 0.0 else hell.lightened(0.6))
+	m.set_shader_parameter("glitzer", glitzer)
 
 
 ## Passt die Auslösezone an Fläche und Tiefe an.
@@ -153,6 +184,8 @@ func aufspritzen(lokale_stelle: Vector3) -> void:
 		mi.mesh = mesh
 		mi.material_override = material
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Die Tropfen fliegen im Bildtakt (`_process`) – ohne Interpolation.
+		mi.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		add_child(mi)
 		mi.position = lokale_stelle + Vector3(randf_range(-0.2, 0.2), 0.05,
 				randf_range(-0.2, 0.2))

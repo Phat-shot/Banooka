@@ -240,6 +240,9 @@ func _verlauf_anlegen() -> void:
 ## zwischen Steg und Schacht. Messing wäre dafür zu dunkel; die helle Naht
 ## ist die einzige Stelle im Bild, an der etwas fast weiß ist.
 func _boden_bauen() -> void:
+	# Staub der Figur: Stahlgrau. Ohne eigene Farbe staubte es hier im
+	# Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = DECKBLECH
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": _stahlblech(DECKBLECH),
 		"kante": _stahlblech(KANTENGLANZ),

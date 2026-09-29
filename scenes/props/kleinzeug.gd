@@ -61,6 +61,10 @@ const KOPF := Color(1.0, 1.0, 0.98)
 @export var farbe: Color = Color(0.20, 0.44, 0.16)
 ## Sanftes Schwanken (bei Pilzen ohne Wirkung).
 @export var wind: bool = true
+## Immer selbst bauen, auch wenn mitgelieferte Modelle an sind. Wichtig für
+## den Farn: Das Kenney-Paket hat keinen, er würde zum Busch – und ein
+## Wald, in dem es keinen einzigen Farn gibt, sieht aus wie ein Park.
+@export var eigenbau: bool = false
 
 var _rng: RandomNumberGenerator
 var _phase := 0.0
@@ -109,7 +113,7 @@ func _ready() -> void:
 	_rng = PropWerkzeug.zufall(saat)
 	_phase = _rng.randf() * TAU
 
-	if not _setze_fertiges_modell():
+	if eigenbau or not _setze_fertiges_modell():
 		match art:
 			Art.PILZ:
 				_baue_pilz()
@@ -123,6 +127,9 @@ func _ready() -> void:
 	_teile.rotation.y = _rng.randf() * TAU
 	_wind_x = deg_to_rad(_rng.randf_range(2.0, 4.5))
 	_wind_z = deg_to_rad(_rng.randf_range(1.5, 3.5))
+	# Der Wind wiegt die Teile im Bildtakt – ohne Interpolation, wie die
+	# Baumkrone.
+	_teile.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	set_process(wind and art != Art.PILZ and _teile.get_child_count() > 0)
 
 

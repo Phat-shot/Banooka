@@ -119,6 +119,9 @@ func _verlauf_anlegen() -> void:
 # =========================================================== Boden
 
 func _boden_bauen() -> void:
+	# Staub der Figur: getrockneter Schlick, grünlich grau. Ohne eigene Farbe
+	# staubte es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = Farben.MOOR_HELL.lightened(0.25)
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": Materialbibliothek.moorboden(),    # getrockneter Schlick
 		"kante": Materialbibliothek.algen(),       # bewachsene Kante

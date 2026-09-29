@@ -185,6 +185,9 @@ func _waende_bauen() -> void:
 
 
 func _boden_bauen() -> void:
+	# Staub der Figur: Pulverschnee statt Waldstaub. Ohne eigene Farbe staubte
+	# es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = Farben.SCHNEE
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": Materialbibliothek.schnee(),
 		"kante": Materialbibliothek.firn(),

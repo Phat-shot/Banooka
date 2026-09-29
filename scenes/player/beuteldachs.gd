@@ -7,6 +7,8 @@ class_name SpielerModell
 ##   aktualisiere()  – jeden Frame, überträgt den Bewegungszustand
 ##   setze_blick()   – Blickrichtung in Radiant um die Y-Achse
 ##   sichtbarkeit()  – Blinken während der Unverwundbarkeit
+##   stoss()         – Stauchen/Strecken bei Absprung, Landung, Abprall
+##   kneifen()       – Augen kurz zukneifen (Treffer, Aufschlag)
 ##
 ## Das Modell wird prozedural aus Godot-Primitiven aufgebaut, es werden
 ## keine fremden Asset-Dateien benötigt.
@@ -18,6 +20,11 @@ class_name SpielerModell
 ##       Bauch, Kopf (Schnauze, Nase, Augen, Ohren),
 ##       Arme (mit Händen), Beine (mit Füßen), Schweif
 ##     SpinRing                 – Geschwister, damit ihn der Slide nicht verzerrt
+##
+## `Teile` selbst trägt das Stauchen und Strecken aus `stoss()`: Sein
+## Ursprung liegt auf Fußhöhe, die Füße bleiben also am Boden, und es
+## beißt sich weder mit dem Slide-Stauch am Rumpf noch mit dem Halter
+## einer eigenen Figur noch mit dem Portal, das den Modellknoten schrumpft.
 ##
 ## Maße: Füße auf y = 0, Ohrenspitzen bei ca. 1.42 m, Breite ca. 0.75 m –
 ## passt damit in die Kollisionskapsel (Radius 0.38 / Höhe 1.3).
@@ -42,9 +49,30 @@ const OHR_SPREIZUNG := 0.22  ## Grundneigung der Ohren nach außen
 const ARM_SPIN := 1.45       ## Arme waagerecht beim Spin
 const ARM_LUFT := 2.90       ## Arme steil nach oben in der Luft
 
+# --- Stauchen und Strecken (`stoss()`) ---
+## Gedämpfte Feder: Eigenfrequenz rund 15 rad/s, Dämpfungsmaß rund 0,47.
+## Das federt einmal sichtbar nach wie im Zeichentrick und ist nach gut
+## 0,4 s abgeklungen – bevor der nächste Sprung ansetzt.
+const STAUCH_FEDER := 220.0
+const STAUCH_BREMSE := 14.0
+## Weiter lässt sich die Figur nicht verformen. Mehr sieht nach Gummi aus.
+const STAUCH_GRENZE := 0.45
+
+## So schnell drückt sich der Rumpf im Slide flach und richtet sich wieder
+## auf. Früher sprang er in einem Bild auf halbe Höhe; bei 25/s dauert der
+## Übergang rund 0,1 s – schnell genug für einen Slide von 0,42 s.
+const SLIDE_WECHSEL := 25.0
+
+const BLINZ_DAUER := 0.14    ## ein Lidschlag in Sekunden
+
 var _blick := 0.0
 var _spin_alpha := 0.0
 var _lauf_phase := 0.0
+## Auslenkung der Stauchfeder: > 0 gestaucht, < 0 gestreckt.
+var _stauch := 0.0
+var _stauch_v := 0.0
+## 0 = aufrecht, 1 = flach im Slide – weich nachgeführt.
+var _slide_grad := 0.0
 
 var _koerper: MeshInstance3D
 var _spin_ring: MeshInstance3D
@@ -93,9 +121,21 @@ var _zeit := 0.0             ## Laufende Zeit für Atmen und Zucken
 var _atem := 0.0             ## 0 = bewegt, 1 = ruhig atmend
 var _zuck := 0.0             ## Restzeit des Ohrenzuckens
 var _zuck_pause := 3.0       ## Zeit bis zum nächsten Ohrenzucken
+var _lider: Array[MeshInstance3D] = []
+var _blinz := 0.0            ## Restzeit des laufenden Lidschlags
+var _blinz_pause := 3.0      ## Zeit bis zum nächsten Lidschlag
+var _kneifen := 0.0          ## Restzeit des Zukneifens
+var _lid_zu := 0.0           ## zuletzt gesetzter Schluss der Lider
 
 
 func _ready() -> void:
+	# Die Figur wird im Bildtakt bewegt (`aktualisiere()` aus `_process`,
+	# Tweens, Clips) und hängt an einem Körper, der sich im Physiktakt
+	# bewegt. Interpoliert wird nur der Körper; das Modell folgt ihm weich
+	# und zeigt seine eigene Bewegung genau so, wie sie gesetzt wurde. Mit
+	# Interpolation zitterten Arme, Beine und Ohren (ARCHITEKTUR.md,
+	# „Bildtakt und Physiktakt").
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if not _baue_eigenes():
 		_baue()
 
@@ -199,21 +239,74 @@ func _baue() -> void:
 ## Spin-Ring: Geschwister des Rumpfes, damit ihn der Slide-Stauch nicht
 ## verzerrt. Auch eine eigene Figur bekommt ihn – sonst fehlte die einzige
 ## Rückmeldung, dass der Drehschlag gerade wirkt.
+##
+## Der Ring ist kein gleichmäßiger Reif, sondern zwei Schlieren mit heller
+## Vorderkante (siehe `WIRBEL_CODE`). Weil er mit der Figur herumwirbelt
+## (SPIN_DREHUNG, knapp fünf Umdrehungen je Sekunde), liest sich das als
+## Bewegungsunschärfe eines Schlags – ein Donut läse sich als Schild.
 func _baue_spin_ring() -> void:
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.77
 	ring.outer_radius = 0.93
+	# Mehr Stücke im Umfang: Der Verlauf der Schliere läuft um den Ring
+	# herum und bräuchte sonst sichtbare Kanten. Der Schlauch selbst ist
+	# dünn und kommt mit wenigen aus.
+	ring.rings = 48
+	ring.ring_segments = 8
 	_spin_ring = MeshInstance3D.new()
 	_spin_ring.name = "SpinRing"
 	_spin_ring.mesh = ring
 	_spin_ring.position.y = 0.6
-	var ringstoff := Materialbibliothek.transparent(Farben.SPIN_RING, 1.4).duplicate()
+	_spin_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Eigenes Material je Modell (die Deckkraft ist Zustand dieser Figur),
+	# der Shader darunter ist geteilt und wird nur einmal übersetzt.
+	var stoff := ShaderMaterial.new()
+	stoff.shader = _wirbel_shader()
+	stoff.set_shader_parameter("farbe", Farben.SPIN_RING)
+	stoff.set_shader_parameter("deckkraft", 0.0)
+	_spin_ring.material_override = stoff
 	# Unsichtbar starten: `aktualisiere()` blendet ihn beim Drehschlag ein.
-	# Ohne das stünde der Ring bis zum ersten Bild voll sichtbar um die Figur.
-	if ringstoff is StandardMaterial3D:
-		(ringstoff as StandardMaterial3D).albedo_color.a = 0.0
-	_spin_ring.material_override = ringstoff
+	# Ausgeblendet ist er wirklich aus – mit Deckkraft 0 kostete er sonst
+	# jedes Bild einen Draw-Call für nichts.
+	_spin_ring.visible = false
 	_teile.add_child(_spin_ring)
+
+
+## Schlieren des Spin-Rings. Ohne Bild- und Tiefentextur, also auch unter
+## gl_compatibility und im Browser. Der Winkel wird je Pixel gerechnet und
+## nicht je Ecke: Am Sprung von 1 auf 0 verschmierte ein Ecken-Varying
+## sonst quer über ein ganzes Dreieck.
+const WIRBEL_CODE := """
+shader_type spatial;
+render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabled;
+
+uniform vec4 farbe : source_color = vec4(1.0, 0.88, 0.4, 1.0);
+uniform float deckkraft = 0.0;
+
+varying vec2 eben;
+
+void vertex() {
+	eben = VERTEX.xz;
+}
+
+void fragment() {
+	// 0..1 je halbem Umlauf in Drehrichtung: zwei Schlieren, deren helles
+	// Ende vorausläuft und deren Schweif ausblasst.
+	float a = fract(atan(-eben.y, eben.x) / 3.14159265);
+	float schliere = a * a * a;
+	ALBEDO = mix(farbe.rgb, vec3(1.0, 0.98, 0.9), schliere * 0.6);
+	ALPHA = deckkraft * (0.08 + 0.92 * schliere);
+}
+"""
+
+static var _wirbel: Shader = null
+
+
+static func _wirbel_shader() -> Shader:
+	if _wirbel == null:
+		_wirbel = Shader.new()
+		_wirbel.code = WIRBEL_CODE
+	return _wirbel
 
 
 ## Kopf mit langer Schnauze, Wangen, Augen samt Lidern, Brauen,
@@ -274,8 +367,10 @@ func _baue_kopf(fell: Material, bauchfell: Material, dunkelfell: Material,
 		glanz.scale = Vector3(1.0, 1.0, 0.6)
 
 		# Oberlid: zieht die Augen zu und gibt der Figur einen wachen Blick
-		var lid := _netz(auge, "Lid", _kugel(0.086), fell, Vector3(0.0, 0.050, 0.006))
-		lid.scale = Vector3(1.0, 0.66, 1.0)
+		var lid := _netz(auge, "Lid", _kugel(0.086), fell,
+				Vector3(0.0, LID_OFFEN_Y, 0.006))
+		lid.scale = LID_OFFEN
+		_lider.append(lid)
 
 		# Braue: leicht nach außen angehoben
 		var braue := _netz(_kopf, "Braue%s" % kuerzel, _kugel(0.055), dunkelfell,
@@ -424,6 +519,8 @@ func _kegel(unten: float, oben: float, hoehe: float) -> CylinderMesh:
 ## tempo: 0..1, luft: in der Luft, slide/spin: Restzeiten in Sekunden.
 func aktualisiere(delta: float, tempo: float, luft: bool, slide: float,
 		spin: float, haltung: String = "") -> void:
+	_federn(delta)
+
 	# Blickrichtung bzw. Spin-Drehung.
 	#
 	# Bringt die Figur einen eigenen Spinclip mit, dreht der bereits um
@@ -442,15 +539,17 @@ func aktualisiere(delta: float, tempo: float, luft: bool, slide: float,
 		_spin_alpha = maxf(_spin_alpha - delta * 5.0, 0.0)
 
 	if is_instance_valid(_spin_ring):
-		var mat := _spin_ring.material_override
-		if mat is StandardMaterial3D:
-			mat.albedo_color.a = _spin_alpha
+		_spin_ring_zeigen(spin > 0.0, delta)
 
-	# Slide: flach drücken
+	# Slide: flach drücken – weich, nicht in einem Bild. Der Rumpf wird
+	# jedes Bild aus diesem Grad neu gesetzt; das Atmen in `_animiere()`
+	# multipliziert erst danach darauf und kann sich so nicht aufschaukeln.
 	if is_instance_valid(_koerper):
-		var im_slide := slide > 0.0
-		_koerper.scale.y = 0.45 if im_slide else 1.0
-		_koerper.position.y = 0.4 if im_slide else 0.7
+		_slide_grad = move_toward(_slide_grad, 1.0 if slide > 0.0 else 0.0,
+				delta * SLIDE_WECHSEL)
+		var flach: float = smoothstep(0.0, 1.0, _slide_grad)
+		_koerper.scale.y = lerpf(1.0, 0.45, flach)
+		_koerper.position.y = lerpf(RUMPF_Y, 0.4, flach)
 
 	# Laufzyklus (wird von abgeleiteten Modellen genutzt)
 	_lauf_phase += delta * tempo * 12.0
@@ -467,6 +566,61 @@ func setze_blick(winkel: float) -> void:
 
 func sichtbarkeit(sichtbar: bool) -> void:
 	visible = sichtbar
+
+
+## Stößt die Stauchfeder an: `wert` > 0 staucht (Landung, Aufschlag),
+## `wert` < 0 streckt (Absprung, Abprall). Gesetzt, nicht addiert – zwei
+## Stöße im selben Bild sollen sich nicht zu Gummi aufschaukeln.
+## Reine Anzeige: Hitbox und Kollision bleiben, wie sie sind.
+func stoss(wert: float) -> void:
+	_stauch = clampf(wert, -STAUCH_GRENZE, STAUCH_GRENZE)
+	_stauch_v = 0.0
+
+
+## Kneift die Augen `dauer` Sekunden zu (Treffer, harter Aufschlag).
+## Nur der Beuteldachs hat Lider; bei einer eigenen Figur geschieht nichts.
+func kneifen(dauer: float = 0.3) -> void:
+	_kneifen = maxf(_kneifen, dauer)
+
+
+## Führt die Stauchfeder ein Bild weiter und überträgt sie auf `_teile`.
+## Das Volumen bleibt ungefähr erhalten: Wer flacher wird, wird breiter.
+func _federn(delta: float) -> void:
+	if not is_instance_valid(_teile):
+		return
+	if absf(_stauch) < 0.0005 and absf(_stauch_v) < 0.005:
+		# Ausgeschwungen: einmal genau auf 1 setzen, danach nichts mehr tun.
+		if _stauch != 0.0 or _stauch_v != 0.0:
+			_stauch = 0.0
+			_stauch_v = 0.0
+			_teile.scale = Vector3.ONE
+		return
+	# Halbimplizit und mit gedeckeltem Schritt – bei wenigen Bildern je
+	# Sekunde schwänge die Feder sonst auf, statt abzuklingen.
+	var d := minf(delta, 1.0 / 30.0)
+	_stauch_v += (-_stauch * STAUCH_FEDER - _stauch_v * STAUCH_BREMSE) * d
+	_stauch += _stauch_v * d
+	var hoch := 1.0 - _stauch
+	var breit := 1.0 / sqrt(maxf(hoch, 0.3))
+	_teile.scale = Vector3(breit, hoch, breit)
+
+
+## Blendet den Spin-Ring ein und aus. Beim Einsetzen schnappt er aus der
+## Enge auf seine Größe, beim Ausklingen weitet er sich, während er
+## verblasst – ein Schlag, der verpufft, statt eines Reifs, der erlischt.
+func _spin_ring_zeigen(dreht: bool, delta: float) -> void:
+	var war_aus := not _spin_ring.visible
+	_spin_ring.visible = _spin_alpha > 0.01
+	if not _spin_ring.visible:
+		return
+	if war_aus and dreht:
+		_spin_ring.scale = Vector3.ONE * 0.7
+	var ziel := 1.0 if dreht else 1.18
+	_spin_ring.scale = _spin_ring.scale.lerp(Vector3.ONE * ziel,
+			minf(delta * 16.0, 1.0))
+	var stoff := _spin_ring.material_override as ShaderMaterial
+	if stoff != null:
+		stoff.set_shader_parameter("deckkraft", _spin_alpha)
 
 
 # ---------------------------------------------------------------- Animation
@@ -821,6 +975,7 @@ func _animiere(delta: float, tempo: float, luft: bool, slide: bool, spin: bool) 
 	_folge(_koerper, z_rumpf, 12.0, delta)
 
 	_bewege_ohren(ohr_neigung, delta, ruhig)
+	_blinzeln(delta)
 
 	# --- Rumpf: Wippen beim Laufen, Atmen im Stand ---
 	_koerper.position.y += wippen
@@ -849,6 +1004,38 @@ func _bewege_ohren(neigung: float, delta: float, ruhig: bool) -> void:
 	_ohr_links.rotation.x = lerpf(_ohr_links.rotation.x, neigung, faktor)
 	_ohr_rechts.rotation.z = -OHR_SPREIZUNG - zucken
 	_ohr_links.rotation.z = OHR_SPREIZUNG + zucken
+
+
+## Lider: offen wie gebaut, geschlossen eine Fellkugel, die Augapfel,
+## Pupille und Glanzpunkt ganz umschließt – gerade so viel breiter und
+## tiefer, dass die Pupille nicht durchs Lid sticht.
+const LID_OFFEN := Vector3(1.0, 0.66, 1.0)
+const LID_ZU := Vector3(1.06, 1.0, 1.18)
+const LID_OFFEN_Y := 0.050
+
+
+## Blinzeln in unregelmäßigem Takt – eine Figur, die nie blinzelt, wirkt
+## aus der Nähe ausgestopft. Ab und zu folgt ein zweiter Lidschlag gleich
+## hinterher; das liest sich lebendiger als ein Metronom.
+func _blinzeln(delta: float) -> void:
+	if _lider.is_empty():
+		return
+	_blinz_pause -= delta
+	if _blinz_pause <= 0.0:
+		_blinz = BLINZ_DAUER
+		_blinz_pause = 0.28 if randf() < 0.2 else randf_range(2.2, 5.0)
+	_blinz = maxf(_blinz - delta, 0.0)
+	_kneifen = maxf(_kneifen - delta, 0.0)
+	var zu := sin(clampf(_blinz / BLINZ_DAUER, 0.0, 1.0) * PI)
+	if _kneifen > 0.0:
+		zu = 1.0
+	if is_equal_approx(zu, _lid_zu):
+		return
+	_lid_zu = zu
+	for lid in _lider:
+		if is_instance_valid(lid):
+			lid.scale = LID_OFFEN.lerp(LID_ZU, zu)
+			lid.position.y = lerpf(LID_OFFEN_Y, 0.0, zu)
 
 
 ## Fährt die Drehung eines Gelenks weich auf den Zielwinkel zu.

@@ -64,6 +64,15 @@ var zeitmodus := false:
 		zeitmodus = an
 		Zeitlauf.aktiv = an
 		geaendert.emit()
+## Bildschirmwackeln: Kamerawackeln, Trefferpause und Bildblitze. Aus
+## schaltet `Effekte.ruhig` ein – für alle, denen von einem wackelnden
+## Bild übel wird oder die Blitze meiden müssen. Die Vorgabe für Handys im
+## Browser (`Effekte.reduziert`) bleibt davon unberührt.
+var bildwackeln := true:
+	set(an):
+		bildwackeln = an
+		Effekte.ruhig = not an
+		geaendert.emit()
 
 
 func _ready() -> void:
@@ -71,6 +80,13 @@ func _ready() -> void:
 	laden()
 	GameState.debug = debug
 	Zeitlauf.aktiv = zeitmodus
+	Effekte.ruhig = not bildwackeln
+	# Handys im Browser zeichnen ohne MSAA: Dort zählt jede Füllrate
+	# (ARCHITEKTUR.md, „Bild und Licht"). Den Browser am Rechner glättet
+	# MSAA wie am Rechner selbst. FXAA wäre kein Ersatz – unter
+	# gl_compatibility gibt es kein `screen_space_aa`.
+	if Effekte.reduziert:
+		get_tree().root.msaa_3d = Viewport.MSAA_DISABLED
 
 
 ## Pfad des gewählten Modells, oder "" für den Beuteldachs.
@@ -217,6 +233,7 @@ func speichern() -> void:
 	datei.set_value("spiel", "debug", debug)
 	datei.set_value("spiel", "zeitmodus", zeitmodus)
 	datei.set_value("spiel", "fremde_modelle", fremde_modelle)
+	datei.set_value("bild", "wackeln", bildwackeln)
 	datei.save(SPEICHERPFAD)
 
 
@@ -231,3 +248,4 @@ func laden() -> void:
 	debug = bool(datei.get_value("spiel", "debug", false))
 	zeitmodus = bool(datei.get_value("spiel", "zeitmodus", false))
 	fremde_modelle = bool(datei.get_value("spiel", "fremde_modelle", true))
+	bildwackeln = bool(datei.get_value("bild", "wackeln", true))

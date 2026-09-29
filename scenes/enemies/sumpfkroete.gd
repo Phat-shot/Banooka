@@ -70,11 +70,15 @@ const ANSPANNUNG := 0.22     ## Kurz vor dem Absprung geht sie in die Hocke
 		_neu_faerben()
 ## Hautfarbe der mitgelieferten Froschfigur.
 ##
-## Eigener Wert und nicht `farbe_haut`: Das fremde Modell bringt seinen
-## eigenen Grünton mit, und die Vorgabe ist genau dieser Ton – so sieht
-## der Frosch aus wie bisher, solange niemand ihn umfärbt. Wer die Kröte
-## in eine andere Palette holt, setzt beide.
-@export var farbe_fremdmodell: Color = Color(0.502539, 0.663341, 0.377470):
+## Eigener Wert und nicht `farbe_haut`: Das fremde Modell hat für die ganze
+## Haut nur EIN Material. Wer die Kröte in eine andere Palette holt, setzt
+## beide.
+##
+## Die Vorgabe ist ein Sumpf-Türkis und nicht mehr das Blattgrün des
+## Modells: Das lag genau auf `LAUB_HELL` und `GRAS_HELL`, die Kröte war im
+## Wald getarnt. Türkis kommt in der warmen Waldpalette sonst nicht vor –
+## ein Gegner soll sich abheben, nicht verstecken.
+@export var farbe_fremdmodell: Color = Color(0.22, 0.55, 0.50):
 	set(wert):
 		farbe_fremdmodell = wert
 		_neu_faerben()
@@ -85,6 +89,15 @@ var _vy := 0.0
 var _in_luft := false
 var _warten := 0.0
 var _stauchung := 0.0
+## Hockt sie schon für den nächsten Hüpfer (Sprungclip läuft)?
+var _hocke := false
+## Wurde sie vom Bauchplatscher getroffen? Dann wird sie platt gedrückt,
+## statt davonzufliegen.
+var _platt := false
+
+## Bemalungen und Glanzpunkte des Modells, je Farbsatz einmal gebaut.
+static var _zeichnungen: Dictionary[String, ArrayMesh] = {}
+static var _glanzpunkte: ArrayMesh = null
 
 var _koerper: MeshInstance3D
 var _kehlsack: MeshInstance3D
@@ -98,6 +111,10 @@ func _init() -> void:
 	besiegbar_durch = Angriff.SPIN | Angriff.SLAM
 	patrouille_weite = 4.0
 	tempo = 2.4
+	# Auf den Rücken legt sie ihr Todesclip selbst, bodennah wie im Stand;
+	# das Modell bleibt dafür auf seiner Standhöhe (Liegehöhe = Mitte).
+	_todes_mitte = 0.3
+	_liege_hoehe = 0.3
 
 
 func _ready() -> void:
@@ -121,8 +138,81 @@ const AUGE_Y := 0.58
 func fremdmodell() -> Dictionary:
 	# Das Modell blickt nach +Z, das Spiel erwartet −Z – ohne die halbe
 	# Drehung hüpft die Kröte rückwärts.
+	# Feuchte Haut glänzt; die roten Augen glänzen noch mehr.
 	return {"datei": "kroete", "groesse": 1.15, "drehung": PI,
-			"farben": {"Green": farbe_fremdmodell}}
+			"farben": {"Green": farbe_fremdmodell},
+			"stoff": {
+				"Green": {"rauheit": 0.55, "glanz": 0.25},
+				"Red": {"rauheit": 0.2, "glanz": 0.6},
+				"Black": {"rauheit": 0.15, "glanz": 0.7},
+			}}
+
+
+## Helle Rückenflecken wie auf der eigenen Optik – die Zeichnung sagt,
+## wo der Drehschlag sitzt – und ein Glanzpunkt in jedem Auge.
+##
+## Netzraum des Froschs: x quer, y längs (negativ = Kopf), z oben; der
+## Rücken liegt bei y -0,006 bis 0,012 und reicht bis z 0,014. Die Flecken
+## sind runde Scheiben, auf die Haut gelegt (`_tupfen`), und tragen deren
+## Knochengewichte: Sie gehen in jedem Clip mit.
+func _zeichen_am_fremdmodell(figur: Node3D) -> void:
+	var netz := _hauptnetz(figur)
+	if netz == null:
+		return
+
+	var schluessel := farbe_flecken.to_html()
+	if not _zeichnungen.has(schluessel):
+		var bild := _tupfen(netz.mesh, _flaeche_nach_name(netz.mesh, "Green"),
+				FLECKEN, farbe_flecken, TUPF_ABSTAND)
+		if bild != null:
+			_zeichnungen[schluessel] = bild
+	if _zeichnungen.has(schluessel):
+		var flecken := _bemalung_zeigen(figur, _zeichnungen[schluessel])
+		if flecken != null:
+			flecken.set_meta("ohne_glanz", true)
+
+	if _glanzpunkte == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var kugel := SphereMesh.new()
+		kugel.radius = GLANZ_RADIUS
+		kugel.height = GLANZ_RADIUS * 2.0
+		kugel.radial_segments = 8
+		kugel.rings = 4
+		for seite: float in [-1.0, 1.0]:
+			st.append_from(kugel, 0, Transform3D(Basis.IDENTITY,
+					Vector3(GLANZ_ORT.x * seite, GLANZ_ORT.y, GLANZ_ORT.z)))
+		_glanzpunkte = st.commit()
+	var punkte := MeshInstance3D.new()
+	punkte.name = "Glanzpunkte"
+	punkte.mesh = _glanzpunkte
+	punkte.material_override = Materialbibliothek.leuchtend(Color.WHITE, 1.4)
+	punkte.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	punkte.set_meta("ohne_glanz", true)
+	_an_knochen(figur, "Head", punkte, Transform3D.IDENTITY)
+
+
+## Rückenflecken im Netzraum: Mitte (x, y) und Radius (z).
+const FLECKEN: Array[Vector3] = [
+	Vector3(0.0, -0.0012, 0.0024),
+	Vector3(-0.0037, 0.0040, 0.0017), Vector3(0.0037, 0.0040, 0.0017),
+	Vector3(-0.0034, -0.0045, 0.0013), Vector3(0.0034, -0.0045, 0.0013),
+	Vector3(0.0, 0.0085, 0.0016),
+]
+## So weit liegen die Flecken über der Haut (Netzeinheiten, rund 7 mm).
+## Knapper stachen die Grate der eckigen Haut durch die Scheiben.
+const TUPF_ABSTAND := 0.0002
+## Glanzpunkt auf der Vorderkante des rechten Auges (links gespiegelt).
+const GLANZ_ORT := Vector3(0.0036, -0.0116, 0.0133)
+const GLANZ_RADIUS := 0.0006
+
+
+func _trefferfarbe() -> Color:
+	return farbe_flecken
+
+
+func _klanghoehe() -> float:
+	return 1.2
 
 
 func _baue() -> void:
@@ -228,20 +318,66 @@ func _bewegung(delta: float) -> void:
 			_in_luft = false
 			_warten = PAUSE
 			_stauchung = 1.0
+			_hocke = false
+			_clip("idle", 0.15, 1.0, true)
+			_landestaub()
 	else:
 		_stauchung = maxf(_stauchung - delta * 4.0, 0.0)
 		_warten -= delta
 		if _warten <= ANSPANNUNG:
 			# In die Hocke gehen, bevor es losgeht
 			_stauchung = maxf(_stauchung, 1.0 - maxf(_warten, 0.0) / ANSPANNUNG)
+			if not _hocke:
+				_hocke = true
+				_sprungclip()
 		if _warten <= 0.0:
 			_in_luft = true
 			_vy = HUPF_KRAFT
 			_stauchung = 0.0
+			# Im Clip folgt auf den Absprung knapp eine halbe Sekunde Flug;
+			# das Skript fliegt 2·6,4/20 = 0,64 s. Gestreckt setzt der Clip
+			# im selben Augenblick auf wie das Skript.
+			_clip("jump", 0.06, CLIP_FLUG / (2.0 * HUPF_KRAFT / -HUPF_G))
+		elif _clip_jetzt.is_empty():
+			_clip("idle", 0.15, 1.0, true)
 
 	_setze_hoehe(_hoehe)
 	_blick_ausrichten(delta, 6.0)
 	_animiere()
+	# Der Sprungclip ist ein Hüpfer auf der Stelle und hebt den Körper um
+	# gut einen halben Meter. Den Bogen fliegt aber schon das Skript, und
+	# nur an dessen Höhe hängt die Trefferzone – beides zusammen zeigte
+	# die Kröte einen halben Meter über ihrer Trefferzone.
+	_koerper_halten("jump")
+
+
+## Clip "Frog_Jump": 0,30 s Hocke, dann der Absprung. Die Hocke im Skript
+## ist kürzer (ANSPANNUNG); der Clip startet deshalb so weit hinten, dass
+## beide im selben Augenblick abspringen.
+const CLIP_ABSPRUNG := 0.30
+## Flugteil des Clips vom Absprung bis zum Aufsetzen, in Clipsekunden.
+const CLIP_FLUG := 0.48
+
+
+func _sprungclip() -> void:
+	if not _clip("jump", 0.06):
+		return
+	_fremd_anim.seek(maxf(CLIP_ABSPRUNG - maxf(_warten, 0.0), 0.0), true)
+	_koerper_null = _koerperhoehe()
+
+
+## Ein Wölkchen Staub bei der Landung – nur in der Nähe der Kamera: Fünf
+## Kröten, die überall im Level hüpfen, sollen keine Stöße verbrauchen,
+## die niemand sieht.
+func _landestaub() -> void:
+	var kamera := get_viewport().get_camera_3d()
+	if kamera == null or kamera.global_position.distance_to(global_position) > STAUB_WEITE:
+		return
+	Effekte.staubwolke(self, global_position, 0.35)
+
+
+## Bis zu dieser Entfernung zur Kamera staubt die Landung.
+const STAUB_WEITE := 22.0
 
 
 ## Stauchen, Strecken und Kehlsack-Pumpen.
@@ -272,26 +408,49 @@ func _animiere() -> void:
 			bein.rotation_degrees.z = _bein_ruhe[i] * faktor
 			bein.position.y = 0.20 + (0.1 if _in_luft else 0.0)
 
+	# Das Modell staucht und streckt sich als Ganzes – über den Halter, der
+	# an den Füßen sitzt. Schwächer als die eigene Optik: Der Clip hockt
+	# und streckt schon selbst.
+	if fremdhalter != null:
+		fremdhalter.scale = Vector3(1.0 + s * 0.5, 1.0 - s * 0.6, 1.0 + s * 0.5)
+
 
 # ---------------------------------------------------------- Tod
 
-func _todesstart(_art: int) -> void:
-	# Der Drehschlag schleudert sie seitlich weg.
-	_wegflug = _weg_richtung() * 8.0 + Vector3.UP * 6.5
-	# Die Hüpfhöhe steckt im Modell, nicht in der Position; sie muss beim
-	# Wegflug auf null, sonst schwebte die Kröte um ihren Hüpfbogen zu hoch.
+func _todesstart(art: int) -> void:
+	# Der Drehschlag schleudert sie seitlich weg; der Bauchplatscher
+	# drückt sie an Ort und Stelle platt. Weggeschleudert fliegt sie nur so
+	# weit, dass sie noch im Korridor aufschlägt und dort liegen bleibt –
+	# mit 8 m/s landete sie im Fels, und das Ende sah niemand.
+	_platt = (art & Angriff.SPIN) == 0 and (art & Angriff.SLAM) != 0
+	_wegflug = Vector3.ZERO if _platt else _weg_richtung() * 5.0 + Vector3.UP * 6.0
+	# Der Wegflug beginnt dort, wo der Treffer saß – auch mitten im
+	# Hüpfer. Früher sprang die Kröte dafür erst auf den Boden zurück, bis
+	# zu einen Meter in einem einzigen Bild. Die Todesanimation braucht
+	# `_hoehe` nicht, die Schwerkraft holt sie von selbst herunter.
 	_hoehe = 0.0
-	_setze_hoehe(0.0)
+	if _platt:
+		_setze_hoehe(0.0)
+	if fremdhalter != null:
+		fremdhalter.position.y = 0.0
+		fremdhalter.scale = Vector3.ONE
+	_clip("death", 0.05)
 
 
 func _todesanimation(delta: float) -> void:
-	# Überschlägt sich im Flug und wird dabei kleiner.
-	_wegflug.y += TODES_G * delta
-	global_position += _wegflug * delta
+	if _platt:
+		if is_instance_valid(modell):
+			modell.scale = modell.scale.lerp(Vector3(1.45, 0.12, 1.35), minf(delta * 11.0, 1.0))
+		return
+	# Überschlägt sich im Flug, schlägt auf, federt einmal nach und bleibt
+	# auf dem Rücken liegen, die Beine in der Luft, bis sie verpufft (auf
+	# den Rücken dreht sie ihr Todesclip, das Modell stellt sich dafür
+	# gerade). Sie schrumpft nur wenig: Die Figur soll bis zuletzt als
+	# Kröte zu erkennen sein.
+	_flugschritt(delta)
+	_taumeln(delta, 8.0, 12.0, true)
 	if is_instance_valid(modell):
-		modell.rotation.x += delta * 8.0
-		modell.rotation.z += delta * 12.0
-		modell.scale = modell.scale.lerp(Vector3(0.6, 0.6, 0.6), minf(delta * 3.0, 1.0))
+		modell.scale = modell.scale.lerp(Vector3(0.8, 0.8, 0.8), minf(delta * 3.0, 1.0))
 
 
 # ---------------------------------------------------------- Umfärben
@@ -318,5 +477,6 @@ func _neu_faerben() -> void:
 	_augen.clear()
 	_koerper = null
 	_kehlsack = null
+	_hocke = false
 	_baue()
 	_fremdmodell_setzen()

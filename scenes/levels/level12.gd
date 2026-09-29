@@ -263,6 +263,9 @@ func _verlauf_anlegen() -> void:
 ## im Bild: Der Weg soll sich ohne Suchen von seiner Umgebung lösen, und
 ## unter orangem Licht ist ein zu dunkles Blech nicht mehr zu lesen.
 func _boden_bauen() -> void:
+	# Staub der Figur: helles Grau zwischen Steinflur und Blech. Ohne eigene
+	# Farbe staubte es hier im Waldweg-Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = FLUR_HELL.lerp(WEGBLECH, 0.5)
 	var form := {"tiefe": 12.0, "schritt": 1.0, "kante_hoehe": 0.26,
 			"kante_breite": 0.65}
 	# Die Torhalle ist noch gepflasterter Burgkeller, alles danach Blech.

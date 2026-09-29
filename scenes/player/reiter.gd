@@ -347,6 +347,9 @@ func _spur_bauen() -> void:
 	_spur = Node3D.new()
 	_spur.name = "Turbospur"
 	_spur.visible = false
+	# Schlieren und Aura laufen im Bildtakt (`_spur_takten`). Ohne
+	# Interpolation, am weich gezeichneten Reiter hängen sie trotzdem.
+	_spur.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(_spur)
 
 	# Eigene Materialien, keine geteilten aus der Bibliothek: Die Deckkraft

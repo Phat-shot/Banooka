@@ -253,6 +253,9 @@ func _lehmputz() -> StandardMaterial3D:
 # =========================================================== Grund
 
 func _boden_bauen() -> void:
+	# Staub der Figur: Dachsand. Ohne eigene Farbe staubte es hier im Waldweg-
+	# Braun der Vorgabe (`LevelBasis`).
+	Effekte.staubfarbe = SAND.lightened(0.1)
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": _dachsand(),
 		"kante": _terrakotta(),

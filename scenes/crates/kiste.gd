@@ -94,6 +94,37 @@ var _umriss_stoff: StandardMaterial3D = null
 ## Gemeinsame Metallkopien mit gedämpftem Metallanteil (siehe _mattes_metall).
 static var _metall_kopien: Dictionary = {}
 
+# --- Fertige Netze je Kistenart (siehe `_netz_holen`) ---
+# Das Netz hängt nur an der Art, nicht an der einzelnen Kiste: 43 Kisten
+# in Level 01 bauten vorher 43-mal dieselbe Geometrie, jede für sich.
+# Die Caches überleben Szenenwechsel (wie `_metall_kopien`) und halten
+# deshalb nur Ressourcen, keine Knoten.
+static var _korpus_netze: Dictionary[int, ArrayMesh] = {}
+## Welche Materialrolle (ROLLE_*) auf welcher Fläche des Korpus liegt –
+## leere Gruppen fallen weg, die Flächennummer ist also nicht die Rolle.
+static var _korpus_rollen: Dictionary[int, PackedInt32Array] = {}
+static var _schatten_netze: Dictionary[int, ArrayMesh] = {}
+static var _umriss_netz: ArrayMesh = null
+
+## Materialrollen der Korpusflächen, in dieser Reihenfolge gebaut.
+## Level 25 streicht Fläche 0 und 1 um (`_nitro_anstrich`) – die
+## Reihenfolge Holz, Rahmen, Metall, Akzent darf sich nicht ändern.
+enum { ROLLE_HOLZ, ROLLE_RAHMEN, ROLLE_METALL, ROLLE_AKZENT }
+
+# --- Federn und Zünden (reine Optik, siehe `_form_anwenden`) ---
+## Stauchung des Modells: > 0 gedrückt, < 0 gestreckt.
+var _stauch := 0.0
+## Gleichmäßiges Anschwellen (TNT-Takt), 1 = Ruhe.
+var _schwell := 1.0
+## Höhenversatz aus dem Wippen der Federkiste.
+var _grund_y := 0.0
+var _feder_tween: Tween = null
+## Letzte angezeigte Zahl des TNT-Countdowns (für den Takt).
+var _tnt_zahl := -1
+## Eigene Materialkopie der gezündeten TNT-Kiste, die im Takt aufglüht.
+var _blinkstoff: StandardMaterial3D = null
+var _blink_basis := 0.0
+
 
 func _ready() -> void:
 	add_to_group("kisten")
@@ -102,12 +133,18 @@ func _ready() -> void:
 	_trefferzone.collision_layer = 0
 	_trefferzone.collision_mask = 2      # nur den Spieler beachten
 	_trefferzone.monitoring = true
+	# Pulsieren, Wackeln, Federn und Aufploppen setzen das Modell im
+	# Bildtakt (`_process`, Tweens). Ohne Interpolation zeigt es genau das;
+	# auf einem fahrenden Floß folgt es der Kiste trotzdem weich.
+	_modell.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_baue_optik()
 	# Eisenkisten reagieren auf gar nichts – Abfrage kann entfallen.
 	if art == Art.EISEN:
 		set_physics_process(false)
 	# Nur diese drei Arten bewegen sich pro Bild.
 	set_process(art == Art.NITRO or art == Art.TNT or art == Art.FEDER)
+	if art == Art.NITRO or art == Art.TNT:
+		Explosion.vorwaermen(self)
 	if art == Art.UMRISS:
 		add_to_group("umrisskisten")
 		_koerperlich_setzen(false)
@@ -136,6 +173,13 @@ func _ready() -> void:
 ## Alles landet in EINEM Mesh mit vier Materialflächen: ein Knoten statt
 ## vierzig, vier Zeichenaufrufe statt vierzig. Bei 43 Kisten im Level
 ## macht das den Unterschied.
+##
+## Den Schatten wirft ein zweites Netz mit nur EINER Fläche (der
+## „Schattenriss", dieselbe Geometrie). Die Sonne zeichnet ihre Schatten
+## in vier Stufen, und in jeder Stufe kostet jede Fläche einen eigenen
+## Zeichenaufruf – der Korpus allein kostete so bis zu sechzehn. Die Form
+## des Schattens bleibt dieselbe, nur die Materialien fehlen, und die
+## sieht die Schattenkarte ohnehin nicht.
 
 const KERN := 0.41          ## halbe Kantenlänge des Innenkastens
 const BRETT_AUSSEN := 0.455 ## Vorderkante der Bretter
@@ -165,15 +209,47 @@ const SEITEN := [
 const SEITEN_DREHUNG := [0.0, 180.0, 90.0, -90.0]
 
 
-## Baut Korpus, Beschläge und Symbol als ein einziges Mesh auf.
+## Baut Korpus, Schattenriss, Aufschrift und – beim Umriss – das Gerippe.
 func _baue_optik() -> void:
 	_korpus_material = _material_fuer_art()
+	_netz_holen()
 
+	var korpus := MeshInstance3D.new()
+	korpus.name = "Korpus"
+	korpus.mesh = _korpus_netze[int(art)]
+	# Den Schatten wirft der Schattenriss (siehe Kopf dieses Abschnitts).
+	korpus.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var rollen: PackedInt32Array = _korpus_rollen[int(art)]
+	for i in rollen.size():
+		korpus.set_surface_override_material(i, _material_fuer_rolle(rollen[i]))
+	_modell.add_child(korpus)
+
+	# Unter `_modell`, damit der Schatten mitfedert und mit dem Modell
+	# verschwindet (der Umriss blendet `_modell` aus). Ohne eigenes
+	# Material: Der `Leuchtmarker` lässt ihn dann in Ruhe.
+	var riss := MeshInstance3D.new()
+	riss.name = "Schattenriss"
+	riss.mesh = _schatten_netze[int(art)]
+	riss.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	_modell.add_child(riss)
+
+	_baue_aufschrift()
+	_baue_beschriftung()
+	if art == Art.UMRISS:
+		_baue_umriss()
+
+
+## Baut Korpus- und Schattennetz dieser Kistenart, falls es sie noch
+## nicht gibt.
+func _netz_holen() -> void:
+	if _korpus_netze.has(int(art)):
+		return
 	var holz := SurfaceTool.new()
 	var rahmen := SurfaceTool.new()
 	var metall := SurfaceTool.new()
 	var akzent := SurfaceTool.new()
-	for st: SurfaceTool in [holz, rahmen, metall, akzent]:
+	var gruppen: Array[SurfaceTool] = [holz, rahmen, metall, akzent]
+	for st in gruppen:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	_baue_kern(rahmen)
@@ -183,34 +259,40 @@ func _baue_optik() -> void:
 	_baue_symbol(rahmen, metall, akzent)
 
 	var gitter := ArrayMesh.new()
-	var flaechen: Array = [
-		[holz, _korpus_material],
-		[rahmen, _rahmen_material()],
-		[metall, _metall_material()],
-	]
-	if art != Art.NORMAL:
-		flaechen.append([akzent, _akzent_material()])
-
-	var korpus := MeshInstance3D.new()
-	korpus.name = "Korpus"
-	var materialien: Array[Material] = []
-	for f in flaechen:
-		var st: SurfaceTool = f[0]
+	var rollen := PackedInt32Array()
+	for rolle in gruppen.size():
+		if rolle == ROLLE_AKZENT and art == Art.NORMAL:
+			continue
+		var st := gruppen[rolle]
 		st.index()
 		var teil := st.commit()
 		if teil == null or teil.get_surface_count() == 0:
 			continue                      # leere Materialgruppe überspringen
 		gitter.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,
 				teil.surface_get_arrays(0))
-		materialien.append(f[1])
-	korpus.mesh = gitter
-	for i in materialien.size():
-		korpus.set_surface_override_material(i, materialien[i])
-	_modell.add_child(korpus)
+		rollen.append(rolle)
 
-	_baue_beschriftung()
-	if art == Art.UMRISS:
-		_baue_umriss()
+	# Schattenriss: alle Flächen in einer.
+	var riss := SurfaceTool.new()
+	for i in gitter.get_surface_count():
+		riss.append_from(gitter, i, Transform3D.IDENTITY)
+	riss.index()
+
+	_korpus_netze[int(art)] = gitter
+	_korpus_rollen[int(art)] = rollen
+	_schatten_netze[int(art)] = riss.commit()
+
+
+func _material_fuer_rolle(rolle: int) -> Material:
+	match rolle:
+		ROLLE_HOLZ:
+			return _korpus_material
+		ROLLE_RAHMEN:
+			return _rahmen_material()
+		ROLLE_METALL:
+			return _metall_material()
+		_:
+			return _akzent_material()
 
 
 ## Das weiße Gerippe: zwölf dünne Kanten, sonst nichts.
@@ -220,27 +302,29 @@ func _baue_optik() -> void:
 ## mitten im Spiel ihr Mesh neu aufbaut, würde genau in dem Moment
 ## stocken, in dem der Spieler hinschaut.
 func _baue_umriss() -> void:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for achse in 3:
-		var u := (achse + 1) % 3
-		var w := (achse + 2) % 3
-		var halb := Vector3.ONE * UMRISS_KANTE
-		# Die senkrechten Pfosten laufen durch, die Querriegel stoßen an –
-		# sonst überlagern sich an jeder Ecke zwei durchscheinende Körper
-		# und die Ecken leuchten heller als die Kanten.
-		halb[achse] = 0.5 if achse == 1 else 0.5 - UMRISS_KANTE * 2.0
-		for su: float in [-1.0, 1.0]:
-			for sw: float in [-1.0, 1.0]:
-				var mitte := Vector3.ZERO
-				mitte[u] = su * (0.5 - UMRISS_KANTE)
-				mitte[w] = sw * (0.5 - UMRISS_KANTE)
-				Kistengeometrie.quader(st, mitte, halb, 0.0, 1.0)
-	st.index()
+	if _umriss_netz == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for achse in 3:
+			var u := (achse + 1) % 3
+			var w := (achse + 2) % 3
+			var halb := Vector3.ONE * UMRISS_KANTE
+			# Die senkrechten Pfosten laufen durch, die Querriegel stoßen an –
+			# sonst überlagern sich an jeder Ecke zwei durchscheinende Körper
+			# und die Ecken leuchten heller als die Kanten.
+			halb[achse] = 0.5 if achse == 1 else 0.5 - UMRISS_KANTE * 2.0
+			for su: float in [-1.0, 1.0]:
+				for sw: float in [-1.0, 1.0]:
+					var mitte := Vector3.ZERO
+					mitte[u] = su * (0.5 - UMRISS_KANTE)
+					mitte[w] = sw * (0.5 - UMRISS_KANTE)
+					Kistengeometrie.quader(st, mitte, halb, 0.0, 1.0)
+		st.index()
+		_umriss_netz = st.commit()
 
 	var mi := MeshInstance3D.new()
 	mi.name = "Umriss"
-	mi.mesh = st.commit()
+	mi.mesh = _umriss_netz
 	_umriss_stoff = _umriss_material()
 	mi.material_override = _umriss_stoff
 	# Was nicht da ist, wirft keinen Schatten.
@@ -334,10 +418,10 @@ func _baue_beschlaege(st: SurfaceTool) -> void:
 # ---------------------------------------------------------------- Symbole
 
 ## Symbol je Art – plastisch, damit es nicht wie ein aufgeklebter Zettel wirkt.
+## Nur Geometrie: Das Netz wird je Art EINMAL gebaut und geteilt (siehe
+## `_netz_holen`); was jede Kiste selbst braucht, steht in `_baue_aufschrift`.
 func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool) -> void:
 	match art:
-		Art.FRUCHT_MEHRFACH:
-			_beschriften("?", 0.44, Color(0.16, 0.10, 0.03))
 		Art.LEBEN:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_leben(akzent, tf))
 		Art.FEDER:
@@ -352,8 +436,6 @@ func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool)
 			_sym_zuendschnur(rahmen, metall)
 		Art.NITRO:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_totenkopf(akzent, rahmen, tf))
-			# Totenkopf oben, Schriftzug darunter – wie in den Vorlagen.
-			_beschriften("NITRO", 0.105, Color(1.0, 0.98, 0.92), -0.095)
 			_sym_ventil(akzent, metall)
 		Art.EISEN:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_eisen(akzent, tf))
@@ -363,9 +445,6 @@ func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool)
 		Art.SCHUTZ:
 			_auf_seiten(func(tf: Transform3D) -> void: _sym_schutz(akzent, tf))
 		Art.AUSLOESER:
-			# Dasselbe Verfahren wie beim Fragezeichen: eine echte Schrift
-			# statt eines Reliefs aus Balken (Begründung bei `_beschriften`).
-			_beschriften("!", 0.44, AUSLOESER_ZEICHEN)
 			_sym_ausloeser(akzent, metall)
 		Art.ZEIT:
 			# Die Zahl steht im eingelassenen Feld (siehe `_symboltext()`),
@@ -373,6 +452,23 @@ func _baue_symbol(rahmen: SurfaceTool, metall: SurfaceTool, akzent: SurfaceTool)
 			# Kamera von schräg oben schaut und man im Lauf keine Zeit hat,
 			# die Seitenflächen zu lesen.
 			_sym_zifferblatt(metall, akzent)
+		_:
+			pass
+
+
+## Feste Schrift auf den Seiten – je Kiste eigene Knoten, deshalb nicht
+## im geteilten Netz.
+func _baue_aufschrift() -> void:
+	match art:
+		Art.FRUCHT_MEHRFACH:
+			_beschriften("?", 0.44, Color(0.16, 0.10, 0.03))
+		Art.NITRO:
+			# Totenkopf oben, Schriftzug darunter – wie in den Vorlagen.
+			_beschriften("NITRO", 0.105, Color(1.0, 0.98, 0.92), -0.095)
+		Art.AUSLOESER:
+			# Dasselbe Verfahren wie beim Fragezeichen: eine echte Schrift
+			# statt eines Reliefs aus Balken (Begründung bei `_beschriften`).
+			_beschriften("!", 0.44, AUSLOESER_ZEICHEN)
 		_:
 			pass
 
@@ -429,6 +525,9 @@ func _beschriften(text: String, hoehe: float, farbe: Color,
 		schild.double_sided = false
 		schild.shaded = true
 		schild.no_depth_test = false
+		# Liegt flach auf dem Brett, ein Schatten davon wäre nicht zu sehen –
+		# gezeichnet würde er trotzdem, in jeder der vier Schattenstufen.
+		schild.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		# Etwas vor der Brettfläche, damit die Schrift nicht in den
 		# Brettern flimmert.
 		schild.position = seite[0] * (BRETT_AUSSEN + 0.012) \
@@ -717,6 +816,7 @@ func _baue_beschriftung() -> void:
 		schild.modulate = _symbolfarbe()
 		schild.outline_size = 10
 		schild.outline_modulate = Color(0.06, 0.05, 0.04, 0.95)
+		schild.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		schild.position = SEITEN[i][0] * 0.442
 		schild.rotation_degrees = Vector3(0.0, SEITEN_DREHUNG[i], 0.0)
 		_modell.add_child(schild)
@@ -777,10 +877,12 @@ func _process(delta: float) -> void:
 			if _countdown >= 0.0:
 				# Wackeln, je knapper die Zeit, desto heftiger
 				var heftig := 0.03 + (1.0 - _countdown / TNT_ZEIT) * 0.05
-				_modell.position = Vector3(
-						sin(_zeit * 47.0) * heftig, 0.0, cos(_zeit * 39.0) * heftig)
+				_modell.position.x = sin(_zeit * 47.0) * heftig
+				_modell.position.z = cos(_zeit * 39.0) * heftig
+				_form_anwenden()
 		Art.FEDER:
-			_modell.position.y = sin(_zeit * 3.0) * 0.02
+			_grund_y = sin(_zeit * 3.0) * 0.02
+			_form_anwenden()
 		Art.UMRISS:
 			# Der Umriss atmet. Ein weißes Gerippe, das still steht, liest
 			# sich als Deko; eines, das langsam heller und dunkler wird,
@@ -798,7 +900,11 @@ func _physics_process(delta: float) -> void:
 
 	if art == Art.TNT and _countdown >= 0.0:
 		_countdown -= delta
-		_setze_beschriftung(str(maxi(int(ceil(_countdown)), 0)))
+		var zahl := maxi(int(ceil(_countdown)), 0)
+		_setze_beschriftung(str(zahl))
+		if zahl != _tnt_zahl and zahl > 0:
+			_tnt_zahl = zahl
+			_tnt_takt()
 		if _countdown <= 0.0:
 			_explodieren(TNT_RADIUS, Farben.KISTE_TNT, true)
 			return
@@ -840,10 +946,12 @@ func _auf_spieler(spieler: Spieler) -> void:
 			if von_oben and _abprall_sperre <= 0.0:
 				_abprall_sperre = ABPRALL_SPERRE
 				spieler.abprallen(SPRUNG_ABPRALL)
+				_federn(0.4)
 		Art.FEDER:
 			if von_oben and _abprall_sperre <= 0.0:
 				_abprall_sperre = ABPRALL_SPERRE
 				_feder_absprung(spieler)
+				_federn(0.35)
 		Art.NITRO:
 			# Nur echte Berührung ist tödlich – Drüberspringen bleibt erlaubt.
 			if _beruehrt(spieler):
@@ -851,11 +959,11 @@ func _auf_spieler(spieler: Spieler) -> void:
 				spieler.schaden_nehmen()
 		Art.TNT:
 			if _countdown < 0.0 and ((maske & ZERBRECHENDE_ANGRIFFE) != 0 or von_oben):
-				_countdown = TNT_ZEIT
-				_setze_beschriftung(str(int(TNT_ZEIT)))
+				_zuenden()
 			if von_oben and _abprall_sperre <= 0.0:
 				_abprall_sperre = ABPRALL_SPERRE
 				spieler.abprallen()
+				_federn(0.3)
 		_:
 			if (maske & ZERBRECHENDE_ANGRIFFE) != 0 or von_oben:
 				zerbrechen(maske)
@@ -904,6 +1012,13 @@ func erscheinen() -> void:
 	var t := create_tween()
 	t.tween_property(_modell, "scale", Vector3.ONE, 0.22) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Ein Funkenkranz in der Farbe des Gerippes: Aus der Ferne ist das
+	# Aufploppen allein nur ein Zucken, die Funken sieht man. Kurz verzögert:
+	# Alle Umrisse erscheinen im selben Bild wie der Bruch des Auslösers,
+	# und so konkurrieren sie nicht mit dessen Stößen um die Grenze je Bild.
+	t.parallel().tween_callback(func() -> void:
+			Effekte.funken(self, global_position, UMRISS_WEISS, 8, 2.8, 0.18)) \
+			.set_delay(0.03)
 
 
 ## Zurück zum Gerippe. Ruft ein Auslöser, der neu in die Welt kommt.
@@ -1006,16 +1121,114 @@ func zerbrechen(art_treffer: int = 0) -> void:
 			if art_treffer == 0:
 				_explodieren(TNT_RADIUS, Farben.KISTE_TNT, true)   # Kettenreaktion
 			elif _countdown < 0.0:
-				_countdown = TNT_ZEIT
-				_setze_beschriftung(str(int(TNT_ZEIT)))
+				_zuenden()
 		_:
 			_zerbrechen_ausfuehren(art_treffer)
+
+
+# ---------------------------------------------------------------- Federn und Zünden
+# Alles hier ist reine Optik: Kollision, Trefferzone und Abprallhöhe
+# bleiben, wie sie sind. Bewegt wird nur `_modell`.
+
+## Die Kiste federt unter dem Absprung nach: erst gedrückt, dann elastisch
+## zurück. So sieht man, WOHER der Schwung kommt – eine starre Kiste, von
+## der die Figur zwanzig Meter hochfliegt, wirkt wie ein Fehler.
+func _federn(staerke: float) -> void:
+	if _zerstoert:
+		return
+	if _feder_tween != null and _feder_tween.is_valid():
+		_feder_tween.kill()
+	_feder_tween = create_tween()
+	_feder_tween.tween_method(_stauch_setzen, staerke, 0.0, 0.5) \
+			.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	Effekte.ring(self, global_position + Vector3.UP * 0.53,
+			Color(1.0, 0.97, 0.88, 0.55), 0.95, 0.22)
+
+
+func _stauch_setzen(wert: float) -> void:
+	_stauch = wert
+	_form_anwenden()
+
+
+func _schwell_setzen(wert: float) -> void:
+	_schwell = wert
+	_form_anwenden()
+
+
+## Setzt Größe und Höhe des Modells aus Stauchung, Anschwellen und Wippen.
+## Gestaucht wird zum Boden hin, nicht zur Mitte: Die Unterkante bleibt
+## stehen, sonst schwebte eine gedrückte Kiste über dem Weg.
+func _form_anwenden() -> void:
+	if not is_instance_valid(_modell):
+		return
+	var hoch := (1.0 - _stauch) * _schwell
+	var breit := (1.0 + _stauch * 0.5) * _schwell
+	_modell.scale = Vector3(breit, hoch, breit)
+	_modell.position.y = _grund_y + (hoch - 1.0) * 0.5
+
+
+## Startet den Countdown der TNT-Kiste.
+func _zuenden() -> void:
+	_countdown = TNT_ZEIT
+	_tnt_zahl = int(TNT_ZEIT)
+	_setze_beschriftung(str(_tnt_zahl))
+	# Die Zündschnur glimmt. Erst jetzt angelegt, nicht in `_baue_optik()`:
+	# Der `Leuchtmarker` kopiert beim Aufbau sonst auch ihr Material.
+	var schnur := Transform3D(Basis(Vector3.FORWARD, 0.35), Vector3(0.0, 0.60, 0.0))
+	Effekte.dauerfunken(_modell, schnur * Vector3(0.0, 0.19, 0.0))
+	_tnt_takt()
+
+
+## Ein Schlag des Countdowns: Die Kiste schwillt kurz an und glüht auf.
+## Die Zahl allein liest man im Lauf nicht; den Takt spürt man.
+func _tnt_takt() -> void:
+	var t := create_tween()
+	t.tween_method(_schwell_setzen, 1.14, 1.0, 0.2) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var stoff := _blinkstoff_holen()
+	if stoff != null:
+		var g := create_tween()
+		g.tween_property(stoff, "emission_energy_multiplier", _blink_basis,
+				0.35).from(_blink_basis + 3.0)
+	# Ein Glutschlag über der Kiste: Die Funken der Zündschnur allein sind
+	# aus Spielentfernung kaum zu sehen, der Takt soll es sein.
+	Effekte.aufblitzen(self, global_position + Vector3.UP * 0.7, Farben.GLUT, 0.6, 0.1)
+
+
+## Eigene Kopie des Korpusmaterials zum Aufglühen. Das TNT-Holz aus der
+## Bibliothek teilen sich alle TNT-Kisten des Spiels – glühte es selbst,
+## glühten sie alle mit. Kopiert wird, was der Korpus gerade trägt (im
+## Dunkellevel die leuchtende Kopie), damit nichts verloren geht.
+func _blinkstoff_holen() -> StandardMaterial3D:
+	if _blinkstoff != null:
+		return _blinkstoff
+	var korpus := _modell.get_node_or_null("Korpus") as MeshInstance3D
+	if korpus == null:
+		return null
+	var vorlage := korpus.get_surface_override_material(0) as StandardMaterial3D
+	if vorlage == null:
+		return null
+	var m := vorlage.duplicate() as StandardMaterial3D
+	if m.emission_enabled:
+		_blink_basis = m.emission_energy_multiplier
+	else:
+		_blink_basis = 0.0
+		m.emission_enabled = true
+		m.emission = Color(1.0, 0.78, 0.55)
+		m.emission_energy_multiplier = 0.0
+		# Mit der Maserung als Leuchtbild (multipliziert, nicht addiert)
+		# glüht das Holz rot auf, statt eine flache Farbfläche zu werden.
+		m.emission_texture = m.albedo_texture
+		m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+	korpus.set_surface_override_material(0, m)
+	_blinkstoff = m
+	return m
 
 
 # ---------------------------------------------------------------- Intern
 
 ## Belohnung ausschütten, Trümmer erzeugen und verschwinden.
-func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
+func _zerbrechen_ausfuehren(art_treffer: int) -> void:
 	if _zerstoert:
 		return
 	_zerstoert = true
@@ -1037,6 +1250,18 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 		_:
 			Klang.spiele("kiste")
 
+	# Die eigenen Stöße VOR allem, was die Kiste auslöst: `Effekte` nimmt
+	# je Bild nur acht an (Reihenfolge = Rang, siehe `_truemmer`). Der
+	# Auslöser weckt unten alle Umrisse, und die sprühen selbst Funken –
+	# zuerst angelegt, hätten sie ihm seinen weiten Ring weggenommen.
+	_truemmer()
+	# Ein kleiner Ruck nur, wenn der Bauchplatscher sie zerschlagen hat
+	# (Kameravertrag in `Effekte`: 0.15). Der gewöhnliche Bruch wackelt
+	# nicht – Level 01 hat 43 Kisten. Die Kamera nimmt das Maximum, gegen
+	# die 0.45 des Aufschlags selbst fällt das nur bei einer Kette auf.
+	if (art_treffer & Angriff.SLAM) != 0:
+		Effekte.erschuettern(self, 0.15)
+
 	match art:
 		Art.CHECKPOINT:
 			# Zählt nicht im Kistenzähler, setzt dafür den Respawn-Punkt.
@@ -1045,7 +1270,9 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 			GameState.kiste_zerbrochen()
 			GameState.leben += 1
 			GameState.leben_geaendert.emit(GameState.leben)
-			GameState.zeige_nachricht("Extraleben!", 1.5)
+			# Dasselbe Band wie das Extraleben aus 100 Früchten – ein
+			# Leben ist ein großer Moment, egal woher es kommt.
+			GameState.zeige_banner("Extraleben!", Farben.UI_HERZ, 1.5)
 		Art.SCHUTZ:
 			GameState.kiste_zerbrochen()
 			GameState.schutz_aufnehmen()
@@ -1076,7 +1303,6 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 			GameState.kiste_zerbrochen()
 			Frucht.streuen(get_parent(), global_position, 1)
 
-	_truemmer()
 	queue_free()
 
 
@@ -1091,6 +1317,16 @@ func _explodieren(wirkradius: float, ton: Color, trifft_spieler: bool) -> void:
 	GameState.kiste_zerbrochen()
 	Klang.spiele("explosion")
 	Explosion.erzeugen(elternteil, pos, wirkradius, ton)
+	# Die Bretter der Kiste selbst fliegen mit – eine Explosion, aus der
+	# nichts herausfliegt, liest sich als Lichteffekt, nicht als Kiste.
+	_bretter_werfen(pos)
+	Effekte.erschuettern(self, 0.7, pos)
+
+	var spieler := get_tree().get_first_node_in_group("spieler") as Spieler
+	if spieler != null and spieler.global_position.distance_to(pos) < wirkradius * 2.0:
+		# Nah dran: ein warmer Schleier über dem Bild. Weiter weg genügt
+		# das Wackeln, sonst blitzte jede ferne Kettenreaktion ins Bild.
+		Effekte.bildblitz(self, Color(1.0, 0.6, 0.3, 0.3), 0.25)
 
 	# Nachbarkisten mitreißen
 	for knoten in get_tree().get_nodes_in_group("kisten"):
@@ -1101,47 +1337,84 @@ func _explodieren(wirkradius: float, ton: Color, trifft_spieler: bool) -> void:
 			nachbar.zerbrechen(0)
 
 	if trifft_spieler:
-		var spieler := get_tree().get_first_node_in_group("spieler") as Spieler
 		if spieler != null and spieler.global_position.distance_to(pos) < wirkradius:
 			spieler.schaden_nehmen()
 
 	queue_free()
 
 
-## Ein paar Bruchstücke, die wegfliegen und nach etwa einer Sekunde vergehen.
+## Das Material, aus dem die Splitter sind: das, was der Korpus gerade
+## trägt. Im Dunkellevel ist das die leuchtende Kopie aus `Leuchtmarker`
+## (sonst flögen dort schwarze Bretter davon), in Level 25 der
+## Nitroanstrich der Treppe. Es wird nur referenziert, nie verändert.
+func _bruchstoff() -> Material:
+	var korpus := _modell.get_node_or_null("Korpus") as MeshInstance3D
+	if korpus != null:
+		var stoff := korpus.get_surface_override_material(0)
+		if stoff != null:
+			return stoff
+	if _korpus_material != null:
+		return _korpus_material
+	return Materialbibliothek.kistenholz(Farben.HOLZ)
+
+
+## Die Kiste fliegt auseinander: Bretter im Bogen, Staub am Boden, ein
+## kurzer Lichtblitz – und je nach Art ein Farbakzent obenauf.
+##
+## Kein Kamerawackeln: Level 01 hat 43 Kisten, und was bei jeder wackelt,
+## wackelt bald bei keiner mehr spürbar. Gewackelt wird nur bei TNT und
+## Nitro (oben) und beim Bauchplatscher (Spieler, dazu ein kleiner Ruck
+## je Kiste in `_zerbrechen_ausfuehren`).
+##
+## Reihenfolge = Rang: `Effekte` nimmt je Bild nur acht neue Stöße an.
+## Bricht ein Bauchplatscher mehrere Kisten zugleich, fallen zuerst Staub
+## und Blitz der hinteren weg, nicht die Bretter und nicht der Akzent, der
+## sagt, WAS da zerbrochen ist.
 func _truemmer() -> void:
-	var elternteil := get_parent()
-	if elternteil == null or not is_instance_valid(elternteil):
-		return
+	var mitte := global_position
+	var boden := mitte + Vector3.DOWN * 0.5
+	_bretter_werfen(mitte)
+	_bruch_akzent(mitte, boden)
+	# Halb durchsichtig und kaum aufgehellt: Voll deckend lag der Staub wie
+	# helle Wattebäusche auf dem dunklen Weg.
+	Effekte.staubwolke(self, boden, 0.6, Color(Farben.HOLZ.lightened(0.2), 0.6))
+	Effekte.aufblitzen(self, mitte + Vector3.UP * 0.1, Color(1.0, 0.9, 0.7), 1.4, 0.12)
 
-	var wurzel := Node3D.new()
-	wurzel.name = "Truemmer"
-	elternteil.add_child(wurzel)
-	wurzel.global_position = global_position
 
-	var mat := _korpus_material if _korpus_material != null \
-			else Materialbibliothek.kistenholz(Farben.HOLZ)
-	var ziele: Array[Vector3] = []
-	for i in 8:
-		var stueck := MeshInstance3D.new()
-		var m := BoxMesh.new()
-		m.size = Vector3.ONE * randf_range(0.18, 0.3)
-		stueck.mesh = m
-		stueck.material_override = mat
-		var richtung := Vector3(randf() * 2.0 - 1.0, randf() * 0.9 + 0.3,
-				randf() * 2.0 - 1.0).normalized()
-		stueck.position = richtung * 0.25
-		wurzel.add_child(stueck)
-		ziele.append(richtung * randf_range(1.0, 1.8) + Vector3.DOWN * 0.7)
+## Die Bretter der Kiste fliegen davon. Weniger, aber größer als die
+## Vorgabe von `Effekte.splitter`: Dort lasen sie sich neben einer
+## Meterkiste wie Zweige.
+func _bretter_werfen(mitte: Vector3) -> void:
+	var bretter := Effekte.splitter(self, mitte, _bruchstoff(), 8)
+	if bretter != null:
+		bretter.scale_amount_min = 1.1
+		bretter.scale_amount_max = 1.6
 
-	var t := wurzel.create_tween()
-	t.set_parallel(true)
-	var i2 := 0
-	for stueck in wurzel.get_children():
-		var knoten := stueck as Node3D
-		t.tween_property(knoten, "position", ziele[i2], 0.9).set_ease(Tween.EASE_OUT)
-		t.tween_property(knoten, "rotation",
-				Vector3(randf() * TAU, randf() * TAU, randf() * TAU), 0.9)
-		t.tween_property(knoten, "scale", Vector3.ZERO, 0.35).set_delay(0.55)
-		i2 += 1
-	t.chain().tween_callback(wurzel.queue_free)
+
+## Farbakzent je Kistenart – derselbe Ton wie die Kiste, damit man auch
+## im Augenwinkel sieht, was man gerade bekommen hat.
+func _bruch_akzent(mitte: Vector3, boden: Vector3) -> void:
+	var flach := boden + Vector3.UP * 0.06
+	match art:
+		Art.CHECKPOINT:
+			# Der stärkste Moment einer Kiste: Hier geht es nach einem Tod
+			# weiter. Eine Lichtsäule sieht man auch vom Rand des Bildes.
+			Effekte.lichtsaeule(self, boden, Farben.KISTE_CHECKPOINT)
+			Effekte.ring(self, flach, Farben.KISTE_CHECKPOINT.lightened(0.3), 1.5, 0.4)
+		Art.LEBEN:
+			Effekte.funken(self, mitte, Farben.KISTE_LEBEN.lightened(0.3), 16, 5.5,
+					0.22, 50.0)
+		Art.SCHUTZ:
+			Effekte.funken(self, mitte, Farben.KISTE_SCHUTZ.lightened(0.3), 16, 5.5,
+					0.22, 50.0)
+		Art.FRUCHT_MEHRFACH:
+			Effekte.funken(self, mitte, Farben.KISTE_FRAGE, 12, 4.5)
+		Art.ZEIT:
+			Effekte.funken(self, mitte, Farben.KISTE_ZEIT.lightened(0.3), 14, 4.5)
+			Effekte.ring(self, flach, Farben.KISTE_ZEIT.lightened(0.2), 1.2, 0.35)
+		Art.AUSLOESER:
+			# Der Ring läuft weit hinaus: Es passiert etwas im ganzen Level.
+			Effekte.ring(self, flach, AUSLOESER_ORANGE, 3.0, 0.4)
+			Effekte.funken(self, mitte, AUSLOESER_ZEICHEN, 20, 6.0)
+		_:
+			pass

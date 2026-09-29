@@ -309,7 +309,26 @@ static func kurve_aus_punkten(punkte: Array, glaettung: float = 0.45) -> Curve3D
 ##
 ## `abschnitte`: [{"von", "bis", "abstand", "hoehe"}]
 ## `optionen`: {"schritt", "lagen", "block", "saat", "sockel",
-##              "adermaterial", "deckmaterial", "aderdichte"}
+##              "adermaterial", "deckmaterial", "aderdichte",
+##              "welt_projektion", "welt_kachel", "helligkeit",
+##              "kronen_merken"}
+##
+## Die letzten vier sind freiwillig und ändern ohne Angabe nichts:
+##   welt_projektion  Textur in Weltkoordinaten statt je Block. Jeder Block
+##                    ist dasselbe Einheitsnetz; in Blockkoordinaten trägt
+##                    deshalb jeder dasselbe Stück Muster, nur gestreckt –
+##                    die Tapete, gegen die die Blockfarben unten anrennen.
+##                    In Weltkoordinaten laufen die Schichten durch die
+##                    ganze Wand, wie bei echtem Gestein.
+##   welt_kachel      Kachelung dazu je Weltachse (1/Meter), Vector3; ohne
+##                    Angabe die des Materials. Waagerecht feiner als
+##                    senkrecht gestreckt, liegen die Schichten flacher.
+##   helligkeit       Vector2(unten, oben) für den Verlauf in `_wandfarbe`.
+##                    Ein Abschnitt kann ihn mit eigenem "helligkeit"
+##                    überschreiben.
+##   kronen_merken    legt je Wandsäule Lagen und Krone als Metadatum
+##                    "kronen" an der Wurzel ab – für Bewuchs, der der Wand
+##                    folgen muss (`Schluchtsaum`).
 static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		material: Material, optionen: Dictionary = {}) -> Node3D:
 	var schritt: float = optionen.get("schritt", 3.0)
@@ -321,6 +340,11 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 	var deckmaterial: Material = optionen.get("deckmaterial", null)
 	## Schwelle der Bandwelle: kleiner = mehr Adern.
 	var aderdichte: float = optionen.get("aderdichte", 0.35)
+	var welt: bool = optionen.get("welt_projektion", false)
+	var welt_kachel: Vector3 = optionen.get("welt_kachel", Vector3.ZERO)
+	var helligkeit: Vector2 = optionen.get("helligkeit", WAND_HELLIGKEIT)
+	var kronen: Array = []
+	var merken: bool = optionen.get("kronen_merken", false)
 
 	var wuerfel := RandomNumberGenerator.new()
 	wuerfel.seed = saat
@@ -344,7 +368,10 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 			"ader_farbe": [] as Array[Color],
 			"deck_farbe": [] as Array[Color],
 			"geroell_farbe": [] as Array[Color],
+			"helligkeit": helligkeit,
 		}
+		if merken:
+			je_seite[seite]["kronen"] = kronen
 
 	var phase := float(saat % 360) * 0.017
 	for eintrag in abschnitte:
@@ -355,6 +382,12 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		var abstand: float = eintrag.get("abstand", 8.0)
 		var hoehe: float = eintrag.get("hoehe", 12.0)
 		var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+		# Ein Abschnitt darf seinen eigenen Helligkeitsverlauf haben: Eine
+		# niedrige Wand in praller Sonne braucht einen dunkleren als eine
+		# hohe im Schatten. Ohne Angabe gilt der der ganzen Wand.
+		var eigene: Vector2 = eintrag.get("helligkeit", helligkeit)
+		for seite: float in [-1.0, 1.0]:
+			je_seite[seite]["helligkeit"] = eigene
 		for i in anzahl:
 			var s := lerpf(von, bis, (float(i) + 0.5) / float(anzahl))
 			# Zwei Wellen mit unterschiedlicher Länge: das Band wandert
@@ -402,9 +435,15 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 			var anzeige := MultiMeshInstance3D.new()
 			anzeige.name = teil[0]
 			anzeige.multimesh = haufen
-			anzeige.material_override = _farbstoff(teil[2], stoffe)
+			anzeige.material_override = _farbstoff(teil[2], stoffe, welt, welt_kachel)
 			wand.add_child(anzeige)
+	if merken:
+		wurzel.set_meta("kronen", kronen)
 	return wurzel
+
+
+## Helligkeitsverlauf der Wand (unten, oben), wenn das Level nichts angibt.
+const WAND_HELLIGKEIT := Vector2(0.63, 1.10)
 
 
 ## Eigene Fassung eines Materials, die die Blockfarben durchlässt.
@@ -412,14 +451,21 @@ static func schluchtwand(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 ## Das gemeinsame Material aus der Materialbibliothek darf nicht verändert
 ## werden, es hängt an vielen anderen Stellen; deshalb eine Kopie. Das
 ## Zwischenlager sorgt dafür, dass zwei Töpfe mit demselben Stoff auch
-## dieselbe Kopie bekommen.
-static func _farbstoff(material: Material, zwischenlager: Dictionary) -> Material:
+## dieselbe Kopie bekommen. Es lebt nur für eine Wand, und eine Wand
+## projiziert all ihre Töpfe gleich – die Projektion gehört deshalb nicht
+## in den Schlüssel.
+static func _farbstoff(material: Material, zwischenlager: Dictionary,
+		welt: bool = false, kachel: Vector3 = Vector3.ZERO) -> Material:
 	if zwischenlager.has(material):
 		return zwischenlager[material]
 	var fertig: Material = material
 	var stoff := material.duplicate() as BaseMaterial3D
 	if stoff != null:
 		stoff.vertex_color_use_as_albedo = true
+		if welt:
+			stoff.uv1_world_triplanar = true
+			if kachel != Vector3.ZERO:
+				stoff.uv1_scale = kachel
 		fertig = stoff
 	zwischenlager[material] = fertig
 	return fertig
@@ -437,10 +483,11 @@ static func _farbstoff(material: Material, zwischenlager: Dictionary) -> Materia
 ## Schatten ist blaustichig, die Krone bekommt Sonne ab. Das ist derselbe
 ## Griff, mit dem Landschaftsmaler Tiefe erzeugen.
 static func _wandfarbe(y: float, hoehe: float, sockel: float,
-		wuerfel: RandomNumberGenerator) -> Color:
+		wuerfel: RandomNumberGenerator,
+		verlauf: Vector2 = WAND_HELLIGKEIT) -> Color:
 	var t := clampf((y + sockel) / maxf(hoehe + sockel, 0.001), 0.0, 1.0)
 	# Unten deutlich abdunkeln, oben leicht aufhellen.
-	var helligkeit := lerpf(0.63, 1.10, pow(t, 0.75))
+	var helligkeit := lerpf(verlauf.x, verlauf.y, pow(t, 0.75))
 	helligkeit *= wuerfel.randf_range(0.93, 1.07)
 	var kalt := Color(0.82, 0.90, 1.06)     ## Schattenton am Grund
 	var warm := Color(1.06, 1.00, 0.92)     ## Sonnenton an der Krone
@@ -562,6 +609,10 @@ static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
 	var letzter_quer := abstand + block * 0.5
 	var letzte_tiefe := block
 	var letztes_oben := krone
+	# Nur für `kronen_merken`: je sichtbarer Lage [unten, oben, Innenkante,
+	# Überhang] relativ zum Weg. Verbraucht keine Würfe – die Wand bleibt
+	# dieselbe.
+	var schichten: Array = []
 	for k in gesamt:
 		var unten := grenzen[k]
 		var oben := grenzen[k + 1]
@@ -606,7 +657,8 @@ static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
 				dreh + wuerfel.randf_range(-0.22, 0.22), kipp))
 		form.basis = form.basis.scaled(Vector3(tiefe, hoch, breite))
 		toepfe[topf].append(form)
-		toepfe[topf + "_farbe"].append(_wandfarbe(mitte.y, hoehe, sockel, wuerfel))
+		toepfe[topf + "_farbe"].append(_wandfarbe(mitte.y, hoehe, sockel, wuerfel,
+				toepfe.get("helligkeit", WAND_HELLIGKEIT)))
 
 		# Gebrochene Kante: ein Splitter auf der Oberkante der Lage. Unter
 		# dem Weg lohnt er nicht, dort sieht ihn niemand.
@@ -617,9 +669,20 @@ static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
 		letzter_quer = quer
 		letzte_tiefe = tiefe
 		letztes_oben = mitte_y + hoch * 0.5
+		if oben > -2.0:
+			schichten.append([unten, letztes_oben, abstand + vor,
+					k == ueberhang])
 
 	_geroell(toepfe, kurve, s, seite, dreh, abstand, hoehe, sockel, block,
 			schritt, wuerfel)
+
+	var merk := {}
+	if toepfe.has("kronen"):
+		# Oberkante und Innenkante der Krone: Dort setzt der Bewuchs an.
+		merk = {"s": s, "seite": seite, "oben": letztes_oben,
+				"innen": letzter_quer - letzte_tiefe * 0.5,
+				"abstand": abstand, "schichten": schichten}
+		toepfe["kronen"].append(merk)
 
 	if not bau.get("deck", false):
 		return
@@ -642,8 +705,12 @@ static func _wandbloecke(toepfe: Dictionary, kurve: Curve3D, s: float,
 			dreh + wuerfel.randf_range(-0.2, 0.2), wuerfel.randf_range(-0.07, 0.07)))
 	kappen_form.basis = kappen_form.basis.scaled(Vector3(kappen_tiefe, kappe,
 			maxf(schritt + 0.8, block * wuerfel.randf_range(0.85, 1.3))))
+	if not merk.is_empty():
+		merk["oben"] = maxf(letztes_oben,
+				kappen_mitte.y - punkt(kurve, s).y + kappe * 0.5)
 	toepfe["deck"].append(kappen_form)
-	toepfe["deck_farbe"].append(_wandfarbe(hoehe, hoehe, sockel, wuerfel))
+	toepfe["deck_farbe"].append(_wandfarbe(hoehe, hoehe, sockel, wuerfel,
+			toepfe.get("helligkeit", WAND_HELLIGKEIT)))
 
 
 ## Splitter auf der Oberkante einer Blocklage.
@@ -665,7 +732,8 @@ static func _splitter(toepfe: Dictionary, topf: String, kurve: Curve3D, s: float
 	_brocken(toepfe, topf, kurve, laengs, seite,
 			innenkante + wuerfel.randf_range(0.0, tiefe * 0.5), y, groesse,
 			dreh, 0.55, wuerfel,
-			_wandfarbe(punkt(kurve, laengs, 0.0, y).y, hoehe, sockel, wuerfel))
+			_wandfarbe(punkt(kurve, laengs, 0.0, y).y, hoehe, sockel, wuerfel,
+					toepfe.get("helligkeit", WAND_HELLIGKEIT)))
 
 
 ## Streu aus Brocken am Wandfuß.
@@ -700,7 +768,8 @@ static func _geroell(toepfe: Dictionary, kurve: Curve3D, s: float, seite: float,
 		var y := wuerfel.randf_range(-0.3, 1.2) + groesse.y * 0.3
 		# Um die Wandfarbe herum gestreut, nach beiden Seiten: Wären alle
 		# Brocken dunkler, verschwänden sie im ohnehin dunklen Wandfuß.
-		var ton := _wandfarbe(punkt(kurve, laengs, 0.0, y).y, hoehe, sockel, wuerfel)
+		var ton := _wandfarbe(punkt(kurve, laengs, 0.0, y).y, hoehe, sockel, wuerfel,
+				toepfe.get("helligkeit", WAND_HELLIGKEIT))
 		var dunkel := wuerfel.randf_range(0.84, 1.08)
 		_brocken(toepfe, "geroell", kurve, laengs, seite, innen, y, groesse,
 				dreh, 1.2, wuerfel,
