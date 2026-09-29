@@ -15,7 +15,7 @@ extends KorridorLevel
 ## geht ums Ansehen, nicht ums Bestehen. Wer hier stirbt, hat ein Bauteil
 ## gefunden, das zu früh trifft.
 
-const M_ENDE := 210.0
+const M_ENDE := 290.0
 const ABSTURZ := -8.0
 const WEGBREITE := 12.0
 
@@ -26,7 +26,14 @@ const SCHRITT := 14.0
 const STRECKE := [
 	{"von": 0.0, "bis": 26.0, "breite": WEGBREITE},
 	# Lücke 26–34: darüber liegen die Bruchplatten
-	{"von": 34.0, "bis": 210.0, "breite": WEGBREITE},
+	{"von": 34.0, "bis": 290.0, "breite": WEGBREITE},
+]
+
+## Die Schlucht am Ende (Station 14–18): eine Wand zu beiden Seiten, an der
+## die Bauteile aus Level 01 wachsen. Gut einen Meter Luft neben dem Weg,
+## damit der Bewuchs am Wandfuß nicht auf dem Weg steht.
+const SCHLUCHT := [
+	{"von": 212.0, "bis": 268.0, "abstand": WEGBREITE * 0.5 + 1.2, "hoehe": 8.0},
 ]
 
 
@@ -53,6 +60,8 @@ func _bauschritte() -> Array:
 		{"text": "Auslöser und Schranken", "tun": _schranken_setzen},
 		{"text": "Gegner", "tun": _gegner_setzen},
 		{"text": "Hangeln und Deckung", "tun": _koerper_setzen},
+		{"text": "Schlucht", "tun": _schlucht_setzen},
+		{"text": "Blätterdach", "tun": _blaetterdach_setzen},
 		{"text": "Portale", "tun": _portale},
 		{"text": "Schilder", "tun": _schilder_setzen},
 	]
@@ -70,6 +79,9 @@ func _verlauf_anlegen() -> void:
 		Vector3(70, 0, -128),
 		Vector3(100, 0, -130),
 		Vector3(130, 0, -124),
+		Vector3(160, 0, -112),
+		Vector3(188, 0, -97),
+		Vector3(214, 0, -86),
 	])
 
 
@@ -152,6 +164,90 @@ func _koerper_setzen() -> void:
 	kiste(Kiste.Art.NORMAL, 200.0, 1.6)
 
 
+## Station 14–18: die Schlucht aus Level 01 im Kleinen – Wand mit
+## gemerkten Kronen, Bewuchs daran, Wasserfall, Lichtschacht, Wurzeltor
+## und ein umgestürzter Stamm.
+func _schlucht_setzen() -> void:
+	var wand := LevelWerkzeuge.schluchtwand(geometrie, verlauf, SCHLUCHT,
+			Materialbibliothek.wurzelfels(), {
+		"schritt": 2.4, "lagen": 3, "block": 3.0, "sockel": 10.0, "saat": 1407,
+		"adermaterial": Materialbibliothek.waldboden(),
+		"deckmaterial": Materialbibliothek.moos(),
+		"welt_projektion": true,
+		"welt_kachel": Vector3(0.19, 0.3, 0.19),
+		"kronen_merken": true,
+	})
+	var kronen: Array = wand.get_meta("kronen", [])
+	# Ein Erdsims schließt den Spalt zwischen Weg und Wandfuß, wie in
+	# Level 01 – sonst steht dort ein heller Streifen Himmel.
+	var zone: Dictionary = SCHLUCHT[0]
+	LevelWerkzeuge.sims(geometrie, verlauf, [{"von": zone["von"], "bis": zone["bis"],
+			"innen": WEGBREITE * 0.5 - 0.3, "aussen": float(zone["abstand"]) + 0.5,
+			"hoehe": -0.3}], Materialbibliothek.waldboden(), 2.0)
+
+	# 14 · Bewuchs, mit Blüten, damit auch das dritte Netz im Bild ist
+	Schluchtsaum.bauen(deko, verlauf, kronen, {"saat": 1408, "blueten": 1.0})
+
+	# 15 · Wasserfall an der linken Wand
+	Wasserfall.an_schluchtwand(deko, verlauf, kronen, 224.0, -1.0, 3.2, -6.0)
+
+	# 16 · Lichtschacht an der rechten Wand. Die Sonne dieser Szene steht
+	# noch falsch herum (Licht von unten) – der Schacht nimmt dann seine
+	# Vorgaberichtung.
+	var schacht := Lichtschacht.new()
+	schacht.saat = 1416
+	schacht.laenge = 16.0
+	schacht.position = LevelWerkzeuge.punkt(verlauf, 234.0, 4.0, -0.5)
+	schacht.decke = LevelWerkzeuge.punkt(verlauf, 234.0).y \
+			+ float(SCHLUCHT[0]["hoehe"])
+	deko.add_child(schacht)
+
+	# 17 · Wurzeltor von Wand zu Wand
+	Schluchtsaum.wurzeltor(deko, verlauf, 244.0,
+			float(SCHLUCHT[0]["abstand"]), 1417)
+
+	# 18 · Umgestürzter Stamm hoch über dem Weg, von Krone zu Krone
+	var a := _kronenpunkt(kronen, 251.0, -1.0)
+	var b := _kronenpunkt(kronen, 257.0, 1.0)
+	Schluchtsaum.baumstamm(deko, a, b, 0.7,
+			LevelWerkzeuge.punkt(verlauf, 254.0).y + 6.0, 1418)
+
+
+## Station 19: ein Blätterdach neben dem Weg, tief unten – Wald, auf den
+## man von oben schaut.
+func _blaetterdach_setzen() -> void:
+	var rng := PropWerkzeug.zufall(1419)
+	var baeume: Array = []
+	for i in 14:
+		var strecke := rng.randf_range(270.0, 284.0)
+		var quer := rng.randf_range(9.0, 18.0)
+		baeume.append({
+			"fuss": LevelWerkzeuge.punkt(verlauf, strecke, quer, -12.0),
+			"hoehe": rng.randf_range(8.0, 10.0),
+			"breite": rng.randf_range(2.6, 3.6),
+		})
+	Schluchtsaum.blaetterdach(deko, baeume, 1420)
+
+
+## Auflagepunkt auf der Wandkrone (wie in Level 01): ein Stück hinter der
+## Kante, auf ihrer Oberseite.
+func _kronenpunkt(kronen: Array, strecke: float, seite: float) -> Vector3:
+	var beste: Dictionary = {}
+	var abstand := INF
+	for eintrag in kronen:
+		var e: Dictionary = eintrag
+		if float(e["seite"]) != seite:
+			continue
+		var d := absf(float(e["s"]) - strecke)
+		if d < abstand:
+			abstand = d
+			beste = e
+	if beste.is_empty():
+		return LevelWerkzeuge.punkt(verlauf, strecke, seite * 8.0, 8.0)
+	return LevelWerkzeuge.punkt(verlauf, strecke,
+			seite * (float(beste["innen"]) + 1.0), float(beste["oben"]) + 0.6)
+
+
 func _portale() -> void:
 	portale_setzen(1.0, 4.0)
 
@@ -168,6 +264,9 @@ func _schilder_setzen() -> void:
 		148.0: "9 Platte + Tor", 158.0: "10 Wehrbohle",
 		166.0: "11 Werfer", 176.0: "12 Schwarm + Deckung",
 		188.0: "13 Hangelgitter",
+		216.0: "14 Schluchtsaum", 224.0: "15 Wasserfall",
+		234.0: "16 Lichtschacht", 244.0: "17 Wurzeltor",
+		254.0: "18 Baumstamm", 276.0: "19 Blaetterdach",
 	}
 	for strecke: float in stationen:
 		var schild := Label3D.new()

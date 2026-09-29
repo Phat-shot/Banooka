@@ -210,10 +210,10 @@ func zum_level(nummer: int) -> bool:
 	aktuelles_level = nummer
 	GameState.neu_beginnen()
 	titelkarte_faellig = true
-	# Bewusst weiter "Level 01": Der Ladeschirm macht daraus selbst Namen
-	# und Kopfzeile ("LEVEL 01 · WURZELWALD" über "Wurzelschlucht"), sobald
-	# er `level_name()` kennt. Ein Ladeschirm, der das noch nicht kann,
-	# zeigt so wenigstens die Nummer statt eines Namens ohne Nummer.
+	# Bewusst "Level 01": Der Ladeschirm macht daraus selbst Namen und
+	# Kopfzeile ("LEVEL 01 · WURZELWALD" über "Wurzelschlucht", über
+	# `level_name()` und `level_kopfzeile()`). Die Nummer allein bleibt nur
+	# stehen, wo es keinen Namen gibt.
 	_wechseln(LEVEL_SZENEN[nummer - 1], "Level %02d" % nummer)
 	return true
 

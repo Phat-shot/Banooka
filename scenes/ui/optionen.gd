@@ -1,6 +1,6 @@
 extends Control
 ## Einstellungen: eigene Spielfigur wählen und ihre Größe justieren,
-## Lautstärke, Zeitmodus und Debugmodus.
+## Lautstärke, Zeitmodus, Bildschirmwackeln und Debugmodus.
 ##
 ## Aufbau wie der Startbildschirm – Tafeln aus MenueEintrag, alles
 ## gezeichnet statt geladen, Aussehen aus `UiStil`. Links stehen die
@@ -14,9 +14,13 @@ extends Control
 
 const RAND := 96.0
 const TITEL_OBEN := 92.0
-## Neun Zeilen (mit eigener Figur) enden bei 172 + 8 · 56 + 48 = 668 und
-## passen damit in 720 px Höhe – vorher lagen die letzten unter dem Rand.
+## Die Zeilen stehen im Schritt von 56 px zwischen MENUE_OBEN und
+## MENUE_UNTEN. Zehn Zeilen (mit eigener Figur) endeten so bei
+## 172 + 9 · 56 + 48 = 724, unter dem Rand von 720 px – dann rücken sie
+## zusammen (`_zeilenschritt`). Ohne eigene Figur sind es acht, und es
+## bleibt beim vollen Schritt.
 const MENUE_OBEN := 172.0
+const MENUE_UNTEN := 700.0
 const EINTRAG_BREITE := 500.0
 const EINTRAG_HOEHE := 48.0
 const EINTRAG_ABSTAND := 8.0
@@ -70,6 +74,8 @@ var _aktionen: Array[Callable] = []
 var _schluessel: Array[String] = []
 var _index := 0
 var _blockiert := false
+## Abstand von Zeile zu Zeile, beim Neubau aus der Zeilenzahl gesetzt.
+var _schritt := EINTRAG_HOEHE + EINTRAG_ABSTAND
 
 var _meldung := ""
 var _meldung_zeit := 0.0
@@ -303,6 +309,9 @@ func _zeilen() -> Array[Dictionary]:
 	liste.append({"schluessel": "zeitmodus", "text": "Zeitmodus",
 			"art": MenueEintrag.Art.SCHALTER, "an": Einstellungen.zeitmodus,
 			"tat": _zeitmodus_umschalten})
+	liste.append({"schluessel": "wackeln", "text": "Bildschirmwackeln",
+			"art": MenueEintrag.Art.SCHALTER, "an": Einstellungen.bildwackeln,
+			"tat": _wackeln_umschalten})
 	liste.append({"schluessel": "debug", "text": "Debugmodus",
 			"art": MenueEintrag.Art.SCHALTER, "an": Einstellungen.debug,
 			"tat": _debug_umschalten})
@@ -327,6 +336,7 @@ func _baue_menue() -> void:
 	_eintraege.clear()
 	_aktionen.clear()
 	_schluessel = schluessel
+	_schritt = _zeilenschritt(zeilen.size())
 	for zeile in zeilen:
 		_neuer_eintrag(zeile)
 	_index = mini(_index, _eintraege.size() - 1)
@@ -338,8 +348,7 @@ func _neuer_eintrag(zeile: Dictionary) -> void:
 	var nummer := _eintraege.size()
 	var eintrag := MenueEintrag.new()
 	eintrag.schriftgroesse = 23
-	eintrag.position = Vector2(RAND, MENUE_OBEN
-			+ nummer * (EINTRAG_HOEHE + EINTRAG_ABSTAND))
+	eintrag.position = Vector2(RAND, MENUE_OBEN + nummer * _schritt)
 	eintrag.size = Vector2(EINTRAG_BREITE, EINTRAG_HOEHE)
 	_fuelle(eintrag, zeile)
 	eintrag.ueberfahren.connect(func() -> void: _waehle(nummer))
@@ -347,6 +356,13 @@ func _neuer_eintrag(zeile: Dictionary) -> void:
 	add_child(eintrag)
 	_eintraege.append(eintrag)
 	_aktionen.append(zeile["tat"] as Callable)
+
+
+## Voller Schritt, solange alle Zeilen bis MENUE_UNTEN passen; sonst so
+## eng, dass die letzte genau dort endet.
+func _zeilenschritt(anzahl: int) -> float:
+	var platz := MENUE_UNTEN - MENUE_OBEN - EINTRAG_HOEHE
+	return minf(EINTRAG_HOEHE + EINTRAG_ABSTAND, platz / float(maxi(anzahl - 1, 1)))
 
 
 func _fuelle(eintrag: MenueEintrag, zeile: Dictionary) -> void:
@@ -607,6 +623,19 @@ func _zeitmodus_umschalten(_richtung: int = 1) -> void:
 		_zeige_meldung("Zeitmodus an – Uhr im Level, Zeitkisten halten sie an")
 	else:
 		_zeige_meldung("Zeitmodus aus")
+
+
+## Bildschirmwackeln: Kamerawackeln, Trefferpause und Bildblitze (siehe
+## `Effekte.ruhig`). Aus heißt: Das Bild bleibt ruhig, alles andere – Staub,
+## Funken, Klang – bleibt, wie es ist.
+func _wackeln_umschalten(_richtung: int = 1) -> void:
+	Einstellungen.bildwackeln = not Einstellungen.bildwackeln
+	Einstellungen.speichern()
+	_baue_menue()
+	if Einstellungen.bildwackeln:
+		_zeige_meldung("Bildschirmwackeln an")
+	else:
+		_zeige_meldung("Bildschirmwackeln aus – kein Wackeln, keine Trefferpause, keine Blitze")
 
 
 ## Debugmodus: unendlich Leben, immer Schutz, alle Räume offen.

@@ -1224,7 +1224,7 @@ func _blinkstoff_holen() -> StandardMaterial3D:
 # ---------------------------------------------------------------- Intern
 
 ## Belohnung ausschütten, Trümmer erzeugen und verschwinden.
-func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
+func _zerbrechen_ausfuehren(art_treffer: int) -> void:
 	if _zerstoert:
 		return
 	_zerstoert = true
@@ -1251,6 +1251,12 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 	# Auslöser weckt unten alle Umrisse, und die sprühen selbst Funken –
 	# zuerst angelegt, hätten sie ihm seinen weiten Ring weggenommen.
 	_truemmer()
+	# Ein kleiner Ruck nur, wenn der Bauchplatscher sie zerschlagen hat
+	# (Kameravertrag in `Effekte`: 0.15). Der gewöhnliche Bruch wackelt
+	# nicht – Level 01 hat 43 Kisten. Die Kamera nimmt das Maximum, gegen
+	# die 0.45 des Aufschlags selbst fällt das nur bei einer Kette auf.
+	if (art_treffer & Angriff.SLAM) != 0:
+		Effekte.erschuettern(self, 0.15)
 
 	match art:
 		Art.CHECKPOINT:
@@ -1260,7 +1266,9 @@ func _zerbrechen_ausfuehren(_art_treffer: int) -> void:
 			GameState.kiste_zerbrochen()
 			GameState.leben += 1
 			GameState.leben_geaendert.emit(GameState.leben)
-			GameState.zeige_nachricht("Extraleben!", 1.5)
+			# Dasselbe Band wie das Extraleben aus 100 Früchten – ein
+			# Leben ist ein großer Moment, egal woher es kommt.
+			GameState.zeige_banner("Extraleben!", Farben.UI_HERZ, 1.5)
 		Art.SCHUTZ:
 			GameState.kiste_zerbrochen()
 			GameState.schutz_aufnehmen()
@@ -1351,7 +1359,8 @@ func _bruchstoff() -> Material:
 ##
 ## Kein Kamerawackeln: Level 01 hat 43 Kisten, und was bei jeder wackelt,
 ## wackelt bald bei keiner mehr spürbar. Gewackelt wird nur bei TNT und
-## Nitro (oben) und beim Bauchplatscher (Spieler).
+## Nitro (oben) und beim Bauchplatscher (Spieler, dazu ein kleiner Ruck
+## je Kiste in `_zerbrechen_ausfuehren`).
 ##
 ## Reihenfolge = Rang: `Effekte` nimmt je Bild nur acht neue Stöße an.
 ## Bricht ein Bauchplatscher mehrere Kisten zugleich, fallen zuerst Staub

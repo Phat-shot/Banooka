@@ -70,16 +70,6 @@ const WIRBEL_SOG := 0.7
 ## in dem er auf Platz 1 zuletzt war (siehe `letztes_level_schluessel`).
 const LETZTES_LEVEL := "portalraum_letztes_level_%d"
 
-## Die Levelnamen (aus CLAUDE.md). Sie stehen über dem Tor, sobald man
-## davorsteht, und groß über der Blende beim Betreten.
-const LEVEL_NAMEN := [
-	"Wurzelschlucht", "Frostgrat", "Treibgut", "Katzensprung", "Hauerjagd",
-	"Wettrennen", "Moorbrücken", "Torfstich", "Sumpfgeysir", "Hebewerk",
-	"Steinschlag", "Kesselwerk", "Pfahlfeste", "Wolkensteg", "Abendruinen",
-	"Kanalgrund", "Frostritt", "Schwarmpfad", "Sturmruinen", "Kolbengang",
-	"Sandgrab", "Wolkenjagd", "Funkenlicht", "Neonhöhe", "Dächergasse",
-]
-
 ## Levelnummer, 1-basiert.
 var nummer := 1
 ## Ergibt sich in `_ready()` aus dem Spielfluss.
@@ -183,11 +173,11 @@ static func letztes_level_schluessel() -> String:
 	return LETZTES_LEVEL % Spielfluss.aktueller_slot
 
 
-## Name eines Levels (1-basiert), leer für unbekannte Nummern.
+## Name eines Levels (1-basiert), leer für unbekannte Nummern. Die Namen
+## stehen nur in `Spielfluss.LEVEL_NAMEN` – Tor, Ladeschirm, Titelkarte und
+## Auswertung lesen dieselbe Liste.
 static func levelname(nr: int) -> String:
-	if nr < 1 or nr > LEVEL_NAMEN.size():
-		return ""
-	return String(LEVEL_NAMEN[nr - 1])
+	return Spielfluss.level_name(nr)
 
 
 ## Höhe der Levelnummer. Mit der Bogenreihe des Portalraums sitzt über dem
@@ -664,7 +654,7 @@ func _eintreten(spieler: Node3D) -> void:
 	Effekte.aufblitzen(self, mitte, ton.lightened(0.35), 2.6, 0.3)
 	Effekte.funken(self, mitte, ton, 22, 4.0, 0.2)
 	Effekte.ring(self, to_global(Vector3(0.0, 0.08, 0.4)), ton, 2.4, 0.45)
-	Klang.spiele("checkpoint", 0.8)
+	Klang.spiele("portal")
 
 	var modell := spieler.get_node_or_null("Modell") as Node3D
 	var modell_skala := modell.scale if modell != null else Vector3.ONE
@@ -767,7 +757,9 @@ func _blende_anlegen(name_text: String) -> UiStil.Blende:
 	titel.name = "Levelname"
 	titel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	titel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var kopf := "LEVEL %02d" % nummer
+	# Dieselbe Kopfzeile wie auf Ladeschirm und Titelkarte, damit der Name
+	# über drei Bilder hinweg unverändert stehen bleibt.
+	var kopf := Spielfluss.level_kopfzeile(nummer)
 	titel.draw.connect(func() -> void:
 		var feld := titel.size
 		var x := feld.x * 0.5
