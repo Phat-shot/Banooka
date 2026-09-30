@@ -1501,12 +1501,15 @@ static func _abbrueche(st: Stuecke, proben: Array[Dictionary], g: Dictionary,
 			runter.y = 0.0
 			runter = runter.normalized()
 			var h := hoch * mass
+			# Grasnarbe, darunter eine senkrechte Erdwand zum Hang hin (kein
+			# Unterschnitt: der lag im Schatten und las sich als Loch), deren
+			# Fuß im Hang steckt
 			var reihe := PackedVector3Array([
 					p + n * 0.02 - runter * 0.3,
 					p + n * (0.03 + h * 0.15) + runter * (0.05 + h * 0.3),
 					p + runter * (0.1 + h * 0.45) + Vector3.DOWN * h * 0.2,
-					p + runter * (0.04 + h * 0.25) + Vector3.DOWN * h * 0.95,
-					p - n * 0.25 + Vector3.DOWN * (h + 0.1)])
+					p + runter * (0.12 + h * 0.48) + Vector3.DOWN * h * 0.95,
+					p + runter * (0.2 + h * 0.5) - n * 0.2 + Vector3.DOWN * (h + 0.1)])
 			# Die Abbruchfläche ist Erde, keine Höhle: braun, nicht schwarz
 			var f := PackedColorArray([_farbe(0.8, 0.1, 0.4, 0.9), _farbe(0.78, 0.2, 0.4, 0.85),
 					_farbe(0.55, 0.9, 0.15, 0.1), _farbe(0.44, 1.0, 0.05, 0.0),
