@@ -12,10 +12,12 @@ class_name L01Wald
 ##               Reihe neigt sich zum Weg und schließt über ihm das Dach –
 ##               erst ab 9,5 m, mit Löchern über `Level01.LICHTLOECHER` –,
 ##               die zweite und dritte tragen tiefe Kronen (ab gut 5 m), die
-##               die Seiten in Augenhöhe schließen. Drei Heldenstämme mit
-##               Brettwurzeln (vom Weg weggedreht), ein gestürzter Stamm quer
-##               durch die Reihen, Farne am Fuß, Stümpfe, Moosstämme und
-##               Felsen am Saum. Rechts endet der Wald an der Hallenkante.
+##               die Seiten in Augenhöhe schließen; rechts dazu ein dichter
+##               Saum an der Hallenkante und Nadelbäume in der Ecke vor der
+##               Enthüllung (s 17–25), damit die Startkamera dort nicht schon
+##               ins helle Tal sieht. Drei Heldenstämme mit Brettwurzeln (vom
+##               Weg weggedreht), ein gestürzter Stamm quer durch die Reihen,
+##               Farne am Fuß, Stümpfe, Moosstämme und Felsen am Saum.
 ##   Hangwald    links über der Böschung und auf der Krone der Fallklamm
 ##               (s 31–166), bis `HANG_TIEFE` hinter die Kronenkante des
 ##               Saums: vorn an der Kante niedrige, breite Astbäume, die sich
@@ -25,34 +27,49 @@ class_name L01Wald
 ##               Unterholz zwischen den Stämmen.
 ##   Rahmen      die Bäume auf den Felsnadeln unter der Kante
 ##               (`RAHMENBAUM_STELLEN` "sims"): gedreht, nach außen geneigt,
-##               nie im Sichtkegel zum Weltenbaum; ab `RAHMEN_NAH` schlicht.
+##               nie im Sichtkegel zur Krone des Weltenbaums (sonst etwas
+##               kleiner); ab `RAHMEN_NAH` schlicht.
 ##   Riesen      zwei Torriesen am Riesentor (`TORRIESEN`), drei Talriesen
 ##               rechts der Bachwiese (`TALRIESEN`), zwei Kanalbäume über C4
 ##               (sie schließen dort das Dach) und drei Überständer im Tal.
-##               Wo eine Krone vom Grat aus vor dem Weltenbaum stünde, bleibt
-##               der Riese kleiner (Stufen zu 6 %).
-##   Talwald     nah (bis `NAH_WEIT` vom Weg): Kronen auf schlichten
-##               Stämmen, auf den Riegeln dunkler, jeder fünfte ein dunkler,
-##               kühler Nadelbaum; Lichtungen, wo das Gelände Wiese ist
-##               (`L01Gelaende.wald`), an ihren Rändern Sträucher, dazu graue
-##               Totholzstämme. Fern: grobe Kronen mit angedeutetem Stamm im
-##               selben Stoff, je Zelle ein Netz, überall, wo das Gelände
-##               Wald trägt und kein naher Baum steht – aber nur auf dem
-##               gezeichneten Feld und nie als Scheibe vor dem Himmel
-##               (Himmelsprobe `_schwebt`: Kammrückseiten, Westhang und
-##               Feldrand bleiben kahl; gut 160 statt 450 Bäume, der Schritt
-##               dauert headless 0,25 s länger).
+##               Alle in voller Größe (Plan M5: 32–38 m, Stamm Ø 3–4 m): Vom
+##               Grat aus stehen ihre Kronen vor dem unteren Rand der
+##               Weltenbaumkrone – der Größenvergleich, den D braucht.
+##   Talwald     nah (bis `NAH_WEIT` vom Weg): in Hainen (Mitten alle
+##               `HAIN_RASTER` m, drei bis acht Bäume je Hain, mehr und weiter,
+##               wo das Gelände dichten Wald trägt), ein großer Baum in der
+##               Mitte, viele kleinere darum (Größe 0,6–1,5, schief verteilt),
+##               Kronen, die sich überlappen und bis auf gut ein Drittel der
+##               Höhe hinabreichen, Sträucher dicht an den Stämmen; zwischen
+##               den Hainen offene Wiese mit einzelnen Sträuchern und grauem
+##               Totholz; Tönung je Hain (oliv, gelbgrün, blaugrün), auf den
+##               Riegeln dunkler, jeder fünfte ein Nadelbaum. Vor der
+##               Seitenansicht der Bachwiese eine Lichtung (`LICHTUNG`).
+##               Fern (ab `FERN_AB`): grobe Kronen, die bis fast zum Boden
+##               reichen, unten breiter und heller (`_fernform`), je Zelle ein
+##               Netz, wo das Gelände Wald trägt und kein naher Baum steht –
+##               nur auf dem gezeichneten Feld, in Hainen (grobes Rauschen
+##               über der Walddichte), nie als Einzelgänger (mindestens zwei
+##               Nachbarn in `GRUPPE_WEITE`). Stünde eine Krone von einer
+##               Station aus vor dem Himmel (Himmelsprobe `_schwebt`, auf
+##               einem Raster der Geländehöhe), sinkt sie in den Boden ein:
+##               ein Waldsaum auf dem Kamm statt einer Scheibe in der Luft.
+##   Nadelbäume  gestufte, gezackte Kegel (`_tannenkrone`), nah mit
+##               Blattkarten, fern ohne: spitze Umrisse neben den runden.
 ##   Hecken      rechts der Bachwiese (q 7,4–9,4) und um die Wurzelwiese,
-##               grün mit blühenden Sträuchern dazwischen.
+##               grün; auf knapp jedem dritten Busch oben Blüten (weiß,
+##               gedecktes Rosa, `_bluehend`).
 ##
-## DREI FASSUNGEN EINES BAUMS (`_baum`, Dreiecke je Stamm + Krone)
+## VIER FASSUNGEN EINES BAUMS (`_baum`, Dreiecke je Stamm + Krone)
 ##   voll        `Riesenstamm.baum`: Rippen, Brettwurzeln, Äste, die in den
 ##               Ballen der Krone enden (2,6k + 2,4k) – Rahmenbäume, Riesen
 ##   voll, freie Krone  voller Stamm, freie Krone aus drei bis fünf Ballen
 ##               an seiner Spitze (1,1–3,2k + 1–1,5k) – Hallen- und Astbäume,
 ##               deren Kronen meist über dem Bildrand liegen
 ##   mittel      schlichter Stamm, freie Krone (0,2k + 0,9–1,6k) – hintere
-##               Reihen, naher Talwald, Überständer
+##               Reihen, naher Talwald, Überständer; mit "unten" reicht die
+##               Krone bis dorthin hinab (gestreckt), mit "tanne" ist sie
+##               eine `_tannenkrone` (0,3–0,5k)
 ##   fern        grobe Krone und vierseitiger Stamm im Laubstoff (0,25k)
 ## Die Kronen sitzen nach ihrer wirklichen Hülle: Scheitel auf der
 ## Baumhöhe, der Stamm endet in ihrer Mitte – Laub statt Lolli. Riesen und
@@ -65,8 +82,11 @@ class_name L01Wald
 ##       Stamm steht dort unter 8,8 m (`_stamm_frei`).
 ##   Kegel  Kein Baum im ±6°-Kegel von der Kamera zur Krone des
 ##       Weltenbaums, je Station s 22–114 (davor verdeckt ihn der
-##       Hallenwald); im Schlussbild (s 274–287) keiner im ±3°-Kegel zum
-##       Wasserfall (`Waldsetzer.kegel_frei`).
+##       Hallenwald) – ausgenommen die Riesen und Kanalbäume von D; keiner
+##       im ±4°-Kegel zu seinem Stamm (y 15) von s 100–126; im Schlussbild
+##       (s 274–287) keiner im ±3°-Kegel zum Wasserfall
+##       (`Waldsetzer.kegel_frei`). Hält ein Riese einen Kegel nicht, wird
+##       nur seine Krone schmaler, nie der ganze Baum kleiner.
 ##   Kante  Talkronen bleiben unter der Felskante von B und C mindestens
 ##       5 m unter der Decke (`_talkante_frei`).
 ##   Weg  Kein Stamm und keine Brettwurzel auf begehbarem Boden; Wurzeln
@@ -81,13 +101,9 @@ class_name L01Wald
 ## in die Schattenkarte zeichnet ("…_schatten"); Laub wirft keinen, nur
 ## Felsen, Stümpfe und Moosstämme werfen selbst. Harte Sichtweiten je Zelle
 ## (`SICHT_*`), in der Ferne die schlichten Fassungen. Mit
-## `Effekte.reduziert` (Web, Handy) wächst der ferne Wald zu 60 %.
-## Gemessen (30.09.2026, Verfolger, llvmpipe; Unterschied zum Stand ohne
-## Wald, Aufrufe samt Schatten): s 4 +225k/+62, s 31 +180k/+57,
-## s 46 +167k/+52, s 70 +185k/+49, s 101 +160k/+42, s 119 +171k/+43,
-## s 140 +157k/+46, s 176 +109k/+31, s 212 +79k/+19, s 249 +104k/+19,
-## s 281 +147k/+36; Grafikspeicher +19 MB. Der Aufbau dauert headless gut
-## 2,5 s (sieben Schritte, je unter 0,8 s).
+## `Effekte.reduziert` (Web, Handy) wächst der ferne Wald zu 60 % und in
+## gröberen Zellen (`ZELLE_FERN_WEB`).
+## @MESSUNG@
 
 # ================================================================ Maße
 
@@ -163,7 +179,6 @@ const HIMMEL_TRITT := 3.0
 ## Tiefennebel (12 → 140 m) ist er kaum heller als der Himmel dahinter.
 const KAMM_WEIT := 100.0
 
-## Laubfarben (Grundton des Stoffs; getönt wird je Baum über die Farbe).
 ## Naher Talwald: Abstand der Hainmitten (m), Mindestabstand der Stämme
 ## außerhalb eines Hains (m; im Hain 60 %), und die Lichtung vor der
 ## Seitenansicht der Bachwiese (s von, s bis, q von, q bis).
@@ -171,6 +186,7 @@ const HAIN_RASTER := 21.0
 const TAL_ABSTAND := 2.3
 const LICHTUNG := Vector4(178.0, 194.0, 16.0, 40.0)
 
+## Laubfarben (Grundton des Stoffs; getönt wird je Baum über die Farbe).
 const LAUB_HALLE := Color(0.15, 0.33, 0.14)
 const LAUB_TAL := Color(0.19, 0.41, 0.15)
 const LAUB_FERN := Color(0.2, 0.42, 0.17)
@@ -187,9 +203,8 @@ const NADEL_TON := Color(0.6, 0.72, 0.76)
 const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
 
 ## Die Hallenwald-Reihen je Seite: Querbereich, Abstand entlang s, Arten
-## (rechts eigene: Dort schließen tief beastete Kronen die obere rechte
-## Bildecke bis zur Enthüllung – sonst stand am Start ein heller
-## Nebelfleck mit schwebenden Kronen vom Talrand darin).
+## (rechts eigene: tief beastete Kronen bis an die Hallenkante – die Halle
+## bleibt rechts in Augenhöhe geschlossen, bis sie sich bei s 26 öffnet).
 const REIHEN := [
 	{"q": Vector2(7.0, 10.0), "abstand": Vector2(4.6, 6.4), "arten": ["dach", "dach", "hoch", "duenn"]},
 	{"q": Vector2(12.0, 16.0), "abstand": Vector2(5.0, 7.0),
@@ -599,7 +614,7 @@ static func _kegel_frei(huelle: AABB, ohne_krone: bool = false) -> bool:
 	var m := huelle.get_center()
 	var h := huelle.size * 0.5
 	# Vorab mit der Kugel um die ganze Hülle: Die meisten Kegel liegen weit
-	# weg, nur die übrigen prüfen die 27 Punkte (das kostete sonst beim
+	# weg, nur die übrigen prüfen die 15 Punkte (das kostete sonst beim
 	# Aufbau gut eine halbe Sekunde).
 	var kegel: Array[Dictionary] = []
 	var weit := h.length()
@@ -843,8 +858,8 @@ static func _hallenbaum(art: String) -> Dictionary:
 
 ## Talbäume (M3, Rückfall), mittlere Fassung: 0 rund, 1 breit, 2 Nadelbaum,
 ## 3 groß und rund. Die Kronen setzen bei gut einem Drittel der Höhe an
-## ("unten"), der Nadelbaum fast am Boden, seine sieben Ballen überlappen
-## sich zu mehr als einem Drittel (mit vier auf 14 m war er ein Schneemann).
+## ("unten"); der Nadelbaum trägt gestufte Kegel fast bis zum Boden (aus
+## vier Ballen auf 14 m war ein Schneemann geworden).
 static func _talbaum(k: int) -> Dictionary:
 	match k % 4:
 		0:

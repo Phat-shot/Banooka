@@ -36,6 +36,7 @@ class_name Waldsetzer
 ## HELFER für den Pflanzer (alle statisch):
 ##   `Raster`          Mindestabstand zwischen Stücken (Streuung ohne Haufen)
 ##   `kegel_frei()`    liegt eine Kugel außerhalb aller Sichtkegel?
+##                     (`kegel_frei_einzeln()` für einen Kegel)
 ##   `drehung_weg()`   dreht einen Stamm so, dass seine Brettwurzeln nicht
 ##                     in eine Richtung (zum Weg) ragen (`fuss_radien`)
 ##   `getoent()`       Kopie eines Netzes mit eingefärbten Scheiteln

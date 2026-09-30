@@ -21,13 +21,20 @@ class_name L01Rasen
 ##   D      die Bachwiese: auf dem Weg 4 Flecken/m², daneben 6, bis 12,5 m
 ##          hinaus, viele Blüten; weiter draußen (bis 26 m) Horste hohen
 ##          Grases mit Blüten dazwischen; an den Ufern der Furt hohes Gras
+##   Bach   am Ufer des Laufs "bach" (Kanal, Bogen, Furt, Ausfluss), bis
+##          `UFER_WEITE` vom Weg: ein Streifen von der Wasserlinie bis 1,2 m
+##          dahinter mit hohem Gras, das sich über das Wasser neigt,
+##          Großblättern, Farnen und Kieseln (`_bachufer`) – statt einer
+##          harten Linie aus kahlem Rasen
 ##   E/F    kein Gras auf der Borke: Auf dem Moos der Flanken stehen
-##          Moosflecken (`Rasensaum.moosfleck`, im Moosstoff des Wegbodens)
-##          – licht auf der Fläche, dicht im Saum zur Borke, dort über sie
-##          gelegt, davor kleine Moosinseln auf der Borke –, dazu Polster,
-##          Farne und Blüten; in den Querrissen des Wurzelrückens (dieselbe
-##          Rechnung wie der Shader, `_riss`) Moos, Farne und Leuchtpilze;
-##          die Wurzelwiese darunter voll Gras und Blüten
+##          Moosflecken (`Rasensaum.moosfleck`, im Moosstoff des Wegbodens,
+##          etwas heller) – licht auf der Fläche, dicht, groß und über die
+##          Borke gelegt im halben Meter des Übergangs, davor alle 1–3 m eine
+##          Moosinsel auf der Borke (`_moosinsel`) –, dazu Polster (0,4 m),
+##          Farne und Blüten; auf dem Rindenwulst alle 3–4 m ein Farn; in
+##          den Querrissen des Wurzelrückens (dieselbe Rechnung wie der
+##          Shader, `_riss`) Moos, Farne und Leuchtpilze; die Wurzelwiese
+##          darunter voll Gras und Blüten
 ## Wispelgras und hohes Gras auch an den Lippen der Lücken und Stufen
 ## (außerhalb der Spur) und an den Ufern der Furt. Hohes Gras (0,45–0,6 m)
 ## an Steinen, Stämmen und Toren. Nichts wächst in Körpern aus

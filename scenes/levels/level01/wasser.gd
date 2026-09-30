@@ -14,12 +14,14 @@ class_name L01Wasser
 ##   unter den Spiegel fällt. Am Tümpel und an der Quelle schließt es rund,
 ##   am Rand des Feldes blendet es aus, in Fallbänder geht es über. Dazu der
 ##   Spiegel des Felsbeckens unter dem Pfeiler (bis an dessen Wand).
-## * Das Wasser **fließt**: Schaumstreifen laufen mit der Strömung (schnell,
-##   wo der Spiegel fällt, weiß in den Schnellen), am Ufer ein Schaumsaum,
-##   der die Linie verdeckt, an der Wasser und Böschung sich schneiden. Es
-##   spiegelt den Horizont und glitzert wie bisher (`himmel_farbe`,
-##   `glitzer`, Level 01 hat Glow). Eigener Shader (`BACH_SHADER`), weil der
-##   der Wasserfläche keine Fließrichtung kennt; die Wellen sind dieselben.
+## * Das Wasser **fließt**: dunkel und grün wie ein Waldbach, Schaumflecken
+##   treiben mit der Strömung (schnell, wo der Spiegel fällt, weiß in den
+##   Schnellen). Am Ufer ein weicher, fleckiger Schaumsaum, und an der
+##   Uferlinie selbst läuft das Wasser durchsichtig aus: Dort schneidet es
+##   die Dreiecke des Geländes, die sonst als Sägezahn stünden. Es spiegelt
+##   den Horizont und glitzert (`himmel_farbe`, `glitzer`; im Web ohne
+##   Glitzern). Eigener Shader (`BACH_SHADER`), weil der der Wasserfläche
+##   keine Fließrichtung kennt; die Wellen sind dieselben.
 ## * **Wurzelfall**, zweistufig (`Wasserfall.band`):
 ##     oben    der Oberlauf stürzt über die Krone des Pfeilers (y ≈ 31,5) in
 ##             das Felsbecken links (19,45): ein Strahl, der sich von der
@@ -31,8 +33,12 @@ class_name L01Wasser
 ##             Saums, `GelaendeSaum.flaeche_punkt`) und über den Schutt in den
 ##             Tümpel
 ##     Rinnsal in der Kerbe: aus der Rinne die Böschung hinab, über den
-##             dunklen Grund und die rechte Wand hinunter
-## * **Gischt** (`Staubflug`) im Becken, in der Fallkerbe und am Tümpel;
+##             dunklen Grund und die rechte Wand hinunter – zwei Stränge
+##             nebeneinander
+##   Der Tümpel, in den der untere Fall stürzt, ist der Anfang des Laufs
+##   "bach" in `bachlauf()` (Plan 8.5, Nachtrag), nicht `Level01.BACH`.
+## * **Gischt** (`Staubflug`) im Becken, in der Fallkerbe (fein und nur bis
+##   an die Lippe – sie steht vor dem Sprung) und am Tümpel;
 ##   **Schaum** (ein unbeleuchtetes Netz) um die Trittsteine der Furt und
 ##   wo die Fälle aufschlagen.
 ##
@@ -45,7 +51,8 @@ class_name L01Wasser
 ## KOLLISION baut das Modul keine (nur die Auslösezonen des Wassers, Ebene 0).
 ##
 ## KOSTEN (Plan 13: ≤ 10 Zeichenaufrufe, ≤ 5k Dreiecke): 1 Bachband,
-## 4 Fallbänder, 3 Gischtwolken, 1 Schaumnetz – alles ohne Schatten.
+## 5 Fallbänder (oben, Rinne, unten, zwei Rinnsale), 3 Gischtwolken,
+## 1 Schaumnetz – alles ohne Schatten.
 
 const WASSER_SZENE := preload("res://scenes/hazards/Wasser.tscn")
 
