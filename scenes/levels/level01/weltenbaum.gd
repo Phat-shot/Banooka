@@ -416,6 +416,13 @@ static func _baum_bauen(level: Level01) -> void:
 	_fussfarne(baum)
 
 
+## Für andere Module (die fernen Riesen der Bachwiese, `L01Wald`): wie
+## `_nebelarm`. Nur nach `bauschritte` dieses Moduls aufrufen – der Aufbau
+## des Baums leert die Liste für den Regler.
+static func nebelarm(stoff: Material, level: Level01) -> Material:
+	return _nebelarm(stoff, level)
+
+
 ## Eine Abschrift von `stoff` mit eigenem Nebel (siehe `NEBEL_ANTEIL`),
 ## eingestellt auf die Umgebung des Levels und für den Regler vermerkt. Der
 ## Shader entsteht einmal je Quellshader; ohne passende Stelle im Code
