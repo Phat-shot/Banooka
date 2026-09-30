@@ -613,11 +613,16 @@ static func _kiefernwipfel(sa: Sammler, st: SurfaceTool, lage: Transform3D, aest
 
 
 ## Nadelpolster einer Kiefer: flache, breite Wolke an `mitte` (Welt).
+## Die Helligkeit `hell` steckt in der Scheitelfarbe (COLOR.rgb tönt, A ist
+## das Windgewicht): Alle Polster teilen EINEN Stoff, sonst legte
+## `Kronenwolke.stoff` je Ton einen neuen an, und das verschmolzene Netz
+## trüge ohnehin nur den ersten.
 static func _polster(sa: Sammler, mitte: Vector3, r: float, saat: int, hell: float = 1.0) -> void:
 	var netz := Kronenwolke.netz({"radius": r, "hoehe": r * 0.5, "variante": 1, "saat": saat,
 			"ballen": 4 if r < 1.4 else 5, "karten": clampi(int(r * r * 6.0), 12, 50)})
-	_krone(sa, Color(NADEL.r * hell, NADEL.g * hell, NADEL.b * hell), netz,
-			Transform3D(Basis.IDENTITY, mitte))
+	if absf(hell - 1.0) > 0.001:
+		netz = _getoent(netz, Color(hell, hell, hell))
+	_krone(sa, NADEL, netz, Transform3D(Basis.IDENTITY, mitte))
 
 
 ## Ein Boden in Wegkoordinaten mit dem Stoff der Wegdecke: UV wie
@@ -760,7 +765,7 @@ static func _waldtor(sa: Sammler, level: Level01) -> void:
 
 
 ## Das Mooslog bei s 8: der Stamm genau in der Kapsel, die Enden im Farn,
-## ein paar Leuchtpilze in den Rissen der Borke.
+## ein paar Leuchtpilze am Fuß der Flanke zur Kamera.
 static func _mooslog(sa: Sammler, level: Level01) -> void:
 	var e := level.begehbar("Mooslog")
 	if e.is_empty():
