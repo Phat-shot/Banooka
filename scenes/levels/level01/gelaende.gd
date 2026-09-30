@@ -36,11 +36,24 @@ class_name L01Gelaende
 ##                  senkrecht (wie deren Unterschnitt), unten ein Schutthang,
 ##                  der den Fuß der Saumwand begräbt; nichts über der
 ##                  Fallbahn (6,5 m unter der Lippe)
-##   BOESCHUNG      1,5 m unter der Linie Wegkante → Krone, an der Krone mit
-##                  2 m Überlappung (0,6 m darunter, 2,5 m dahinter bündig)
-##   FELS_AUF       eine innere Wand 1,5–2,5 m hinter der Wegkante bis zur
-##                  Krone, dahinter bündig auf Kronenhöhe
-##   UFER (C4)      vom Wegrand hinab in den Kanal
+##   Ecke (A)       um die Ecke der Hochfläche (s 21–33) bricht der Hallen-
+##                  waldboden 1,35 m hinter der Lippe des Saums steil ab
+##                  (`L01Saum.lippe_q`), hinter dessen Wand; dessen Narbe
+##                  reicht darüber 1,8 m nach innen
+##   links (Saum)   Böschung, Felsnase, Wand und Becken nach den Querschnitten,
+##                  die der Saum baut (`L01Saum.querschnitte_links`, s 27,7
+##                  bis 158): unter dem Hang 1,5 m unter der Linie Fuß →
+##                  Kronenkante und immer 0,35 m unter der Fläche, hinter der
+##                  Wand tief (im Becken unter dessen Grund), unter der Krone
+##                  0,35 m darunter, ab 2,5–4,5 m hinter der Kronenkante darf
+##                  das Land darüber treten, am Ende der Krone deckt es sie
+##                  0,35 m hoch zu; das Oberland beginnt dort auf dieser Höhe
+##   BOESCHUNG      (ohne Saum) 1,5 m unter der Linie Wegkante → Krone, an
+##                  der Krone mit 2 m Überlappung
+##   FELS_AUF       (ohne Saum, C4 hinter 158) eine innere Wand 1,5–2,5 m
+##                  hinter der Wegkante bis zur Krone, dahinter bündig
+##   UFER (C4)      vom Wegrand hinab in den Kanal; in der Furt bis 1,8 m
+##                  hinter den Deckenkanten unter dem Ufer, das der Saum baut
 ##   Lücken         Erdspalt als scharfer Riss, der 5 m in den Waldboden
 ##                  ausläuft; unter Kerbe und Fallkerbe tief und dunkel,
 ##                  unter jeder Todeszone
@@ -396,6 +409,22 @@ class Modell:
 	const S_MIN := -60.0
 	const S_MAX := 320.0
 	const S_SCHRITT := 0.5
+	# Saum links: Profilpunkt der Kronenkante; bis hierhin (s) gilt sein
+	# Profil; so weit (m) bleibt das Gelände unter seinen Flächen und so
+	# weit deckt es das Ende der Krone zu.
+	const SAUM_KRONE := 20
+	const SAUM_LINKS_BIS := 158.0
+	const SAUM_UNTER := 0.35
+	const SAUM_DECKT := 0.35
+	# Die Ecke der Hochfläche (s von, bis), wie weit die Oberkante des
+	# Geländes hinter der Lippe liegt und wie steil sie abbricht
+	const ECKE := Vector2(21.0, 33.2)
+	const ECKE_ABSTAND := 1.35
+	const ECKE_WEICH := 0.35
+	# So weit hinter der Lippe des Erdspalts (Saum) steht die Wand des
+	# Feldes, und so weit dahinter erreicht es den Waldboden
+	const SPALT_WAND := 0.85
+	const SPALT_LIPPE := 1.05
 	# Randtypen
 	const FLACH := 0
 	const BOESCHUNG := 1
@@ -426,6 +455,23 @@ class Modell:
 	var fuss: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array()]
 	var krone: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array()]
 	var krone_q: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array()]
+	# Die linke Seite, wie der Saum sie baut (`L01Saum.querschnitte_links`),
+	# je Stelle: das Profil als Vector2(|q|, Y) und daraus Fuß, Wand (größtes
+	# |q| unter der Krone), Kronenkante und Kronenende. `saum_da` 0: kein
+	# Saum links (dort gilt das Randprofil aus `rand_profil`).
+	var saum_da := PackedByteArray()
+	var saum_reihen: Array[PackedVector2Array] = []
+	var saum_fuss_y := PackedFloat32Array()
+	var saum_wand_q := PackedFloat32Array()
+	var saum_kante_q := PackedFloat32Array()
+	var saum_ende_q := PackedFloat32Array()
+	var saum_ende_y := PackedFloat32Array()
+	# Die Ecke der Hochfläche vor s 33 (Oberkante des Geländes, Wegkoordinaten)
+	# und die halbe Übergangsbreite je Punkt
+	var hallenkante := PackedVector2Array()
+	var hallenkante_weich := PackedFloat32Array()
+	# Die Furt (s von–bis), deren Ufer der Saum zeichnet
+	var furt := Vector2(173.0, 183.0)
 	var flach_kurve := Curve3D.new()
 	var laengen := PackedFloat32Array()
 	var ende_s := 287.0
@@ -458,6 +504,8 @@ class Modell:
 		ende_s = Level01.M_ENDE
 		_rauschen_anlegen()
 		_weg_lesen(level)
+		_saum_lesen(level)
+		_hallenkante_anlegen(level)
 		_luecken_lesen(level)
 		_laeufe_anlegen(level)
 		_oberkante_anlegen()
@@ -523,7 +571,11 @@ class Modell:
 				summe += jetzt.distance_to(vorher)
 			laengen[i] = summe
 			vorher = jetzt
-			flach_kurve.add_point(Vector3(p.x, 0.0, p.z))
+			# Nur bis zum Ende: Die gerade Verlängerung dahinter (Kurs −150°)
+			# liefe hinter die Wand von C4 und finge dort die Punkte ein, die
+			# zu deren Krone gehören. Hinter dem Ende rechnet `projektion`.
+			if s <= ende_s + 0.001:
+				flach_kurve.add_point(Vector3(p.x, 0.0, p.z))
 			for seite in 2:
 				var rp := level.rand_profil(s, -1.0 if seite == 0 else 1.0)
 				wegrand[i] = float(rp["wegrand"])
@@ -543,6 +595,95 @@ class Modell:
 						abstand[seite][i] = maxf(abstand[seite][i], absf(nq))
 						kq = maxf(kq, absf(nq) + 5.0)
 				krone_q[seite][i] = kq
+
+	## Die linke Seite, wie der Saum sie baut: je Stelle das Profil und seine
+	## Kennwerte (siehe `saum_reihen`). Bis `SAUM_LINKS_BIS` – dahinter biegt
+	## der Fuß quer zum Weg ab, dort gilt wieder das Randprofil.
+	func _saum_lesen(level: Level01) -> void:
+		saum_da.resize(anzahl)
+		saum_da.fill(0)
+		saum_reihen.resize(anzahl)
+		saum_fuss_y.resize(anzahl)
+		saum_wand_q.resize(anzahl)
+		saum_kante_q.resize(anzahl)
+		saum_ende_q.resize(anzahl)
+		saum_ende_y.resize(anzahl)
+		var daten := L01Saum.querschnitte_links(level)
+		var strecken: PackedFloat32Array = daten["s"]
+		var punkte: Array[PackedVector2Array] = daten["punkte"]
+		var n := strecken.size()
+		if n < 2:
+			return
+		var k := 0
+		for i in anzahl:
+			var s := S_MIN + S_SCHRITT * float(i)
+			saum_reihen[i] = PackedVector2Array()
+			if s < strecken[0] or s > minf(strecken[n - 1], SAUM_LINKS_BIS):
+				continue
+			while k < n - 2 and strecken[k + 1] < s:
+				k += 1
+			var t := clampf((s - strecken[k]) / maxf(strecken[k + 1] - strecken[k], 0.0001),
+					0.0, 1.0)
+			var a := punkte[k]
+			var b := punkte[k + 1]
+			var reihe := PackedVector2Array()
+			reihe.resize(a.size())
+			var wand := 0.0
+			for j in a.size():
+				reihe[j] = a[j].lerp(b[j], t)
+				if j >= 2 and j < SAUM_KRONE:
+					wand = maxf(wand, reihe[j].x)
+			saum_reihen[i] = reihe
+			saum_da[i] = 1
+			saum_fuss_y[i] = reihe[2].y - 0.04
+			saum_wand_q[i] = wand
+			saum_kante_q[i] = reihe[SAUM_KRONE].x
+			saum_ende_q[i] = reihe[reihe.size() - 1].x
+			saum_ende_y[i] = reihe[reihe.size() - 1].y
+		# Die Furt, deren Ufer der Saum zeichnet
+		for r: Dictionary in Level01.RAENDER:
+			if String(r["typ"]) == "UFER" and not r.has("kanal"):
+				furt = Vector2(float(r["von"]), float(r["bis"]))
+
+	## Höhe der Saumfläche links bei |q| = u an der Stelle i, zwischen den
+	## Profilpunkten `von` und dem letzten (die Punkte steigen dort in |q|);
+	## davor der erste, dahinter der letzte Wert.
+	func _saum_hoehe(i: int, u: float, von: int) -> float:
+		var reihe := saum_reihen[i]
+		var n := reihe.size()
+		if u <= reihe[von].x:
+			return reihe[von].y
+		for j in range(von, n - 1):
+			var a := reihe[j]
+			var b := reihe[j + 1]
+			if u <= b.x:
+				return lerpf(a.y, b.y, clampf((u - a.x) / maxf(b.x - a.x, 0.0001), 0.0, 1.0))
+		return reihe[n - 1].y
+
+	## Die Oberkante des Hallenwaldbodens: bis vor die Ecke aus `HALLENKANTE`,
+	## um die Ecke der Hochfläche 1,35 m hinter der Lippe, die der Saum dort
+	## baut (`L01Saum.lippe_q`, s 21–33,2), und steil (±0,35 m): Der Abbruch
+	## liegt ganz hinter dessen Wand (0,5–0,85 m hinter der Lippe), über ihm
+	## reicht dessen Narbe 1,8 m nach innen, unter den Waldboden.
+	func _hallenkante_anlegen(level: Level01) -> void:
+		hallenkante = PackedVector2Array()
+		hallenkante_weich = PackedFloat32Array()
+		for sq: Vector2 in HALLENKANTE:
+			if sq.x < ECKE.x - 3.0:
+				hallenkante.append(sq)
+				hallenkante_weich.append(KANTE_STEIL)
+		var lippe := PackedVector2Array()
+		var s := ECKE.x
+		while s < ECKE.y:
+			lippe.append(Vector2(s, L01Saum.lippe_q(level, s, 1.0)))
+			s += 0.25
+		lippe.append(Vector2(ECKE.y, L01Saum.lippe_q(level, ECKE.y, 1.0)))
+		for j in lippe.size():
+			var t := lippe[mini(j + 1, lippe.size() - 1)] - lippe[maxi(j - 1, 0)]
+			t = t.normalized()
+			# nach innen: zum Weg und zurück in den Hallenwald
+			hallenkante.append(lippe[j] + Vector2(t.y, -t.x) * ECKE_ABSTAND)
+			hallenkante_weich.append(ECKE_WEICH)
 
 	## Stärke des Kronenlichts an `s` aus den Stützstellen der Wegdecke
 	## (stückweise linear wie `L01Boden.kronenlicht_bei`).
@@ -606,6 +747,10 @@ class Modell:
 		var cz := lerpf(pz[lo], pz[hi], t)
 		var r := Vector2(lerpf(rx[lo], rx[hi], t), lerpf(rz[lo], rz[hi], t)).normalized()
 		var q := (x - cx) * r.x + (z - cz) * r.y
+		# Hinter dem Ende geradeaus weiter, wie auf der Verlängerung
+		if s >= ende_s - 0.01:
+			var vor := (x - cx) * r.y - (z - cz) * r.x
+			s += maxf(vor, 0.0)
 		return Vector2(s, q)
 
 	func _index(s: float) -> int:
@@ -797,17 +942,23 @@ class Modell:
 
 	func _oberkante_anlegen() -> void:
 		# Ostkante des Hallenwaldbodens: eben bis `HALLE_EBEN` dahinter
-		for sq: Vector2 in HALLENKANTE:
-			_ober_punkt(_weg_welt(sq.x, sq.y), 26.0, HALLE_EBEN)
-		# Lippe von B und C: dahinter liegt die Krone der Böschung bzw. Wand
+		for k in hallenkante.size():
+			var sq := hallenkante[k]
+			_ober_punkt(_weg_welt(sq.x, sq.y), 26.0, HALLE_EBEN, hallenkante_weich[k])
+		# Lippe von B und C: dahinter liegt die Krone der Böschung bzw. Wand –
+		# das Land beginnt auf der Höhe, auf der der Saum sie enden lässt.
 		var s := 34.0
 		while s <= 143.0:
 			var i := _index(s)
 			var a_r := abstand[1][i]
 			var anfang := a_r + abstand[0][i] + 4.5
+			var oben := krone[0][i]
 			if typ[0][i] == BOESCHUNG:
 				anfang = a_r + krone_q[0][i] + 2.5
-			_ober_punkt(_weg_welt(s, a_r), krone[0][i], anfang)
+			if saum_da[i] == 1:
+				anfang = a_r + saum_ende_q[i] + 1.0
+				oben = saum_ende_y[i] + SAUM_DECKT
+			_ober_punkt(_weg_welt(s, a_r), oben, anfang)
 			s += 2.0
 		# C4: über den Weg auf die linke Wand, dann der Nordfuß
 		# Über den Weg auf die linke Wand von C4: Die Wand ist eine
@@ -818,7 +969,13 @@ class Modell:
 		for s4: float in [146.0, 150.0, 154.0, 158.0, 160.0]:
 			var i := _index(s4)
 			var t4 := smoothstep(146.0, 160.0, s4)
-			_ober_punkt(_weg_welt(s4, -(abstand[0][i] + 3.0)), lerpf(krone[0][i], 12.0, t4),
+			var q4 := abstand[0][i] + 3.0
+			var oben4 := krone[0][i]
+			# Mit Saum: hinter dem Ende seiner Krone, auf deren Höhe
+			if saum_da[i] == 1:
+				q4 = saum_ende_q[i] + 0.5
+				oben4 = saum_ende_y[i] + SAUM_DECKT
+			_ober_punkt(_weg_welt(s4, -q4), lerpf(oben4, 12.0, t4),
 					1.5, lerpf(KANTE_STEIL, FUSS_WEICH, t4))
 		for f: Vector3 in NORDFUSS:
 			_ober_punkt(Vector2(f.x, f.y), f.z, 0.0, FUSS_WEICH)
@@ -927,7 +1084,7 @@ class Modell:
 		var h := _landschaft(x, z, o)
 		h = _baumzone(x, z, h)
 		h = _baeche(x, z, h, true)
-		h = _weg(x, z, sq, h)
+		h = _weg(x, z, sq, h, o)
 		h = _baeche(x, z, h, false)
 		h = _sonderzonen(sq, h)
 		return h
@@ -1029,7 +1186,7 @@ class Modell:
 	## Nähte zum Weg nach dem Randtyp (siehe Kopf). Mischt die Profile der
 	## beiden Nachbarstellen, damit Typwechsel nicht als Stufe stehen – nur
 	## an den Enden einer Decke bleibt die Kante scharf.
-	func _weg(x: float, z: float, sq: Vector2, h: float) -> float:
+	func _weg(x: float, z: float, sq: Vector2, h: float, o: Vector4) -> float:
 		var s := sq.x
 		if s < S_MIN + 1.0 or s > S_MAX - 1.0:
 			return h
@@ -1045,9 +1202,16 @@ class Modell:
 		var a := _profil(i, seite, u, s, h, bach)
 		var b := _profil(i + 1, seite, u, s, h, bach)
 		if (breite[i] <= 0.0) != (breite[i + 1] <= 0.0):
-			var ab := a if t < 0.5 else b
+			# Genau an der Deckenkante wechseln, nicht auf halbem Weg zur
+			# nächsten Stelle: Sonst stünde das Feld bis zu 0,25 m in Deckenhöhe
+			# in der Lücke, vor den Stirnflächen und Ufern des Saums.
+			var ab := a if (breite[i] <= 0.0) == in_luecke(s) else b
 			return lerpf(h, ab.x, ab.y)
 		var gewicht := lerpf(a.y, b.y, t)
+		# Um die Ecke der Hochfläche hält die Naht den Rasen nur bis zur
+		# Oberkante: Dahinter bricht das Land hinter der Wand des Saums ab.
+		if seite == 1 and s < ECKE.y + 0.3 and u > wegrand[i] + 0.1:
+			gewicht *= smoothstep(-o.w, o.w, o.x)
 		if gewicht <= 0.0:
 			return h
 		var ziel := (a.x * a.y * (1.0 - t) + b.x * b.y * t) / maxf(a.y * (1.0 - t) + b.y * t, 1e-5)
@@ -1061,6 +1225,8 @@ class Modell:
 		var auf_decke := breite[i] > 0.0
 		if ty == KEIN or ty == WURZEL:
 			return Vector2(h, 0.0)
+		if seite == 0 and saum_da[i] == 1:
+			return _profil_saum_links(i, ty, u, s, h, kante, rand, auf_decke)
 		# Unter der Decke. UFER dort nur auf der Grenzstelle einer Furt-Decke
 		# (183,0 gehört zu beidem): Sie endet sichtbar, also bündig wie FLACH.
 		if auf_decke and u < rand - 0.05:
@@ -1071,6 +1237,16 @@ class Modell:
 			# In einer Lücke: Erdspalt (FLACH) und Furt (UFER) regeln Riss und
 			# Bach, sonst tief und dunkel unter der Todeszone.
 			if ty == UFER:
+				# Die Ufer der Furt zeichnet der Saum (|q| ≤ 8, unter der
+				# Wasserlinie taucht er unter das Bett): Bis dorthin bleibt
+				# das Feld unter seiner Böschung.
+				if s > furt.x and s < furt.y and u < 9.2:
+					var d := minf(s - furt.x, furt.y - s)
+					var k_ufer := deck[_index(furt.x - 0.25)] if s - furt.x < furt.y - s \
+							else deck[_index(furt.y + 0.25)]
+					var ufer := _furt_ufer(d, k_ufer)
+					var w := (1.0 - smoothstep(8.0, 9.2, u)) * (1.0 - smoothstep(1.3, 1.8, d))
+					return Vector2(minf(h, ufer), w)
 				return Vector2(h, 0.0)
 			if u < rand + 0.5 and ty != FLACH:
 				return Vector2(minf(h, _lueckenboden(s)), 1.0)
@@ -1129,6 +1305,67 @@ class Modell:
 				return Vector2(y, 1.0 - smoothstep(a + 2.5, a + 6.0, u))
 		return Vector2(h, 0.0)
 
+	## Links, wo der Saum baut (Böschung, Felsnase, Felswand, Becken): Das
+	## Feld bleibt `SAUM_UNTER` unter seinen Flächen – unter der Böschung
+	## und der Krone, hinter der Wand tief, im Becken unter dessen Grund –,
+	## darf hinter der Kronenkante (ab 2,5–4,5 m) als Land heraustreten und
+	## deckt das Ende der Krone um `SAUM_DECKT` zu. Dahinter das Land.
+	func _profil_saum_links(i: int, ty: int, u: float, s: float, h: float, kante: float,
+			rand: float, auf_decke: bool) -> Vector2:
+		if auf_decke and u < rand - 0.05:
+			return Vector2(kante - (UNTER_DECKE if ty == FLACH else UNTER_WEG), 1.0)
+		if not auf_decke and u < rand + 0.5:
+			return Vector2(minf(h, _lueckenboden(s)), 1.0)
+		var reihe := saum_reihen[i]
+		var k := saum_kante_q[i]
+		var e := saum_ende_q[i]
+		var wand := saum_wand_q[i]
+		var y := 0.0
+		if ty == FELS_AUF:
+			# Hinter der Wand tief (im Becken unter dessen Grund), erst hinter
+			# ihrer äußersten Stelle hinauf unter die Krone
+			var tief := minf(kante - 2.0, saum_fuss_y[i] - 0.6)
+			if u < wand + 0.4:
+				return Vector2(tief, 1.0)
+			y = _saum_krone(i, u, h, maxf(k, wand), e)
+			y = lerpf(tief, y, smoothstep(wand + 0.4, wand + 0.9, u))
+			return Vector2(y, 1.0 - smoothstep(e + 1.0, e + 8.0, u))
+		# Böschung (auch ihr Anfang aus dem Waldboden vor s 33): unter dem
+		# Hang 1,5 m unter der Linie Fuß → Kronenkante (wie vorher) und nie
+		# weniger als `SAUM_UNTER` unter der Fläche (Rinne der Kerbe)
+		var a := reihe[2].x
+		if u <= k:
+			if ty == FLACH and u < rand + 1.5:
+				y = kante - UNTER_DECKE
+			else:
+				y = lerpf(kante - 1.5, reihe[SAUM_KRONE].y - 0.6,
+						clampf((u - a) / maxf(k - a, 0.1), 0.0, 1.0))
+			y = minf(y, _saum_hoehe(i, u, 0) - SAUM_UNTER)
+			return Vector2(y, 1.0)
+		y = _saum_krone(i, u, h, k, e)
+		return Vector2(y, 1.0 - smoothstep(e + 1.0, e + 8.0, u))
+
+	## Unter dem Ufer der Furt, das der Saum baut (`L01Saum._profil_furt`),
+	## `d` Meter von der Deckenkante, `k` deren Höhe: 0,25 m darunter.
+	static func _furt_ufer(d: float, k: float) -> float:
+		var stellen := [Vector2(0.0, k - 0.6), Vector2(0.4, k - 0.97), Vector2(0.8, 6.05),
+				Vector2(1.2, 5.77), Vector2(1.6, 5.25), Vector2(2.2, 4.5)]
+		for j in stellen.size() - 1:
+			var a: Vector2 = stellen[j]
+			var b: Vector2 = stellen[j + 1]
+			if d <= b.x:
+				return lerpf(a.y, b.y, clampf((d - a.x) / (b.x - a.x), 0.0, 1.0))
+		return 4.5
+
+	## Das Feld an der Krone links (ab `von`): `SAUM_UNTER` unter ihr, ab
+	## 2,5–4,5 m hinter `von` darf das Land darüber treten, und am Ende der
+	## Krone liegt es `SAUM_DECKT` über ihr.
+	func _saum_krone(i: int, u: float, h: float, von: float, ende: float) -> float:
+		var unter := _saum_hoehe(i, u, SAUM_KRONE) - SAUM_UNTER
+		var frei := smoothstep(von + 2.5, von + 4.5, u)
+		var y := lerpf(unter, maxf(h, unter), frei)
+		return maxf(y, unter + (SAUM_UNTER + SAUM_DECKT) * smoothstep(ende - 1.5, ende, u))
+
 	## Boden unter einer Lücke (nicht Erdspalt/Furt): unter der Todeszone.
 	func _lueckenboden(s: float) -> float:
 		if s < 80.0:
@@ -1167,13 +1404,16 @@ class Modell:
 		var q := sq.y
 		var u := absf(q)
 		# Erdspalt: voll zwischen den Decken, dann 5,5 m keilförmig in den
-		# Waldboden (Plan 5A), dunkel und tief (Boden 16, K-Spalt 20).
-		var mitte := (erdspalt.x + erdspalt.y) * 0.5
-		var halb := _spalt_halb(u)
-		var ds := absf(s - mitte)
-		if ds < halb + 0.4 and u < 10.5:
-			var tiefe := lerpf(16.0, 23.5, smoothstep(5.0, 10.5, u))
-			var boden := lerpf(tiefe, h, smoothstep(halb - 0.05, halb + 0.3, ds))
+		# Waldboden (Plan 5A), dunkel und tief (Boden 16, K-Spalt 20), hinter
+		# den Wänden, die der Saum dort baut.
+		var hinter := _spalt_hinter(s, q)
+		if hinter < SPALT_LIPPE and u < 10.5:
+			# Boden 0,6 m unter dem Grund, den der Saum dort zeichnet
+			var eng := pow(smoothstep(5.2, 10.6, u), 0.8)
+			var kante := deck[_index(erdspalt.x - 0.25)]
+			var tiefe := lerpf(16.0, kante - 3.1, smoothstep(0.55, 1.0, eng))
+			tiefe = lerpf(tiefe, kante - 0.6, smoothstep(9.9, 10.4, u))
+			var boden := lerpf(tiefe, h, smoothstep(SPALT_WAND, SPALT_LIPPE, hinter))
 			h = minf(h, boden)
 		# Wurzelwiese (s 196–214, q 3,9–12,4) und Wiesenboden unter G1
 		# (s 210–214, q −4,2…4): flach auf 7,0, wie die Kollision.
@@ -1186,11 +1426,17 @@ class Modell:
 				h = lerpf(h, WIESE_Y, w)
 		return h
 
-	## Halbe Weite des Erdspalts bei Querabstand u (bis 5 m voll, dann ein
-	## Keil bis 10,5 m).
-	func _spalt_halb(u: float) -> float:
-		var halb := (erdspalt.y - erdspalt.x) * 0.5 + 0.25
-		return halb * (1.0 - smoothstep(5.0, 10.5, u))
+	## Wie weit (s, q) hinter der nächsten Lippe des Erdspalts liegt, die der
+	## Saum baut (`L01Saum.erdspalt_linie`, samt Zacken; negativ = zwischen
+	## den Lippen, über dem Riss). Die Wände des Feldes stehen `SPALT_WAND`
+	## dahinter, hinter den Wänden des Saums (0,4–0,5 m, Rauschen bis 0,3 m
+	## weiter), der Waldboden beginnt `SPALT_LIPPE` dahinter, unter dessen
+	## Narbe (1,15 m). Vor dem Ende der Wände (10,6 m) läuft der Riss flach
+	## zu, in ihrer Höhlung: Dahinter ist kein Saum mehr, der ihn deckte.
+	func _spalt_hinter(s: float, q: float) -> float:
+		var u := absf(q)
+		var zu := 1.6 * smoothstep(9.9, 10.4, u)
+		return maxf(L01Saum.erdspalt_linie(q, 0) - s, s - L01Saum.erdspalt_linie(q, 1)) + zu
 
 	# ------------------------------------------------------------ Dichte
 
@@ -1242,25 +1488,62 @@ class Modell:
 				liste.append({"punkte": PackedVector2Array([_weg_welt(s, -r), _weg_welt(s, r)]),
 						"abstand": 0.7, "reihen": PackedFloat32Array([0.0])})
 		# Keile des Erdspalts im Waldboden: Lippe und Riss
-		var mitte := (erdspalt.x + erdspalt.y) * 0.5
 		for seite: float in [-1.0, 1.0]:
-			for ende: float in [-1.0, 1.0]:
+			for ende in 2:
+				var richtung := -1.0 if ende == 0 else 1.0
 				var lippe := PackedVector2Array()
 				var riss := PackedVector2Array()
-				for k in 12:
-					var u := 5.0 + 5.5 * float(k) / 11.0
-					var halb := _spalt_halb(u)
-					lippe.append(_weg_welt(mitte + ende * (halb + 0.3), seite * u))
-					riss.append(_weg_welt(mitte + ende * maxf(halb - 0.05, 0.0), seite * u))
+				var boden := PackedVector2Array()
+				for k in 29:
+					var q := seite * (4.8 + 5.6 * float(k) / 28.0)
+					var zu := 1.6 * smoothstep(9.9, 10.4, absf(q))
+					var s := L01Saum.erdspalt_linie(q, ende)
+					lippe.append(_weg_welt(s + richtung * (SPALT_LIPPE - zu), q))
+					riss.append(_weg_welt(s + richtung * (SPALT_WAND - zu), q))
+					boden.append(_weg_welt(s + richtung * (SPALT_LIPPE + 0.25 - zu), q))
+				liste.append({"punkte": boden, "abstand": 0.45, "reihen": PackedFloat32Array([0.0])})
 				liste.append({"punkte": lippe, "abstand": 0.45, "reihen": PackedFloat32Array([0.0])})
 				liste.append({"punkte": riss, "abstand": 0.45, "reihen": PackedFloat32Array([0.0])})
-		# Ostkante des Hallenwaldbodens: Oberkante und Fuß
+		# Ostkante des Hallenwaldbodens: Oberkante und Fuß; um die Ecke der
+		# Hochfläche steil (hinter der Wand des Saums), davor weich
 		var halle := PackedVector2Array()
-		for sq: Vector2 in HALLENKANTE:
-			if sq.x > 14.0:
+		var ecke := PackedVector2Array()
+		for k in hallenkante.size():
+			var sq := hallenkante[k]
+			if sq.x >= ECKE.x - 1.5:
+				ecke.append(_weg_welt(sq.x, sq.y))
+			elif sq.x > -10.0:
 				halle.append(_weg_welt(sq.x, sq.y))
+		if not ecke.is_empty():
+			halle.append(ecke[0])
 		liste.append({"punkte": halle, "abstand": 1.0,
 				"reihen": PackedFloat32Array([-1.7, -1.2, 1.6])})
+		liste.append({"punkte": ecke, "abstand": 0.7,
+				"reihen": PackedFloat32Array([-0.6, -0.38, 0.38, 0.6])})
+		# Links das Ende der Krone, die der Saum baut: Dort steigt das Feld
+		# knapp über sie (ein schmaler Wulst, zu schmal für das Raster)
+		var kronenende := PackedVector2Array()
+		var sk := S_MIN
+		while sk <= SAUM_LINKS_BIS:
+			var i := _index(sk)
+			if saum_da[i] == 1:
+				kronenende.append(_weg_welt(sk, -saum_ende_q[i]))
+			sk += 1.0
+		if kronenende.size() > 1:
+			liste.append({"punkte": kronenende, "abstand": 1.0,
+					"reihen": PackedFloat32Array([-0.8, 0.0, 1.0])})
+		# Die Rinne der Kerbe, die der Saum links die Böschung hinaufführt: ein
+		# schmales V, das das Raster sonst überdeckte
+		for s: float in [56.2, 56.8, 57.5, 58.2, 58.8]:
+			liste.append({"punkte": PackedVector2Array([_weg_welt(s, -4.8), _weg_welt(s, -14.0)]),
+					"abstand": 0.6, "reihen": PackedFloat32Array([0.0])})
+		# Die Ufer der Furt, die der Saum baut: Reihen quer, damit das Feld
+		# dort unter ihm bleibt
+		for ende: Vector2 in [Vector2(furt.x, 1.0), Vector2(furt.y, -1.0)]:
+			for d: float in [0.12, 0.45, 0.85, 1.25, 1.65]:
+				var s := ende.x + ende.y * d
+				liste.append({"punkte": PackedVector2Array([_weg_welt(s, -9.5), _weg_welt(s, 9.5)]),
+						"abstand": 0.8, "reihen": PackedFloat32Array([0.0])})
 		# Wasserlinien der Bäche, je Abschnitt (die Breite ändert sich)
 		for lauf in laeufe:
 			var p: PackedVector2Array = lauf["p"]
@@ -1387,6 +1670,11 @@ class Modell:
 		_merken(p)
 		var w := _letzt_wald
 		var fels := smoothstep(0.8, 0.62, n.y)
+		# Die Lippe des Erdspalts liegt oben auf dem Waldboden: Ihre Normale
+		# neigt sich zur Wand darunter (unter der Narbe des Saums), ihre Farbe
+		# bliebe sonst als Felsband neben der Narbe stehen.
+		if p.y > 25.7 and absf(_letzt_sq.x - 26.25) < 3.5 and absf(_letzt_sq.y) < 11.5:
+			fels = 0.0
 		# Gruben: Wurzelerde, dunkel und nass, am Rand Waldboden statt Rasen
 		var schlamm := 0.0
 		var grube := _grubenanteil(p)
@@ -1459,8 +1747,8 @@ class Modell:
 		# Mulden, Risse
 		ao *= 1.0 - 0.45 * smoothstep(0.1, 1.6, mulde)
 		# Erdspalt fast schwarz
-		if p.y < 22.0 and s > 20.0 and s < 32.0 and u < 11.0:
-			ao *= lerpf(1.0, 0.18, smoothstep(24.5, 18.0, p.y))
+		if s > 20.0 and s < 32.0 and u < 11.5:
+			ao *= lerpf(1.0, 0.18, smoothstep(25.9, 23.5, p.y))
 		# Am Wegrand in A und D: wie der Rand der Decke ab 0,78
 		var i := _index(s)
 		if s > -12.0 and s < ende_s:

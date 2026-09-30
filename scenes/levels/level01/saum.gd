@@ -63,13 +63,20 @@ class_name L01Saum
 ## NÄHTE: Rasen, der an die Decke stößt, liegt 1,5 cm unter ihr und trägt
 ## ihre Farbe (Include `wald_gemeinsam`, Verdeckung 0,78 wie ihr Rand) – so
 ## verschwindet die Naht, und gleiche Flächen anderer Module (Nischenboden,
-## Kanzel) flackern nicht. Zum Gelände (`gelaende`, wird später gemergt):
+## Kanzel) flackern nicht. Zum Gelände (`L01Gelaende`):
 ##   FELS_AB    die Wand reicht drei Meter unter "fuss_y"; das Feld liegt
 ##              darunter.
+##   Ecke       um die Ecke der Hochfläche (vor s 33) reicht die Narbe 1,8 m
+##              nach innen unter den Waldboden; das Feld bricht 1,35 m
+##              hinter der Lippe steil ab, hinter der Wand.
 ##   BOESCHUNG/FELS_AUF  die Krone läuft 7,5 m hinter die Kronenkante flach
-##              aus (0,6–1,1 m ansteigend); das Feld schließt dort an.
-## Die wirkliche Lippe und die wirklichen Flächen liefern `lippe_q()` und
-## `GelaendeSaum.flaeche_punkt()`.
+##              aus (0,6–1,1 m ansteigend). Das Feld liest die Querschnitte
+##              (`querschnitte_links()`), bleibt unter Hang, Wand, Becken und
+##              Krone und deckt deren Ende zu.
+##   Furt       unter der Wasserlinie taucht das Ufer unter das Bachbett des
+##              Feldes; darüber bleibt das Feld unter ihm.
+## Die wirkliche Lippe und die wirklichen Flächen liefern `lippe_q()`,
+## `querschnitte_links()` und `GelaendeSaum.flaeche_punkt()`.
 ##
 ## KAMERA (Plan K1): Nichts vom Saum hängt unter 8,8 m über den Weg. Die
 ## Wände stehen neben ihm; der Überhang der Fallklamm tritt erst ab 10 m
@@ -113,6 +120,10 @@ const PFEILER_HOEHE := 11.0
 const KERBE_GRUND := 16.0
 const FALLKERBE_GRUND := 18.0
 const ERDSPALT_GRUND := 17.0
+## So weit reicht die Narbe am Erdspalt hinter die Lippe (unter den
+## Waldboden des Geländes, dessen Wand 0,85 m dahinter steht und das 1,05 m
+## dahinter den Waldboden erreicht).
+const ERDSPALT_NARBE := 1.15
 ## Die Felsplatten der Wegbauten rechts (Felsrand unter dem Geländer,
 ## Kanzel): Außenkante, die Wand beginnt 0,25 m dahinter unter ihnen.
 const PLATTE_RAND := 5.7
@@ -163,6 +174,38 @@ static func lippe_q(level: Level01, s: float, seite: float) -> float:
 		if s >= a.x and s <= b.x and b.x - a.x > 0.0001:
 			return absf(lerpf(a.y, b.y, (s - a.x) / (b.x - a.x)))
 	return absf(float(level.rand_profil(s, seite)["abstand"]))
+
+
+## Die Querschnitte links, wie der Bau sie rechnet (ohne Glättung und
+## Rauschen der Fläche), für das Gelände, das unter der Böschung, hinter der
+## Wand und am Ende der Krone anschließt: {"s": PackedFloat32Array, "punkte":
+## Array[PackedVector2Array] mit Vector2(|q|, Welt-Y) je Profilpunkt – 0
+## Schulter, 2–3 Fuß, 4–19 Hang bzw. Wand, 20 Kronenkante, 25 Kronenende}.
+## Wo die Fußlinie schräg zum Weg läuft (Nische, Seiten des Beckens), zählt
+## vom Versatz entlang ihrer Normale nur der Anteil quer zum Weg; wo sie
+## quer zum Weg abbiegt (Ende bei 160), taugt das Profil dafür nicht.
+static func querschnitte_links(level: Level01) -> Dictionary:
+	var proben := GelaendeSaum.linie(level.verlauf, _fuss_links(level), SCHRITT_LINKS,
+			_feste_s())
+	var strecken := PackedFloat32Array()
+	var punkte: Array[PackedVector2Array] = []
+	var n := proben.size()
+	for i in n:
+		var probe: Dictionary = proben[i]
+		var p := _profil_links(i, probe, level)
+		var q_linie := absf(float(probe["q"]))
+		var vor: Dictionary = proben[mini(i + 1, n - 1)]
+		var nach: Dictionary = proben[maxi(i - 1, 0)]
+		var tangente := Vector2(float(vor["s"]) - float(nach["s"]),
+				absf(float(vor["q"])) - absf(float(nach["q"])))
+		var quer := tangente.x / maxf(tangente.length(), 0.0001)
+		var reihe := PackedVector2Array()
+		for j in p.anzahl():
+			var q := absf(p.o[j]) if p.absolut[j] == 1 else q_linie + p.o[j] * quer
+			reihe.append(Vector2(q, p.y[j]))
+		strecken.append(float(probe["s"]))
+		punkte.append(reihe)
+	return {"s": strecken, "punkte": punkte}
 
 
 # ================================================================ Stücke
@@ -512,9 +555,15 @@ static func _profil_ab(level: Level01, s: float, bogen: float, q_lippe: float,
 	d2 = maxf(d2, d1 + 2.4)
 	var u_ende := minf(6.4, d1 - 1.3)
 	var p := GelaendeSaum.Profil.new()
+	# Um die Ecke der Hochfläche (vor s 33) liegt keine Decke an der Lippe:
+	# Die Narbe reicht dort 1,8 m nach innen, unter den Waldboden des
+	# Geländes, dessen Kante 1,35 m hinter der Lippe steil abbricht (hinter
+	# der Wand, siehe `L01Gelaende`). Innen trägt sie schon dessen Farbe.
+	var ecke := 1.0 - smoothstep(32.0, 32.6, s)
 	# --- Grasnarbe (0–5) oder Platte
 	var narbe: Array = [
-		[-0.45, -0.03, _farbe(0.78, 0.0, 0.05, 1.0)],
+		[lerpf(-0.45, -1.8, ecke), lerpf(-0.03, -0.05, ecke),
+				_farbe(0.78, 0.0, 0.05, 1.0).lerp(_farbe(0.62, 0.35, 0.55, 0.45), ecke)],
 		[ov * 0.4, -0.006, _farbe(0.78, 0.0, 0.2, 1.0)],
 		[ov * 0.8, -0.035, _farbe(0.72, 0.1, 0.3, 0.95)],
 		[ov, -0.12, _farbe(0.5, 0.6, 0.3, 0.45)],
@@ -1405,12 +1454,14 @@ static func _graben(st: Stuecke, level: Level01, von: float, bis: float, grund: 
 ## STIRN: Grasnarbe, Erdband, Wand bis auf den Grund, der Grund bis zur
 ## Mitte der Lücke (16 Punkte).
 static func _profil_stirn(_i: int, probe: Dictionary, kante: float, grund: float,
-		halb: float, erdig: bool) -> GelaendeSaum.Profil:
+		halb: float, erdig: bool, innen: float = 0.45) -> GelaendeSaum.Profil:
 	var bogen: float = probe["bogen"]
 	var ov := clampf(0.18 + 0.1 * _welle(bogen * 1.1, 13.0), 0.1, 0.3)
 	var e := 0.8 if erdig else 0.25
 	var p := GelaendeSaum.Profil.new()
-	p.punkt(-0.45, kante - 0.03, _farbe(0.78, 0.0, 0.05, 1.0))
+	# `innen` > 0,45: Die Narbe reicht weiter zurück, unter den Waldboden des
+	# Geländes (Erdspalt, dessen Wände das Gelände dahinter nachzieht).
+	p.punkt(-innen, kante - (0.03 if innen <= 0.45 else 0.05), _farbe(0.78, 0.0, 0.05, 1.0))
 	p.punkt(ov * 0.4, kante - 0.006, _farbe(0.78, 0.0, 0.2, 1.0))
 	p.punkt(ov * 0.8, kante - 0.035, _farbe(0.72, 0.1, 0.3, 0.95))
 	p.punkt(ov, kante - 0.12, _farbe(0.5, 0.6, 0.3, 0.45))
@@ -1438,15 +1489,23 @@ static func _erdspalt(st: Stuecke, level: Level01) -> void:
 		var linie := PackedVector2Array()
 		var q := -10.6
 		while q <= 10.61:
-			var aq := absf(q)
-			var eng := pow(smoothstep(5.2, 10.6, aq), 0.8)
-			var zacke := 0.18 * sin(q * 1.3 + float(ende) * 2.0) * smoothstep(5.2, 7.0, aq)
-			var s := 25.0 + 1.24 * eng + zacke if ende == 0 else 27.5 - 1.24 * eng + zacke
-			linie.append(Vector2(s, q))
+			linie.append(Vector2(erdspalt_linie(q, ende), q))
 			q += 0.4
 		var kante := level.boden_bei(25.0 if ende == 0 else 27.5)
 		_querwand(st, level, linie, 1.0 if ende == 0 else -1.0,
 				_profil_erdspalt.bind(kante, level), name, 2501 + ende)
+
+
+## Die Lippe einer Wand des Erdspalts (`ende` 0 bei s 25, 1 bei 27,5) bei
+## Querabstand `q`: Strecke s. Bis 5,2 m voll offen, dann rücken die Wände
+## zusammen, bei 10,6 m schließt sich der Riss; ab 5,2 m mit Zacken. Die
+## Wand selbst steht 0,4–0,5 m hinter der Lippe (Rauschen bis 0,3 m weiter
+## zurück), die Narbe reicht `ERDSPALT_NARBE` zurück. Für das Gelände.
+static func erdspalt_linie(q: float, ende: int) -> float:
+	var aq := absf(q)
+	var eng := pow(smoothstep(5.2, 10.6, aq), 0.8)
+	var zacke := 0.18 * sin(q * 1.3 + float(ende) * 2.0) * smoothstep(5.2, 7.0, aq)
+	return 25.0 + 1.24 * eng + zacke if ende == 0 else 27.5 - 1.24 * eng + zacke
 
 
 static func _profil_erdspalt(i: int, probe: Dictionary, kante: float,
@@ -1457,7 +1516,7 @@ static func _profil_erdspalt(i: int, probe: Dictionary, kante: float,
 	var halb := 1.25 * (1.0 - eng) + 0.02
 	# Zu den Enden hin wird der Riss auch flacher.
 	var grund := lerpf(ERDSPALT_GRUND, kante - 2.5, smoothstep(0.55, 1.0, eng))
-	return _profil_stirn(i, probe, kante, grund, halb, true)
+	return _profil_stirn(i, probe, kante, grund, halb, true, ERDSPALT_NARBE)
 
 
 ## Eine Stufe (66, 133, 145): Grasnarbe der oberen Decke, Fels bis auf die
@@ -1533,9 +1592,12 @@ static func _profil_furt(_i: int, probe: Dictionary, kante: float) -> GelaendeSa
 	p.punkt(0.4, kante - 0.72, _farbe(0.66, 0.4, 0.6, 0.55), 0.0, 0.12)
 	p.punkt(0.8, 6.3, _farbe(0.56, 0.65, 0.6, 0.15), 0.0, 0.12)
 	p.punkt(1.2, 6.02, _farbe(0.36, 0.6, 0.4, 0.0), 0.0, 0.1)
-	p.punkt(1.6, 5.75, _farbe(0.34, 0.5, 0.3, 0.0), 0.0, 0.1)
-	p.punkt(2.2, 5.45, _farbe(0.32, 0.5, 0.3, 0.0), 0.0, 0.08)
-	p.punkt(3.0, 5.3, _farbe(0.3, 0.55, 0.3, 0.0))
-	p.punkt(4.2, 5.25, _farbe(0.3, 0.55, 0.3, 0.0))
-	p.punkt(5.05, 5.22, _farbe(0.3, 0.55, 0.3, 0.0))
+	# Unter der Wasserlinie taucht das Ufer unter das Bachbett des Geländes
+	# (Bett 5,0–5,6): Den Grund der Furt zeichnet das Gelände, durchgehend
+	# mit dem Bach, sonst lägen zwei Böden aufeinander.
+	p.punkt(1.6, 5.5, _farbe(0.34, 0.5, 0.3, 0.0), 0.0, 0.1)
+	p.punkt(2.2, 4.75, _farbe(0.32, 0.5, 0.3, 0.0), 0.0, 0.08)
+	p.punkt(3.0, 4.5, _farbe(0.3, 0.55, 0.3, 0.0))
+	p.punkt(4.2, 4.45, _farbe(0.3, 0.55, 0.3, 0.0))
+	p.punkt(5.05, 4.4, _farbe(0.3, 0.55, 0.3, 0.0))
 	return p
