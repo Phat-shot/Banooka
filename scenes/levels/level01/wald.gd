@@ -667,9 +667,15 @@ static func _baum(schluessel: String, o: Dictionary, mit_kranz: bool = false) ->
 		# Die Ballen füllen die verlangte Höhe nur zu gut 70 %: Die Krone
 		# wird größer bestellt und dann so gesetzt, dass ihr Scheitel auf
 		# `hoehe` liegt – der Stamm endet in ihrer Mitte.
-		var roh := Kronenwolke.netz({"radius": kr, "hoehe": kh * 1.35, "variante": variante,
-				"ballen": int(o.get("ballen", 3)), "karten": int(o.get("karten", 22)),
-				"saat": saat + 101})
+		var roh: ArrayMesh
+		if bool(o.get("tanne", false)):
+			# Nadelbaum: gestufte Kegel, genau so hoch wie verlangt.
+			roh = _tannenkrone(kr, hoehe * (1.0 - float(o.get("unten", 0.2))),
+					int(o.get("ballen", 6)), 11, int(o.get("karten", 22)), saat + 101)
+		else:
+			roh = Kronenwolke.netz({"radius": kr, "hoehe": kh * 1.35, "variante": variante,
+					"ballen": int(o.get("ballen", 3)), "karten": int(o.get("karten", 22)),
+					"saat": saat + 101})
 		var rbox := roh.get_aabb()
 		# "unten": Dort (Anteil der Höhe) soll die Krone beginnen – reicht sie
 		# nicht so weit hinab, wird sie gestreckt (höchstens um 60 %). Tief
@@ -829,10 +835,10 @@ static func _hallenbaum(art: String) -> Dictionary:
 			return _baum("schlicht_b", {"mittel": true, "hoehe": 15.0, "radius": 0.42,
 					"variante": 1, "krone_radius": 5.4, "krone_hoehe": 6.6, "saat": 1106}, true)
 		_:
-			# Nadelbaum: sieben Ballen, die sich überlappen, bis tief hinab
-			return _baum("schlicht_c", {"mittel": true, "hoehe": 17.0, "radius": 0.4,
-					"variante": 2, "krone_radius": 3.0, "krone_hoehe": 9.6, "ballen": 7,
-					"unten": 0.2, "saat": 1108}, true)
+			# Nadelbaum: gestufte Kegel bis tief hinab
+			return _baum("schlicht_c", {"mittel": true, "tanne": true, "hoehe": 17.0,
+					"radius": 0.4, "variante": 2, "krone_radius": 3.2, "ballen": 7,
+					"unten": 0.18, "karten": 30, "saat": 1108}, true)
 
 
 ## Talbäume (M3, Rückfall), mittlere Fassung: 0 rund, 1 breit, 2 Nadelbaum,
@@ -850,8 +856,8 @@ static func _talbaum(k: int) -> Dictionary:
 					"krone_radius": 6.0, "krone_hoehe": 7.8, "ballen": 4, "unten": 0.4,
 					"saat": 2102})
 		2:
-			return _baum("tal2", {"mittel": true, "hoehe": 14.0, "radius": 0.3, "variante": 2,
-					"krone_radius": 2.8, "krone_hoehe": 8.8, "ballen": 7, "unten": 0.16,
+			return _baum("tal2", {"mittel": true, "tanne": true, "hoehe": 14.0, "radius": 0.3,
+					"variante": 2, "krone_radius": 3.0, "ballen": 6, "unten": 0.14, "karten": 26,
 					"saat": 2103})
 		_:
 			return _baum("tal3", {"mittel": true, "hoehe": 15.0, "radius": 0.42, "variante": 0,
@@ -877,13 +883,8 @@ static func _fernbaum(k: int) -> ArrayMesh:
 			o["hoehe"] = 8.5
 			hoehe = 11.0
 		2:
-			# Nadelbaum: schlank und hoch, die Ballen überlappen sich zu
-			# mehr als einem Drittel (bei vier Ballen auf 14 m las er sich
-			# als Schneemann).
-			o["variante"] = 2
-			o["radius"] = 2.8
-			o["hoehe"] = 8.8
-			o["ballen"] = 7
+			# Nadelbaum: gestufte Kegel (`_tannenkrone`) – aus vier Ballen
+			# auf 14 m war ein Schneemann geworden.
 			hoehe = 14.0
 	# Die flachen Ballen füllen die verlangte Höhe nur zu gut der Hälfte:
 	# größer bestellen, nach der echten Hülle setzen – Scheitel auf `hoehe`
@@ -893,7 +894,11 @@ static func _fernbaum(k: int) -> ArrayMesh:
 	# eine flache Linse als Seerosenblatt im Dunst.
 	o["hoehe"] = float(o["hoehe"]) * 1.35
 	o["mitte"] = Vector3.ZERO
-	var roh := _fernform(Kronenwolke.fern(o))
+	var roh: ArrayMesh
+	if k == 2:
+		roh = _fernform(_tannenkrone(2.9, hoehe * (1.0 - FERN_BODEN), 5, 7, 0, 3101 + k))
+	else:
+		roh = _fernform(Kronenwolke.fern(o))
 	var rbox := roh.get_aabb()
 	var streck := clampf(hoehe * (1.0 - FERN_BODEN) / rbox.size.y, 1.0, 2.2)
 	var dy := hoehe - rbox.end.y * streck
@@ -922,6 +927,106 @@ static func _fernbaum(k: int) -> ArrayMesh:
 	var netz := st.commit()
 	_netze[schluessel] = netz
 	return netz
+
+
+## Krone eines Nadelbaums: `stufen` gezackte Kegel übereinander, die sich
+## überlappen (unten `radius`, oben ein Viertel davon), jeder mit einer
+## flachen Unterseite, damit man von unten nicht hineinsieht. Im Format der
+## `Kronenwolke` (COLOR: Verdeckung, Alpha Windgewicht; UV2.y: Höhe in der
+## Krone; Blattkarten mit UV2.x ≥ 1), also im selben Stoff. Eine spitze
+## Silhouette neben den runden – aus gestapelten Kugeln wurde ein Schneemann.
+## Fuß der Krone im Ursprung, Spitze auf `hoehe`. `seiten`: Zacken je Kegel.
+static func _tannenkrone(radius: float, hoehe: float, stufen: int, seiten: int, karten: int,
+		saat: int) -> ArrayMesh:
+	var rng := PropWerkzeug.zufall(saat)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var raender: Array[Dictionary] = []
+	for i in stufen:
+		var u := float(i) / float(stufen)
+		var r := radius * lerpf(1.0, 0.26, u) * rng.randf_range(0.92, 1.08)
+		var y_rand := hoehe * 0.8 * u + rng.randf_range(-0.04, 0.04) * hoehe / float(stufen)
+		var y_spitze := hoehe if i == stufen - 1 else minf(y_rand + hoehe * 0.34, hoehe * 0.97)
+		var spitze := Vector3(rng.randf_range(-0.05, 0.05) * r, y_spitze,
+				rng.randf_range(-0.05, 0.05) * r)
+		var unter := Vector3(0.0, y_rand + (y_spitze - y_rand) * 0.3, 0.0)
+		var ao := lerpf(0.72, 1.0, u)
+		var dreh := rng.randf() * TAU
+		var rand := PackedVector3Array()
+		for k in seiten:
+			var w := dreh + TAU * (float(k) + rng.randf_range(-0.18, 0.18)) / float(seiten)
+			# Zacken: abwechselnd Spitze und Kerbe, die Spitzen hängen durch.
+			var zacke := (1.0 if k % 2 == 0 else 0.78) * rng.randf_range(0.9, 1.1)
+			var y := y_rand - r * (0.16 if k % 2 == 0 else 0.06) * rng.randf_range(0.7, 1.3)
+			rand.append(Vector3(cos(w) * r * zacke, y, -sin(w) * r * zacke))
+		for k in seiten:
+			var a := rand[k]
+			var b := rand[(k + 1) % seiten]
+			var na := _tannen_normale(a, spitze)
+			var nb := _tannen_normale(b, spitze)
+			var aussen := Vector3(a.x + b.x, 0.0, a.z + b.z).normalized()
+			# Oberseite
+			_tannen_dreieck(st, [spitze, a, b], [Vector3.UP, na, nb], aussen + Vector3.UP * 0.3,
+					[ao * 0.9, ao, ao], hoehe)
+			# Unterseite (dunkel, nach unten)
+			var nu := (aussen * 0.4 + Vector3.DOWN).normalized()
+			_tannen_dreieck(st, [unter, b, a], [nu, nu, nu], nu, [ao * 0.6, ao * 0.7, ao * 0.7],
+					hoehe)
+			raender.append({"ort": a, "normale": na, "ao": ao})
+	# Blattkarten an den Rändern der Kegel: Sie fransen die Zacken aus.
+	var max_karte := 0.0
+	for n in karten:
+		if raender.is_empty():
+			break
+		var e: Dictionary = raender[rng.randi_range(0, raender.size() - 1)]
+		var ort: Vector3 = e["ort"]
+		var groesse := clampf(radius * 0.3, 0.45, 1.1) * rng.randf_range(0.8, 1.2)
+		max_karte = maxf(max_karte, groesse)
+		var ao: float = e["ao"]
+		var f := Color(ao * 1.05, ao * 1.05, ao * 1.03, clampf(0.45 + 0.55 * ort.y / hoehe, 0.0, 1.0))
+		var nrm: Vector3 = e["normale"]
+		var art := 1.0 + clampf(ort.y / hoehe, 0.0, 0.99)
+		ort += nrm * groesse * 0.15
+		for c: Vector2 in [Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0),
+				Vector2(0.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0)]:
+			st.set_color(f)
+			st.set_uv(c)
+			st.set_uv2(Vector2(art, groesse))
+			st.set_normal((nrm + Vector3.UP * 0.6).normalized())
+			st.add_vertex(ort)
+	var netz := st.commit()
+	netz.custom_aabb = netz.get_aabb().grow(max_karte * 0.75 + 0.1)
+	return netz
+
+
+## Normale am Rand eines Kegels: nach außen und oben (die Neigung der
+## Kegelfläche), halb zur Mitte der Krone gebogen wie bei `Kronenwolke`.
+static func _tannen_normale(rand: Vector3, spitze: Vector3) -> Vector3:
+	var aussen := Vector3(rand.x, 0.0, rand.z).normalized()
+	var steil := (spitze - rand).normalized()
+	var n := (aussen - steil * aussen.dot(steil)).normalized()
+	return (n + Vector3.UP * 0.35).normalized()
+
+
+## Ein Dreieck der Tannenkrone, Vorderseite nach `aussen` (Godot: von außen
+## gesehen im Uhrzeigersinn), mit Farbe (Verdeckung je Ecke) und UV2 (Höhe).
+static func _tannen_dreieck(st: SurfaceTool, p: Array, n: Array, aussen: Vector3, ao: Array,
+		hoehe: float) -> void:
+	var a: Vector3 = p[0]
+	var b: Vector3 = p[1]
+	var c: Vector3 = p[2]
+	var reihe: Array[int] = [0, 1, 2]
+	if (b - a).cross(c - a).dot(aussen) > 0.0:
+		reihe = [0, 2, 1]
+	for j in reihe:
+		var q: Vector3 = p[j]
+		var t := clampf(q.y / hoehe, 0.0, 1.0)
+		var v: float = ao[j]
+		st.set_color(Color(v, v, v, 0.25 + 0.75 * t))
+		st.set_uv(Vector2.ZERO)
+		st.set_uv2(Vector2(0.0, t))
+		st.set_normal(n[j] as Vector3)
+		st.add_vertex(q)
 
 
 ## Form einer fernen Krone: unten breiter (ein Hügel aus Laub, der auf dem

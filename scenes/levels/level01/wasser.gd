@@ -178,9 +178,9 @@ void fragment() {
 	// des Geländes zeichnen sie als Treppe) – dort wird das Wasser selbst
 	// durchsichtig (siehe ALPHA).
 	float flocken = kraeusel_saum(welt);
-	float saum = smoothstep(0.52, 0.8, ufer + (flocken - 0.3) * 0.5)
+	float saum = smoothstep(0.6, 0.84, ufer + (flocken - 0.3) * 0.5)
 			* (1.0 - smoothstep(0.9, 1.05, ufer));
-	schaum = max(schaum, saum * (0.35 + 0.4 * flocken));
+	schaum = max(schaum, saum * (0.2 + 0.4 * flocken));
 	float kraeusel = texture(rauschen, welt * 0.34 + vec2(TIME * 0.05, -TIME * 0.04)).r;
 	schaum = max(schaum, smoothstep(0.82, 0.98, k) * smoothstep(0.35, 0.7, kraeusel) * 0.12);
 	farbe = mix(farbe, farbe_schaum, schaum);
