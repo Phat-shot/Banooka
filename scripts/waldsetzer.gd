@@ -384,8 +384,19 @@ static func _gleichmaessig(b: Basis) -> bool:
 	return absf(s.x - s.y) < 0.001 and absf(s.y - s.z) < 0.001
 
 
+## Dreiecke eines Netzes, nur für die Statistik. Ein ArrayMesh kennt die
+## Längen seiner Felder, ohne dass die Scheitel vom Server geholt und
+## entpackt werden (`surface_get_arrays` kostete bei verschmolzenen
+## Netzen von 100k Dreiecken spürbar Bauzeit); nur andere Netze werden
+## gelesen.
 static func _dreiecke(netz: Mesh) -> int:
 	var summe := 0
+	var am := netz as ArrayMesh
+	if am != null:
+		for f in am.get_surface_count():
+			var n := am.surface_get_array_index_len(f)
+			summe += (n if n > 0 else am.surface_get_array_len(f)) / 3
+		return summe
 	for f in netz.get_surface_count():
 		var arrays := netz.surface_get_arrays(f)
 		var ind: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null \
