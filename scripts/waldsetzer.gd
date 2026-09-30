@@ -72,7 +72,8 @@ func _init(eltern: Node3D, name: String, zellmass: float = 40.0) -> void:
 
 ## Meldet eine Art an. Optionen (alle freiwillig):
 ##   stoff         Material für alle Stücke (null: die Materialien der Netze)
-##   schatten      wirft Schatten (false)
+##   schatten      wirft Schatten: false, true oder "nur" (nur in die
+##                 Schattenkarte – für schlichte Ersatznetze)
 ##   sicht         harte Sichtweite bis zur Zellmitte in m (0 = unbegrenzt)
 ##   sicht_von     erst ab dieser Entfernung sichtbar (0)
 ##   rand          Übergangszone der Sichtweiten (`RAND`)
@@ -84,7 +85,7 @@ func art(name: String, optionen: Dictionary = {}) -> void:
 		return
 	var a := {
 		"stoff": optionen.get("stoff", null),
-		"schatten": bool(optionen.get("schatten", false)),
+		"schatten": _schattenart(optionen.get("schatten", false)),
 		"sicht": float(optionen.get("sicht", 0.0)),
 		"sicht_von": float(optionen.get("sicht_von", 0.0)),
 		"rand": float(optionen.get("rand", RAND)),
@@ -191,12 +192,22 @@ func fertig() -> Dictionary:
 	return {"knoten": knoten, "dreiecke": dreiecke}
 
 
+## true/false oder "nur" (zeichnet nur in die Schattenkarte: ein schlichter
+## Ersatz wirft den Schatten eines teuren Netzes).
+static func _schattenart(wert: Variant) -> GeometryInstance3D.ShadowCastingSetting:
+	if wert is String and String(wert) == "nur":
+		return GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	if wert is bool and bool(wert):
+		return GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	return GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
 func _einrichten(g: GeometryInstance3D, a: Dictionary) -> void:
 	var stoff: Material = a["stoff"]
 	if stoff != null:
 		g.material_override = stoff
-	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(a["schatten"]) \
-			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var schatten: GeometryInstance3D.ShadowCastingSetting = a["schatten"]
+	g.cast_shadow = schatten
 	var bis: float = a["sicht"]
 	var von: float = a["sicht_von"]
 	var rand: float = a["rand"]
