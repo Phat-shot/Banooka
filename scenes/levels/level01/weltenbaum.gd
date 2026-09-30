@@ -168,8 +168,10 @@ const FLACH := [
 ## 0,3–0,65 m weit auf die Decke (Punkt 0, knapp darüber, der Rand nach
 ## Rauschen), außen ein flacher Borkenwulst (Punkte 1–3, +8 cm), dann rundet
 ## sich die Kante ab und der Leib wölbt sich unter ihr hinaus. Die Punkte
-## 1–9 springen nach `_regal_buckel` 0–0,45 m nach außen: Mit der geraden
+## 1–9 springen nach `_regal_buckel` 0–0,55 m nach außen: Mit der geraden
 ## Kante las sich das Regal im Schlussbild als Brett mit rechten Winkeln.
+## Polster und Wulst gedeckt (Verdeckung 0,7–0,85, Moos in Flecken): Hell
+## und satt lag das Polster als grüner Streifen an der Kante.
 const LIPPE := [
 	Vector2(-0.30, 0.02), Vector2(0.02, 0.06), Vector2(0.16, 0.085), Vector2(0.30, 0.03),
 	Vector2(0.42, -0.22), Vector2(0.54, -0.62), Vector2(0.68, -1.15), Vector2(0.82, -1.75),
@@ -178,9 +180,9 @@ const LIPPE := [
 ]
 ## Verdeckung und Moos der Regallippe je Punkt: das Polster hell und grün,
 ## kein dunkler Strich an seinem Innenrand.
-const LIPPE_AO := [0.9, 1.0, 1.0, 0.96, 0.9, 0.84, 0.76, 0.66, 0.56, 0.48, 0.42, 0.36,
+const LIPPE_AO := [0.7, 0.78, 0.84, 0.8, 0.74, 0.68, 0.62, 0.56, 0.5, 0.45, 0.4, 0.36,
 		0.32, 0.3, 0.3]
-const LIPPE_MOOS := [0.95, 0.9, 0.7, 0.8, 0.75, 0.6, 0.45, 0.3, 0.2, 0.15, 0.12, 0.1,
+const LIPPE_MOOS := [0.6, 0.5, 0.22, 0.45, 0.6, 0.5, 0.4, 0.3, 0.2, 0.15, 0.12, 0.1,
 		0.15, 0.3, 0.4]
 ## Das Ende des Regals hinter dem Portal (s 287): ein Querschnitt über den
 ## Rand, Vector2(a, h) – `a` m hinter dem Wegende, `h` über der Decke. Das
@@ -192,8 +194,8 @@ const REGALENDE := [
 	Vector2(0.85, -0.24), Vector2(1.15, -0.62), Vector2(1.45, -1.15), Vector2(1.72, -1.85),
 	Vector2(1.95, -2.7), Vector2(2.1, -3.7), Vector2(2.15, -4.9),
 ]
-const REGALENDE_AO := [0.9, 1.0, 0.96, 0.9, 0.82, 0.72, 0.62, 0.52, 0.44, 0.38, 0.32]
-const REGALENDE_MOOS := [0.95, 0.9, 0.85, 0.75, 0.6, 0.45, 0.3, 0.22, 0.18, 0.2, 0.3]
+const REGALENDE_AO := [0.7, 0.8, 0.84, 0.8, 0.74, 0.66, 0.58, 0.5, 0.42, 0.36, 0.32]
+const REGALENDE_MOOS := [0.6, 0.5, 0.3, 0.45, 0.55, 0.45, 0.3, 0.22, 0.18, 0.2, 0.3]
 ## Verdeckung und Moos je Punkt der Außenwurzel (Kamm oben bemoost, der
 ## Leib nach unten dunkel).
 const AUSSEN_AO := [0.55, 0.9, 1.0, 1.0, 1.0, 1.0, 0.96, 0.88, 0.76, 0.62, 0.5, 0.42,
@@ -1183,10 +1185,10 @@ static func _fuge(s: float) -> float:
 
 
 ## Wie weit die Lippe des Regals an der Stelle s nach außen buckelt
-## (0–0,45 m, Buckel von 2–3 m): nur nach außen, jenseits der Kollision.
+## (0–0,55 m, Buckel von 1,5–2 m): nur nach außen, jenseits der Kollision.
 static func _regal_buckel(s: float, rauschen: FastNoiseLite) -> float:
-	return clampf(0.2 + 0.32 * rauschen.get_noise_1d(s * 1.6 + 17.0)
-			+ 0.12 * rauschen.get_noise_1d(s * 4.1 + 5.0), 0.0, 0.45)
+	return clampf(0.24 + 0.4 * rauschen.get_noise_1d(s * 2.4 + 17.0)
+			+ 0.16 * rauschen.get_noise_1d(s * 5.5 + 5.0), 0.0, 0.55)
 
 
 ## Punkt `k` der Regallippe an der Stelle s (siehe `LIPPE`): der Innenrand
@@ -1254,7 +1256,7 @@ static func _aussenwurzel(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: S
 				if lip > 0.0:
 					# Am Regal: Polster und Wulst grün, der Leib wie sonst.
 					ao = lerpf(ao, LIPPE_AO[k], lip)
-					moos = lerpf(moos, float(LIPPE_MOOS[k]) * (0.7 + 0.5 * fleck), lip)
+					moos = lerpf(moos, float(LIPPE_MOOS[k]) * (0.35 + 1.1 * fleck), lip)
 				fa.append(Color(ao, ao, ao, clampf(moos, 0.0, 1.0)))
 			profile.append(punkte)
 			farben.append(fa)
@@ -1741,7 +1743,7 @@ static func _regalende(ziel: Dictionary, bahn: Bahn, level: Level01) -> void:
 		# Seiten knapp; dazu Buckel.
 		var t := inverse_lerp(links, rechts, q) * 2.0 - 1.0
 		var rund := sqrt(maxf(1.0 - t * t, 0.0))
-		var weit := (0.55 + 0.75 * rund) * (0.85 + 0.35 * rauschen.get_noise_1d(q * 1.3))
+		var weit := (0.7 + 1.1 * rund) * (0.85 + 0.4 * rauschen.get_noise_1d(q * 1.3))
 		var innen := 0.15 + 0.5 * (0.5 + 0.5 * rauschen.get_noise_1d(q * 2.6 + 30.0))
 		var reihe := PackedVector3Array()
 		var fa := PackedColorArray()
@@ -1754,7 +1756,7 @@ static func _regalende(ziel: Dictionary, bahn: Bahn, level: Level01) -> void:
 			reihe.append(ra.o + ra.r * q + ra.v * a + Vector3.UP * h)
 			var fleck := 0.5 + 0.5 * rauschen.get_noise_2d(q * 1.7, float(k) * 1.1)
 			var ao: float = REGALENDE_AO[k]
-			var moos := float(REGALENDE_MOOS[k]) * (0.65 + 0.6 * fleck)
+			var moos := float(REGALENDE_MOOS[k]) * (0.3 + 0.95 * fleck)
 			fa.append(Color(ao, ao, ao, clampf(moos, 0.0, 1.0)))
 		schnitte.append(reihe)
 		laengs.append(q)
@@ -2129,13 +2131,15 @@ static func _bruch_und_endfarne(bahn: Bahn, level: Level01, haelfte: Vector2,
 		orte.append(Vector3(G1.y + 0.5, -4.6, wiese + 0.05))
 		orte.append(Vector3(G1.x - 0.6, e + 1.3, wiese + 0.05))
 	if haelfte.y > 270.0:
-		for q: float in [-4.8, 4.9, 1.9]:
-			orte.append(Vector3(Level01.M_ENDE + 0.35, q, 0.03))
+		# In die Ecken, groß: Sie nehmen dem Ende die rechten Winkel.
+		for q: float in [-5.7, 5.8, 1.9]:
+			orte.append(Vector3(Level01.M_ENDE + 0.2, q, 0.03))
 	var lagen: Array[Transform3D] = []
 	for o in orte:
 		var ra := bahn.rahmen(o.x)
+		var gross := 2.3 if o.x > 280.0 and absf(o.y) > 5.0 else 1.45
 		var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE
-				* rng.randf_range(1.2, 1.7))
+				* gross * rng.randf_range(0.85, 1.15))
 		lagen.append(Transform3D(basis, ra.p(o.y, o.z)))
 	return lagen
 

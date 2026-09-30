@@ -28,7 +28,9 @@ class_name L01Wasser
 ##             Wand löst (Wurfbahn), gewölbt, damit er auch von der Seite –
 ##             vom Grat und vom Ziel aus – Tiefe hat
 ##     Rinne   aus dem Becken über die Stufe in die Fallkerbe und quer unter
-##             dem Weg hindurch bis an die rechte Lippe (Grund 18)
+##             dem Weg hindurch bis an die rechte Lippe: knapp einen Meter
+##             über dem Grund (18), damit man sie im Schlitz sieht, nach der
+##             Wegmitte fällt sie auf den Grund der Lippe
 ##     unten   über die Lippe die rechte Wand hinab (folgt der Fläche des
 ##             Saums, `GelaendeSaum.flaeche_punkt`) und über den Schutt in den
 ##             Tümpel
@@ -74,6 +76,8 @@ const AUSBLENDEN := 10.0
 
 ## Das Felsbecken unter dem Pfeiler: Spiegel (Welt-Y) und Umriss (s, q).
 const BECKEN_SPIEGEL := 19.45
+## Wasserspiegel der Rinne in der Fallkerbe (Grund 18, Lippen 20,8 / 20,0).
+const RINNE_SPIEGEL := 18.92
 const BECKEN_S := Vector2(112.6, 118.0)
 const BECKEN_Q := Vector2(-10.6, -5.2)
 
@@ -650,14 +654,19 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 	# --- Rinne: aus dem Becken durch die Fallkerbe an die rechte Lippe ---
 	var lippe := _lippe(level, 119.5, 1.0, L01Saum.FALLKERBE_GRUND + 0.05)
 	var rinne := PackedVector3Array()
-	# Über die Kante des Beckens (118) einen Meter hinab auf den Grund der
-	# Kerbe, dann in weitem Bogen quer unter dem Weg hindurch.
+	# Über die Kante des Beckens (118) hinab in die Kerbe, dann in weitem
+	# Bogen quer unter dem Weg hindurch. Sie füllt die Kerbe knapp einen
+	# Meter hoch (`RINNE_SPIEGEL`) und fällt erst nach der Wegmitte auf den
+	# Grund der rechten Lippe: Auf dem Grund lag sie hinter der Kante, die
+	# Kerbe las sich aus der Spielkamera als schwarzer Schlitz. So steht im
+	# Schlitz ein helles, schnelles Band.
 	var grund := L01Saum.FALLKERBE_GRUND
 	for sqh: Vector3 in [Vector3(117.1, -8.1, BECKEN_SPIEGEL + 0.02),
-			Vector3(117.85, -7.9, BECKEN_SPIEGEL + 0.01), Vector3(118.1, -7.8, 19.1),
-			Vector3(118.3, -7.5, grund + 0.3), Vector3(118.65, -6.9, grund + 0.08),
-			Vector3(119.15, -5.8, grund + 0.07), Vector3(119.45, -4.1, grund + 0.06),
-			Vector3(119.5, -1.5, grund + 0.06), Vector3(119.5, 1.2, grund + 0.06)]:
+			Vector3(117.85, -7.9, BECKEN_SPIEGEL + 0.01), Vector3(118.1, -7.8, 19.3),
+			Vector3(118.35, -7.4, RINNE_SPIEGEL + 0.14), Vector3(118.7, -6.8, RINNE_SPIEGEL + 0.05),
+			Vector3(119.15, -5.8, RINNE_SPIEGEL + 0.02), Vector3(119.45, -4.1, RINNE_SPIEGEL),
+			Vector3(119.5, -1.5, RINNE_SPIEGEL - 0.03), Vector3(119.5, 1.2, RINNE_SPIEGEL - 0.12),
+			Vector3(119.5, 2.7, lerpf(RINNE_SPIEGEL, grund + 0.06, 0.6))]:
 		var p := LevelWerkzeuge.punkt_frei(level.verlauf, sqh.x, sqh.y)
 		p.y = sqh.z
 		rinne.append(p)
@@ -665,8 +674,8 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 		lippe.y = L01Saum.FALLKERBE_GRUND + 0.06
 		rinne.append(lippe)
 	# Nur von Nahem zu sehen: Den Grund der Kerbe verdeckt ihre Kante.
-	if _sichtweite(Wasserfall.band(wurzel, rinne, 2.4, {"name": "Rinne Fallkerbe",
-			"breite_ende": 1.8, "tempo": 4.5, "spalten": 3, "schritt": 0.6,
+	if _sichtweite(Wasserfall.band(wurzel, rinne, 2.8, {"name": "Rinne Fallkerbe",
+			"breite_ende": 1.9, "tempo": 4.5, "spalten": 3, "schritt": 0.6,
 			"farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF}), SICHT_NAH):
 		baender += 1
 	# --- unten: über die Lippe die rechte Wand hinab in den Tümpel ---
@@ -702,8 +711,10 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 	if rinne_kerbe.size() >= 2:
 		var bahn := _rinnsal(level, (rinne_kerbe[rinne_kerbe.size() - 1] as Dictionary)["p"])
 		bahn.insert(0, _vor_dem_ende(rinne_kerbe, UEBERGANG))
-		if _sichtweite(Wasserfall.band(wurzel, bahn, 0.45, {"name": "Rinnsal Kerbe",
-				"breite_ende": 0.6, "tempo": 3.5, "spalten": 2, "schritt": 0.8,
+		# Schmal: Handbreit breite Bänder lasen sich aus der Nähe als zwei
+		# weiße Papierstreifen an der Wand.
+		if _sichtweite(Wasserfall.band(wurzel, bahn, 0.26, {"name": "Rinnsal Kerbe",
+				"breite_ende": 0.36, "tempo": 3.5, "spalten": 2, "schritt": 0.8,
 				"farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF}), SICHT_RINNSAL):
 			baender += 1
 		# Der zweite Strang ein Stück längs versetzt, schmaler und langsamer;
@@ -713,8 +724,8 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 		var zweit := PackedVector3Array()
 		for i in range(1, bahn.size()):
 			zweit.append(bahn[i] + laengs.normalized() * 0.5 * minf(float(i) / 3.0, 1.0))
-		if zweit.size() >= 2 and _sichtweite(Wasserfall.band(wurzel, zweit, 0.3,
-				{"name": "Rinnsal Kerbe 2", "breite_ende": 0.45, "tempo": 2.6, "spalten": 2,
+		if zweit.size() >= 2 and _sichtweite(Wasserfall.band(wurzel, zweit, 0.17,
+				{"name": "Rinnsal Kerbe 2", "breite_ende": 0.26, "tempo": 2.6, "spalten": 2,
 				"schritt": 0.8, "farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF}),
 				SICHT_RINNSAL):
 			baender += 1
@@ -827,14 +838,16 @@ static func _gischt_bauen(level: Level01, stand: Dictionary) -> void:
 		_wolke(wurzel, "Gischt Becken", fuss + Vector3.DOWN * 0.4, Vector3(5.5, 14.0, 5.5), 44,
 				1.3, 0.1, 1.6, 7101)
 	var kerbe := LevelWerkzeuge.punkt(level.verlauf, 119.5, 0.0)
-	kerbe.y = L01Saum.FALLKERBE_GRUND - 0.2
+	kerbe.y = RINNE_SPIEGEL - 0.4
 	# Sie steigt über die Lippe: Den Grund der Kerbe sieht die Kamera nicht,
 	# die Gischt darüber sagt, dass unten Wasser rauscht.
 	# Fein und niedrig: Sie steigt nur bis an die Lippe (Grund 18, Weg gut
 	# 20,7). Große Flocken in Augenhöhe der Figur lasen sich wie Schnee und
 	# standen genau vor dem Sprung.
-	var wolke := _wolke(wurzel, "Gischt Fallkerbe", kerbe, Vector3(8.5, 3.0, 2.4), 40, 0.15,
-			0.18, 0.6, 7102)
+	# Dichter als zuvor (70 statt 40, Deckkraft 0,26), aber fein wie zuvor:
+	# ein weißer Hauch über dem Band, der die Kerbe als Wasser ansagt.
+	var wolke := _wolke(wurzel, "Gischt Fallkerbe", kerbe, Vector3(8.5, 2.6, 2.4), 70, 0.16,
+			0.26, 0.6, 7102)
 	wolke.rotation.y = LevelWerkzeuge.drehung(level.verlauf, 119.5)
 	_sichtweite(wolke, SICHT_NAH)
 	if stand.has("fuss_unten"):

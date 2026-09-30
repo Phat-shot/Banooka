@@ -14,7 +14,7 @@ class_name L01Boden
 ## Naht; `kronenlicht_bei()` rechnet dasselbe auf der CPU.
 ##
 ## LÜCKENLIPPEN. An jeder Lippe von Erdspalt, Kerbe, Fallkerbe, Furt, G1 und
-## G2 liegen vier bis sechs bündige, helle Kalksteine in der Spur (auf der
+## G2 liegen vier bis sechs helle, gewölbte Kalksteine in der Spur (auf der
 ## Wurzel: helles Bruchholz), an beiden Ecken außerhalb der Spur sitzen
 ## warme Leuchtpilzgruppen. Je Lücke EIN Netz mit EINEM Stoff, ohne Schatten,
 ## sichtbar bis 60 m – so zeichnet der Boden samt Marken an jeder Stelle
@@ -245,8 +245,8 @@ static func _ort(rahmen: Dictionary, a: float, q: float, h: float) -> Vector3:
 	return p - (rahmen["mitte"] as Vector3)
 
 
-## Ein bündiger Kalkstein: flache, leicht gewölbte Oberseite (1–4 cm über
-## der Decke), gerade Stirn genau an der Lippe, Flanken 22 cm tief.
+## Ein Kalkstein in der Spur: eine Kuppe 8–14 cm über der Decke
+## (`_kuppe`), gerade Stirn genau an der Lippe, Flanken 22 cm tief.
 static func _stein(st: SurfaceTool, rahmen: Dictionary, q: float, breite_q: float,
 		tiefe: float, zurueck: float, rng: RandomNumberGenerator) -> void:
 	# Heller Kalk, aber kein Weiß: In der Sonne überstrahlte er sonst.
@@ -268,7 +268,107 @@ static func _stein(st: SurfaceTool, rahmen: Dictionary, q: float, breite_q: floa
 		var sb := signf(s_) * pow(absf(s_), 2.0 / 2.4)
 		var j := rng.randf_range(0.86, 1.06)
 		umriss.append(Vector2(maxf(mitte2.x + ra * ca * j, VOR), q + rb * sb * j))
-	_platte(st, rahmen, umriss, mitte2, 0.03, grund, STEIN, rng)
+	# Gewölbt nach Größe: kleine Steine 8, große bis 14 cm.
+	var hoehe := clampf(0.06 + 0.12 * minf(ra, rb), 0.08, 0.14) * rng.randf_range(0.9, 1.05)
+	_kuppe(st, rahmen, umriss, mitte2, hoehe, grund, rng)
+
+
+## Ein Kalkstein als Kuppe: `hoehe` über der Decke gewölbt, weiche Normalen
+## (vier Ringe), der Fuß dunkel – dort steckt er im Boden, der Rand liest
+## sich als Kontaktschatten. Flach (3 cm) und kantig schattiert lasen sich
+## die Steine aus der Nähe als graue, aufgeklebte Vielecke. Die Flanke geht
+## wie bei `_platte` 22 cm unter die Decke und nie über die Lippe.
+static func _kuppe(st: SurfaceTool, rahmen: Dictionary, umriss: Array[Vector2],
+		mitte2: Vector2, hoehe: float, grund: Color, rng: RandomNumberGenerator) -> void:
+	var n_ := umriss.size()
+	var r_mittel := 0.0
+	for p in umriss:
+		r_mittel += (p - mitte2).length()
+	r_mittel = maxf(r_mittel / float(n_), 0.05)
+	# Anteil des Radius und Höhe je Ring (Kopf, drei Ringe, Rand am Boden).
+	var ringe := PackedFloat32Array([0.0, 0.4, 0.7, 0.9, 1.0])
+	var hoehen := PackedFloat32Array([1.0, 0.9, 0.66, 0.34, 0.0])
+	var toene := [grund * 1.12, grund * 1.05, grund * 0.95, grund * 0.72,
+			(grund * 0.4).lerp(Color(0.05, 0.05, 0.025), 0.35)]
+	var reihen: Array = []
+	var normalen: Array = []
+	var kopf := _ort(rahmen, mitte2.x, mitte2.y, hoehe + 0.008)
+	for i in ringe.size():
+		var reihe: Array[Vector3] = []
+		var nreihe: Array[Vector3] = []
+		for k in n_:
+			var p := Vector2(maxf(umriss[k].x, VOR), umriss[k].y)
+			var z := mitte2.lerp(p, ringe[i])
+			var h := hoehe * hoehen[i] + 0.008 + (rng.randf_range(0.0, 0.006) if i == 4 else 0.0)
+			var ort := _ort(rahmen, z.x, z.y, h) if i > 0 else kopf
+			reihe.append(ort)
+			var raus := ort - kopf
+			raus.y = 0.0
+			var steil := 0.0
+			if i > 0:
+				# Steigung der Kuppe am Ring (Ableitung der Höhen nach dem Radius)
+				var dh := (hoehen[i - 1] - hoehen[mini(i + 1, 4)]) * hoehe
+				var dr := (ringe[mini(i + 1, 4)] - ringe[i - 1]) * r_mittel
+				steil = dh / maxf(dr, 0.01)
+			var nn := Vector3.UP
+			if raus.length_squared() > 1e-8:
+				nn = (Vector3.UP + raus.normalized() * steil).normalized()
+			nreihe.append(nn)
+		reihen.append(reihe)
+		normalen.append(nreihe)
+	var fuss_ring: Array[Vector3] = []
+	for k in n_:
+		var p := Vector2(maxf(umriss[k].x, VOR), umriss[k].y)
+		var fuss := mitte2.lerp(p, 0.92)
+		fuss_ring.append(_ort(rahmen, maxf(fuss.x, VOR), fuss.y, -0.22))
+	for i in range(ringe.size() - 1):
+		var a: Array[Vector3] = reihen[i]
+		var b: Array[Vector3] = reihen[i + 1]
+		var na: Array[Vector3] = normalen[i]
+		var nb: Array[Vector3] = normalen[i + 1]
+		var fa: Color = toene[i]
+		var fb: Color = toene[i + 1]
+		for k in n_:
+			var m := (k + 1) % n_
+			_dreieck_n(st, a[k], b[k], b[m], na[k], nb[k], nb[m], fa, fb, fb, STEIN)
+			_dreieck_n(st, a[k], b[m], a[m], na[k], nb[m], na[m], fa, fb, fa, STEIN)
+	var rand: Array[Vector3] = reihen[ringe.size() - 1]
+	var dunkel: Color = toene[ringe.size() - 1]
+	for k in n_:
+		var m := (k + 1) % n_
+		var raus := (rand[k] + rand[m]) * 0.5 - kopf
+		raus.y = 0.0
+		if raus.length_squared() < 1e-8:
+			continue
+		var nr := raus.normalized()
+		_dreieck(st, rand[k], fuss_ring[k], fuss_ring[m], raus, dunkel, dunkel * 0.8,
+				dunkel * 0.8, STEIN, nr)
+		_dreieck(st, rand[k], fuss_ring[m], rand[m], raus, dunkel, dunkel * 0.8, dunkel, STEIN,
+				nr)
+
+
+## Wie `_dreieck` mit einer Normale je Ecke (weiche Wölbung); Vorderseite
+## nach oben.
+static func _dreieck_n(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, na: Vector3,
+		nb: Vector3, nc: Vector3, fa: Color, fb: Color, fc: Color, art: float) -> void:
+	var kreuz := (b - a).cross(c - a)
+	if kreuz.length_squared() < 1e-14:
+		return
+	var ecken: Array[Vector3] = [a, b, c]
+	var farben: Array[Color] = [fa, fb, fc]
+	var nn: Array[Vector3] = [na, nb, nc]
+	if kreuz.dot(Vector3.UP) > 0.0:
+		ecken = [a, c, b]
+		farben = [fa, fc, fb]
+		nn = [na, nc, nb]
+	for i in 3:
+		var p := ecken[i]
+		var f := farben[i]
+		st.set_color(Color(f.r, f.g, f.b, 0.0))
+		st.set_uv(Vector2(p.x + p.y * 0.5, p.z + p.y * 0.5) * 3.0)
+		st.set_uv2(Vector2(art, 0.0))
+		st.set_normal(nn[i])
+		st.add_vertex(p)
 
 
 ## Helles Bruchholz an einer Wurzellippe: zwei, drei schmale Späne längs der

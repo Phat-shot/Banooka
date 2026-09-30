@@ -1719,7 +1719,7 @@ static func _quer(st: Stuecke, level: Level01) -> void:
 ## (+1: die Lücke liegt in +s) offen; `profil_bei` wie bei den Kanten.
 static func _querwand(st: Stuecke, level: Level01, linie: PackedVector2Array,
 		vorwaerts: float, profil_bei: Callable, name: String, saat: int,
-		karten: bool = true) -> Dictionary:
+		karten: bool = true, nach_maske: bool = false) -> Dictionary:
 	var proben := GelaendeSaum.linie(level.verlauf, linie, SCHRITT_QUER)
 	var g := GelaendeSaum.querschnitte(level.verlauf, proben, -vorwaerts, profil_bei,
 			_kante_quer.bind(level, linie[0].x), _kronen.bind(level))
@@ -1738,9 +1738,24 @@ static func _querwand(st: Stuecke, level: Level01, linie: PackedVector2Array,
 			if laengs.length_squared() < 0.0001 or aussen.length_squared() < 0.0001:
 				continue
 			var vor := (reihe[3] - reihe[1]).dot(aussen.normalized()) / 0.6
+			# Auf der ausgetretenen Spur hängt kein Gras über die Lippe.
+			if nach_maske and rng.randf() > _rasen_anteil(level, proben[i]):
+				continue
 			_karten_an(st.karten(name), rng, reihe[2], reihe[4], aussen.normalized(),
 					laengs.normalized(), 0.0, vor)
 	return g
+
+
+## Rasen (1) oder ausgetretene Spur (0) an einer Probe einer Querwand, nach
+## der Wegmaske der Decke (`Wegmaske.wert`) – dieselbe Maske, die die Decke
+## malt, so läuft die Spur über die Lippe weiter.
+static func _rasen_anteil(level: Level01, probe: Dictionary) -> float:
+	var s: float = probe["s"]
+	var halb := maxf(level.breite_bei(s - 0.05), level.breite_bei(s + 0.05)) * 0.5
+	if halb <= 0.0:
+		return 1.0
+	var p: Vector3 = probe["p"]
+	return Wegmaske.wert(float(probe["q"]) / halb, s, Vector2(p.x, p.z))
 
 
 static func _kante_quer(_i: int, _probe: Dictionary, level: Level01, s_kante: float) -> float:
@@ -1763,23 +1778,38 @@ static func _graben(st: Stuecke, level: Level01, von: float, bis: float, grund: 
 		var linie := PackedVector2Array([Vector2(s, q_links), Vector2(s, rechts)])
 		var kante := level.boden_bei(s - 0.01 if ende == 0 else s + 0.01)
 		_querwand(st, level, linie, 1.0 if ende == 0 else -1.0,
-				_profil_stirn.bind(kante, grund, halb, erdig), name, saat + ende)
+				_profil_stirn.bind(kante, grund, halb, erdig, 0.45, level), name, saat + ende,
+				true, true)
 
 
 ## STIRN: Grasnarbe, Erdband, Wand bis auf den Grund, der Grund bis zur
 ## Mitte der Lücke (16 Punkte).
+## Mit `level` (Kerbe, Fallkerbe) folgt die Narbe der Wegmaske: Wo die
+## Spur über die Lippe läuft, ist sie ausgetretene Erde, die kaum vorsteht
+## und krümelig abbricht; daneben Rasen, der in Buckeln (0–0,4 m, 1–2 m
+## lang) über die Kante hängt. Mit gleich breiter Grasnarbe quer über den
+## Weg las sich die Lippe als grüner Bordstein.
 static func _profil_stirn(_i: int, probe: Dictionary, kante: float, grund: float,
-		halb: float, erdig: bool, innen: float = 0.45) -> GelaendeSaum.Profil:
+		halb: float, erdig: bool, innen: float = 0.45,
+		level: Level01 = null) -> GelaendeSaum.Profil:
 	var bogen: float = probe["bogen"]
 	var ov := _ueberhang_quer(bogen, 13.0)
+	var r := 1.0
+	if level != null:
+		r = _rasen_anteil(level, probe)
+		ov = clampf(0.2 + 0.3 * _welle(bogen * 0.9, 13.0) + 0.12 * _welle(bogen * 2.3, 18.0),
+				0.03, 0.4)
+		ov = lerpf(0.05 + 0.08 * (0.5 + 0.5 * _welle(bogen * 3.1, 21.0)), ov, r)
 	var e := 0.8 if erdig else 0.25
 	var p := GelaendeSaum.Profil.new()
 	# `innen` > 0,45: Die Narbe reicht weiter zurück, unter den Waldboden des
 	# Geländes (Erdspalt, dessen Wände das Gelände dahinter nachzieht).
-	p.punkt(-innen, kante - (0.03 if innen <= 0.45 else 0.05), _farbe(0.78, 0.0, 0.05, 1.0))
-	p.punkt(ov * 0.4, kante - 0.006, _farbe(0.78, 0.0, 0.2, 1.0))
-	p.punkt(ov * 0.8, kante - 0.035, _farbe(0.72, 0.1, 0.3, 0.95))
-	p.punkt(ov, kante - 0.12, _farbe(0.5, 0.6, 0.3, 0.45))
+	p.punkt(-innen, kante - (0.03 if innen <= 0.45 else 0.05),
+			_farbe(0.78, (1.0 - r) * 0.8, 0.05, r))
+	p.punkt(ov * 0.4, kante - 0.006, _farbe(lerpf(0.66, 0.78, r), (1.0 - r) * 0.85, 0.2 * r, r))
+	p.punkt(ov * 0.8, kante - lerpf(0.06, 0.035, r),
+			_farbe(lerpf(0.52, 0.72, r), lerpf(0.9, 0.1, r), 0.3 * r, 0.95 * r))
+	p.punkt(ov, kante - lerpf(0.18, 0.12, r), _farbe(0.5, lerpf(0.9, 0.6, r), 0.3 * r, 0.45 * r))
 	p.punkt(ov - 0.06, kante - 0.25, _farbe(0.3, 1.0, 0.1, 0.0))
 	p.punkt(ov - 0.3, kante - 0.33, _farbe(0.18, 1.0, 0.0, 0.0))
 	p.punkt(-0.35, kante - 0.5, _farbe(0.2, 1.0, 0.0, 0.0), 0.0, 0.05, -1.0)

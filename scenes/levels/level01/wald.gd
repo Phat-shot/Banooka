@@ -161,7 +161,8 @@ const ZELLE_FERN := 64.0
 ## Im Web (`Effekte.reduziert`) gröber: weniger Zeichenaufrufe.
 const ZELLE_FERN_WEB := 96.0
 ## Rasterweite des fernen Walds (m): Kronen von 5 m Radius schließen sich.
-const FERN_RASTER := 10.5
+## Mit 10,5 lag zwischen den Kronen glatter Rasen (Tupfen statt Dach).
+const FERN_RASTER := 9.2
 ## Haine des fernen Walds: Wellenlänge des Rauschens, das die Walddichte
 ## auf und ab schiebt (m), und die Weite, in der ein Baum mindestens zwei
 ## Nachbarn braucht (m).
@@ -227,6 +228,11 @@ const FARN := Color(0.2, 0.42, 0.15)
 const NADEL_TON := Color(0.6, 0.72, 0.76)
 ## Tönung des Totholzes: grau, ausgeblichen.
 const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
+## Die schlichte Fassung der Riesen (nur vom Grat aus zu sehen): Stamm und
+## Krone dunkler und etwas kühler als die nahe – sie stehen dort vor dem
+## dunklen Fuß des Weltenbaums und sollen mit ihm eine Masse bilden.
+const RIESE_FERN_STAMM := Color(0.5, 0.5, 0.52)
+const RIESE_FERN_KRONE := Color(0.7, 0.76, 0.8)
 
 ## Die Hallenwald-Reihen je Seite: Querbereich, Abstand entlang s, Arten
 ## (rechts eigene: tief beastete Kronen bis an die Hallenkante – die Halle
@@ -1658,11 +1664,14 @@ static func _hangwald(level: Level01) -> void:
 			# Vorn eher tiefe Kronen: Vom Weg aus sieht man den Hang von unten,
 			# hohe Bäume zeigten dort nur Stämme auf Rasen, ihr Laub läge über
 			# dem Bildrand.
+			# Keine dünnen Hochstämme vorn: Aus der Seitenansicht und vom Grat
+			# aus lasen sie sich als Lollis (lange, kahle, parallele Stämme mit
+			# kleiner Krone ganz oben). Dafür Nadelbäume, gut ein Viertel.
 			var vorn := tiefe < 10.0
 			var art := "dach"
 			if not vorn or rng.randf() >= 0.35:
-				var auswahl: Array = ["tief", "tief", "hoch", "tief", "duenn"] if vorn \
-						else ["tief", "tief", "schlicht_a", "schlicht_b", "schlicht_c"]
+				var auswahl: Array = ["tief", "tief", "schlicht_c", "tief", "hoch", "schlicht_c"] \
+						if vorn else ["tief", "tief", "schlicht_a", "schlicht_b", "schlicht_c"]
 				art = String(auswahl[rng.randi_range(0, auswahl.size() - 1)])
 			# Ganz vorn an der Kante (bis s 110) oft ein Astbaum: niedrig und
 			# breit, zum Weg geneigt – seine Äste hängen über dem linken
@@ -1677,7 +1686,11 @@ static func _hangwald(level: Level01) -> void:
 				if versuch_art == "dach" or versuch_art.begins_with("ast"):
 					dreh = atan2(-zum_weg.z, zum_weg.x) + rng.randf_range(-0.4, 0.4)
 				var hoch := rng.randf_range(0.9, 1.15)
-				var lage := _lage(fuss, dreh, rng.randf_range(0.85, 1.25), hoch)
+				# Leicht schief (bis 5°), nie parallel wie Zaunpfähle.
+				var kipp := Vector3(rng.randf() - 0.5, 0.0, rng.randf() - 0.5)
+				var lage := _lage(fuss, dreh, rng.randf_range(0.85, 1.25), hoch,
+						deg_to_rad(rng.randf_range(0.0, 5.0)) if kipp.length() > 0.05 else 0.0,
+						kipp if kipp.length() > 0.05 else Vector3.RIGHT)
 				var ton_krone := _ton(rng, Vector2(0.8, 1.0))
 				if rng.randf() < 0.2 and not versuch_art.begins_with("ast"):
 					ton_krone = ton_krone * NADEL_TON
@@ -1860,8 +1873,12 @@ static func _riesen(level: Level01) -> void:
 					"fussweite": float(dreh["weite"]), "zugabe": float(e["zugabe"]),
 					"ohne_stammtest": geneigt > 0.0, "ohne_krone": true}):
 				var fern := _riese_fern("riese%d_%d" % [i, roundi(v.x * 100.0)], b)
-				ws.setze("stamm_fern", fern["stamm"] as ArrayMesh, lage, Color(0.94, 0.93, 0.92))
-				ws.setze("krone_fern", fern["krone"] as ArrayMesh, lage, ton)
+				# Die schlichte Fassung sieht man nur vom Grat (100–160 m): Dort
+				# standen die hellen Stämme im Frontlicht als blasse Stelzen vor
+				# dem dunklen Fuß des Weltenbaums, ihre Kronen als helle Schirme
+				# – kleine Abbilder des Riesen statt dunkler Masse an seinem Fuß.
+				ws.setze("stamm_fern", fern["stamm"] as ArrayMesh, lage, RIESE_FERN_STAMM)
+				ws.setze("krone_fern", fern["krone"] as ArrayMesh, lage, ton * RIESE_FERN_KRONE)
 				_staemme.dazu(Vector2(fuss.x, fuss.z), r + 2.5)
 				_zaehle("riesen")
 				if v != Vector2(1.0, 0.0):
@@ -2049,8 +2066,11 @@ static func _hain(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator, mi
 			# verteilt zwischen 0,6 und 1,2.
 			var groesse := rng.randf_range(1.15, 1.5) if n == 0 \
 					else lerpf(0.6, 1.25, pow(rng.randf(), 1.4))
+			# Breit und gedrungen oder schmal und hoch, je Baum: Mit nur leicht
+			# gestreckten Kronen stand im Tal dutzendfach derselbe Stapel aus
+			# Polstern.
 			var lage := _lage(Vector3(p.x, y, p.y), rng.randf() * TAU,
-					groesse * rng.randf_range(0.9, 1.1), groesse)
+					groesse * rng.randf_range(0.82, 1.3), groesse * rng.randf_range(0.74, 1.16))
 			var ton := ton_hain * _ton(rng, Vector2(0.86, 1.0), 0.03)
 			if nadel:
 				ton = ton * NADEL_TON
@@ -2230,8 +2250,9 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 			# Schirmkronen selten: Flach lesen sie sich im Dunst als Scheiben.
 			var k := 2 if nadel else (1 if rng.randf() < 0.25 else 0)
 			var groesse := lerpf(0.72, 1.45, pow(rng.randf(), 1.7)) * (1.08 if y > 16.0 else 1.0)
+			var groesse_y := groesse * rng.randf_range(0.76, 1.14)
 			var lage := _lage(Vector3(px, y, pz), rng.randf() * TAU,
-					groesse * rng.randf_range(0.9, 1.15), groesse)
+					groesse * rng.randf_range(0.84, 1.3), groesse_y)
 			var huelle := lage * netze[k].get_aabb()
 			if not _talkante_frei(huelle) or not _weg_frei(huelle):
 				continue
@@ -2248,7 +2269,7 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 				_zaehle("fern_ohne_boden")
 				continue
 			_fern_kandidaten.append({"lage": lage, "k": k, "ton": ton,
-					"p": Vector2(px, pz), "y": y, "groesse": groesse})
+					"p": Vector2(px, pz), "y": y, "groesse": groesse_y})
 			_kronen.dazu(Vector2(px, pz), 3.6 * groesse)
 		x += raster
 
