@@ -57,22 +57,25 @@ class_name L01Stimmung
 ## außerhalb von Weg und Spielobjekten, „dunkel" = Anteil unter Luma 60 und
 ## Klasse der größten zusammenhängenden Fläche:
 ##     s    kühl %  warm %  Weg  hellste  dunkel  größte Fläche
-##     4    12,5    18,8    156   101      73 %    dunkel
+##     4    12,5    18,8    155   101      74 %    dunkel
 ##    31    25,6    21,0    183   127      50 %    dunkel
 ##    46    22,1    19,7    188   143      48 %    dunkel
 ##    70    13,3    21,6    190   110      60 %    dunkel
-##   101    10,5    22,5    187    87      65 %    dunkel
+##   101    10,5    22,6    187    87      65 %    dunkel
 ##   119    31,0     9,0    174   102      54 %    dunkel
 ##   140    11,7    21,2    171   138      70 %    dunkel
 ##   176    16,7    14,2    164   111      61 %    dunkel
-##   212    24,7    19,8    145   142      59 %    dunkel
-##   249    27,1    22,6    162   128      57 %    dunkel
-##   275,5  18,0    17,4     94    88      72 %    dunkel
+##   212    24,7    20,0    148   142      58 %    dunkel
+##   249    27,0    23,1    164   128      56 %    dunkel
+##   275,5  17,9    18,5     95    89      71 %    dunkel
 ## Vorher (gleiche Stationen): kühl 0,0–5,0 %, Ferne und Himmel bis 206
-## hell gegen einen Weg von 114–170. Knapp sind 212 (Weg aus heller Borke
-## gegen den Himmel) und 275,5: Dort liegt das Regal im Schatten der Äste
-## des Weltenbaums (Schattenkörper "StammSchatten"); ohne ihn misst der Weg
-## 131 statt 94.
+## hell gegen einen Weg von 114–170. Knapp sind 212 (Weg aus Borke gegen
+## den Himmel) und 275,5: Dort liegt das Regal im Schatten der Äste des
+## Weltenbaums (Schattenkörper "StammSchatten"); ohne ihn misst der Weg gut
+## 130 statt 95. Die Seitenansichten erfüllen kühl und warm (s 60: 15,5 /
+## 11,4 %, s 186: 18,8 / 8,1 %); bei s 186 ist die besonnte Wiese die
+## größte Fläche, bei der Nahaufnahme s 53,5 (Rasen und Lippe) ist kaum
+## Ferne im Bild (kühl 1,1 %).
 ##
 ## KOSTEN (Plan 13: ≤ 18 Zeichenaufrufe): jedes Teil ein MultiMesh, ohne
 ## Schatten, mit harter Sichtweite. Gemessen je Station +4 (Wendel) bis +17
