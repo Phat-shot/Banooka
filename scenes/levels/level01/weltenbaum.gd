@@ -1556,6 +1556,35 @@ static func _vorhaenge_bauen(eltern: Node3D, bahn: Bahn, level: Level01) -> void
 			st.add_vertex(ecken[k])
 		anzahl += 1
 		s += weiter
+	# Über die Stirnen von G1 und G2, die der Kamera zugewandt sind: Von der
+	# Lippe hängen Wurzeln und Moos 0,12 m vor der Bruchfläche herab. Aus der
+	# Spielkamera stand die Stirn sonst als dunkles Rechteck im Bild (bei
+	# G1 ein Fünftel davon); oben bleibt die Lippe frei, man landet dort.
+	for g_s: float in [G1.y, G2.y]:
+		var ra := bahn.rahmen(g_s)
+		var e := _kante(level, g_s)
+		var q := -3.4 + rng.randf_range(0.0, 0.5)
+		while q < e - 0.5:
+			var breite := rng.randf_range(0.7, 1.1)
+			var laenge := rng.randf_range(1.1, 2.4)
+			var oben := ra.p(q, -0.07) - ra.v * 0.12
+			var unten := oben + Vector3.DOWN * laenge - ra.v * laenge * rng.randf_range(0.0, 0.06)
+			# Heller als unter dem Bauch: vor der dunklen Bruchfläche sollen
+			# sie sich abheben.
+			var ton := rng.randf_range(1.05, 1.35)
+			var farbe := Color(ton, ton, ton * rng.randf_range(0.9, 1.05), 1.0)
+			var u0 := 0.0 if rng.randf() < 0.5 else 0.5
+			var ecken: Array[Vector3] = [oben - ra.r * breite * 0.5, oben + ra.r * breite * 0.5,
+					unten + ra.r * breite * 0.4, unten - ra.r * breite * 0.4]
+			var uvs: Array[Vector2] = [Vector2(u0, 0.0), Vector2(u0 + 0.5, 0.0),
+					Vector2(u0 + 0.5, 1.0), Vector2(u0, 1.0)]
+			for k: int in [0, 1, 2, 0, 2, 3]:
+				st.set_color(farbe)
+				st.set_normal(-ra.v)
+				st.set_uv(uvs[k])
+				st.add_vertex(ecken[k])
+			anzahl += 1
+			q += rng.randf_range(0.6, 1.1)
 	if anzahl == 0:
 		return
 	var mi := MeshInstance3D.new()
