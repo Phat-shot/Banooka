@@ -1347,6 +1347,58 @@ static func _unterholz(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerato
 				ws.setze("krone", busch, lage, _ton(rng, Vector2(0.72, 0.95)))
 				_staemme.dazu(Vector2(fuss.x, fuss.z), 1.0)
 				_zaehle("unterholz")
+	# Die Ecke vor der Enthüllung (rechts, s 17–25): Die Startkamera
+	# (herangeholt, steil) sieht oben rechts unter den Kronen hindurch über
+	# die Hallenkante ins Tal – ein heller Nebelfleck, bevor die Enthüllung
+	# ihn zeigen soll. Nadelbäume, deren Kronen bis fast zum Boden reichen,
+	# und große Büsche schließen sie; bei s 26 öffnet sich das Bild.
+	var tanne := _hallenbaum("schlicht_c")
+	for versuch in 24:
+		var ss := rng.randf_range(17.0, 25.0)
+		var q := rng.randf_range(10.5, 20.0)
+		if not _halle_platz(level, ss, q):
+			continue
+		var fuss := _boden(level, ss, q)
+		if not _staemme.frei(Vector2(fuss.x, fuss.z), 0.7):
+			continue
+		if rng.randf() < 0.6:
+			var gross := rng.randf_range(0.62, 0.9)
+			if _pflanze(ws, tanne, _lage(fuss, rng.randf() * TAU, gross, gross), "stamm", "krone",
+					Color(0.85, 0.85, 0.82), _ton(rng, Vector2(0.72, 0.9)) * NADEL_TON):
+				_staemme.dazu(Vector2(fuss.x, fuss.z), 1.6)
+				_zaehle("eckbaeume")
+				continue
+		var gross := rng.randf_range(1.3, 1.9)
+		var lage := _lage(fuss + Vector3.UP * 0.35 * gross, rng.randf() * TAU,
+				gross * rng.randf_range(0.9, 1.2), gross)
+		ws.setze("krone", busch, lage, _ton(rng, Vector2(0.66, 0.88)))
+		_staemme.dazu(Vector2(fuss.x, fuss.z), 1.3)
+		_zaehle("eckbuesche")
+	# Rechts zur Hallenkante hin dichter Unterwuchs zwischen den Stämmen.
+	var s2 := -12.0 + rng.randf_range(0.0, 2.0)
+	while s2 < 24.0:
+		var ss := s2
+		s2 += rng.randf_range(2.2, 3.4)
+		var q := rng.randf_range(16.0, 24.5)
+		if not _halle_platz(level, ss, q):
+			continue
+		var fuss := _boden(level, ss, q)
+		if not _staemme.frei(Vector2(fuss.x, fuss.z), 1.0):
+			continue
+		if rng.randf() < 0.4:
+			var lage := _lage(fuss, rng.randf() * TAU, rng.randf_range(0.9, 1.3),
+					rng.randf_range(0.9, 1.35))
+			if _pflanze(ws, jung, lage, "stamm", "krone", Color(0.9, 0.9, 0.88),
+					_ton(rng, Vector2(0.75, 0.95))):
+				_staemme.dazu(Vector2(fuss.x, fuss.z), 1.2)
+				_zaehle("jungbaeume")
+		else:
+			var gross := rng.randf_range(1.1, 1.8)
+			var lage := _lage(fuss + Vector3.UP * 0.35 * gross, rng.randf() * TAU,
+					gross * rng.randf_range(0.9, 1.2), gross)
+			ws.setze("krone", busch, lage, _ton(rng, Vector2(0.68, 0.9)))
+			_staemme.dazu(Vector2(fuss.x, fuss.z), 1.2)
+			_zaehle("unterholz")
 
 
 ## Darf im Hallenwald bei (s, q) ein Stamm stehen?
@@ -1935,8 +1987,8 @@ static func _hain(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator, mi
 ## `NAH_WEIT`), nicht links von A bis C4 (dort Hallen- und Hangwald), nicht
 ## rechts im Hallenwald, und nicht in der Lichtung vor der Seitenansicht
 ## der Bachwiese (`LICHTUNG`: s 178–194, q 16–40 – der Blick von dort über
-## die Wiese auf den Stammfuß, und aus der Wiese ins Tal). `baum`: auch die
-## Lichtung auf der anderen Seite des Wegs freihalten (für Sträucher egal).
+## die Wiese auf den Stammfuß, und aus der Wiese ins Tal; dort auch keine
+## Sträucher). `baum`: ein Baum (sonst ein Strauch).
 static func _tal_platz(level: Level01, p: Vector2, baum: bool) -> bool:
 	var d := _wegabstand(p.x, p.y)
 	if d > NAH_WEIT or d < 3.0:
@@ -1950,7 +2002,9 @@ static func _tal_platz(level: Level01, p: Vector2, baum: bool) -> bool:
 		return false
 	if q > 0.0 and s < 26.0:
 		return false
-	if baum and s > LICHTUNG.x and s < LICHTUNG.y and q > LICHTUNG.z and q < LICHTUNG.w:
+	var rand := 0.0 if baum else 3.0
+	if s > LICHTUNG.x - rand and s < LICHTUNG.y + rand and q > LICHTUNG.z - rand \
+			and q < LICHTUNG.w:
 		return false
 	return true
 
