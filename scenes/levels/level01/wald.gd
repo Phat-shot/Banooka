@@ -229,11 +229,13 @@ const NADEL_TON := Color(0.6, 0.72, 0.76)
 ## Tönung des Totholzes: grau, ausgeblichen.
 const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
 ## Die schlichte Fassung der Riesen (nur vom Grat aus zu sehen): Stamm und
-## Krone dunkler und etwas kühler als die nahe, dazu der halbe Nebel des
+## Krone dunkler und kühler als die nahe, dazu der halbe Nebel des
 ## Weltenbaums (`_riesen`) – sie stehen dort vor seinem dunklen Fuß und
-## sollen mit ihm eine Masse bilden.
-const RIESE_FERN_STAMM := Color(0.5, 0.5, 0.53)
-const RIESE_FERN_KRONE := Color(0.72, 0.78, 0.84)
+## sollen mit ihm eine Masse bilden. Mit 0,72/0,78/0,84 standen ihre
+## Kronen als grüne Schirme vor dem blauen Riesen, sechs Schirmkiefern vor
+## seinem Stamm; so gehen sie in seine untere Masse über.
+const RIESE_FERN_STAMM := Color(0.4, 0.42, 0.48)
+const RIESE_FERN_KRONE := Color(0.5, 0.58, 0.8)
 
 ## Die Hallenwald-Reihen je Seite: Querbereich, Abstand entlang s, Arten
 ## (rechts eigene: tief beastete Kronen bis an die Hallenkante – die Halle
@@ -916,6 +918,20 @@ static func _hallenbaum(art: String) -> Dictionary:
 		"schlicht_b":
 			return _baum("schlicht_b", {"mittel": true, "hoehe": 15.0, "radius": 0.42,
 					"variante": 1, "krone_radius": 5.4, "krone_hoehe": 6.6, "saat": 1106}, true)
+		"hang_rund", "hang_breit":
+			# Hangwald (B/C links): Die Krone beginnt bei knapp einem Drittel
+			# der Höhe ("unten"), breit und in vier Ballen gestuft, der Stamm
+			# mit Aststummeln endet in ihr. Mit "tief"/"schlicht_a" und den
+			# Hochstämmen las sich der Hang aus der Seitenansicht und vom Grat
+			# als Lollis: lange, kahle Stämme, die Krone klein ganz oben (am
+			# Hang liegt sie aus der Spielkamera über dem Bildrand).
+			if art == "hang_rund":
+				return _baum("hang_rund", {"mittel": true, "hoehe": 15.0, "radius": 0.5,
+						"variante": 0, "krone_radius": 5.2, "krone_hoehe": 9.0, "ballen": 4,
+						"unten": 0.3, "karten": 26, "saat": 1111}, true)
+			return _baum("hang_breit", {"mittel": true, "hoehe": 13.5, "radius": 0.52,
+					"variante": 1, "krone_radius": 6.0, "krone_hoehe": 7.2, "ballen": 4,
+					"unten": 0.34, "karten": 26, "saat": 1112}, true)
 		_:
 			# Nadelbaum: gestufte Kegel bis tief hinab
 			return _baum("schlicht_c", {"mittel": true, "tanne": true, "hoehe": 17.0,
@@ -1668,16 +1684,23 @@ static func _hangwald(level: Level01) -> void:
 			# Keine dünnen Hochstämme vorn: Aus der Seitenansicht und vom Grat
 			# aus lasen sie sich als Lollis (lange, kahle, parallele Stämme mit
 			# kleiner Krone ganz oben). Dafür Nadelbäume, gut ein Viertel.
+			# Hinten tief ansetzende, breite Kronen (`hang_rund`/`hang_breit`):
+			# Laub bis gut 4 m über dem Boden statt Stämmen mit einem Kopf.
 			var vorn := tiefe < 10.0
 			var art := "dach"
-			if not vorn or rng.randf() >= 0.35:
-				var auswahl: Array = ["tief", "tief", "schlicht_c", "tief", "hoch", "schlicht_c"] \
-						if vorn else ["tief", "tief", "schlicht_a", "schlicht_b", "schlicht_c"]
+			if not vorn or rng.randf() >= 0.3:
+				var auswahl: Array = ["tief", "hang_rund", "schlicht_c", "tief", "hang_breit",
+						"schlicht_c"] if vorn else ["hang_rund", "hang_breit", "hang_rund",
+						"schlicht_c", "hang_breit", "tief"]
 				art = String(auswahl[rng.randi_range(0, auswahl.size() - 1)])
 			# Ganz vorn an der Kante (bis s 110) oft ein Astbaum: niedrig und
 			# breit, zum Weg geneigt – seine Äste hängen über dem linken
 			# Wegdrittel (ab 9,5 m) und rahmen das Bild oben links.
 			var versuche: Array[String] = [art]
+			if art.begins_with("hang"):
+				# Passt die breite Krone nicht (Kamerahülle, Nachbarn), der
+				# schmalere tief beastete Baum.
+				versuche.append("tief")
 			if tiefe < 3.2 and ss < 110.0 and rng.randf() < 0.7:
 				versuche = ["ast" if rng.randf() < 0.5 else "ast_rund", "dach"]
 			for versuch_art in versuche:
