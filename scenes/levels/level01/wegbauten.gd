@@ -61,8 +61,8 @@ class_name L01Wegbauten
 ## `SICHT_TOR`. Das Totholz des Geländers liegt im Borkennetz (grau nur über
 ## die Tönung). Das Wurzelnest sieht die Spielkamera nie – sie blickt immer
 ## nach vorn –, es wirft deshalb auch keinen Schatten. Gemessen (Verfolger,
-## Tiefenvorlauf und Schatten eingerechnet): höchstens 27 Zeichenaufrufe
-## (s 31), sonst 0–25; 45–72k Dreiecke auf dem Grat (s 4–101), 14–34k
+## Tiefenvorlauf und Schatten eingerechnet): höchstens 28 Zeichenaufrufe
+## (s 46), sonst 0–27; 45–78k Dreiecke auf dem Grat (s 4–101), 8–34k
 ## dahinter.
 
 ## Borkentönung der Kiefern: rötlich (Eigenfarbe ≤ 1).
