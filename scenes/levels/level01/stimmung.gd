@@ -3,24 +3,32 @@ class_name L01Stimmung
 ## Level 01, Modul „Stimmung": Licht, Nebel, Lichtschächte und Bewegung
 ## (Plan Abschnitt 10).
 ##
-## LUFTPERSPEKTIVE. Nahes ist warm, Fernes kühl: Die Sonne (Level01.tscn)
-## malt den Weg und alles in den ersten Metern warm, der Tiefennebel (ab
-## 12 m) zieht das Ferne in einen kühlen Dunst. Aus ihm kommt der kühle
-## Anteil jedes Bildes (Ferne, Himmel, Wasser), und er hält das Ferne
-## dunkler als den Weg (Lesbarkeitsvertrag: Weg am hellsten, dunkler Rahmen).
+## LUFTPERSPEKTIVE. Nahes ist warm, Fernes kühl: Sonne und warmes
+## Umgebungslicht malen den Weg und die ersten Meter, der Tiefennebel (ab
+## 12 m) zieht alles Ferne in einen kühlen, blauen Dunst. Er trägt das Bild:
+## Aus ihm kommt die Tiefe (drei Staffeln – sattes Grün nah, Blaugrün im
+## Mittelgrund, blaue Silhouetten in der Ferne), der kühle Anteil jedes
+## Bildes, und er hält das Ferne DUNKLER als den Weg (Lesbarkeitsvertrag).
+## Vorher lag über allem ein grüngrauer Dunst, den das Streulicht des
+## Gegenlichts aus Norden noch gelblich färbte: Die Ferne war heller als der
+## Weg und flach, kühl waren 0–5 % des Bildes. Deshalb gibt es in Level 01
+## kein Streulicht mehr (`fog_sun_scatter` 0 in Level01.tscn) – der Blick
+## geht auf dem Grat genau in das Gegenlicht.
 ##
 ## STIMMUNG ENTLANG DES WEGES (`Regler`). Jeder Abschnitt hat sein Licht,
-## RELATIV zur Grundstimmung der Szene wie bei `Stimmungszone`
-## (`nebel_faktor` verkürzt die Nebelstrecke, `licht_faktor` skaliert das
-## Umgebungslicht, `FARBANTEIL` zieht die Farben ein Stück zur Zonenfarbe):
-##   A Hallenwald   kühl, gedämpft grün, dichter Dunst zwischen den Stämmen
-##   B Hangweg      golden, klar, kühl-blaue Ferne (Nebel reicht weit, der
-##                  Weltenbaum liest sich als Silhouette vor dem Dunst)
-##   C Fallklamm    kühl, Gischt
-##   D Bachwiese    warm grün
-##   E/F Wendel     golden – EINE Zone als Zylinder um die Weltenbaumachse
-##                  (ab der Wurzel, nicht schon auf der Wiese darunter)
-## Die Werte hängen nicht an Auslösekästen und einer Überblendung über die
+## gerechnet wie bei `Stimmungszone` (`nebel_faktor` verkürzt die
+## Nebelstrecke 12 → 140 m der Szene, `licht_faktor` skaliert das
+## Umgebungslicht, "oben" das Himmelslicht der Szene):
+##   A Hallenwald   dichter blaugrüner Dunst zwischen den Stämmen (Ende 50 m),
+##                  gedämpftes Licht; tritt man hinaus, hebt sich der Dunst
+##   B Hangweg      warmes Licht, blaue Ferne bis 225 m – der Weltenbaum
+##                  steht als dunkle Silhouette vor dem Dunst (s 31, s 60)
+##   C Fallklamm    kühl
+##   D Bachwiese    warm grün, blaugrauer Dunst hinter den Riesen
+##   E/F Wendel     golden nah, blau fern – EINE Zone als Zylinder um die
+##                  Weltenbaumachse (ab der Wurzel, nicht schon auf der
+##                  Wiese darunter)
+## Die Werte hängen nicht an Auslösekästen mit einer Überblendung über die
 ## Zeit (`Stimmungszone`), sondern an der Stelle: Der Regler rechnet jedes
 ## Bild aus der Strecke der Figur die Mischung der Zonen (weiche Übergänge
 ## über `UEBERGANG` m) und geht ihr in einer knappen Zehntelsekunde nach.
@@ -30,18 +38,45 @@ class_name L01Stimmung
 ## mit denen der Wiese, über der sie sich windet. Der Bachnebel des
 ## Geländes (`L01Gelaende.nebel_stoff`) folgt der Nebelfarbe.
 ##
+## HIMMEL (Level01.tscn): tieferes Blau, Dunstband in der Nebelfarbe von B,
+## Wolken, die zum Horizont hin im Dunst vergehen (`wolken_dunst`) – sonst
+## waren tiefe Wolken die hellsten Flecken im Bild.
+##
 ## LICHTSCHÄCHTE (`Lichtschacht`, je mit `Staubflug`): in A durch die zwei
 ## Löcher im Blätterdach (`Level01.LICHTLOECHER`, Decke = Dach), in C an
-## der linken Wand bis über ihre Krone, in D aus den Kronen der Talriesen
-## (Decke ≈ y 24). Die Bahnen folgen der Sonne der Szene.
+## der hohen Wand bis über ihre Krone und aus den Kanalbäumen über C4, in D
+## aus den Kronen der Talriesen. Die Bahnen folgen der Sonne der Szene.
 ##
-## BEWEGUNG: Laubtreiben an sechs Stellen, vier Vogelschwärme – zwei über
-## dem Tal UNTER Augenhöhe (vom Grat aus sieht man auf sie hinab), einer in
-## Weghöhe neben der Wendel, einer unter dem Regal über dem Bach.
+## BEWEGUNG: Laubtreiben an sechs Stellen, vier Vogelschwärme – zwei helle
+## über dem Tal UNTER Augenhöhe (vom Grat aus sieht man auf sie hinab), ein
+## dunkler in Augenhöhe neben der Wendel, einer vor dem Schlussbild.
+##
+## FARBZIELE (Plan 10), gemessen im Schaufenster (l01, 30.09.2026) mit
+## `kontaktbogen.py` (hell, warm, kühl) und einer Wegmaske: „Weg" = P80 der
+## Helligkeit der sichtbaren Wegdecke, „hellste" = hellste Fläche aus 8 × 5
+## außerhalb von Weg und Spielobjekten, „dunkel" = Anteil unter Luma 60 und
+## Klasse der größten zusammenhängenden Fläche:
+##     s    kühl %  warm %  Weg  hellste  dunkel  größte Fläche
+##     4    12,5    18,8    156   101      73 %    dunkel
+##    31    25,6    21,0    183   127      50 %    dunkel
+##    46    22,1    19,7    188   143      48 %    dunkel
+##    70    13,3    21,6    190   110      60 %    dunkel
+##   101    10,5    22,5    187    87      65 %    dunkel
+##   119    31,0     9,0    174   102      54 %    dunkel
+##   140    11,7    21,2    171   138      70 %    dunkel
+##   176    16,7    14,2    164   111      61 %    dunkel
+##   212    24,7    19,8    145   142      59 %    dunkel
+##   249    27,1    22,6    162   128      57 %    dunkel
+##   275,5  18,0    17,4     94    88      72 %    dunkel
+## Vorher (gleiche Stationen): kühl 0,0–5,0 %, Ferne und Himmel bis 206
+## hell gegen einen Weg von 114–170. Knapp sind 212 (Weg aus heller Borke
+## gegen den Himmel) und 275,5: Dort liegt das Regal im Schatten der Äste
+## des Weltenbaums (Schattenkörper "StammSchatten"); ohne ihn misst der Weg
+## 131 statt 94.
 ##
 ## KOSTEN (Plan 13: ≤ 18 Zeichenaufrufe): jedes Teil ein MultiMesh, ohne
-## Schatten, mit harter Sichtweite; von einer Stelle aus sind höchstens
-## zwei Schächte samt Staub, ein Laubfeld und ein, zwei Schwärme im Bild.
+## Schatten, mit harter Sichtweite. Gemessen je Station +4 (Wendel) bis +17
+## (s 140: sechs Schächte, drei Staubsäulen, Laub, ein Schwarm).
 
 const STAUB := preload("res://scenes/props/Staub.tscn")
 const LAUBTREIBEN := preload("res://scenes/props/Laubtreiben.tscn")
@@ -50,34 +85,38 @@ const VOEGEL := preload("res://scenes/props/Voegel.tscn")
 # ================================================================ Zonen
 
 ## Die Zonen entlang des Weges (s von … bis). "nebelfarbe" und
-## "umgebungsfarbe" wirken zu `FARBANTEIL`, die Faktoren ganz; "streuung"
-## ist ein Faktor auf `fog_sun_scatter`.
+## "umgebungsfarbe" wirken zu `FARBANTEIL`, die Faktoren ganz; "oben" ist
+## ein Faktor auf das Himmelslicht der Szene (Licht von oben, hebt den Weg
+## gegen Himmel und Dunst, ohne die Schattenseiten aufzuhellen).
 const ZONEN := [
 	{"name": "Hallenwald", "von": -40.0, "bis": 30.0, "nebel_faktor": 3.4,
 			"licht_faktor": 0.85, "nebelfarbe": Color(0.19, 0.36, 0.47),
-			"umgebungsfarbe": Color(0.30, 0.40, 0.36), "streuung": 0.0},
+			"umgebungsfarbe": Color(0.30, 0.40, 0.36)},
 	{"name": "Hangweg", "von": 30.0, "bis": 104.0, "nebel_faktor": 0.6,
 			"licht_faktor": 1.4, "nebelfarbe": Color(0.42, 0.58, 0.76),
-			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "streuung": 0.0, "oben": 1.25},
+			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "oben": 1.25},
 	{"name": "Fallklamm", "von": 104.0, "bis": 160.0, "nebel_faktor": 1.0,
 			"licht_faktor": 0.9, "nebelfarbe": Color(0.36, 0.52, 0.66),
-			"umgebungsfarbe": Color(0.44, 0.56, 0.62), "streuung": 0.0},
+			"umgebungsfarbe": Color(0.44, 0.56, 0.62)},
 	# Reicht bis ans Ende: Auf der Wendel mischt sich die Zylinderzone
 	# darüber, und wer von der Wurzel auf die Wiese fällt, steht wieder hier.
 	{"name": "Bachwiese", "von": 160.0, "bis": 400.0, "nebel_faktor": 1.5,
 			"licht_faktor": 1.05, "nebelfarbe": Color(0.34, 0.48, 0.58),
-			"umgebungsfarbe": Color(0.56, 0.60, 0.42), "streuung": 0.0, "oben": 1.3},
+			"umgebungsfarbe": Color(0.56, 0.60, 0.42), "oben": 1.3},
 ]
 
 ## Wendel und Kronentor: ein Zylinder um die Weltenbaumachse, gemessen an
 ## der Wegdecke unter der Figur. Er beginnt über der Wiese ("unten_y"), die
 ## Bachwiese darunter bleibt die Bachwiese.
 const WENDEL := {"name": "Wendel", "achse": Vector2(72.0, -174.0), "radius": 36.0,
-		"unten_y": 8.8, "hoehe": 40.0, "nebel_faktor": 0.8, "licht_faktor": 1.45,
+		"unten_y": 8.8, "hoehe": 40.0, "nebel_faktor": 0.8, "licht_faktor": 1.55,
 		"nebelfarbe": Color(0.40, 0.55, 0.72), "umgebungsfarbe": Color(0.70, 0.60, 0.46),
-		"streuung": 0.0, "oben": 1.5}
+		"oben": 1.7}
 
-## Wie weit die Farben von der Grundstimmung zur Zonenfarbe gehen.
+## Wie weit die Farben von der Grundstimmung zur Zonenfarbe gehen. Der Plan
+## nannte ≈ 0,6; hier gelten die Zonenfarben ganz – die Farbe der Szene ist
+## nur noch die des Himmelsdunsts (= Hangweg), und jede Zone ist auf ihre
+## Farbziele gestimmt, nicht auf einen Abstand zur Grundfarbe.
 const FARBANTEIL := 1.0
 ## Breite der weichen Übergänge zwischen den Zonen (m Strecke).
 const UEBERGANG := 8.0
@@ -119,7 +158,10 @@ const SCHWAERME := [
 	{"s": 62.0, "q": 36.0, "y": 18.0, "radius": 14.0, "anzahl": 6, "hell": true},
 	{"s": 98.0, "q": 46.0, "y": 17.0, "radius": 18.0, "anzahl": 5, "hell": true},
 	{"s": 254.0, "q": 26.0, "y": 17.5, "radius": 11.0, "anzahl": 5, "hell": false},
-	{"welt": Vector3(32.0, 14.0, -160.0), "radius": 8.0, "anzahl": 4, "hell": true},
+	# Vor dem Schlussbild (Blick nach SSW auf Grat und Wasserfall), knapp
+	# über dem Talwald westlich des Knolls: Tiefer verschwänden die Vögel
+	# zwischen den Kronen.
+	{"welt": Vector3(33.0, 23.0, -163.0), "radius": 7.0, "anzahl": 4, "hell": true},
 ]
 
 ## Harte Sichtweiten (Kamera → Knoten).
@@ -193,7 +235,6 @@ class Regler:
 			"nebelbeginn": _umgebung.fog_depth_begin,
 			"licht": _umgebung.ambient_light_energy,
 			"umgebungsfarbe": _umgebung.ambient_light_color,
-			"streuung": _umgebung.fog_sun_scatter,
 			"oben": oben.light_energy if oben != null else 0.0,
 		}
 
@@ -245,7 +286,6 @@ class Regler:
 		var umgebung := Color(0, 0, 0)
 		var ende := 0.0
 		var licht := 0.0
-		var streuung := 0.0
 		var von_oben := 0.0
 		var alle: Array[Dictionary] = []
 		var anteile: Array[float] = []
@@ -270,12 +310,11 @@ class Regler:
 			umgebung += zu * a
 			ende += (beginn + maxf(grund_ende - beginn, 1.0) / float(z["nebel_faktor"])) * a
 			licht += float(_grund["licht"]) * float(z["licht_faktor"]) * a
-			streuung += float(_grund["streuung"]) * float(z.get("streuung", 1.0)) * a
 			von_oben += float(_grund["oben"]) * float(z.get("oben", 1.0)) * a
 		farbe.a = 1.0
 		umgebung.a = 1.0
 		return {"nebelfarbe": farbe, "umgebungsfarbe": umgebung, "nebelende": ende,
-				"licht": licht, "streuung": streuung, "oben": von_oben}
+				"licht": licht, "oben": von_oben}
 
 	## Gewicht einer Zone von … bis mit weichen Rändern.
 	func _kasten(s: float, von: float, bis: float) -> float:
@@ -300,7 +339,6 @@ class Regler:
 		_umgebung.fog_depth_end = float(_stand["nebelende"])
 		_umgebung.ambient_light_energy = float(_stand["licht"])
 		_umgebung.ambient_light_color = _stand["umgebungsfarbe"]
-		_umgebung.fog_sun_scatter = float(_stand["streuung"])
 		if oben != null:
 			oben.light_energy = float(_stand["oben"])
 		if bachnebel != null:
