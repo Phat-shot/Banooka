@@ -116,7 +116,7 @@ static func fleck(saat: int = 1, halme: int = 26, radius: float = 0.22) -> Array
 ## Ein Büschel aus `halme` Halmen (Vorgabe 9), die aus einem Horst von
 ## ±`horst` m (Vorgabe 4 cm) wachsen, `breit`: Halmbreite als Faktor: für
 ## hohes Gras an Kanten und Steinen und für die innere Reihe an der
-## Trittkante; mit 18 breiteren Halmen aus 12 cm ein Bult, der sich auch
+## Trittkante; mit 14 breiteren Halmen aus 12 cm ein Bult, der sich auch
 ## aus 30 m noch als Horst liest. Innen stehen die Halme steiler und höher,
 ## außen legen sie sich über, alle leicht in eine Richtung gekämmt (ein
 ## gleichmäßiger Stern las sich als Stachelkugel). Geteilt je Saat.

@@ -18,7 +18,7 @@ class_name L01Rasen
 ##          Nische der ganze Boden), dann die Böschung hinauf (auf der
 ##          gebauten Fläche, `GelaendeSaum.flaeche_punkt`); am Wandfuß der
 ##          Fallklamm hohes Gras, Farne, Großblätter
-##   D      die Bachwiese: auf dem Weg 4 Flecken/m², daneben 6,5, bis 12,5 m
+##   D      die Bachwiese: auf dem Weg 4 Flecken/m², daneben 6, bis 12,5 m
 ##          hinaus, viele Blüten; weiter draußen (bis 26 m) Horste hohen
 ##          Grases mit Blüten dazwischen; an den Ufern der Furt hohes Gras
 ##   E/F    kein Gras auf der Borke: Auf dem Moos der Flanken stehen
@@ -83,7 +83,10 @@ const DICHTE_MAX := 10.0
 ## (`DICHTE_HOCH`).
 const DICHTE_SCHULTER := 6.0
 const DICHTE_WIESE_WEG := 4.0
-const DICHTE_WIESE_RAND := 6.5
+const DICHTE_WIESE_RAND := 6.0
+## Die Wurzelwiese unter dem Aufgang: von oben und meist halb verdeckt
+## gesehen, ihr Netz wird aber am Wurzelaufgang ganz gezeichnet.
+const DICHTE_WURZELWIESE := 4.5
 const DICHTE_HANG := 4.2
 const DICHTE_KANTE := 5.5
 ## Moos auf den Flanken des Wurzelrückens (E/F), Moosflecken je m²: auf
@@ -885,7 +888,7 @@ static func _wiese_draussen(b: Bau) -> void:
 
 
 ## Horste hohen Grases (0,35–0,6 m) auf der weiten Bachwiese jenseits des
-## Rasens (|q| 12,5–26, meist in Gruppen, gut einer je m²), mit
+## Rasens (|q| 12,5–26, meist in Gruppen, gut einer je 2 m²), mit
 ## Blütengruppen dazwischen:
 ## Aus 15–35 m liest sich die Wiese sonst als glatter Teppich. Nur auf
 ## flachem Boden, nicht im Wald, nicht am oder im Bach. Eigene Netze je
@@ -903,10 +906,10 @@ static func _wiesenhorste(b: Bau) -> void:
 				# Je 1,5 × 1,5 m: ein Horst, oft eine Gruppe von drei bis fünf
 				# (Bulte stehen beieinander), sonst nichts.
 				var wurf := rng.randf()
-				if wurf >= 0.7 * b.dichte_faktor:
+				if wurf >= 0.55 * b.dichte_faktor:
 					continue
 				var mitte := l.punkt(qq) + l.vor * rng.randf_range(-0.7, 0.7)
-				var anzahl := rng.randi_range(3, 5) if wurf < 0.3 * b.dichte_faktor else 1
+				var anzahl := rng.randi_range(3, 5) if wurf < 0.22 * b.dichte_faktor else 1
 				for k in anzahl:
 					var p := mitte + (Vector3(rng.randf_range(-1.0, 1.0), 0.0,
 							rng.randf_range(-1.0, 1.0)) * 0.55 if k > 0 else Vector3.ZERO)
@@ -972,7 +975,7 @@ static func _wiese_unten(b: Bau, l: Lage, von: float, bis: float) -> void:
 		p.y = y
 		var wald := b.wald(p)
 		_stelle(b, l.s + rng.randf_range(-0.14, 0.14), qq, p, 1.0, lerpf(0.95, 0.5, wald), 0.3,
-				DICHTE_WIESE_RAND * (1.0 - smoothstep(0.2, 0.6, wald)), 0.0, Bereich.WIESE)
+				DICHTE_WURZELWIESE * (1.0 - smoothstep(0.2, 0.6, wald)), 0.0, Bereich.WIESE)
 
 
 ## E/F: Wurzelrücken. Kein Gras auf der Borke: Auf dem Moos der Flanken
@@ -1245,7 +1248,7 @@ static func _netze(b: Bau) -> void:
 				SICHT_DICHT)
 		Rasensaum.feld(wurzel, "Bueschel %d" % i, Rasensaum.bueschel(31 + n), sa.bueschel,
 				sa.bueschel_farben, sicht_gras)
-		Rasensaum.feld(wurzel, "Horste %d" % i, Rasensaum.bueschel(34 + n, 18, 0.12, 1.5),
+		Rasensaum.feld(wurzel, "Horste %d" % i, Rasensaum.bueschel(34 + n, 14, 0.12, 1.6),
 				sa.horste, sa.horste_farben, sicht_gras)
 		Rasensaum.feld(wurzel, "Wispel %d" % i, Rasensaum.wispel(21 + n), sa.wispel,
 				sa.wispel_farben, sicht_wispel)
@@ -1271,7 +1274,7 @@ static func _netze(b: Bau) -> void:
 			_fremd_felder(wurzel, "Grossblatt %d" % i, gross_fremd, sa.gross)
 		Bodenstreu.feld(wurzel, "Rahmenfarne %d" % i, rahmen_netze[posmod(i, 2)], sa.rahmen,
 				sa.rahmen_farben, SICHT_FARN)
-		gesamt += sa.gras.size() * 30 + sa.bueschel.size() * 27 + sa.horste.size() * 54 \
+		gesamt += sa.gras.size() * 30 + sa.bueschel.size() * 27 + sa.horste.size() * 42 \
 				+ sa.wispel.size() * 42 \
 				+ sa.moos.size() * 40 + (sa.polster.size() + sa.moospolster.size()) * 45
 	if b.level.debug:
