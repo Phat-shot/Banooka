@@ -101,6 +101,10 @@ const WELLEN_HOEHE := 0.05
 ## schattige Wand gedämpft vom Tonemapping), tiefes Blaugrün.
 const FALL_SCHAUM := Color(0.86, 0.93, 0.95)
 const FALL_TIEF := Color(0.2, 0.38, 0.42)
+## Das Rinnsal der Kerbe: gedämpfter, mehr Wasser als Gischt – unbeleuchtet
+## im Schatten der Kerbe stand es sonst weiß wie Papier vor der Wand.
+const RINNSAL_SCHAUM := Color(0.62, 0.72, 0.74)
+const RINNSAL_TIEF := Color(0.14, 0.27, 0.3)
 
 ## Gemeinsamer Teil beider Shader: die Wellen der Wasserfläche. Der Schaum
 ## reitet auf denselben Wellen wie das Band.
@@ -715,7 +719,7 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 		# weiße Papierstreifen an der Wand.
 		if _sichtweite(Wasserfall.band(wurzel, bahn, 0.26, {"name": "Rinnsal Kerbe",
 				"breite_ende": 0.36, "tempo": 3.5, "spalten": 2, "schritt": 0.8,
-				"farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF}), SICHT_RINNSAL):
+				"farbe_schaum": RINNSAL_SCHAUM, "farbe_tief": RINNSAL_TIEF}), SICHT_RINNSAL):
 			baender += 1
 		# Der zweite Strang ein Stück längs versetzt, schmaler und langsamer;
 		# er zweigt erst an der Kante ab.
@@ -726,7 +730,7 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 			zweit.append(bahn[i] + laengs.normalized() * 0.5 * minf(float(i) / 3.0, 1.0))
 		if zweit.size() >= 2 and _sichtweite(Wasserfall.band(wurzel, zweit, 0.17,
 				{"name": "Rinnsal Kerbe 2", "breite_ende": 0.26, "tempo": 2.6, "spalten": 2,
-				"schritt": 0.8, "farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF}),
+				"schritt": 0.8, "farbe_schaum": RINNSAL_SCHAUM, "farbe_tief": RINNSAL_TIEF}),
 				SICHT_RINNSAL):
 			baender += 1
 	if level.debug:
