@@ -30,11 +30,11 @@ class_name L01Rasen
 ##          Moosflecken (`Rasensaum.moosfleck`, im Moosstoff des Wegbodens,
 ##          etwas heller) – licht auf der Fläche, dicht, groß und über die
 ##          Borke gelegt im halben Meter des Übergangs, davor alle 1–3 m eine
-##          Moosinsel auf der Borke (`_moosinsel`) –, dazu Polster (0,4 m),
-##          Farne und Blüten; auf dem Rindenwulst alle 3–4 m ein Farn; in
-##          den Querrissen des Wurzelrückens (dieselbe Rechnung wie der
-##          Shader, `_riss`) Moos, Farne und Leuchtpilze; die Wurzelwiese
-##          darunter voll Gras und Blüten
+##          Moosinsel auf der Borke (`_moosinsel`) –, dazu Polster (0,4 m,
+##          so hell wie die Flecken), Farne und Blüten; auf dem Rindenwulst
+##          alle 3–4 m ein Farn; in den Querrissen des Wurzelrückens
+##          (dieselbe Rechnung wie der Shader, `_riss`) Moos, Farne und
+##          Leuchtpilze; die Wurzelwiese darunter voll Gras und Blüten
 ## Wispelgras und hohes Gras auch an den Lippen der Lücken und Stufen
 ## (außerhalb der Spur) und an den Ufern der Furt. Hohes Gras (0,45–0,6 m)
 ## an Steinen, Stämmen und Toren. Nichts wächst in Körpern aus
