@@ -172,8 +172,8 @@ const FERN_UNTEN := 0.4
 ## 1 breit): Höhe über dem Fuß, Abstand von der Achse, Anzahl. Die letzte
 ## Lage ist der Wipfel.
 const FERN_LAGEN := [
-	[Vector3(3.6, 1.6, 3), Vector3(7.4, 1.1, 2)],
-	[Vector3(3.4, 2.4, 4), Vector3(6.9, 1.3, 2)],
+	[Vector3(3.4, 1.7, 3), Vector3(6.6, 1.4, 1)],
+	[Vector3(3.3, 2.3, 3), Vector3(6.3, 1.5, 1)],
 ]
 ## Dort (Anteil der Höhe) beginnt die Krone eines fernen Baums; so weit
 ## (Anteil der Höhe) sinkt er ein, wenn sie sonst vor dem Himmel stünde,
@@ -902,17 +902,17 @@ static func _talbaum(k: int) -> Dictionary:
 					"saat": 2104})
 
 
-## Ferne Bäume: grobe Krone ohne Karten (fünf bis sechs Ballen, gut 0,3k
+## Ferne Bäume: grobe Krone ohne Karten (fünf Ballen, gut 0,3k
 ## Dreiecke), unten breiter und heller (`_fernform`), und ein angedeuteter
 ## Stamm im selben Stoff (vier Seiten, dunkel, ohne Wind). Die Krone reicht
 ## bis auf `FERN_BODEN` der Höhe hinab, der Stamm endet in ihrer Mitte: ein
 ## Wald aus Laub, keine Lollis. Fuß im Ursprung.
-## Die Ballen sitzen als Kuppel (`FERN_LAGEN`): ein breiter Kranz unten,
-## zwei Ballen als Wipfel darüber, die Füllkugel der `Kronenwolke`
-## dazwischen – eng genug, dass keine Fuge bleibt (ein einzelner Wipfel
-## stand als Kopf auf dem Kranz, die Krone las sich als Birne). Drei Ballen, auf die Höhe gestreckt,
-## lagen auseinander: Vor dem Himmel hing dann der oberste allein als
-## Ballon über dem Kamm; drei Lagen lasen sich als geschnittener Buchs.
+## Die Ballen sitzen eng (`FERN_LAGEN`): ein breiter Kranz unten, ein
+## Wipfel darüber, aus der Achse gerückt, die Füllkugel der `Kronenwolke`
+## dazwischen – keine Fuge, durch die Himmel scheint. Drei Ballen, auf die
+## Höhe gestreckt, lagen auseinander: Vor dem Himmel hing dann der oberste
+## allein als Ballon über dem Kamm. Drei Lagen lasen sich als geschnittener
+## Buchs, ein zweiballiger Wipfel kostete ein Viertel mehr Dreiecke.
 static func _fernbaum(k: int) -> ArrayMesh:
 	var schluessel := "fern%d" % k
 	if _netze.has(schluessel):
