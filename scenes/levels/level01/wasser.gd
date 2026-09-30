@@ -75,9 +75,10 @@ const FURT_SPIEGEL := 6.0
 const FURT_S := Vector2(173.0, 183.0)
 const FURT_Q := 7.0
 
-## Farben des Bachs: tief, hell, Schaum, gespiegelter Himmel (wie bisher).
-const FARBE_TIEF := Color(0.16, 0.26, 0.28)
-const FARBE_HELL := Color(0.29, 0.41, 0.42)
+## Farben des Bachs: tief, hell, Schaum, gespiegelter Himmel. Dunkel und
+## grün wie ein Waldbach – das helle Blaugrau las sich als Eismatsch.
+const FARBE_TIEF := Color(0.07, 0.13, 0.12)
+const FARBE_HELL := Color(0.16, 0.25, 0.22)
 const FARBE_SCHAUM := Color(0.84, 0.91, 0.92)
 const HIMMEL_FARBE := Color(0.70, 0.80, 0.84)
 const GLITZER := 1.0
@@ -120,8 +121,8 @@ const BACH_SHADER := """
 shader_type spatial;
 render_mode blend_mix, cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
-uniform vec3 farbe_tief : source_color = vec3(0.16, 0.26, 0.28);
-uniform vec3 farbe_hell : source_color = vec3(0.29, 0.41, 0.42);
+uniform vec3 farbe_tief : source_color = vec3(0.07, 0.13, 0.12);
+uniform vec3 farbe_hell : source_color = vec3(0.16, 0.25, 0.22);
 uniform vec3 farbe_schaum : source_color = vec3(0.84, 0.91, 0.92);
 uniform vec3 himmel_farbe : source_color = vec3(0.70, 0.80, 0.84);
 uniform sampler2D stroemung : hint_default_white, filter_linear_mipmap, repeat_enable;
@@ -159,25 +160,29 @@ void fragment() {
 	float wild = art.r;
 	// Mitte tief, zum Ufer hin flach und heller
 	vec3 farbe = mix(farbe_tief, farbe_hell, k * 0.6 + smoothstep(0.45, 1.0, ufer) * 0.4);
-	// Schaumstreifen mit der Strömung: längs gestreckt, zwei Lagen
+	// Schaumflecken mit der Strömung: wenig gestreckt, zwei Lagen, nur wo
+	// beide hoch stehen – lange, dünne Striche lasen sich wie Regen.
 	float lauf = fluss.y - TIME * fluss.z;
-	float s1 = texture(stroemung, vec2(fluss.x * 0.22, lauf * 0.045)).r;
+	float s1 = texture(stroemung, vec2(fluss.x * 0.35, lauf * 0.12)).r;
 	float s2 = texture(stroemung, vec2(fluss.x * 0.55 + 0.31,
 			(fluss.y - TIME * fluss.z * 1.35) * 0.11)).r;
-	float streifen = smoothstep(0.63, 0.86, s1 * 0.55 + s2 * 0.55);
+	float streifen = smoothstep(0.72, 0.9, s1 * 0.55 + s2 * 0.55);
 	float schaum = streifen * (0.2 + 0.8 * wild);
 	// In der Schnelle zerrissener Schaum: grob mit fein gemischt, keine
 	// Zebrastreifen
 	float fetzen = texture(stroemung, vec2(fluss.x * 0.5 + 0.7,
 			(fluss.y - TIME * fluss.z * 1.1) * 0.3)).r;
 	schaum = max(schaum, wild * smoothstep(0.42, 0.78, s2 * 0.6 + fetzen * 0.5) * 0.9);
-	// Schaumsaum am Ufer: verdeckt die Linie, an der das Wasser die
-	// Böschung schneidet
-	float saum = smoothstep(0.78, 1.0, ufer + (s2 - 0.5) * 0.3)
-			* smoothstep(0.3, 0.6, s1 * 0.5 + kraeusel_saum(welt));
-	schaum = max(schaum, saum * 0.6);
+	// Schaumsaum am Ufer: ein durchgehender, weicher, fleckiger Streifen
+	// vor der Linie, an der das Wasser die Böschung schneidet (die Dreiecke
+	// des Geländes zeichnen sie als Treppe) – dort wird das Wasser selbst
+	// durchsichtig (siehe ALPHA).
+	float flocken = kraeusel_saum(welt);
+	float saum = smoothstep(0.52, 0.8, ufer + (flocken - 0.3) * 0.5)
+			* (1.0 - smoothstep(0.9, 1.05, ufer));
+	schaum = max(schaum, saum * (0.35 + 0.4 * flocken));
 	float kraeusel = texture(rauschen, welt * 0.34 + vec2(TIME * 0.05, -TIME * 0.04)).r;
-	schaum = max(schaum, smoothstep(0.82, 0.98, k) * smoothstep(0.35, 0.7, kraeusel) * 0.4);
+	schaum = max(schaum, smoothstep(0.82, 0.98, k) * smoothstep(0.35, 0.7, kraeusel) * 0.12);
 	farbe = mix(farbe, farbe_schaum, schaum);
 	float fresnel = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 3.0);
 	farbe += himmel_farbe * fresnel * spiegelung * (1.0 - schaum);
@@ -194,9 +199,12 @@ void fragment() {
 				* (1.0 - schaum);
 	}
 	ALBEDO = farbe;
-	// Am flachen Ufer durchsichtiger: dort scheint das Bett durch
+	// Am flachen Ufer durchsichtiger: dort scheint das Bett durch, und an
+	// der Uferlinie selbst läuft das Wasser ganz aus.
 	float deck = mix(grund_alpha, grund_alpha - 0.2, smoothstep(0.5, 0.95, ufer));
-	ALPHA = clamp(deck + fresnel * 0.3 + schaum * 0.3 + funkeln * 0.3, 0.0, 1.0) * art.g;
+	float auslauf = 1.0 - smoothstep(0.8, 1.0, ufer + (flocken - 0.3) * 0.12);
+	ALPHA = clamp(deck + fresnel * 0.3 + schaum * 0.3 + funkeln * 0.3, 0.0, 1.0) * art.g
+			* auslauf;
 	// Wenig Glanz aus der Umgebung: Der blaue Himmel im Spiegel machte den
 	// Bach zum Kinderbild. Den Horizont spiegelt `himmel_farbe`.
 	ROUGHNESS = mix(0.4, 0.2, fresnel) + schaum * 0.4;
@@ -290,6 +298,11 @@ static func _bach_bauen(level: Level01, stand: Dictionary) -> void:
 		var name := String(lauf["name"])
 		var punkte: PackedVector3Array = lauf["punkte"]
 		var breiten: PackedFloat32Array = lauf["breite"]
+		# Der Bach beginnt im Tümpel unter dem unteren Fall (Plan 8.5,
+		# Nachtrag: nach dem gegrabenen Bett, nicht nach `Level01.BACH`).
+		if name == "bach" and not punkte.is_empty():
+			stand["tuempel"] = punkte[0]
+			stand["tuempel_breite"] = breiten[0]
 		# Nur innerhalb des Feldes: draußen gibt es kein Bett
 		var bis := punkte.size()
 		for i in punkte.size():
@@ -547,7 +560,9 @@ static func _bach_stoff(texturen: Dictionary) -> ShaderMaterial:
 	m.set_shader_parameter("farbe_hell", FARBE_HELL)
 	m.set_shader_parameter("farbe_schaum", FARBE_SCHAUM)
 	m.set_shader_parameter("himmel_farbe", HIMMEL_FARBE)
-	m.set_shader_parameter("glitzer", GLITZER)
+	# Im Web ohne Glitzern: zwei Texturzugriffe weniger je Bildpunkt auf
+	# einer großen durchsichtigen Fläche.
+	m.set_shader_parameter("glitzer", 0.0 if Effekte.reduziert else GLITZER)
 	m.set_shader_parameter("wellen_hoehe", WELLEN_HOEHE)
 	m.set_shader_parameter("rauschen", texturen["fein"])
 	m.set_shader_parameter("stroemung", texturen["grob"])
@@ -650,7 +665,7 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 	# --- unten: über die Lippe die rechte Wand hinab in den Tümpel ---
 	if not is_nan(lippe.x):
 		var aussen := LevelWerkzeuge.richtung(level.verlauf, 119.5).cross(Vector3.UP).normalized()
-		var tuempel: Vector3 = (Level01.BACH[0] as Dictionary)["punkt"]
+		var tuempel: Vector3 = stand.get("tuempel", (Level01.BACH[0] as Dictionary)["punkt"])
 		var bahn := PackedVector3Array([lippe - aussen * 0.6, lippe])
 		var fall := _wurfbahn(level, lippe, aussen, 2.4, tuempel.y + 0.6, 1.0, 0.35)
 		bahn.append_array(fall)
@@ -658,7 +673,8 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 		var fuss := bahn[bahn.size() - 1]
 		var zum := Vector3(tuempel.x - fuss.x, 0.0, tuempel.z - fuss.z)
 		var weit := zum.length()
-		var halb := float((Level01.BACH[0] as Dictionary)["breite"]) * 0.5
+		var halb := float(stand.get("tuempel_breite",
+				(Level01.BACH[0] as Dictionary)["breite"])) * 0.5
 		var schritte := maxi(ceili((weit - halb * 0.5) / 0.8), 1)
 		for k in range(1, schritte + 1):
 			var t := float(k) / float(schritte) * (weit - halb * 0.5) / weit
@@ -673,14 +689,27 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 				"schritt": 0.7, "farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF,
 				"richtung": aussen}) != null:
 			baender += 1
-	# --- Rinnsal in der Kerbe ---
+	# --- Rinnsal in der Kerbe: zwei Stränge, die nebeneinander laufen
+	# (eine glatte Scheibe von einem Meter las sich wie Glas auf dem Fels) ---
 	var rinne_kerbe: Array = stand.get("lauf_rinne", [])
 	if rinne_kerbe.size() >= 2:
 		var bahn := _rinnsal(level, (rinne_kerbe[rinne_kerbe.size() - 1] as Dictionary)["p"])
 		bahn.insert(0, _vor_dem_ende(rinne_kerbe, UEBERGANG))
-		if _sichtweite(Wasserfall.band(wurzel, bahn, 0.7, {"name": "Rinnsal Kerbe",
-				"breite_ende": 1.0, "tempo": 3.5, "spalten": 2, "schritt": 0.8,
+		if _sichtweite(Wasserfall.band(wurzel, bahn, 0.45, {"name": "Rinnsal Kerbe",
+				"breite_ende": 0.6, "tempo": 3.5, "spalten": 2, "schritt": 0.8,
 				"farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF}), SICHT_RINNSAL):
+			baender += 1
+		# Der zweite Strang ein Stück längs versetzt, schmaler und langsamer;
+		# er zweigt erst an der Kante ab.
+		var laengs := LevelWerkzeuge.richtung(level.verlauf, 57.5)
+		laengs.y = 0.0
+		var zweit := PackedVector3Array()
+		for i in range(1, bahn.size()):
+			zweit.append(bahn[i] + laengs.normalized() * 0.5 * minf(float(i) / 3.0, 1.0))
+		if zweit.size() >= 2 and _sichtweite(Wasserfall.band(wurzel, zweit, 0.3,
+				{"name": "Rinnsal Kerbe 2", "breite_ende": 0.45, "tempo": 2.6, "spalten": 2,
+				"schritt": 0.8, "farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF}),
+				SICHT_RINNSAL):
 			baender += 1
 	if level.debug:
 		print("Wasserfälle: %d Bänder" % baender)
@@ -794,8 +823,11 @@ static func _gischt_bauen(level: Level01, stand: Dictionary) -> void:
 	kerbe.y = L01Saum.FALLKERBE_GRUND - 0.2
 	# Sie steigt über die Lippe: Den Grund der Kerbe sieht die Kamera nicht,
 	# die Gischt darüber sagt, dass unten Wasser rauscht.
-	var wolke := _wolke(wurzel, "Gischt Fallkerbe", kerbe, Vector3(8.5, 4.8, 2.4), 70, 0.4,
-			0.4, 0.9, 7102)
+	# Fein und niedrig: Sie steigt nur bis an die Lippe (Grund 18, Weg gut
+	# 20,7). Große Flocken in Augenhöhe der Figur lasen sich wie Schnee und
+	# standen genau vor dem Sprung.
+	var wolke := _wolke(wurzel, "Gischt Fallkerbe", kerbe, Vector3(8.5, 3.0, 2.4), 40, 0.15,
+			0.18, 0.6, 7102)
 	wolke.rotation.y = LevelWerkzeuge.drehung(level.verlauf, 119.5)
 	_sichtweite(wolke, SICHT_NAH)
 	if stand.has("fuss_unten"):
@@ -818,7 +850,7 @@ static func _gischt_bauen(level: Level01, stand: Dictionary) -> void:
 		_ring(netz, fuss, 0.0, 2.2, 1.0, 1.4, 11)
 	if stand.has("einlauf_unten"):
 		var fuss: Vector3 = stand["einlauf_unten"]
-		var tuempel: Vector3 = (Level01.BACH[0] as Dictionary)["punkt"]
+		var tuempel: Vector3 = stand.get("tuempel", (Level01.BACH[0] as Dictionary)["punkt"])
 		fuss.y = tuempel.y + 0.02
 		_ring(netz, fuss, 0.0, 2.6, 1.0, 1.2, 13)
 	var knoten := MeshInstance3D.new()

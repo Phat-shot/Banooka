@@ -148,7 +148,11 @@ const HOEHEN_ZELLE := 2.0
 ## Ferne Kronen (`_fernform`): so viel breiter am Fuß, und dort beginnt
 ## ihr Farbverlauf von dunkel (0) nach hell (1).
 const FERN_FUSS := 0.3
-const FERN_UNTEN := 0.3
+const FERN_UNTEN := 0.4
+## Dort (Anteil der Höhe) beginnt die Krone eines fernen Baums; so weit
+## (Anteil der Höhe) sinkt er ein, wenn sie sonst vor dem Himmel stünde.
+const FERN_BODEN := 0.1
+const FERN_SINKEN := 0.2
 ## Himmelsprobe des fernen Walds (`_schwebt`): So weit zeichnet die
 ## Korridorkamera (`far`), dahinter ist Himmel. Augen alle `HIMMEL_SCHRITT`
 ## m entlang des Wegs, Proben alle `HIMMEL_TRITT` m auf dem Sehstrahl.
@@ -194,6 +198,8 @@ const REIHEN := [
 	{"q": Vector2(18.0, 24.0), "abstand": Vector2(5.5, 8.0),
 			"arten": ["tief", "schlicht_a", "schlicht_b", "schlicht_c"],
 			"rechts": ["tief", "tief", "schlicht_c"]},
+	# Nur rechts: der Saum an der Hallenkante, dicht und tief beastet.
+	{"q": Vector2(20.5, 24.2), "abstand": Vector2(4.0, 5.5), "arten": [], "rechts": ["tief"]},
 ]
 ## Anfang des Hallenwalds (hinter dem Start) und Ende links (Übergang in den
 ## Hangwald).
@@ -589,9 +595,19 @@ static func _talkante_frei(huelle: AABB) -> bool:
 ## flachen Schirmkronen viel zu viel. `ohne_krone`: ohne die Kegel zur
 ## Kronenmitte des Weltenbaums.
 static func _kegel_frei(huelle: AABB, ohne_krone: bool = false) -> bool:
-	var kegel := _kegel_ohne_krone if ohne_krone else _kegel
+	var alle := _kegel_ohne_krone if ohne_krone else _kegel
 	var m := huelle.get_center()
 	var h := huelle.size * 0.5
+	# Vorab mit der Kugel um die ganze Hülle: Die meisten Kegel liegen weit
+	# weg, nur die übrigen prüfen die 27 Punkte (das kostete sonst beim
+	# Aufbau gut eine halbe Sekunde).
+	var kegel: Array[Dictionary] = []
+	var weit := h.length()
+	for k in alle:
+		if not Waldsetzer.kegel_frei_einzeln(m, weit, k):
+			kegel.append(k)
+	if kegel.is_empty():
+		return true
 	var punkte: Array[Vector3] = [m]
 	for achse in 3:
 		for vz: float in [-1.0, 1.0]:
@@ -843,11 +859,11 @@ static func _talbaum(k: int) -> Dictionary:
 					"saat": 2104})
 
 
-## Ferne Bäume: flache Krone ohne Karten (vier grobe Ballen, gut 0,3k
-## Dreiecke) und ein angedeuteter Stamm im selben Stoff (vier Seiten,
-## dunkel, ohne Wind) – aus 60 m und mehr sähe man sonst Kronen auf nichts
-## schweben. Die Krone reicht bis auf 30 % der Höhe hinab, der Stamm
-## endet in ihrer Mitte: ein Wald aus Laub, keine Lollis. Fuß im Ursprung.
+## Ferne Bäume: grobe Krone ohne Karten (drei bis sieben Ballen, gut 0,3k
+## Dreiecke), unten breiter und heller (`_fernform`), und ein angedeuteter
+## Stamm im selben Stoff (vier Seiten, dunkel, ohne Wind). Die Krone reicht
+## bis auf `FERN_BODEN` der Höhe hinab, der Stamm endet in ihrer Mitte: ein
+## Wald aus Laub, keine Lollis. Fuß im Ursprung.
 static func _fernbaum(k: int) -> ArrayMesh:
 	var schluessel := "fern%d" % k
 	if _netze.has(schluessel):
@@ -870,20 +886,23 @@ static func _fernbaum(k: int) -> ArrayMesh:
 			o["ballen"] = 7
 			hoehe = 14.0
 	# Die flachen Ballen füllen die verlangte Höhe nur zu gut der Hälfte:
-	# größer bestellen, dann nach der echten Hülle setzen – Scheitel auf
-	# `hoehe`, die Unterseite aber höchstens auf 30 % der Höhe. Aus der
-	# Ferne sieht man Laub, kaum Stämme.
+	# größer bestellen, nach der echten Hülle setzen – Scheitel auf `hoehe`
+	# – und in der Höhe strecken, bis die Unterseite auf `FERN_BODEN` der
+	# Höhe liegt. Aus 60 m und mehr ist ein Wald Laub bis zum Boden: Eine
+	# Krone über einem dünnen Stamm las sich dort als Scheibe in der Luft,
+	# eine flache Linse als Seerosenblatt im Dunst.
 	o["hoehe"] = float(o["hoehe"]) * 1.35
 	o["mitte"] = Vector3.ZERO
 	var roh := _fernform(Kronenwolke.fern(o))
 	var rbox := roh.get_aabb()
-	var dy := minf(hoehe - rbox.end.y, hoehe * 0.3 - rbox.position.y)
-	var krone := _verschoben(roh, Vector3(0.0, dy, 0.0))
+	var streck := clampf(hoehe * (1.0 - FERN_BODEN) / rbox.size.y, 1.0, 2.2)
+	var dy := hoehe - rbox.end.y * streck
+	var krone := _verschoben(roh, Vector3(0.0, dy, 0.0), streck)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.append_from(krone, 0, Transform3D.IDENTITY)
 	var r := 0.3 if k != 1 else 0.36
-	var oben := dy + rbox.get_center().y
+	var oben := dy + rbox.get_center().y * streck
 	var dunkel := Color(0.3, 0.26, 0.21, 0.0)
 	for j in 4:
 		var w0 := TAU * float(j) / 4.0 + 0.4
@@ -1084,6 +1103,8 @@ static func _hallenwald(level: Level01) -> void:
 			var qb: Vector2 = e["q"]
 			var ab: Vector2 = e["abstand"]
 			var arten: Array = e["rechts"] if seite > 0.0 and e.has("rechts") else e["arten"]
+			if arten.is_empty():
+				continue
 			var s := HALLE_VON + rng.randf_range(0.0, ab.x)
 			var bis := HALLE_LINKS_BIS if seite < 0.0 else 30.0
 			while s < bis:
@@ -1676,6 +1697,17 @@ static func _talstelle(ziel: Vector2, rng: RandomNumberGenerator) -> Vector3:
 ## einzelnen Sträuchern und Totholz. Unter den Kronen Unterholz, damit
 ## kein Rasen durch den Wald scheint. Tönung je Hain.
 static func _talwald_nah(level: Level01) -> void:
+	if _level_debug:
+		for k in 4:
+			var b := _talbaum(k)
+			var h: AABB = b["huelle"]
+			print("Wald: Talbaum %d: Höhe %.1f, Krone %.1f–%.1f (unten %.0f %%), breit %.1f" % [k,
+					float(b["hoehe"]), h.position.y, h.end.y, 100.0 * h.position.y / float(b["hoehe"]),
+					h.size.x])
+		for k in 3:
+			var box := _fernbaum(k).get_aabb()
+			print("Wald: Fernbaum %d: %.1f–%.1f, breit %.1f × %.1f" % [k, box.position.y, box.end.y,
+					box.size.x, box.size.z])
 	var ws := Waldsetzer.new(_wurzel, "Talwald", ZELLE_TAL)
 	ws.art("stamm", {"stoff": _borke(), "sicht": SICHT_TAL, "verschmelzen": true})
 	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_TAL), "sicht": SICHT_TAL,
@@ -1775,12 +1807,14 @@ static func _hain(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator, mi
 			_staemme.dazu(p, TAL_ABSTAND * 0.6)
 			_zaehle("tal")
 			gesetzt = true
-			# Unterholz: Unter den Kronen soll kein heller Rasen liegen.
-			if rng.randf() < 0.42:
+			# Unterholz dicht am Stamm: Unter den Kronen soll kein heller Rasen
+			# liegen, und der Stamm verschwindet im Laub.
+			if rng.randf() < 0.55:
 				var wb := rng.randf() * TAU
-				var ort := p + Vector2(cos(wb), sin(wb)) * rng.randf_range(3.0, 4.4)
+				var ort := p + Vector2(cos(wb), sin(wb)) * rng.randf_range(1.6, 2.6)
 				if _tal_platz(level, ort, false):
-					_randbusch(ws, busch, Vector3(ort.x, L01Gelaende.hoehe(ort.x, ort.y), ort.y), rng)
+					_randbusch(ws, busch, Vector3(ort.x, L01Gelaende.hoehe(ort.x, ort.y), ort.y), rng,
+							0.1)
 			break
 		if not gesetzt:
 			_zaehle("tal_ohne_platz")
@@ -1842,8 +1876,8 @@ static func _totholz_tal(ws: Waldsetzer, tot: Array[ArrayMesh], rng: RandomNumbe
 
 ## Ein Strauch am Waldrand (im Stoff der Kronen, kein eigener Aufruf).
 static func _randbusch(ws: Waldsetzer, netz: ArrayMesh, fuss: Vector3,
-		rng: RandomNumberGenerator) -> void:
-	if not _staemme.frei(Vector2(fuss.x, fuss.z), 1.4):
+		rng: RandomNumberGenerator, abstand: float = 1.4) -> void:
+	if not _staemme.frei(Vector2(fuss.x, fuss.z), abstand):
 		return
 	var gross := rng.randf_range(0.75, 1.35)
 	var lage := _lage(fuss + Vector3.UP * 0.5 * gross, rng.randf() * TAU,
@@ -1959,8 +1993,8 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 ## allein am Hang liest sich immer als Scheibe; nur Gruppen ab drei Bäumen
 ## bleiben), dann die Himmelsprobe (`_schwebt`): Stünde das untere Laub
 ## einer Krone von einer Station aus frei vor dem Himmel – auf dem Rücken
-## der Randhügel, am Westhang –, sinkt der Baum um ein Drittel seiner Höhe
-## ein, bis die Krone auf dem Boden aufsitzt: ein Waldsaum auf dem Kamm
+## der Randhügel, am Westhang –, sinkt der Baum um `FERN_SINKEN` seiner
+## Höhe ein, die Krone steckt im Boden: ein Waldsaum auf dem Kamm
 ## statt einer Scheibe in der Luft. Er wird dazu etwas kühler (Luft-
 ## perspektive). Kein Baum wird deshalb gelöscht.
 static func _talwald_fern_setzen() -> void:
@@ -1998,9 +2032,9 @@ static func _talwald_fern_setzen() -> void:
 		var ton: Color = e["ton"]
 		var groesse: float = e["groesse"]
 		var hoch := netze[k].get_aabb().end.y * groesse
-		# Das untere Laub: Die Krone beginnt bei 30 % der Höhe.
-		if _schwebt(Vector3(p.x, float(e["y"]) + hoch * 0.4, p.y)):
-			lage.origin.y -= hoch * 0.34
+		# Das untere Laub: Die Krone beginnt bei `FERN_BODEN` der Höhe.
+		if _schwebt(Vector3(p.x, float(e["y"]) + hoch * (FERN_BODEN + 0.1), p.y)):
+			lage.origin.y -= hoch * FERN_SINKEN
 			ton = ton * Color(0.92, 0.97, 1.04)
 			_zaehle("fern_gesunken")
 		ws.setze("krone", netze[k], lage, ton)

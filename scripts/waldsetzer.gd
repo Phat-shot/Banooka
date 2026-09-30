@@ -481,27 +481,32 @@ class Raster:
 ## zwischen Auge und Ziel liegt, kann stören.
 static func kegel_frei(mitte: Vector3, radius: float, kegel: Array) -> bool:
 	for k: Dictionary in kegel:
-		var auge: Vector3 = k["auge"]
-		var ziel: Vector3 = k["ziel"]
-		var winkel: float = k["winkel"]
-		var achse := ziel - auge
-		var laenge := achse.length()
-		if laenge < 0.01:
-			continue
-		achse /= laenge
-		var zu := mitte - auge
-		var entlang := zu.dot(achse)
-		if entlang <= 0.0 or entlang > laenge - float(k.get("ziel_frei", 0.0)):
-			continue
-		var d := zu.length()
-		if d <= radius:
-			return false
-		# Winkel zwischen Achse und Kugelmitte minus der halben scheinbaren
-		# Größe der Kugel
-		var zwischen := acos(clampf(entlang / d, -1.0, 1.0))
-		if zwischen - asin(clampf(radius / d, 0.0, 1.0)) < winkel:
+		if not kegel_frei_einzeln(mitte, radius, k):
 			return false
 	return true
+
+
+## Wie `kegel_frei`, für einen einzelnen Kegel.
+static func kegel_frei_einzeln(mitte: Vector3, radius: float, k: Dictionary) -> bool:
+	var auge: Vector3 = k["auge"]
+	var ziel: Vector3 = k["ziel"]
+	var winkel: float = k["winkel"]
+	var achse := ziel - auge
+	var laenge := achse.length()
+	if laenge < 0.01:
+		return true
+	achse /= laenge
+	var zu := mitte - auge
+	var entlang := zu.dot(achse)
+	if entlang <= 0.0 or entlang > laenge - float(k.get("ziel_frei", 0.0)):
+		return true
+	var d := zu.length()
+	if d <= radius:
+		return false
+	# Winkel zwischen Achse und Kugelmitte minus der halben scheinbaren
+	# Größe der Kugel
+	var zwischen := acos(clampf(entlang / d, -1.0, 1.0))
+	return zwischen - asin(clampf(radius / d, 0.0, 1.0)) >= winkel
 
 
 ## Drehung um Y (rad), mit der ein Stamm seine Wurzeln möglichst wenig in

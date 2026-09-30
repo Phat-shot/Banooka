@@ -93,9 +93,11 @@ const DICHTE_HANG := 4.2
 const DICHTE_KANTE := 5.5
 ## Moos auf den Flanken des Wurzelrückens (E/F), Moosflecken je m²: auf
 ## der ganzen Fläche und dazu im Saum zur Borke, wo es über sie kriecht.
-const DICHTE_MOOS := 2.2
-const DICHTE_MOOS_SAUM := 6.5
+const DICHTE_MOOS := 1.4
+const DICHTE_MOOS_SAUM := 7.5
 const DICHTE_HOCH := 2.5
+## So weit vom Weg (waagerecht) wächst hohes Gras am Bachufer (`_bachufer`).
+const UFER_WEITE := 26.0
 ## Freiraum um Kisten (m, von der Mitte): nichts / nichts Hohes.
 const KISTE_FREI := 1.0
 const KISTE_HOCH := 1.5
@@ -881,6 +883,7 @@ static func _bachwiese(b: Bau) -> void:
 ## Wurzelwiese unter dem Aufgang (y 7,0) und der Wiesenboden unter G1.
 static func _wiese_draussen(b: Bau) -> void:
 	_wiesenhorste(b)
+	_bachufer(b)
 	var s := 196.0
 	while s < 214.0:
 		var l := _lage(b, s)
@@ -931,6 +934,77 @@ static func _wiesenhorste(b: Bau) -> void:
 					_bluetengruppe(b, s, mitte + Vector3(rng.randf_range(-0.8, 0.8), 0.0,
 							rng.randf_range(-0.8, 0.8)), Bereich.WIESE)
 		s += 1.5
+
+
+## Das Ufer des Bachs (Lauf "bach": Kanal am Fuß von C4, Bogen, Furt,
+## Ausfluss), wo er höchstens `UFER_WEITE` m vom Weg entfernt ist: ein
+## Streifen von der Wasserlinie bis 1,2 m dahinter, wo der Boden über dem
+## Spiegel liegt (und nicht als Wand darüber) – hohes Gras, das sich über
+## das Wasser neigt, dazwischen Großblätter, Farne und Kiesel. Vorher
+## schloss `_am_wasser` Gras am Wasser aus, und das Ufer endete als harte
+## Linie aus kahlem Rasen. Alles in den Netzen der Stücke (keine neuen
+## Zeichenaufrufe je Stück).
+static func _bachufer(b: Bau) -> void:
+	var rng := b.rng
+	var lagen := {}
+	for lauf: Dictionary in L01Gelaende.bachlauf():
+		if String(lauf["name"]) != "bach":
+			continue
+		var punkte: PackedVector3Array = lauf["punkte"]
+		var breiten: PackedFloat32Array = lauf["breite"]
+		for i in punkte.size() - 1:
+			var a := punkte[i]
+			var c := punkte[i + 1]
+			var ab := Vector3(c.x - a.x, 0.0, c.z - a.z)
+			var lang := ab.length()
+			if lang < 0.01:
+				continue
+			var quer := (ab / lang).cross(Vector3.UP)
+			var t := rng.randf() * 0.3
+			while t < lang:
+				var f := t / lang
+				var mitte := a.lerp(c, f)
+				var halb := lerpf(breiten[i], breiten[i + 1], f) * 0.5
+				t += rng.randf_range(0.22, 0.4)
+				for seite: float in [-1.0, 1.0]:
+					if rng.randf() >= b.dichte_faktor:
+						continue
+					var d := halb + rng.randf_range(-0.1, 1.2)
+					var p := mitte + quer * seite * d
+					var y := L01Gelaende.hoehe(p.x, p.z)
+					if is_nan(y) or y < mitte.y + 0.05 or y > mitte.y + 1.3:
+						continue
+					var s := b.level.verlauf.get_closest_offset(p)
+					var schluessel := roundi(s * 2.0)
+					if not lagen.has(schluessel):
+						lagen[schluessel] = _lage(b, float(schluessel) * 0.5)
+					var l: Lage = lagen[schluessel]
+					var q := (p - l.mitte).dot(l.rechts)
+					if Vector2(p.x - l.mitte.x, p.z - l.mitte.z).length() > UFER_WEITE:
+						continue
+					# Nicht auf der Decke (die Lippen der Furt hat `_lippe_quer`),
+					# nicht an Kisten und in Körpern.
+					if absf(q) < l.halb + 0.6 and absf(y - l.mitte.y) < 0.8:
+						continue
+					if b.kiste_abstand(s, q) < KISTE_HOCH or b.sperr_abstand(s, q) < 0.2:
+						continue
+					p.y = y - 0.015
+					var wurf := rng.randf()
+					var sa := b.sammlung(s)
+					if wurf < 0.72:
+						# Zum Wasser geneigt, nah am Wasser höher.
+						var nah := 1.0 - clampf((d - halb) / 1.2, 0.0, 1.0)
+						var h := rng.randf_range(0.38, 0.55) + 0.12 * nah
+						var kipp := -quer * seite * deg_to_rad(rng.randf_range(8.0, 24.0) * nah)
+						sa.bueschel.append(_bueschel_lage(rng, p, h, kipp))
+						sa.bueschel_farben.append(Rasensaum.farbe(0.86, 1.0, rng.randf_range(0.3, 0.9),
+								l.kronen))
+					elif wurf < 0.8:
+						_grossblatt(b, s, p, rng.randf_range(0.7, 1.05))
+					elif wurf < 0.86:
+						_farn(b, s, p, rng.randf_range(0.8, 1.2))
+					elif wurf < 0.93:
+						_teil(b, s, p + Vector3.UP * 0.01, "kiesel", rng.randf_range(0.8, 1.4))
 
 
 ## Liegt `p` am oder im Wasser (Bachläufe des Geländes, halbe Breite plus
@@ -991,6 +1065,8 @@ static func _wiese_unten(b: Bau, l: Lage, von: float, bis: float) -> void:
 static func _wurzel(b: Bau) -> void:
 	var rng := b.rng
 	var s := Level01.M_WENDEL + 3.0
+	# Wo auf jeder Seite die nächste Moosinsel auf der Borke beginnen darf.
+	var insel_ab := {-1.0: s, 1.0: s}
 	while s < Level01.M_ENDE - 0.5:
 		var l := _lage(b, s)
 		if l.halb > 0.0:
@@ -1027,25 +1103,47 @@ static func _wurzel(b: Bau) -> void:
 							_teil(b, ss, p, "pilz_leucht", rng.randf_range(0.7, 1.1))
 						continue
 					if moos < 0.45:
-						# Vor dem Saum kleine Moosinseln auf der Borke: Die Grenze
-						# franst aus, statt als Linie längs der Wurzel zu laufen.
-						var insel := smoothstep(0.22, 0.45, moos) * 1.6 * b.dichte_faktor
-						if rng.randf() * DICHTE_MAX < insel:
-							_moos(b, ss, p, rng.randf_range(0.04, 0.07), Vector3.ZERO,
-									rng.randf_range(0.45, 0.75), l.kronen)
+						# Vor dem Saum Moosinseln auf der Borke, alle ein bis drei
+						# Meter eine: Die Grenze franst aus, statt als Linie mit dem
+						# Lineal längs der Wurzel zu laufen.
+						if moos > 0.3 and ss >= float(insel_ab[seite]):
+							_moosinsel(b, ss, q, p, l.rechts * -seite, l.kronen)
+							insel_ab[seite] = ss + rng.randf_range(1.0, 3.0)
 						continue
-					# Im Saum zur Borke dicht und über sie gelegt (zur Spur hin),
-					# auf der Fläche licht und aufrecht.
-					var saum := smoothstep(0.45, 0.58, moos) * (1.0 - smoothstep(0.7, 0.9, moos))
+					# Im Übergang zur Borke (gut einen halben Meter breit) dicht,
+					# groß, heller und über sie gelegt (zur Spur hin); auf der
+					# Fläche dahinter licht und aufrecht. Aus 6–10 m sah man die
+					# kleinen Flecken sonst gar nicht: Die Flanke war ein flacher
+					# dunkler Streifen.
+					var saum := smoothstep(0.45, 0.58, moos) * (1.0 - smoothstep(0.72, 0.92, moos))
 					var dichte := (DICHTE_MOOS + DICHTE_MOOS_SAUM * saum) * b.dichte_faktor
 					if rng.randf() * DICHTE_MAX < dichte:
 						var kipp := Vector3.ZERO
 						if saum > 0.4:
 							kipp = l.rechts * -seite * deg_to_rad(rng.randf_range(15.0, 35.0))
-						_moos(b, ss, p, rng.randf_range(0.06, 0.1) * lerpf(1.0, 1.45, saum), kipp,
-								rng.randf_range(0.9, 1.4), l.kronen)
+						_moos(b, ss, p, rng.randf_range(0.06, 0.1) * lerpf(1.0, 1.6, saum), kipp,
+								rng.randf_range(0.9, 1.4) * lerpf(1.0, 1.3, saum), l.kronen)
 					_streu(b, ss, q, p, 1.0, Bereich.WURZEL, kiste, sperre, l.kronen)
 		s += RASTER
+	_wulstfarne(b)
+
+
+## Farne auf dem Rindenwulst (außen, q 4,0–4,7, 0,6 m über der Decke), alle
+## 3–4 m einer: Sie brechen seine glatte Linie gegen das Tal.
+static func _wulstfarne(b: Bau) -> void:
+	var rng := b.rng
+	for e: Dictionary in Level01.BEGEHBARES:
+		if not String(e["name"]).begins_with("Rindenwulst"):
+			continue
+		var s := float(e["von"]) + rng.randf_range(0.5, 2.0)
+		while s < float(e["bis"]) - 0.5:
+			var l := _lage(b, s)
+			var q := rng.randf_range(4.15, 4.6)
+			if b.kiste_abstand(s, q) > KISTE_HOCH:
+				var p := l.punkt(q)
+				p.y += 0.57
+				_farn(b, s, p, rng.randf_range(0.8, 1.25))
+			s += rng.randf_range(3.0, 4.0)
 
 
 ## Ein Moosfleck (Rasensaum.moosfleck) der Höhe `h`, waagerecht `breit`
@@ -1061,7 +1159,29 @@ static func _moos(b: Bau, s: float, p: Vector3, h: float, kipp: Vector3, breit: 
 		basis = Basis(Vector3.UP.cross(kipp / winkel).normalized(), winkel) * basis
 	var sa := b.sammlung(s)
 	sa.moos.append(Transform3D(basis, p - Vector3(0.0, 0.01, 0.0)))
-	sa.moos_farben.append(Rasensaum.farbe(0.8, 1.0, rng.randf_range(0.2, 0.8), kronen))
+	# Etwas heller als das Moos des Wegbodens darunter (×1,15): Die Fasern
+	# stehen im Licht.
+	sa.moos_farben.append(Rasensaum.farbe(0.92, 1.0, rng.randf_range(0.2, 0.8), kronen))
+
+
+## Eine Moosinsel auf der Borke: fünf bis neun Moosflecken in einem Fleck
+## von 0,3–0,5 m um `p` (Strecke `s`, quer `q`), zur Spur hin (`innen`)
+## gezogen – dort, wo das Moos der Flanke über die Borke kriecht.
+static func _moosinsel(b: Bau, s: float, q: float, p: Vector3, innen: Vector3,
+		kronen: float) -> void:
+	var rng := b.rng
+	var r := rng.randf_range(0.3, 0.5)
+	var mitte := p + innen * r * 0.6
+	for k in rng.randi_range(5, 9):
+		if rng.randf() >= b.dichte_faktor + 0.25:
+			continue
+		var w := rng.randf() * TAU
+		var d := Vector3(cos(w), 0.0, sin(w)) * sqrt(rng.randf()) * r
+		var dq := (mitte + d - p).dot(-innen) + q
+		if b.kiste_abstand(s, dq) < KISTE_FREI:
+			continue
+		_moos(b, s, mitte + d, rng.randf_range(0.05, 0.09), Vector3.ZERO,
+				rng.randf_range(0.8, 1.2), kronen)
 
 
 ## Ein Querriss des Wurzelrückens an (q/halbe Breite, s) wie im Shader
@@ -1259,7 +1379,7 @@ static func _netze(b: Bau) -> void:
 		# Wurzelrücken: Moos in der Moosfarbe des Wegbodens (eigener Stoff).
 		Rasensaum.feld(wurzel, "Borkenmoos %d" % i, Rasensaum.moosfleck(51 + n, moos_halme),
 				sa.moos, sa.moos_farben, sicht_gras, true)
-		Rasensaum.feld(wurzel, "Borkenpolster %d" % i, Rasensaum.polster(44 + n),
+		Rasensaum.feld(wurzel, "Borkenpolster %d" % i, Rasensaum.polster(44 + n, 0.4),
 				sa.moospolster, sa.moospolster_farben, sicht_streu, true)
 		if sa.haufen != null:
 			sa.haufen.knoten(wurzel, "Streu %d" % i, sicht_streu)
