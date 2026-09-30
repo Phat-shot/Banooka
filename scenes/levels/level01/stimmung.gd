@@ -57,8 +57,8 @@ const ZONEN := [
 			"licht_faktor": 0.85, "nebelfarbe": Color(0.19, 0.36, 0.47),
 			"umgebungsfarbe": Color(0.30, 0.40, 0.36), "streuung": 0.0},
 	{"name": "Hangweg", "von": 30.0, "bis": 104.0, "nebel_faktor": 0.6,
-			"licht_faktor": 1.15, "nebelfarbe": Color(0.42, 0.58, 0.76),
-			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "streuung": 0.0},
+			"licht_faktor": 1.4, "nebelfarbe": Color(0.42, 0.58, 0.76),
+			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "streuung": 0.0, "oben": 1.25},
 	{"name": "Fallklamm", "von": 104.0, "bis": 160.0, "nebel_faktor": 1.0,
 			"licht_faktor": 0.9, "nebelfarbe": Color(0.36, 0.52, 0.66),
 			"umgebungsfarbe": Color(0.44, 0.56, 0.62), "streuung": 0.0},
@@ -118,13 +118,13 @@ const LAUB_STELLEN := [20.0, 50.0, 90.0, 150.0, 235.0, 260.0]
 const SCHWAERME := [
 	{"s": 62.0, "q": 36.0, "y": 18.0, "radius": 14.0, "anzahl": 6, "hell": true},
 	{"s": 98.0, "q": 46.0, "y": 17.0, "radius": 18.0, "anzahl": 5, "hell": true},
-	{"s": 236.0, "q": 30.0, "y": 15.0, "radius": 12.0, "anzahl": 5, "hell": false},
-	{"welt": Vector3(58.0, 13.5, -150.0), "radius": 10.0, "anzahl": 4, "hell": true},
+	{"s": 254.0, "q": 26.0, "y": 17.5, "radius": 11.0, "anzahl": 5, "hell": false},
+	{"welt": Vector3(32.0, 14.0, -160.0), "radius": 8.0, "anzahl": 4, "hell": true},
 ]
 
 ## Harte Sichtweiten (Kamera → Knoten).
 const SICHT_SCHACHT := 75.0
-const SICHT_STAUB := 45.0
+const SICHT_STAUB := 35.0
 const SICHT_LAUB := 42.0
 
 
@@ -396,7 +396,8 @@ static func _laub_setzen(level: Level01) -> void:
 		laub.name = "Laub"
 		laub.flaeche = Vector2(maxf(level.breite_bei(s), 6.0) + 4.0, 14.0)
 		laub.hoehe = 1.8
-		laub.anzahl = 16 if Effekte.reduziert else 30
+		laub.anzahl = 16 if Effekte.reduziert else 32
+		laub.groesse = 0.19
 		laub.saat = int(s) + 4000
 		# Schräg über den Weg zur Talseite: nach der Drehung zeigt -Z den
 		# Weg entlang, +X nach rechts.
