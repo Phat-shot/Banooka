@@ -18,11 +18,14 @@ class_name L01Saum
 ##                über die Kante fällt, fällt an der Wand vorbei, nie in sie
 ##                hinein; und von oben liest sich die Kante als dunkler Spalt
 ##                unter hellem Rasen.
-##   Schichtfels 70–85° darunter, alle 4–6 m ein Sims (Moos), der auf 5–15 m
+##   Schichtfels 70–85° darunter, alle 4–6 m ein Sims (Moos), der auf 3–8 m
 ##                auftaucht und wieder verschwindet – durchlaufende Simse
-##                machten aus der Wand eine Torte. Pfeiler und Rinnen aus
-##                3D-Rauschen, Schollen aus Zellrauschen, Schichtbänkchen, die
-##                mit den Farbbändern des Stoffs übereinanderliegen.
+##                machten aus der Wand eine Torte. Alle 7–12 m eine
+##                senkrechte Kluft (`_kluft`), die die Simse abschneidet;
+##                dazwischen treten Pfeiler vor (erst unter dem Überhang).
+##                Rinnen aus 3D-Rauschen, Schollen aus Zellrauschen,
+##                Schichtbänkchen, die mit den Farbbändern des Stoffs
+##                übereinanderliegen.
 ##   Felsnadeln Wo ein Rahmenbaum unter der Kante steht (`RAHMENBAUM_STELLEN`
 ##                "sims", dazu unter dem Felsfuß des Torbaums), steht eine
 ##                Nadel FREI vor der Wand, oben flach auf der Fußhöhe des
@@ -31,11 +34,19 @@ class_name L01Saum
 ##                fiele sichtbar durch ihn hindurch.
 ##   Platten    s 33–51: Unter dem Felsrand des Geländers und der Kanzel
 ##                (Wegbauten) beginnt die Wand erst unter der Platte.
-##   Ufer       C4 (145–160): Erdufer mit Moos und Steinen bis auf den
-##                Talboden, oben 45°, dann steiler.
+##   Ufer       C4 (146,5–163): Erdufer mit Moos und Steinen bis auf den
+##                Kanal, oben 45°, dann steiler; erst hinter der Stufe 145
+##                (über ihr gemischt stand eine Scheibe quer zum Weg). An der
+##                Stufe ist die Lippe gerundet, davor steht eine Felsnadel
+##                mit runder Kuppe und Brocken im Wasser (`_eckfelsen`).
+##   Kerben     Kerbe und Fallkerbe münden als Kerbtal in der Wand: zu den
+##                Rändern der Lücke weniger tief, draußen steigt der Grund;
+##                an den äußeren Ecken kantige Brocken halb in der Lippe.
 ##   Enden      Vor s 33 biegt die Kante vom Weg weg und läuft um die Ecke
-##                der Hochfläche; bei s 160 biegt das Ufer nach außen (vor
-##                dem rechten Torriesen). Beide Enden sind verschlossen.
+##                der Hochfläche; hinter C4 läuft das Ufer an der Kante der
+##                Bachwiese weiter und taucht bis 163 unter die Wiese, die
+##                das Gelände dort anhebt (früher bog es bei 160 recht-
+##                winklig nach außen und stand als Erdwand quer im Bild).
 ##
 ## LINKS (zu): die Böschung des Hangwegs (Erdhang, am steilsten gut 50°, mit
 ## Rasen, Erdflecken und halb versenkten Steinen; sie wächst hinter dem
@@ -43,9 +54,13 @@ class_name L01Saum
 ## Polylinie (dort liegen alle Profilpunkte in der Querebene des Weges, sonst
 ## faltete sich das Gitter in ihren hohlen Ecken), dann die Felsnase und die
 ## wachsende Schichtfelswand der Fallklamm (2 → 14 m, Simse erst ab 5,5 m
-## Wandhöhe, Überhang nur ab 10 m über dem Weg). Die Kronenhöhe aus RAENDER
-## wird über ±6 m gemittelt (sie springt an den Grenzen der Einträge) und
-## folgt der glatten Kurve, nicht den Terrassen der Decke. Bei 112–122
+## Wandhöhe, Überhang nur ab 10 m über dem Weg, Klüfte wie rechts). Die
+## Kronenhöhe aus RAENDER wird über ±6 m gemittelt (sie springt an den
+## Grenzen der Einträge) und folgt der glatten Kurve, nicht den Terrassen
+## der Decke; an der Böschung wogt sie um ±1,6 m, deren Breite um ±22 %,
+## und alle 15–25 m tritt ein Sporn vor oder weicht eine Rinne zurück. In
+## der Krone der Fallklamm liegt eine Scharte (`SCHARTE`, s 124–140, bis
+## 2,9 m tief): Durch sie blickt das Schlussbild auf den Grat. Bei 112–122
 ## weicht die Wand für das Felsbecken zurück; dort steht der Wasserfall-
 ## pfeiler (+11 m, dahinter fällt die Krone wieder ab: ein Felsturm), vor
 ## dem Becken ein niedriger Felssims auf Deckenhöhe. Bewuchs:
@@ -54,11 +69,16 @@ class_name L01Saum
 ## Böschung und Felswand je eigener Aufruf mit eigenen Dichten.
 ##
 ## QUER: Stirnflächen der Lücken (Erdspalt, Kerbe, Fallkerbe) samt Boden,
-## die Stufen 66/133/145, die Ufer der Furt. Der Erdspalt läuft je Seite
-## fünf Meter in den Waldboden und wird dabei schmaler und flacher. In den
-## Lücken ist auch der Saum der Seiten ausgeschnitten: rechts bis auf den
-## Grund der Kerbe (die Kerbe mündet in der Felswand), links als Rinne, die
-## als V die Böschung hinaufläuft; in der Fallkerbe läuft das Becken aus.
+## die Stufen 66/133/145, die Ufer der Furt; ihre Grasnarbe tritt in Buckeln
+## von 2–3 m 0,15–0,35 m vor (keine Lineal-Kante). Der Erdspalt läuft je
+## Seite fünf Meter in den Waldboden und wird dabei schmaler und flacher. In
+## den Lücken ist auch der Saum der Seiten ausgeschnitten: rechts als
+## Kerbtal (siehe oben), links als Rinne, die als V die Böschung hinauf-
+## läuft; in der Fallkerbe läuft das Becken aus. Die Ufer der Furt: Soden-
+## schnitt, Erdufer unter 40°, Kiesterrasse an der Wasserlinie; außerhalb
+## der Decke biegt die Uferlinie zum Wasser hin aus, ihre Enden tauchen bis
+## |q| 10,6 in das Bachufer (`furt_linie`, `furt_kante`, `furt_hoehe` für
+## das Gelände); Steine in Gruppen, kantig, halb versenkt.
 ##
 ## NÄHTE: Rasen, der an die Decke stößt, liegt 1,5 cm unter ihr und trägt
 ## ihre Farbe (Include `wald_gemeinsam`, Verdeckung 0,78 wie ihr Rand) – so
@@ -95,8 +115,13 @@ class_name L01Saum
 ## jeder zweite Profilpunkt, ein Viertel der Dreiecke). Geschätzt über den
 ## Sichtkegel der Verfolgerkamera (ohne Verdeckung, also nach oben
 ## gerundet): 0–18 Zeichenaufrufe und 5–52k Dreiecke je Station, am meisten
-## auf dem Hangweg (s 46–70), wo man beide Seiten weit voraus sieht. Aufbau
-## rund 0,6 s.
+## auf dem Hangweg (s 46–70), wo man beide Seiten weit voraus sieht.
+## AUFBAU in acht Schritten (`bauschritte`), gemessen ohne Kopf am Desktop:
+## Felskante vermessen 0,16 s, Wand und Narbe 0,2 s, die drei Stoff-Schritte
+## 0,2 / 0,4 / 0,3 s (Texturen der Bibliothek, die sonst hier im ersten
+## Aufruf lägen), Spalten, Stufen und Ufer 0,2 s, Böschung 0,3 s, Bewuchs
+## 0,35 s – keiner über 0,4 s. `lippe_q` ist O(log n): Lippe und Fuß
+## entstehen einmal je Bau (`_linien_anlegen`), ebenso `querschnitte_links`.
 
 const STUECK := 30.0
 ## Abstand der Querschnitte entlang der Linie (m).
@@ -1186,6 +1211,10 @@ static func _hoehe_links(level: Level01, s: float) -> float:
 		summe += float(level.rand_profil(sk, -1.0)["hoehe"]) * g
 		gewicht += g
 	var hoehe := summe / gewicht
+	# Die Krone der Böschung wogt um ±1,6 m (Wellen von 25–40 m): keine
+	# Linie in gleicher Höhe neben dem Weg.
+	hoehe += 1.6 * _welle(s * 0.033, 41.0) * smoothstep(36.0, 44.0, s) \
+			* (1.0 - smoothstep(84.0, 91.0, s))
 	if s < 41.0:
 		hoehe *= lerpf(0.03, 1.0, smoothstep(27.7, 41.0, s))
 	# Eine Scharte in der Krone der Fallklamm: Durch sie blickt das
@@ -1276,6 +1305,10 @@ static func _profil_boeschung(bogen: float, q_linie: float, kante: float,
 	var h := maxf(krone - kante, 0.12)
 	var voll := smoothstep(0.5, 3.5, h)
 	var breite := maxf(lerpf(3.0, 11.0 - q_linie, voll), 2.6 + h * 0.55)
+	# Die Breite wandert um ±22 %, und alle 15–25 m tritt ein Sporn vor
+	# oder weicht eine Rinne zurück (oben am Hang, bis gut einen Meter)
+	breite *= 1.0 + 0.22 * _welle(bogen * 0.035, 42.0) * voll
+	var sporn := 1.1 * _welle(bogen * 0.055, 43.0) * voll
 	var p := GelaendeSaum.Profil.new()
 	p.punkt(-(wegrand - 0.35), kante - 0.03, _farbe(0.78, 0.0, 0.05, 1.0), 0.0, 0.0, 1.0, 0.0, true)
 	p.punkt(-0.22, kante - 0.015, _farbe(0.78, 0.05, 0.2, 1.0))
@@ -1294,12 +1327,12 @@ static func _profil_boeschung(bogen: float, q_linie: float, kante: float,
 		var erde := clampf(0.2 + 0.65 * steil - 0.35 * gras, 0.08, 0.9)
 		var y := kante + 0.12 + (h - 0.12) * f
 		y -= 1.2 * rinne * smoothstep(0.05, 0.3, t) * (1.0 - smoothstep(0.75, 1.0, t))
-		p.punkt(0.3 + (breite - 0.3) * t + buckel, y,
+		p.punkt(0.3 + (breite - 0.3) * t + buckel + sporn * smoothstep(0.25, 0.75, t), y,
 				_farbe(lerpf(0.7, 0.86, t) * lerpf(1.0, 0.88, steil) * lerpf(1.0, 0.9, rinne),
 				lerpf(erde, 0.8, rinne * 0.6), 0.6, gras * (1.0 - rinne * 0.6)),
 				lerpf(0.8, 2.5, t), lerpf(0.3, 0.4, t), 1.0 if t > 0.25 else 2.0)
 	# Kronenkante und Krone (20–25)
-	var k0 := breite
+	var k0 := breite + sporn
 	for k in 6:
 		var weiter: float = KRONE_WEITE_B[k]
 		var hoch: float = KRONE_HOCH_B[k] * voll
@@ -1401,38 +1434,37 @@ static func _wand_o(hh: float) -> float:
 	return 0.12 + 0.035 * hh
 
 
-## Steine in der Böschung: halb im Hang versenkt, bemoost; ein paar kleine
-## am Fuß (außerhalb der Schulter, an die die Figur herankommt).
+## Steine in der Böschung: kantig (gebrochener Fels, keine Kartoffeln), zu
+## gut 60 % im Hang, zur Hangneigung gekippt, in Gruppen – je ein großer
+## (0,9–1,4 m) mit zwei, drei kleinen daneben –, alle 7–13 m eine Gruppe.
 static func _boeschung_steine(st: Stuecke, proben: Array[Dictionary], g: Dictionary,
 		norm: Array[PackedVector3Array]) -> void:
 	var reihen: Array[PackedVector3Array] = g["reihen"]
 	var boden: PackedFloat32Array = g["boden"]
 	var rng := PropWerkzeug.zufall(8401)
-	for i in range(2, reihen.size() - 2, 3):
+	var i := 4
+	while i < reihen.size() - 4:
 		var s: float = proben[i]["s"]
-		if s < 33.0 or s > 92.0 or not is_nan(_luecken_grund(s)) \
-				or (s > 55.0 and s < 60.0):
+		if s < 34.0 or s > 91.0 or (s > 54.5 and s < 60.5):
+			i += 2
 			continue
-		if rng.randf() > 0.6:
-			continue
-		var j := rng.randi_range(6, 16)
-		var p := reihen[i][j]
-		var n := norm[i][j]
-		var r := rng.randf_range(0.35, 0.95)
-		var hoch := n.lerp(Vector3.UP, 0.5).normalized()
-		var basis := Basis(Vector3.UP, rng.randf() * TAU)
-		basis = Basis(Quaternion(Vector3.UP, hoch)) * basis
-		GelaendeSaum.stein(st.opak(_stueck("Links", s)), p - n * r * 0.5,
-				Vector3(r * rng.randf_range(1.0, 1.4), r * rng.randf_range(0.75, 1.0),
-				r * rng.randf_range(0.9, 1.3)), basis, rng.randi_range(1, 900),
-				_farbe(0.86, 0.0, 0.45, 0.0), boden[i])
-		# Kleine Steine am Fuß
-		if rng.randf() < 0.45:
-			var pf := reihen[i][4]
-			var rf := rng.randf_range(0.15, 0.3)
-			GelaendeSaum.stein(st.opak(_stueck("Links", s)), pf + n * 0.02,
-					Vector3(rf * 1.3, rf * 0.7, rf), Basis(Vector3.UP, rng.randf() * TAU),
-					rng.randi_range(1, 900), _farbe(0.8, 0.1, 0.6, 0.0), boden[i])
+		var j := rng.randi_range(7, 15)
+		var zahl := rng.randi_range(3, 4)
+		for k in zahl:
+			var gross := k == 0
+			var ii := clampi(i + (0 if gross else rng.randi_range(-3, 3)), 0, reihen.size() - 1)
+			var jj := clampi(j + (0 if gross else rng.randi_range(-2, 2)), 5, 17)
+			var p := reihen[ii][jj]
+			var n := norm[ii][jj]
+			var r := rng.randf_range(0.9, 1.4) if gross else rng.randf_range(0.25, 0.5)
+			var hoch := n.lerp(Vector3.UP, 0.3).normalized()
+			var basis := Basis(Quaternion(Vector3.UP, hoch)) * Basis(Vector3.UP, rng.randf() * TAU)
+			var mass := Vector3(r * rng.randf_range(1.0, 1.4), r * rng.randf_range(0.6, 0.85),
+					r * rng.randf_range(0.85, 1.2))
+			GelaendeSaum.stein(st.opak(_stueck("Links", float(proben[ii]["s"]))),
+					p - hoch * mass.y * 0.25, mass, basis, rng.randi_range(1, 900),
+					_farbe(0.84, 0.0, 0.5, 0.0), boden[ii], 0.0, true)
+		i += rng.randi_range(10, 18)
 
 
 ## Abbruchkanten in der Böschung: Hier und da ist der Hang abgerutscht,
@@ -1445,25 +1477,27 @@ static func _abbrueche(st: Stuecke, proben: Array[Dictionary], g: Dictionary,
 	var reihen: Array[PackedVector3Array] = g["reihen"]
 	var boden: PackedFloat32Array = g["boden"]
 	var rng := PropWerkzeug.zufall(8471)
-	var i := 4
-	while i < reihen.size() - 12:
+	var i := rng.randi_range(4, 14)
+	while i < reihen.size() - 14:
 		var s: float = proben[i]["s"]
 		if s < 36.0 or s > 89.0 or (s > 52.0 and s < 62.0):
 			i += 3
 			continue
-		var laenge := rng.randi_range(5, 10)
-		var j := rng.randi_range(7, 12)
-		var hoch := rng.randf_range(0.3, 0.55)
+		var laenge := rng.randi_range(7, 11)
+		var j := rng.randi_range(8, 12)
+		var hoch := rng.randf_range(0.6, 1.0)
 		var name := _stueck("Links", s)
 		var vorher := PackedVector3Array()
 		var vorher_f := PackedColorArray()
 		for k in laenge + 1:
 			var ii := i + k
 			var t := float(k) / float(laenge)
-			var mass := smoothstep(0.0, 0.25, t) * (1.0 - smoothstep(0.75, 1.0, t))
-			var p := reihen[ii][j]
-			var n := norm[ii][j]
-			var runter := reihen[ii][j - 2] - reihen[ii][j + 2]
+			var mass := smoothstep(0.0, 0.3, t) * (1.0 - smoothstep(0.7, 1.0, t))
+			# Im Grundriss ein Bogen: in der Mitte den Hang hinauf
+			var jb := j + int(round(2.0 * sin(t * PI)))
+			var p := reihen[ii][jb]
+			var n := norm[ii][jb]
+			var runter := reihen[ii][jb - 2] - reihen[ii][jb + 2]
 			runter.y = 0.0
 			runter = runter.normalized()
 			var h := hoch * mass
@@ -1493,7 +1527,20 @@ static func _abbrueche(st: Stuecke, proben: Array[Dictionary], g: Dictionary,
 							rng.randf_range(0.25, 0.5), GelaendeSaum.ATLAS_WURZEL, ton)
 			vorher = reihe
 			vorher_f = f
-		i += laenge + rng.randi_range(4, 10)
+			# Unter der Mitte liegt, was abgebrochen ist
+			if k == laenge / 2:
+				for m in rng.randi_range(2, 3):
+					var jj := clampi(j - 3 - rng.randi_range(0, 2), 4, 18)
+					var iq := clampi(ii + rng.randi_range(-2, 2), 0, reihen.size() - 1)
+					var r := rng.randf_range(0.2, 0.42)
+					GelaendeSaum.stein(st.opak(name), reihen[iq][jj] - norm[iq][jj] * r * 0.3,
+							Vector3(r * 1.3, r * 0.7, r), Basis(norm[iq][jj].cross(Vector3.RIGHT)
+							.normalized() if absf(norm[iq][jj].x) < 0.9 else Vector3.FORWARD,
+							rng.randf_range(0.2, 0.6)) * Basis(Vector3.UP, rng.randf() * TAU),
+							rng.randi_range(1, 900), _farbe(0.78, 0.35, 0.3, 0.0), boden[iq], 0.0,
+							true)
+		# Abbrüche alle 20–30 m, nicht als Kratzer an jeder Ecke
+		i += laenge + rng.randi_range(24, 36)
 
 
 ## Der niedrige Felssims zwischen Weg und Becken (Deckenhöhe, Kollision ist

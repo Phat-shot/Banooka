@@ -65,8 +65,8 @@ uniform float relief = 0.3;
 uniform vec2 relief_nah = vec2(10.0, 35.0);
 // Entsättigung des Gesteins und Ton der Mitte (ockergrau statt
 // Schokolade).
-uniform float fels_grau_anteil = 0.28;
-uniform vec3 fels_mitte_ton = vec3(1.0, 0.95, 0.86);
+uniform float fels_grau_anteil = 0.3;
+uniform vec3 fels_mitte_ton = vec3(0.96, 1.03, 1.1);
 
 varying vec3 v_welt;
 varying vec3 v_wn;
@@ -120,7 +120,7 @@ void fragment() {
 				+ textureGrad(kalk, p.xy + versatz, dxy_x, dxy_y).rgb * gew.z;
 		// Heller, warmer Kalk – kein Beton zwischen dem Sandstein.
 		float kl = dot(fels_c, vec3(0.3, 0.59, 0.11));
-		fels_c = mix(fels_c, vec3(kl), 0.35) * 1.3 * fels_grau.rgb;
+		fels_c = mix(fels_c, vec3(kl), 0.35) * 1.15 * fels_grau.rgb;
 	} else {
 		fels_c = textureGrad(fels, p.zy + versatz, dzy_x, dzy_y).rgb * gew.x
 				+ textureGrad(fels, p.xz + versatz, dxz_x, dxz_y).rgb * gew.y

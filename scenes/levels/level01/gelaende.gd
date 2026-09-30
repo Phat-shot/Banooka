@@ -8,14 +8,20 @@ class_name L01Gelaende
 ## jeder Station 100–150 m weit stehen, und von der Wendel aus lagen die
 ## Nordhügel sonst nur 40 m entfernt):
 ## * **Oberland** im Westen: der Hallenwaldboden (26 m) um den Start, hinter
-##   der Böschung von B und der Wand von C die Krone, dahinter der
-##   **Westhang** bis y ≈ 42. Nach Norden läuft es im weichen **Nordfuß**
-##   (`NORDFUSS`, kein Abbruch – der hätte das Schlussbild verstellt) zum
+##   der Böschung von B die Krone, dahinter der **Westhang** bis y ≈ 42
+##   (zwischen z −100 und −200 nur bis 28: Vom Kronentor aus bleibt er
+##   unter Augenhöhe). Hinter der Wand der Fallklamm (ab s 121) steht die
+##   Wand als Rippe: Hinter dem Ende ihrer Krone fällt das Land unter 45°
+##   bis 3 m über die Decke (`C_HINTER`) – durch diese Senke und die Scharte
+##   des Saums blickt das Schlussbild auf Grat, Kanzel und Wasserfall. Nach
+##   Norden läuft es im weichen **Nordfuß** (`NORDFUSS`, kein Abbruch) zum
 ##   Bach aus; hinter der Wand von C4 sinkt es bis zu deren Ende auf 12 m.
-##   Hinter dem Wasserfallpfeiler ein Hügel, aus dem der Oberlauf quillt;
-##   über der Kerbe eine Rinne, die im Rinnsal der Kerbe endet.
-## * **Talmulde** im Osten (y 4–7, zwei Oktaven Rauschen, einige Kuppen),
-##   am Fuß der Felswand ein Schutthang.
+##   Hinter dem Wasserfallpfeiler ein Hügel, aus dem der Oberlauf quillt (er
+##   läuft auf einem Felsrücken bis auf die Krone des Pfeilers); über der
+##   Kerbe eine Rinne, die im Rinnsal der Kerbe endet.
+## * **Talmulde** im Osten (y 4–7, zwei Oktaven Rauschen, einige Kuppen, zwei
+##   bewaldete Riegel von 8–11 m als dunkles Band im Mittelgrund), am Fuß
+##   der Felswand ein Schutthang.
 ## * Um den **Weltenbaum**: im Süden und Westen der Knoll (6–8 m), im
 ##   Norden und Osten die **Wurzelgruben** (Boden −2), im Südosten die
 ##   **Wurzelwiese** genau auf 7,0.
@@ -27,8 +33,13 @@ class_name L01Gelaende
 ##   spiegel, damit die Wasserflächen im Ufer enden – nur im Kanal steht das
 ##   Wasser an der Wand von C4. WASSER BAUT NACH `bachlauf()`, NICHT NACH
 ##   `Level01.BACH` (die Punkte 1–3 dort liegen nicht im Bett).
-## * **Randhügel** im Osten, Norden und Süden (y 30–45) mit Felsen auf dem
-##   Kamm (`GelaendeFeld.felsbrocken`, in die Stücke gemischt).
+## * **Randhügel** im Osten, Norden und Süden (y 30–45) mit Erosionsrinnen
+##   die Hänge hinab, dahinter ein zweiter, 10 m höherer Kamm (die Silhou-
+##   etten stehen gestaffelt). Felsausbisse 8–20 m unter dem Kamm: flache,
+##   gekippte, halb versenkte Platten in Gruppen (`GelaendeFeld.felsbrocken`,
+##   in die Stücke gemischt) – die Kimm bricht der Wald, nicht der Stein.
+##   Der Bach verlässt das Tal in einer Schlucht nach Westen, der Kamm im
+##   Norden ist geschlossen.
 ##
 ## NÄHTE (`Level01.rand_profil`). Das Feld bleibt immer UNTER dem, was der
 ## Saum baut, und hält Abstand zu dem, wo eine Figur fällt:
@@ -54,8 +65,12 @@ class_name L01Gelaende
 ##                  der Krone mit 2 m Überlappung
 ##   FELS_AUF       (ohne Saum, C4 hinter 158) eine innere Wand 1,5–2,5 m
 ##                  hinter der Wegkante bis zur Krone, dahinter bündig
-##   UFER (C4)      vom Wegrand hinab in den Kanal; in der Furt bis 1,8 m
-##                  hinter den Deckenkanten unter dem Ufer, das der Saum baut
+##   UFER (C4)      vom Wegrand hinab in den Kanal; bis 146,5 steht der Saum
+##                  dort noch als Felswand, das Feld liegt steil dahinter;
+##                  159,5–162,5 hebt es sich zur Bachwiese (das Ufer des
+##                  Saums taucht darunter)
+##   Furt           entlang der Uferlinie des Saums (`L01Saum.furt_linie`,
+##                  bis |q| 10,6) 0,25 m unter seinem Ufer (`furt_hoehe`)
 ##   Lücken         Erdspalt als scharfer Riss, der 5 m in den Waldboden
 ##                  ausläuft; unter Kerbe und Fallkerbe tief und dunkel,
 ##                  unter jeder Todeszone
@@ -82,7 +97,8 @@ class_name L01Gelaende
 ##                   den Boden dort zeichnet das Feld selbst
 ##
 ## KOSTEN: 6 Stücke und der Bachnebel = höchstens 7 Zeichenaufrufe, ohne
-## Schatten.
+## Schatten; rund 7000 Punkte, 14 000 Dreiecke. Modell und Feld werden beim
+## Verlassen des Levels vergessen (`vergessen`).
 
 const GELAENDE_SHADER := preload("res://shaders/gelaende.gdshader")
 
@@ -142,7 +158,7 @@ const KUPPEN := [
 
 ## Hügel hinter dem Wasserfallpfeiler (s, q, Radius, Höhe): Aus ihm kommt
 ## der Oberlauf, der oben über den Pfeiler stürzt (y 31,5).
-const PFEILERHUEGEL := Vector4(117.0, -24.0, 15.0, 11.5)
+const PFEILERHUEGEL := Vector4(117.0, -25.0, 15.0, 10.0)
 
 ## Der Fuß des Westhangs im Norden (x, z, Höhe am Fuß), von der Wand am
 ## Ende von C4 an: Der Grat von C fällt nach Nordwesten ins Bachtal, dahinter
@@ -168,7 +184,7 @@ const TAL_RADIEN := Vector2(108.0, 152.0)
 ## Der zweite beginnt erst bei x 112 – näher an der Bachwiese stand er als
 ## grüner Buckel vor dem Stammfuß.
 const RIEGEL := [Vector4(58.0, -72.0, 112.0, -84.0), Vector4(112.0, -124.9, 142.0, -114.0)]
-const RIEGEL_MASS := [Vector2(17.0, 11.0), Vector2(18.0, 10.0)]
+const RIEGEL_MASS := [Vector2(17.0, 11.0), Vector2(18.0, 8.0)]
 
 ## Die Ostkante des Hallenwaldbodens (s, q) bis zur Lippe von B.
 const HALLENKANTE := [Vector2(-60.0, 27.0), Vector2(0.0, 27.0), Vector2(18.0, 26.0),
@@ -487,9 +503,9 @@ class Modell:
 	const SAUM_LINKS_BIS := 158.0
 	const SAUM_UNTER := 0.35
 	const SAUM_DECKT := 0.1
-	# Hinter der Wand der Fallklamm (s 118–158) liegt das Land höchstens
-	# so hoch über der Decke; der Rücken fällt dorthin so weit (m) hinter
-	# dem Ende der Krone ab (höchstens 45°).
+	# Hinter der Wand der Fallklamm (ab s 121, hinter dem Pfeiler, bis 158)
+	# liegt das Land höchstens so hoch über der Decke; der Rücken fällt
+	# dorthin so weit (m) hinter dem Ende der Krone ab (höchstens 45°).
 	const C_HINTER := 3.0
 	const C_RUECKEN := 12.0
 	# Fuß des Ufers über dem Kanal (RAENDER C4 rechts, "fuss_y")
@@ -872,13 +888,17 @@ class Modell:
 			var w: Vector3 = e["punkt"]
 			_lauf_punkt(lauf, Vector2(w.x, w.z), float(e["bett_y"]), float(e["wasser_y"]),
 					float(e["breite"]), bool(e["toedlich"]))
-		# Aus dem Tal hinaus: nach Norden, dann hinter dem Nordwestsporn nach
-		# Westen – die Schlucht schaut nicht auf den Feldrand.
-		_lauf_punkt(lauf, Vector2(36.0, -256.0), 2.8, 3.6, 7.0, false)
-		_lauf_punkt(lauf, Vector2(31.0, -278.0), 2.3, 3.2, 6.5, false)
-		_lauf_punkt(lauf, Vector2(20.0, -295.0), 1.9, 2.8, 6.0, false)
-		_lauf_punkt(lauf, Vector2(2.0, -308.0), 1.5, 2.4, 6.0, false)
-		_lauf_punkt(lauf, Vector2(-16.0, -322.0), 1.1, 2.0, 6.0, false)
+		# Aus dem Tal hinaus: nach Nordwesten und in einer Schlucht durch den
+		# Westhang nach Westen. Nach Norden lief sie früher genau in der
+		# Blickrichtung der Wendel (s 249), und durch die Kerbe im Randhügel
+		# stand der gemalte Himmel neben dem Hang; jetzt schließt der Kamm
+		# den Norden, und der Blick trifft die Nordwand der Schlucht.
+		_lauf_punkt(lauf, Vector2(31.0, -239.0), 3.3, 3.9, 7.0, false)
+		_lauf_punkt(lauf, Vector2(15.0, -248.0), 2.8, 3.5, 6.5, false)
+		_lauf_punkt(lauf, Vector2(-6.0, -253.0), 2.3, 3.1, 6.0, false)
+		_lauf_punkt(lauf, Vector2(-30.0, -257.0), 1.9, 2.7, 6.0, false)
+		_lauf_punkt(lauf, Vector2(-58.0, -262.0), 1.5, 2.3, 6.0, false)
+		_lauf_punkt(lauf, Vector2(-86.0, -267.0), 1.1, 1.9, 6.0, false)
 		laeufe.append(lauf)
 		for art: String in ["oberlauf", "rinne"]:
 			var quelle: Array = OBERLAUF if art == "oberlauf" else RINNE_KERBE
@@ -1089,7 +1109,8 @@ class Modell:
 	## Anteil der Fallklamm hinter dem Pfeiler (0..1), deren Wand als Rippe
 	## steht: Das Land dahinter liegt tief (`C_HINTER`).
 	static func _c_rippe(s: float) -> float:
-		return smoothstep(113.0, 119.0, s)
+		# Erst hinter dem Pfeiler: Auf dessen Hochfläche läuft der Oberlauf.
+		return smoothstep(121.0, 126.0, s)
 
 	func _ober_punkt(p: Vector2, oben: float, anfang: float,
 			weich: float = KANTE_STEIL) -> void:
@@ -1259,12 +1280,8 @@ class Modell:
 		# wieder (der Feldrand liegt so immer hinter dem Kamm).
 		var t := smoothstep(0.66, 1.03, rund)
 		t -= 0.35 * smoothstep(1.08, 1.4, rund)
-		# Die Kerbe des Bachs im Norden: nur so breit, wie der Bach sie braucht
-		# (von der Wendel aus stand sonst der gemalte Himmel neben dem Hang)
-		var kerbe := 1.0
-		if z < -200.0:
-			kerbe = smoothstep(30.0, 46.0, x + 0.25 * (z + 260.0))
-		t *= kerbe
+		# Keine Kerbe im Norden: Der Bach verlässt das Tal nach Westen durch
+		# den Westhang (siehe `_laeufe_anlegen`), der Kamm läuft durch.
 		# Im Nordosten (nah an Bachwiese und Wendel) etwas niedriger
 		var kamm := 37.0 + 8.0 * rausch_kamm.get_noise_2d(x, z) \
 				+ 3.0 * rausch_grob.get_noise_2d(z * 1.5, x * 1.5) \
@@ -1277,7 +1294,7 @@ class Modell:
 		y -= 3.2 * rille * rille * rille * 4.0 * t * maxf(1.0 - t, 0.0)
 		# Ein zweiter, höherer Kamm dahinter (160–190 m von den Stationen):
 		# Die Silhouetten stehen gestaffelt.
-		var t2 := smoothstep(1.12, 1.22, rund) * kerbe
+		var t2 := smoothstep(1.12, 1.22, rund)
 		var kamm2 := kamm + 10.0 + 5.0 * rausch_grob.get_noise_2d(x * 0.7 + 90.0, z * 0.7)
 		return maxf(y, lerpf(y, kamm2, t2))
 
@@ -1599,11 +1616,22 @@ class Modell:
 			var bett := n.y + 0.25 * rausch_fein.get_noise_2d(x * 2.0, z * 2.0)
 			var wasser := n.z
 			var rinne := bett + (wasser + 0.3 - bett) * smoothstep(b * 0.26, b * 0.5, d)
-			var t := smoothstep(b * 0.5, b * 0.5 + (5.0 if haupt else 2.5), d)
-			if haupt:
+			var damm := haupt
+			if String(lauf["name"]) == "oberlauf":
+				# nicht hinter dem letzten Punkt (dort stürzt er ins Becken)
+				var pl: PackedVector2Array = lauf["p"]
+				var ende := pl[pl.size() - 1]
+				var richtung := ende - pl[pl.size() - 2]
+				damm = (Vector2(x, z) - ende).dot(richtung) < 0.0
+			var t := smoothstep(b * 0.5, b * 0.5 + (5.0 if haupt else 3.0), d)
+			if damm:
+				# Hauptbach und Oberlauf: Das Ufer liegt über dem Wasser. Der
+				# Oberlauf läuft so auf einem Felsrücken vom Hügel über den
+				# Sattel hinter dem Pfeiler bis auf dessen Krone (sonst floss
+				# er dort bis 5 m über dem Boden).
 				h = lerpf(minf(rinne, maxf(h, wasser + 0.3)), h, t)
 			else:
-				# Oberlauf und Rinne: nur hinab schneiden, kein Damm
+				# Rinne der Kerbe: nur hinab schneiden
 				h = minf(h, lerpf(rinne, h, t))
 		return h
 
@@ -1745,7 +1773,7 @@ class Modell:
 					"reihen": PackedFloat32Array([-0.8, 0.0, 1.0])})
 		# Die Rinne der Kerbe, die der Saum links die Böschung hinaufführt: ein
 		# schmales V, das das Raster sonst überdeckte
-		for s: float in [56.2, 56.8, 57.5, 58.2, 58.8]:
+		for s: float in [55.5, 56.2, 56.8, 57.5, 58.2, 58.8, 59.5]:
 			liste.append({"punkte": PackedVector2Array([_weg_welt(s, -4.8), _weg_welt(s, -14.0)]),
 					"abstand": 0.6, "reihen": PackedFloat32Array([0.0])})
 		# Die Ufer der Furt, die der Saum baut: Reihen entlang seiner
