@@ -93,13 +93,13 @@ class_name L01Saum
 
 const STUECK := 30.0
 ## Abstand der Querschnitte entlang der Linie (m).
-const SCHRITT_RECHTS := 0.6
+const SCHRITT_RECHTS := 0.7
 const SCHRITT_LINKS := 0.7
 const SCHRITT_QUER := 0.45
 ## Sichtweiten (m, vom Kameraort zur Mitte eines Stücks).
 const SICHT := 260.0
 const SICHT_KARTEN := 55.0
-const SICHT_BEWUCHS := 85.0
+const SICHT_BEWUCHS := 65.0
 const SICHT_RAND := 6.0
 ## Ab hier (m) zeichnen die Kanten ihre grobe Fernfassung.
 const FERN_AB := 85.0
@@ -251,8 +251,11 @@ static func _wurzel(level: Level01) -> Node3D:
 	return knoten
 
 
+## Name des Stücks, in dem die Strecke `s` liegt. Die Grenzen liegen 3 m
+## vor den vollen 30 m: So fällt der Anfang der Böschung (27,7) nicht in ein
+## eigenes, winziges Stück.
 static func _stueck(prefix: String, s: float) -> String:
-	return "%s %d" % [prefix, int(floor(s / STUECK))]
+	return "%s %d" % [prefix, int(floor((s + 3.0) / STUECK))]
 
 
 ## Schreibt ein Gitter in Stücke nach seiner Strecke; benachbarte Stücke
@@ -344,11 +347,12 @@ static func _farbe(ao: float, erde: float, moos: float, rasen: float) -> Color:
 ## Die Lippe rechts als Polylinie [Vector2(s, q)].
 static func _lippe_rechts(level: Level01) -> PackedVector2Array:
 	var p := PackedVector2Array()
-	# Um die Ecke der Hochfläche: vom Wald (s 18, q 22) zur Wegkante bei 33,
-	# außen um den Findling der Enthüllung (s 31, q 5,5–8,3) herum.
-	for v: Vector2 in [Vector2(18.0, 22.0), Vector2(20.0, 19.4), Vector2(22.0, 17.2),
-			Vector2(24.0, 15.3), Vector2(26.0, 13.6), Vector2(28.0, 12.1), Vector2(30.0, 10.9),
-			Vector2(31.6, 10.0), Vector2(32.5, 8.6), Vector2(32.95, 6.6),
+	# Um die Ecke der Hochfläche: außen am Hallenwald vorbei (seine Stämme
+	# stehen rechts bis s 26 bei q 7–24), dann zur Wegkante bei 33, außen um
+	# den Findling der Enthüllung (s 31, q 5,5–8,3) herum.
+	for v: Vector2 in [Vector2(21.0, 30.0), Vector2(23.0, 27.0), Vector2(24.8, 24.6),
+			Vector2(26.4, 21.0), Vector2(27.8, 16.6), Vector2(29.2, 13.4), Vector2(30.5, 11.4),
+			Vector2(31.6, 10.1), Vector2(32.5, 8.6), Vector2(32.95, 6.6),
 			Vector2(PLATTE_VON, PLATTE_RAND - 0.25)]:
 		p.append(v)
 	# Unter den Platten: Felsrand des Geländers, Kanzel (gerundete Ecken).
@@ -1110,10 +1114,10 @@ static func _boeschung_steine(st: Stuecke, proben: Array[Dictionary], g: Diction
 		var hoch := n.lerp(Vector3.UP, 0.5).normalized()
 		var basis := Basis(Vector3.UP, rng.randf() * TAU)
 		basis = Basis(Quaternion(Vector3.UP, hoch)) * basis
-		GelaendeSaum.stein(st.opak(_stueck("Links", s)), p - n * r * 0.42,
-				Vector3(r * rng.randf_range(1.0, 1.4), r * rng.randf_range(0.7, 0.95),
+		GelaendeSaum.stein(st.opak(_stueck("Links", s)), p - n * r * 0.5,
+				Vector3(r * rng.randf_range(1.0, 1.4), r * rng.randf_range(0.75, 1.0),
 				r * rng.randf_range(0.9, 1.3)), basis, rng.randi_range(1, 900),
-				_farbe(0.86, 0.0, 0.75, 0.0), boden[i])
+				_farbe(0.86, 0.0, 0.45, 0.0), boden[i])
 		# Kleine Steine am Fuß
 		if rng.randf() < 0.45:
 			var pf := reihen[i][4]
@@ -1255,11 +1259,11 @@ static func _bewuchs_links(level: Level01, proben: Array[Dictionary], g: Diction
 	# wenige Wurzeln; Farne auf den Buckeln, am Fuß und an der Kante.
 	var b := Schluchtsaum.bauen(wurzel, kurve, boeschung, {"saat": 8501,
 			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.0, "wurzeln": 0.0,
-			"vorhaenge": 0.0, "simse": 0.12, "fuss": 0.18, "blueten": 0.0})
+			"vorhaenge": 0.0, "simse": 0.08, "fuss": 0.14, "blueten": 0.0})
 	b.name = "Bewuchs Böschung"
 	var w := Schluchtsaum.bauen(wurzel, kurve, wand, {"saat": 8502,
-			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.36, "wurzeln": 0.0,
-			"vorhaenge": 0.0, "simse": 0.36, "fuss": 0.3, "blueten": 0.0})
+			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.3, "wurzeln": 0.0,
+			"vorhaenge": 0.0, "simse": 0.3, "fuss": 0.28, "blueten": 0.0})
 	w.name = "Bewuchs Felswand"
 	for knoten: Node3D in [b, w]:
 		for kind in knoten.get_children():
@@ -1359,6 +1363,7 @@ static func _querwand(st: Stuecke, level: Level01, linie: PackedVector2Array,
 			_kante_quer.bind(level, linie[0].x), _kronen.bind(level))
 	var norm := GelaendeSaum.normalen(g)
 	GelaendeSaum.gitter_schreiben(st.opak(name), g, norm, 0, proben.size() - 1)
+	GelaendeSaum.gitter_schreiben(st.fern(name), g, norm, 0, proben.size() - 1, 2)
 	if karten:
 		var reihen: Array[PackedVector3Array] = g["reihen"]
 		var rng := PropWerkzeug.zufall(saat)

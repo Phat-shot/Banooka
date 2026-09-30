@@ -15,9 +15,10 @@
 //   UV2.y    Tiefe unter der Wegkante (m): zum Fuß hin kühler und dunkler
 //
 // Der Fels liegt in Weltkoordinaten (Dreifachprojektion), die großen
-// SCHICHTEN auch: Band = floor(Welt-Y · 0,35 + Neigung + Makrorauschen),
-// 3–6° geneigt, jedes Band mit eigenem Ton (warmer Sandstein oder grauer
-// Kalk), dazwischen eine dunkle Fuge. Die Geometrie tritt mit denselben
+// SCHICHTEN auch: Band = floor(Welt-Y · 0,35 + Neigung + Makrorauschen +
+// Welle über die Höhe), 3–6° geneigt und ungleich dick, jedes Band mit
+// eigener Gesteinsart (meist warmer Sandstein, einzelne helle Kalkbänke)
+// und eigener Helligkeit, dazwischen eine dunkle Fuge. Die Geometrie tritt mit denselben
 // Bändern vor und zurück (`GelaendeSaum.schicht()`), deshalb liegen Farbe und
 // Form übereinander. Dazu Wasserspuren, die senkrecht die Wand hinablaufen.
 //

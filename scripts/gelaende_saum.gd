@@ -593,7 +593,9 @@ static func deckel(st: SurfaceTool, reihe: PackedVector3Array, farben: PackedCol
 ## im Stoff (Moos, Erde), die Verdeckung nach unten dunkler.
 static func stein(st: SurfaceTool, mitte: Vector3, radien: Vector3, basis: Basis,
 		saat: int, farbe: Color, kante_y: float, kronen: float = 0.0) -> void:
-	var kugel := _ikosphaere()
+	# Große Steine feiner geteilt: Mit 80 Flächen las sich ein flacher Stein
+	# als Sechseckplatte.
+	var kugel := _ikosphaere(2 if maxf(radien.x, radien.z) > 0.8 else 1)
 	var punkte: PackedVector3Array = kugel["punkte"]
 	var flaechen: PackedInt32Array = kugel["flaechen"]
 	var r := rauschen()
@@ -635,12 +637,13 @@ static func stein(st: SurfaceTool, mitte: Vector3, radien: Vector3, basis: Basis
 				n[ia].normalized(), n[ib].normalized(), n[ic].normalized())
 
 
-static var _kugel: Dictionary = {}
+static var _kugeln: Dictionary = {}
 
-## Ikosphäre mit einer Teilung (42 Punkte, 80 Flächen), Einheitsradius.
-static func _ikosphaere() -> Dictionary:
-	if not _kugel.is_empty():
-		return _kugel
+## Ikosphäre mit `teilungen` Teilungen (1: 42 Punkte, 80 Flächen; 2: 162
+## Punkte, 320 Flächen), Einheitsradius. Geteilt – nie verändern.
+static func _ikosphaere(teilungen: int = 1) -> Dictionary:
+	if _kugeln.has(teilungen):
+		return _kugeln[teilungen]
 	var t := (1.0 + sqrt(5.0)) / 2.0
 	# Ein Array (Verweis), kein PackedVector3Array: `_mittelpunkt` hängt an.
 	var punkte: Array[Vector3] = [
@@ -653,18 +656,21 @@ static func _ikosphaere() -> Dictionary:
 			1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
 			3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
 			4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1])
-	var mitten := {}
-	var neu := PackedInt32Array()
-	for k in range(0, flaechen.size(), 3):
-		var a := flaechen[k]
-		var b := flaechen[k + 1]
-		var c := flaechen[k + 2]
-		var ab := _mittelpunkt(a, b, punkte, mitten)
-		var bc := _mittelpunkt(b, c, punkte, mitten)
-		var ca := _mittelpunkt(c, a, punkte, mitten)
-		neu.append_array([a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca])
-	_kugel = {"punkte": PackedVector3Array(punkte), "flaechen": neu}
-	return _kugel
+	for _runde in teilungen:
+		var mitten := {}
+		var neu := PackedInt32Array()
+		for k in range(0, flaechen.size(), 3):
+			var a := flaechen[k]
+			var b := flaechen[k + 1]
+			var c := flaechen[k + 2]
+			var ab := _mittelpunkt(a, b, punkte, mitten)
+			var bc := _mittelpunkt(b, c, punkte, mitten)
+			var ca := _mittelpunkt(c, a, punkte, mitten)
+			neu.append_array([a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca])
+		flaechen = neu
+	var kugel := {"punkte": PackedVector3Array(punkte), "flaechen": flaechen}
+	_kugeln[teilungen] = kugel
+	return kugel
 
 
 static func _mittelpunkt(a: int, b: int, punkte: Array[Vector3], mitten: Dictionary) -> int:
