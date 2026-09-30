@@ -26,8 +26,12 @@ class_name GelaendeSaum
 ##   `querschnitte()` setzt die Profile an die Proben, verschiebt sie mit
 ##                   CPU-3D-Rauschen entlang der Normale (Richtung 1 frei,
 ##                   −1 nur nach innen – unter einer Lippe darf nie Fels
-##                   hervortreten, in den eine fallende Figur hineinfiele)
-##                   und mit den Schichtbändern, rechnet die Verdeckung.
+##                   hervortreten, in den eine fallende Figur hineinfiele –,
+##                   2 nur nach außen – eine Wand neben dem Weg tritt nie auf
+##                   die Schulter) und mit den Schichtbändern, rechnet die
+##                   Verdeckung. In hohlen Ecken rücken Punkte, die gegen-
+##                   über ihrem Vorgänger zurücklägen, knapp vor ihn: Das
+##                   Gitter wird dort schmal, statt sich umzustülpen.
 ##   `gitter_schreiben()` Gitter → Dreiecke mit glatten Normalen; in Stücke
 ##                   geschnitten, die sich die Randreihe teilen.
 ##   `deckel()`      schließt ein offenes Ende (Querschnitt als Vieleck).
@@ -464,27 +468,48 @@ static func normalen(g: Dictionary) -> Array[PackedVector3Array]:
 
 
 ## Schreibt die Reihen `von`..`bis` eines Gitters als Dreiecke in `st`.
+##
+## `grob` > 1 schreibt eine Fernfassung: nur jede `grob`-te Reihe und jeden
+## `grob`-ten Profilpunkt (Anfang und Ende immer) – ein Viertel der Dreiecke
+## bei `grob` 2, für Stücke, die weit weg sind.
 static func gitter_schreiben(st: SurfaceTool, g: Dictionary, norm: Array[PackedVector3Array],
-		von: int, bis: int) -> void:
+		von: int, bis: int, grob: int = 1) -> void:
 	var reihen: Array[PackedVector3Array] = g["reihen"]
 	var farben: Array[PackedColorArray] = g["farben"]
 	var uv2: Array[PackedVector2Array] = g["uv2"]
 	var vz: float = g["vorzeichen"]
-	for i in range(von, bis):
+	var zeilen := _raster(von, bis, grob)
+	var spalten := _raster(0, reihen[von].size() - 1, grob)
+	for zi in zeilen.size() - 1:
+		var i := zeilen[zi]
+		var i2 := zeilen[zi + 1]
 		var a := reihen[i]
-		var b := reihen[i + 1]
-		for j in a.size() - 1:
-			var ecken := [[i, j], [i, j + 1], [i + 1, j], [i + 1, j + 1]]
+		var b := reihen[i2]
+		for sj in spalten.size() - 1:
+			var j := spalten[sj]
+			var j2 := spalten[sj + 1]
+			var ecken := [[i, j], [i, j2], [i2, j], [i2, j2]]
 			var p00 := a[j]
-			var p01 := a[j + 1]
+			var p01 := a[j2]
 			var p10 := b[j]
-			var p11 := b[j + 1]
+			var p11 := b[j2]
 			var flaeche := (p01 - p00).cross(p10 - p00) * vz
 			if flaeche.length_squared() > 0.0000001:
 				_dreieck_gitter(st, [ecken[0], ecken[1], ecken[2]], reihen, farben, uv2, norm, flaeche)
 			var flaeche2 := (p11 - p01).cross(p10 - p01) * vz
 			if flaeche2.length_squared() > 0.0000001:
 				_dreieck_gitter(st, [ecken[1], ecken[3], ecken[2]], reihen, farben, uv2, norm, flaeche2)
+
+
+## Die Indizes `von`..`bis` in Schritten von `grob`, das Ende immer dabei.
+static func _raster(von: int, bis: int, grob: int) -> PackedInt32Array:
+	var aus := PackedInt32Array()
+	var i := von
+	while i < bis:
+		aus.append(i)
+		i += maxi(grob, 1)
+	aus.append(bis)
+	return aus
 
 
 static func _dreieck_gitter(st: SurfaceTool, ecken: Array, reihen: Array[PackedVector3Array],

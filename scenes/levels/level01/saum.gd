@@ -18,34 +18,47 @@ class_name L01Saum
 ##                über die Kante fällt, fällt an der Wand vorbei, nie in sie
 ##                hinein; und von oben liest sich die Kante als dunkler Spalt
 ##                unter hellem Rasen.
-##   Schichtfels 70–85° darunter, alle 4–6 m ein Sims (Moos), mit Pfeilern
-##                und Rinnen aus 3D-Rauschen und Schichtbänkchen, die mit den
-##                Farbbändern des Stoffs übereinanderliegen. Wo ein Rahmenbaum
-##                auf einem Sims steht (`RAHMENBAUM_STELLEN` "sims", der
-##                Torbaum), tritt der Sims als Pfeiler weit genug hinaus.
+##   Schichtfels 70–85° darunter, alle 4–6 m ein Sims (Moos), der auf 5–15 m
+##                auftaucht und wieder verschwindet – durchlaufende Simse
+##                machten aus der Wand eine Torte. Pfeiler und Rinnen aus
+##                3D-Rauschen, Schollen aus Zellrauschen, Schichtbänkchen, die
+##                mit den Farbbändern des Stoffs übereinanderliegen.
+##   Felsnadeln Wo ein Rahmenbaum unter der Kante steht (`RAHMENBAUM_STELLEN`
+##                "sims", dazu unter dem Felsfuß des Torbaums), steht eine
+##                Nadel FREI vor der Wand, oben flach auf der Fußhöhe des
+##                Baums, unten an die Wand gelehnt. Ein Sims, der so weit
+##                hinausträte, läge unter der Lippe, und eine fallende Figur
+##                fiele sichtbar durch ihn hindurch.
 ##   Platten    s 33–51: Unter dem Felsrand des Geländers und der Kanzel
 ##                (Wegbauten) beginnt die Wand erst unter der Platte.
-##   Ufer       C4 (145–160): Erdufer mit Steinen bis auf den Talboden.
+##   Ufer       C4 (145–160): Erdufer mit Moos und Steinen bis auf den
+##                Talboden, oben 45°, dann steiler.
 ##   Enden      Vor s 33 biegt die Kante vom Weg weg und läuft um die Ecke
 ##                der Hochfläche; bei s 160 biegt das Ufer nach außen (vor
 ##                dem rechten Torriesen). Beide Enden sind verschlossen.
 ##
-## LINKS (zu): die Böschung des Hangwegs (33–92, Erdhang 35–60° mit Steinen,
-## Nische der Moosbank nach der Leitlinien-Polylinie), dann die Felsnase und
-## die wachsende Schichtfelswand der Fallklamm (2 → 14 m, Simse, Überhang
-## nur ab 10 m über dem Weg). Bei 112–122 weicht die Wand für das Felsbecken
-## zurück; dort steht der Wasserfallpfeiler (+11 m), vor dem Becken ein
-## niedriger Felssims auf Deckenhöhe. Die Krone folgt der glatten Kurve,
-## nicht den Terrassen der Decke. Bewuchs: `Schluchtsaum.bauen` aus den
-## `kronen`-Einträgen, die das Profil liefert (Böschung und Felswand je
-## eigener Aufruf, eigene Dichten).
+## LINKS (zu): die Böschung des Hangwegs (Erdhang, am steilsten gut 50°, mit
+## Rasen, Erdflecken und halb versenkten Steinen; sie wächst hinter dem
+## Erdspalt aus dem Waldboden), die Nische der Moosbank nach der Leitlinien-
+## Polylinie (dort liegen alle Profilpunkte in der Querebene des Weges, sonst
+## faltete sich das Gitter in ihren hohlen Ecken), dann die Felsnase und die
+## wachsende Schichtfelswand der Fallklamm (2 → 14 m, Simse erst ab 5,5 m
+## Wandhöhe, Überhang nur ab 10 m über dem Weg). Die Kronenhöhe aus RAENDER
+## wird über ±6 m gemittelt (sie springt an den Grenzen der Einträge) und
+## folgt der glatten Kurve, nicht den Terrassen der Decke. Bei 112–122
+## weicht die Wand für das Felsbecken zurück; dort steht der Wasserfall-
+## pfeiler (+11 m, dahinter fällt die Krone wieder ab: ein Felsturm), vor
+## dem Becken ein niedriger Felssims auf Deckenhöhe. Bewuchs:
+## `Schluchtsaum.bauen` aus den `kronen`-Einträgen, die das Profil liefert,
+## auf einer Kurve durch die Decke (`_deckenkurve`), ohne Blattballen;
+## Böschung und Felswand je eigener Aufruf mit eigenen Dichten.
 ##
 ## QUER: Stirnflächen der Lücken (Erdspalt, Kerbe, Fallkerbe) samt Boden,
 ## die Stufen 66/133/145, die Ufer der Furt. Der Erdspalt läuft je Seite
-## fünf Meter in den Waldboden und wird dabei schmaler. In den Lücken ist
-## auch der Saum der Seiten ausgeschnitten: rechts bis auf den Grund der
-## Kerbe (die Kerbe mündet in der Felswand), links als Rinne, die die
-## Böschung hinaufläuft; in der Fallkerbe läuft das Becken aus.
+## fünf Meter in den Waldboden und wird dabei schmaler und flacher. In den
+## Lücken ist auch der Saum der Seiten ausgeschnitten: rechts bis auf den
+## Grund der Kerbe (die Kerbe mündet in der Felswand), links als Rinne, die
+## als V die Böschung hinaufläuft; in der Fallkerbe läuft das Becken aus.
 ##
 ## NÄHTE: Rasen, der an die Decke stößt, liegt 1,5 cm unter ihr und trägt
 ## ihre Farbe (Include `wald_gemeinsam`, Verdeckung 0,78 wie ihr Rand) – so
@@ -58,11 +71,25 @@ class_name L01Saum
 ## Die wirkliche Lippe und die wirklichen Flächen liefern `lippe_q()` und
 ## `GelaendeSaum.flaeche_punkt()`.
 ##
-## KOLLISION baut der Saum keine. KOSTEN (Plan 13: ≤ 30 Zeichenaufrufe,
-## ≤ 50k Dreiecke je Station, keine Schatten): je Seite und 30-m-Stück EIN
-## Netz (Fels, Erde, Rasen, Steine – ein Stoff) und ein Kartennetz (bis
-## `SICHT_KARTEN`), dazu die Stirnflächen und der Bewuchs der linken Seite
-## (bis `SICHT_BEWUCHS`).
+## KAMERA (Plan K1): Nichts vom Saum hängt unter 8,8 m über den Weg. Die
+## Wände stehen neben ihm; der Überhang der Fallklamm tritt erst ab 10 m
+## über dem Weg vor, und die Innenkanten der `kronen`-Einträge liegen nie
+## näher als 0,75 m an der Wegkante – von einem Überhang hinge eine Ranke
+## sonst frei über dem Weg herab.
+##
+## KOLLISION baut der Saum keine.
+##
+## KOSTEN (Plan 13: ≤ 30 Zeichenaufrufe, ≤ 50k Dreiecke je Station, keine
+## Schatten): Je 30-m-Stück rechts EIN Netz für Felskante, Stirnflächen der
+## Lücken und Stufen, Ufer, Steine, Nadeln und die Böden der Vorsprünge (ein
+## Stoff), dazu ein Kartennetz (bis `SICHT_KARTEN`); links ein Netz je Stück
+## und der Bewuchs (`Schluchtsaum`, nur Laub, bis `SICHT_BEWUCHS`). Ab
+## `FERN_AB` zeichnet jedes Stück eine grobe Fassung (jede zweite Reihe und
+## jeder zweite Profilpunkt, ein Viertel der Dreiecke). Geschätzt über den
+## Sichtkegel der Verfolgerkamera (ohne Verdeckung, also nach oben
+## gerundet): 0–18 Zeichenaufrufe und 5–52k Dreiecke je Station, am meisten
+## auf dem Hangweg (s 46–70), wo man beide Seiten weit voraus sieht. Aufbau
+## rund 0,6 s.
 
 const STUECK := 30.0
 ## Abstand der Querschnitte entlang der Linie (m).
@@ -72,8 +99,10 @@ const SCHRITT_QUER := 0.45
 ## Sichtweiten (m, vom Kameraort zur Mitte eines Stücks).
 const SICHT := 260.0
 const SICHT_KARTEN := 55.0
-const SICHT_BEWUCHS := 120.0
+const SICHT_BEWUCHS := 85.0
 const SICHT_RAND := 6.0
+## Ab hier (m) zeichnen die Kanten ihre grobe Fernfassung.
+const FERN_AB := 85.0
 ## So weit neben einer Stufe oder Lückenkante steht je ein Querschnitt.
 const EPS := 0.005
 ## Felsbecken links in der Fallklamm: Grund (Welt-Y) und Pfeilerhöhe über
@@ -107,9 +136,8 @@ const KRONE_HOCH_W: Array[float] = [0.05, 0.15, 0.25, 0.4, 0.5, 0.6]
 static func bauschritte(level: Level01) -> Array:
 	GelaendeSaum.vergessen()
 	return [
-		{"text": "Die Felskante über dem Tal", "tun": func() -> void: _rechts(level)},
+		{"text": "Felskante, Spalten und Ufer", "tun": func() -> void: _rechts(level)},
 		{"text": "Böschung und Schichtfels", "tun": func() -> void: _links(level)},
-		{"text": "Spalten, Stufen und Ufer", "tun": func() -> void: _quer(level)},
 	]
 
 
@@ -145,6 +173,7 @@ class Stuecke:
 	extends RefCounted
 	var wurzel: Node3D
 	var _opak := {}
+	var _fern := {}
 	var _karten := {}
 	var _namen: Array[String] = []
 
@@ -160,6 +189,14 @@ class Stuecke:
 				_namen.append(name)
 		return _opak[name]
 
+	## Die Fernfassung eines Stücks (ab `FERN_AB`, nur die groben Gitter).
+	func fern(name: String) -> SurfaceTool:
+		if not _fern.has(name):
+			_fern[name] = _neu()
+			if not _namen.has(name):
+				_namen.append(name)
+		return _fern[name]
+
 	func karten(name: String) -> SurfaceTool:
 		if not _karten.has(name):
 			_karten[name] = _neu()
@@ -172,15 +209,22 @@ class Stuecke:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		return st
 
-	func fertig(sicht: float, sicht_karten: float, rand: float) -> void:
+	## Hängt alle Netze an: nah bis `fern_ab`, die Fernfassung ab dort bis
+	## `sicht`; ein Stück ohne Fernfassung bleibt bis `sicht` in voller
+	## Auflösung.
+	func fertig(sicht: float, fern_ab: float, sicht_karten: float, rand: float) -> void:
 		for name in _namen:
+			var hat_fern := _fern.has(name)
 			if _opak.has(name):
-				_knoten(name, _opak[name], GelaendeSaum.stoff(), sicht, rand)
+				_knoten(name, _opak[name], GelaendeSaum.stoff(), 0.0,
+						fern_ab if hat_fern else sicht, rand)
+			if hat_fern:
+				_knoten(name + " fern", _fern[name], GelaendeSaum.stoff(), fern_ab, sicht, rand)
 			if _karten.has(name):
-				_knoten(name + " Karten", _karten[name], GelaendeSaum.kartenstoff(),
+				_knoten(name + " Karten", _karten[name], GelaendeSaum.kartenstoff(), 0.0,
 						sicht_karten, rand)
 
-	func _knoten(name: String, st: SurfaceTool, stoff: Material, sicht: float,
+	func _knoten(name: String, st: SurfaceTool, stoff: Material, von: float, bis: float,
 			rand: float) -> void:
 		st.index()
 		var netz := st.commit()
@@ -191,7 +235,9 @@ class Stuecke:
 		mi.mesh = netz
 		mi.material_override = stoff
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.visibility_range_end = sicht
+		mi.visibility_range_begin = von
+		mi.visibility_range_begin_margin = rand if von > 0.0 else 0.0
+		mi.visibility_range_end = bis
 		mi.visibility_range_end_margin = rand
 		wurzel.add_child(mi)
 
@@ -222,6 +268,7 @@ static func _gitter_in_stuecke(st: Stuecke, prefix: String, g: Dictionary,
 		while b < n - 1 and _stueck(prefix, strecken[b + 1]) == name:
 			b += 1
 		GelaendeSaum.gitter_schreiben(st.opak(name), g, norm, a, mini(b + 1, n - 1))
+		GelaendeSaum.gitter_schreiben(st.fern(name), g, norm, a, mini(b + 1, n - 1), 2)
 		a = b + 1
 
 
@@ -373,7 +420,10 @@ static func _rechts(level: Level01) -> void:
 	_lippenkarten(st, "Rechts", proben, g, 8301)
 	_vorsprung_flaechen(st, level)
 	_felsnadeln(st, level)
-	st.fertig(SICHT, SICHT_KARTEN, SICHT_RAND)
+	_ufer_steine(st, proben, g, norm)
+	# Die Stirnflächen liegen in denselben Stücken: je Stück ein Aufruf.
+	_quer(st, level)
+	st.fertig(SICHT, FERN_AB, SICHT_KARTEN, SICHT_RAND)
 
 
 ## Rand-Daten rechts, auch vor dem Anfang und hinter dem Ende der Felskante
@@ -419,8 +469,11 @@ static func _in_luecke(p: GelaendeSaum.Profil, grund: float, von: int, bis: int,
 		anstieg: float, rand: float = 0.0) -> void:
 	var o_max := -INF
 	for j in range(von, bis + 1):
-		var grenze := grund + maxf(p.o[j], 0.0) * anstieg \
-				+ rand * smoothstep(0.3, 1.5, p.o[j])
+		var grenze := grund + maxf(p.o[j], 0.0) * anstieg
+		# `rand` (0 in der Mitte der Lücke, 1 an ihren Kanten): Am Hang wird
+		# zur Kante hin immer weniger ausgeschnitten – die Rinne ist ein V.
+		var hang := smoothstep(0.3, 1.5, p.o[j]) if p.absolut[j] == 0 else 0.0
+		grenze = lerpf(grenze, maxf(grenze, p.y[j]), hang * smoothstep(0.0, 1.0, rand))
 		if p.absolut[j] == 1:
 			grenze = grund
 		if p.y[j] <= grenze:
@@ -430,7 +483,8 @@ static func _in_luecke(p: GelaendeSaum.Profil, grund: float, von: int, bis: int,
 		if p.absolut[j] == 0:
 			o_max = maxf(o_max, p.o[j])
 			p.o[j] = o_max
-		p.farbe[j] = Color(0.42, 0.6, 0.3, 0.0)
+		# Unter dem Weg dunkler Fels, in der Rinne am Hang Erde und Moos.
+		p.farbe[j] = Color(0.34, 0.5, 0.2, 0.0).lerp(Color(0.6, 0.75, 0.55, 0.0), hang)
 		p.rauschen[j] = 0.0
 		p.schicht[j] = 0.0
 
@@ -536,21 +590,26 @@ static func _profil_ufer(bogen: float, kante: float, fuss_y: float,
 	p.punkt(ov - 0.3, kante - 0.33, _farbe(0.2, 1.0, 0.0, 0.0))
 	p.punkt(-0.2, kante - 0.48, _farbe(0.24, 1.0, 0.05, 0.0), 0.3, 0.05, -1.0)
 	p.punkt(-0.15, kante - 0.9, _farbe(0.32, 0.9, 0.2, 0.0), 0.5, 0.1, -1.0)
-	# Ufer (8–24): 60–70°, Erde mit Moos, nach unten nasser.
+	# Ufer (8–24): oben 45°, dann 60–70°, Erde mit Moos, nach unten nasser.
 	for k in 17:
 		var t := float(k + 1) / 18.0
 		var d := lerpf(0.9, h - 0.4, t)
 		var bauch := 0.25 * sin(t * PI) * (1.0 + _welle(bogen * 0.2, 7.0))
-		p.punkt(-0.1 + (d - 0.9) * 0.42 + bauch, kante - d,
-				_farbe(lerpf(0.7, 0.55, t), lerpf(0.85, 0.5, t), 0.55, 0.0), lerpf(0.8, 2.5, t),
-				0.3, 1.0, 0.1)
-	var of := -0.1 + (h - 1.3) * 0.42 + 0.3
+		p.punkt(_ufer_o(d) + bauch, kante - d,
+				_farbe(lerpf(0.74, 0.55, t), lerpf(0.7, 0.5, t), lerpf(0.8, 0.5, t),
+				0.45 * (1.0 - t)), lerpf(0.8, 2.5, t), 0.35, 1.0, 0.1)
+	var of := _ufer_o(h - 0.4) + 0.3
 	p.punkt(of, fuss_y + 0.4, _farbe(0.42, 0.6, 0.5, 0.0), 2.5, 0.2)
 	p.punkt(of + 0.4, fuss_y, _farbe(0.38, 0.7, 0.4, 0.0), 3.0, 0.2)
 	p.punkt(of + 1.2, fuss_y - 0.5, _farbe(0.36, 0.8, 0.3, 0.0), 3.0, 0.2)
 	p.punkt(of + 2.0, fuss_y - 1.5, _farbe(0.34, 0.8, 0.3, 0.0), 3.0, 0.2)
 	p.punkt(of + 2.6, fuss_y - 3.0, _farbe(0.32, 0.8, 0.3, 0.0), 3.0, 0.2)
 	return p
+
+
+## Versatz des Ufers in der Tiefe `d`: die ersten 1,4 m unter 45°, dann 68°.
+static func _ufer_o(d: float) -> float:
+	return -0.1 + minf(d - 0.9, 1.4) * 1.0 + maxf(d - 2.3, 0.0) * 0.4
 
 
 ## Wurzel- und Halmkarten unter der Grasnarbe (Profilpunkte 2–5).
@@ -600,6 +659,28 @@ static func _karten_an(st: SurfaceTool, rng: RandomNumberGenerator, oben: Vector
 				GelaendeSaum.ATLAS_WURZEL, ton * 0.9)
 
 
+## Steine im Ufer über dem Kanal (C4): halb versenkt, bemoost.
+static func _ufer_steine(st: Stuecke, proben: Array[Dictionary], g: Dictionary,
+		norm: Array[PackedVector3Array]) -> void:
+	var reihen: Array[PackedVector3Array] = g["reihen"]
+	var boden: PackedFloat32Array = g["boden"]
+	var rng := PropWerkzeug.zufall(8451)
+	for i in range(2, reihen.size() - 2, 3):
+		var s: float = proben[i]["s"]
+		if s < 145.5 or s > 159.5 or rng.randf() > 0.7:
+			continue
+		var j := rng.randi_range(10, 24)
+		var p := reihen[i][j]
+		var n := norm[i][j]
+		var r := rng.randf_range(0.3, 0.75)
+		var basis := Basis(Quaternion(Vector3.UP, n.lerp(Vector3.UP, 0.4).normalized())) \
+				* Basis(Vector3.UP, rng.randf() * TAU)
+		GelaendeSaum.stein(st.opak(_stueck("Rechts", s)), p - n * r * 0.3,
+				Vector3(r * rng.randf_range(1.0, 1.5), r * rng.randf_range(0.6, 0.85),
+				r * rng.randf_range(0.9, 1.3)), basis, rng.randi_range(1, 900),
+				_farbe(0.84, 0.05, 0.7, 0.0), boden[i], 0.6)
+
+
 ## Felsnadeln vor der Wand, auf denen die Rahmenbäume stehen
 ## (`RAHMENBAUM_STELLEN` "sims"), und eine unter dem Felsfuß des Torbaums.
 ## Eine Nadel steht FREI vor der Wand, mit einem Spalt dazwischen: Ein Sims,
@@ -617,7 +698,7 @@ static func _felsnadeln(st: Stuecke, level: Level01) -> void:
 		var q: float = stelle["q"]
 		var kante := level.boden_bei(s)
 		var oben_y := kante + float(stelle["fuss"])
-		var radius := Vector2(1.75, 1.35)
+		var radius := Vector2(2.3, 1.9)
 		if art == "torbaum":
 			# Unter dem Felsfuß der Wegbauten (gewölbt, bis gut 5 m unter
 			# den Weg), etwas weiter draußen.
@@ -628,15 +709,17 @@ static func _felsnadeln(st: Stuecke, level: Level01) -> void:
 		var mitte := LevelWerkzeuge.punkt_frei(level.verlauf, s, q)
 		var laengs := LevelWerkzeuge.richtung(level.verlauf, s)
 		var quer := laengs.cross(Vector3.UP).normalized()
-		_nadel(st.opak(_stueck("Rechts", s)), mitte, quer, laengs, radius, fuss_y, oben_y,
+		# Unten lehnt die Nadel an der Wand: Ihr Fuß rückt zur Lippe hin.
+		var wand := LevelWerkzeuge.punkt_frei(level.verlauf, s, lippe_q(level, s, 1.0) + 1.2)
+		_nadel(st.opak(_stueck("Rechts", s)), mitte, wand, quer, laengs, radius, fuss_y, oben_y,
 				kante, rng)
 
 
 ## Eine Felsnadel: Ringe von `fuss_y` bis `oben_y`, elliptisch (`radius`
 ## quer × längs), unten breiter, mit Schichtstufen und Rauschen; oben ein
 ## flacher, bemooster Deckel.
-static func _nadel(st: SurfaceTool, mitte: Vector3, quer: Vector3, laengs: Vector3,
-		radius: Vector2, fuss_y: float, oben_y: float, kante: float,
+static func _nadel(st: SurfaceTool, mitte: Vector3, wand: Vector3, quer: Vector3,
+		laengs: Vector3, radius: Vector2, fuss_y: float, oben_y: float, kante: float,
 		rng: RandomNumberGenerator) -> void:
 	const SEITEN := 16
 	var hoehe := oben_y - fuss_y
@@ -648,18 +731,21 @@ static func _nadel(st: SurfaceTool, mitte: Vector3, quer: Vector3, laengs: Vecto
 	for i in ringe + 1:
 		var t := float(i) / float(ringe)
 		var y := lerpf(fuss_y, oben_y - 0.25, t)
-		var weite := lerpf(1.45, 1.0, smoothstep(0.0, 0.7, t))
+		var weite := lerpf(1.6, 1.0, smoothstep(0.0, 0.75, t))
+		# Die untere Hälfte steht an der Wand, oben löst sich die Nadel.
+		var ring_mitte := wand.lerp(mitte, smoothstep(0.1, 0.65, t))
+		ring_mitte.y = mitte.y
 		var reihe := PackedVector3Array()
 		var fr := PackedColorArray()
 		var uv := PackedVector2Array()
 		for k in SEITEN + 1:
 			var w := TAU * float(k % SEITEN) / float(SEITEN) + phase
 			var richtung := quer * cos(w) * radius.x + laengs * sin(w) * radius.y
-			var p := mitte + richtung * weite
+			var p := ring_mitte + richtung * weite
 			p.y = y
 			var aussen := richtung.normalized()
 			var v := GelaendeSaum.verschiebung(p)
-			p += aussen * (v * 0.45 - (1.0 - GelaendeSaum.schicht_vortritt(p)) * 0.18)
+			p += aussen * (v * 0.6 - (1.0 - GelaendeSaum.schicht_vortritt(p)) * 0.2)
 			reihe.append(p)
 			fr.append(_farbe(lerpf(0.62, 0.8, t) * lerpf(0.8, 1.05, 0.5 + 0.5 * v), 0.1 * (1.0 - t),
 					0.25 + 0.3 * t, 0.0))
@@ -833,7 +919,7 @@ static func _links(level: Level01) -> void:
 	_deckel_an_enden(st, "Links", g)
 	_boeschung_steine(st, proben, g, norm)
 	_becken_sims(st, level)
-	st.fertig(SICHT, SICHT_KARTEN, SICHT_RAND)
+	st.fertig(SICHT, FERN_AB, SICHT_KARTEN, SICHT_RAND)
 	_bewuchs_links(level, proben, g)
 
 
@@ -852,7 +938,7 @@ static func _profil_links(_i: int, probe: Dictionary, level: Level01) -> Gelaend
 	# Die Rinne der Kerbe senkt die Böschung schon vor und nach der Lücke
 	# ein: ein Graben, der den Hang herabkommt, kein Schlitz.
 	var abseits := maxf(56.0 - s, s - 59.0)
-	var rinne := 1.0 - smoothstep(0.0, 3.2, abseits) if abseits > 0.0 else 0.0
+	var rinne := 1.0 - smoothstep(0.0, 2.2, abseits) if abseits > 0.0 else 0.0
 	if fels <= 0.0:
 		p = _profil_boeschung(bogen, q_linie, kante, wegrand, krone, rinne)
 	elif fels >= 1.0:
@@ -865,8 +951,8 @@ static func _profil_links(_i: int, probe: Dictionary, level: Level01) -> Gelaend
 		if s < 100.0:
 			# Kerbe: eine Rinne, die die Böschung hinaufläuft – ein V, das
 			# zur Mitte der Lücke tiefer wird; nur unter dem Weg senkrecht.
-			var rand := 1.5 - absf(s - 57.5)
-			_in_luecke(p, grund, 0, p.anzahl() - 1, 2.2, rand * 4.0)
+			var rand := clampf((absf(s - 57.5) - 0.2) / 1.3, 0.0, 1.0)
+			_in_luecke(p, grund, 0, p.anzahl() - 1, 2.2, rand)
 		else:
 			# Fallkerbe: Nur der Grund des Beckens läuft in die Kerbe aus.
 			_in_luecke(p, grund, 0, 2, 0.0)
@@ -906,9 +992,9 @@ static func _profil_boeschung(bogen: float, q_linie: float, kante: float,
 				0.0, 1.0)
 		var erde := clampf(0.2 + 0.65 * steil - 0.35 * gras, 0.08, 0.9)
 		var y := kante + 0.12 + (h - 0.12) * f
-		y -= 1.8 * rinne * smoothstep(0.05, 0.3, t) * (1.0 - smoothstep(0.75, 1.0, t))
+		y -= 1.2 * rinne * smoothstep(0.05, 0.3, t) * (1.0 - smoothstep(0.75, 1.0, t))
 		p.punkt(0.3 + (breite - 0.3) * t + buckel, y,
-				_farbe(lerpf(0.7, 0.86, t) * lerpf(1.0, 0.88, steil) * lerpf(1.0, 0.8, rinne),
+				_farbe(lerpf(0.7, 0.86, t) * lerpf(1.0, 0.88, steil) * lerpf(1.0, 0.9, rinne),
 				lerpf(erde, 0.8, rinne * 0.6), 0.6, gras * (1.0 - rinne * 0.6)),
 				lerpf(0.8, 2.5, t), lerpf(0.3, 0.4, t), 1.0 if t > 0.25 else 2.0)
 	# Kronenkante und Krone (20–25)
@@ -1105,11 +1191,11 @@ static func _bewuchs_links(level: Level01, proben: Array[Dictionary], g: Diction
 	# wenige Wurzeln; Farne auf den Buckeln, am Fuß und an der Kante.
 	var b := Schluchtsaum.bauen(wurzel, kurve, boeschung, {"saat": 8501,
 			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.0, "wurzeln": 0.0,
-			"vorhaenge": 0.0, "simse": 0.16, "fuss": 0.22, "blueten": 0.4})
+			"vorhaenge": 0.0, "simse": 0.12, "fuss": 0.18, "blueten": 0.0})
 	b.name = "Bewuchs Böschung"
 	var w := Schluchtsaum.bauen(wurzel, kurve, wand, {"saat": 8502,
-			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.42, "wurzeln": 0.08,
-			"vorhaenge": 0.04, "simse": 0.42, "fuss": 0.32, "blueten": 0.3})
+			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.36, "wurzeln": 0.0,
+			"vorhaenge": 0.0, "simse": 0.36, "fuss": 0.3, "blueten": 0.0})
 	w.name = "Bewuchs Felswand"
 	for knoten: Node3D in [b, w]:
 		for kind in knoten.get_children():
@@ -1186,9 +1272,9 @@ static func _quer_ab(p: Vector3, mitte: Vector3, rechts: Vector3) -> float:
 
 # ================================================================ Quer
 
-## Stirnflächen der Lücken, Stufen und die Ufer der Furt.
-static func _quer(level: Level01) -> void:
-	var st := Stuecke.new(_wurzel(level), "Quer")
+## Stirnflächen der Lücken, Stufen und die Ufer der Furt (in die Stücke der
+## rechten Kante).
+static func _quer(st: Stuecke, level: Level01) -> void:
 	# Kerbe und Fallkerbe: nur der Teil unter der Decke; die Seiten sind im
 	# Profil der Kanten ausgeschnitten.
 	_graben(st, level, 56.0, 59.0, KERBE_GRUND, -5.4, NAN, false, 5601)
@@ -1197,7 +1283,6 @@ static func _quer(level: Level01) -> void:
 	for s: float in [66.0, 133.0, 145.0]:
 		_stufe(st, level, s)
 	_furt(st, level)
-	st.fertig(SICHT, SICHT_KARTEN, SICHT_RAND)
 
 
 ## Eine Wand quer zum Weg entlang `linie` [Vector2(s, q)], nach `vorwaerts`
@@ -1234,7 +1319,7 @@ static func _kante_quer(_i: int, _probe: Dictionary, level: Level01, s_kante: fl
 static func _graben(st: Stuecke, level: Level01, von: float, bis: float, grund: float,
 		q_links: float, q_rechts: float, erdig: bool, saat: int) -> void:
 	var halb := (bis - von) * 0.5
-	var name := _stueck("Quer", von)
+	var name := _stueck("Rechts", von)
 	for ende in 2:
 		var s := von if ende == 0 else bis
 		# Rechts endet die Wand knapp hinter der Lippe: Dort beginnt die
@@ -1279,7 +1364,7 @@ static func _profil_stirn(_i: int, probe: Dictionary, kante: float, grund: float
 ## Der Erdspalt (25,0–27,5): zwei Erdwände, die je Seite fünf Meter in den
 ## Waldboden laufen und dabei zusammenrücken, bis der Riss sich schließt.
 static func _erdspalt(st: Stuecke, level: Level01) -> void:
-	var name := _stueck("Quer", 25.0)
+	var name := _stueck("Rechts", 25.0)
 	for ende in 2:
 		var linie := PackedVector2Array()
 		var q := -10.6
@@ -1313,7 +1398,7 @@ static func _stufe(st: Stuecke, level: Level01, s: float) -> void:
 	var unten := level.boden_bei(s + 0.01)
 	var q := maxf(_wegrand(level, s - 0.01), _wegrand(level, s + 0.01)) + 0.55
 	_querwand(st, level, PackedVector2Array([Vector2(s, -q), Vector2(s, q)]), 1.0,
-			_profil_stufe.bind(oben, unten), _stueck("Quer", s), int(s) * 13)
+			_profil_stufe.bind(oben, unten), _stueck("Rechts", s), int(s) * 13)
 
 
 static func _profil_stufe(_i: int, probe: Dictionary, oben: float,
@@ -1340,7 +1425,7 @@ static func _profil_stufe(_i: int, probe: Dictionary, oben: float,
 ## Die Ufer der Furt (173 und 183): Grasnarbe, Erdufer, Steine an der
 ## Wasserlinie; der Grund läuft bis zur Mitte der Furt.
 static func _furt(st: Stuecke, level: Level01) -> void:
-	var name := _stueck("Quer", 178.0)
+	var name := _stueck("Rechts", 178.0)
 	var rng := PropWerkzeug.zufall(17301)
 	for ende in 2:
 		var s := 173.0 if ende == 0 else 183.0

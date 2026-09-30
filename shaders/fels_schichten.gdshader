@@ -21,10 +21,11 @@
 // Bändern vor und zurück (`GelaendeSaum.schicht()`), deshalb liegen Farbe und
 // Form übereinander. Dazu Wasserspuren, die senkrecht die Wand hinablaufen.
 //
-// Texturzugriffe: Weltrauschen 1, Fels 3 (Dreifachprojektion), Moos 1;
-// Erde (2) nur, wo Erde ist, Rasen (1) nur, wo Rasen ist, das treibende
-// Kronenlicht (1) nur unter einem Kronendach – die Verzweigungen hängen an
-// Scheitelwerten und sind räumlich zusammenhängend. Kein SCREEN_TEXTURE,
+// Texturzugriffe: Weltrauschen 1, Fels 3 (Dreifachprojektion), Moos 2
+// (Polster, Wasserspuren); Erde (3) nur, wo Erde ist, Rasen (1) nur, wo
+// Rasen ist, das treibende Kronenlicht (1) nur unter einem Kronendach – die
+// Verzweigungen hängen an Scheitelwerten und sind räumlich zusammenhängend;
+// in ihnen wird mit vorab geholten Ableitungen gelesen. Kein SCREEN_TEXTURE,
 // kein DEPTH_TEXTURE (gl_compatibility). Das Relief kommt aus den
 // Bildschirmableitungen der Helligkeit, eine Normalmap braucht es nicht.
 shader_type spatial;
@@ -108,20 +109,33 @@ void fragment() {
 	float fuge = 1.0 - smoothstep(0.0, 0.05, innen);
 	fels_c *= 1.0 - 0.3 * fuge;
 	// Wasserspuren: lange, schmale Streifen die Wand hinab. Die seitliche
-	// Koordinate wird zwischen X und Z weich gemischt – ein harter Wechsel
-	// flackerte auf verbeulten Flächen als Kamm aus Streifen.
+	// Koordinate läuft schräg über X und Z – ein Wechsel der Projektion je
+	// nach Normale flackerte auf verbeulten Flächen als Kamm aus Streifen.
 	float wx = n.x * n.x / max(n.x * n.x + n.z * n.z, 0.0001);
-	float spur = mix(texture(moos, vec2(v_welt.x * 0.21, v_welt.y * 0.018) + vec2(0.13, 0.57)).a,
-			texture(moos, vec2(v_welt.z * 0.21, v_welt.y * 0.018) + vec2(0.13, 0.57)).a, wx);
+	float spur = texture(moos, vec2((v_welt.x + v_welt.z) * 0.15, v_welt.y * 0.018)
+			+ vec2(0.13, 0.57)).a;
 	fels_c *= 1.0 - 0.28 * smoothstep(0.58, 0.78, spur) * (1.0 - gew.y);
+
+	// Ableitungen VOR den Verzweigungen: In einem Zweig, den nicht alle
+	// Bildpunkte eines Blocks nehmen, sind sie in GLSL ES 3.0 undefiniert.
+	vec3 pe = v_welt * erde_kachel;
+	vec2 pe_xy_dx = dFdx(pe.xy);
+	vec2 pe_xy_dy = dFdy(pe.xy);
+	vec2 pe_zy_dx = dFdx(pe.zy);
+	vec2 pe_zy_dy = dFdy(pe.zy);
+	vec2 pe_xz_dx = dFdx(pe.xz);
+	vec2 pe_xz_dy = dFdy(pe.xz);
+	vec2 ruv = xz * wald_rasen_kachel;
+	vec2 ruv_dx = dFdx(ruv);
+	vec2 ruv_dy = dFdy(ruv);
 
 	// --- Erde (Böschung, Unterseite der Narbe, Ufer)
 	vec3 flaeche = fels_c;
 	float relief_h = fl;
 	if (erdig > 0.01) {
-		vec3 pe = v_welt * erde_kachel;
-		vec3 es = mix(texture(erde, pe.xy).rgb, texture(erde, pe.zy).rgb, wx);
-		vec3 eo = texture(erde, pe.xz).rgb;
+		vec3 es = mix(textureGrad(erde, pe.xy, pe_xy_dx, pe_xy_dy).rgb,
+				textureGrad(erde, pe.zy, pe_zy_dx, pe_zy_dy).rgb, wx);
+		vec3 eo = textureGrad(erde, pe.xz, pe_xz_dx, pe_xz_dy).rgb;
 		vec3 erde_c = mix(es, eo, smoothstep(0.45, 0.8, abs(n.y))) * erde_ton.rgb;
 		flaeche = mix(flaeche, erde_c, erdig);
 		relief_h = mix(relief_h, dot(erde_c, vec3(0.33)), erdig);
@@ -138,7 +152,7 @@ void fragment() {
 	// --- Rasen: dieselbe Farbe wie der Rasen der Wegdecke
 	vec4 gras = vec4(0.5);
 	if (rasen_anteil > 0.01) {
-		gras = rasen_textur(xz);
+		gras = textureGrad(wald_rasen, ruv, ruv_dx, ruv_dy);
 		vec3 rasen = rasen_farbe_aus(gras.rgb, w);
 		float r_anteil = smoothstep(0.1, 0.9, rasen_anteil + (gras.a - 0.5) * 0.5 * (1.0 - rasen_anteil) * rasen_anteil * 4.0);
 		// Rasen wächst nicht an steilen Flächen (die Textur liegt von oben
