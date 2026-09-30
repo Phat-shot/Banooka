@@ -64,6 +64,11 @@ uniform float wolken_skala = 0.2;
 uniform float wolken_deckung = 0.85;
 uniform vec3 wolke_hell : source_color = vec3(1.0, 0.97, 0.92);
 uniform vec3 wolke_schatten : source_color = vec3(0.62, 0.68, 0.76);
+// Luftperspektive der Wolken (freiwillig, 0 = aus): Bis zu dieser Höhe
+// (Sinus des Winkels) gehen tiefe Wolken in den Dunst über – sie liegen
+// weit weg, hinter viel Luft. Sonst standen sie als die hellsten Flecken
+// im Bild, heller als der Weg.
+uniform float wolken_dunst = 0.0;
 
 
 void sky() {
@@ -93,6 +98,9 @@ void sky() {
 		vec3 wolke = mix(wolke_schatten, wolke_hell, smoothstep(wolken_menge, wolken_menge + 0.35, n));
 		// Sonnenseitige Ränder leuchten warm – dünne Stellen stärker.
 		wolke += schein_farbe * licht * pow(zur_sonne, 5.0) * (1.0 - dichte * 0.6) * 0.7;
+		if (wolken_dunst > 0.0) {
+			wolke = mix(dunst, wolke, smoothstep(0.0, wolken_dunst, h));
+		}
 		himmel = mix(himmel, wolke, dichte * wolken_deckung);
 	}
 
