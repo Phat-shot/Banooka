@@ -91,6 +91,13 @@ const SICHT_DICHT := 22.0
 const SICHT_WISPEL := 38.0
 const SICHT_STREU := 40.0
 const SICHT_FARN := 44.0
+## Die Spielkamera für K8 (Plan Abschnitt 2, `KorridorKamera`): so weit
+## zurück auf der Kurve, so hoch über der Figur, Blickpunkt so weit voraus.
+const K8_ABSTAND := 9.5
+const K8_HOEHE := 6.0
+const K8_VORLAUF := 6.0
+## Rahmenfarne bleiben aus den mittleren 40 % des Bildes (|x| < 0,4).
+const K8_MITTE := 0.4
 ## Bereiche (für die Streu).
 enum Bereich { WALD, SCHULTER, HANG, WIESE, WIESE_WEG, WURZEL, WANDFUSS }
 
@@ -154,6 +161,9 @@ class Bau:
 	## (Rechteck) oder mit w < 0: Kreis, Radius = -w.
 	var sperren := {}
 	var teile := {}
+	## Die zwei Rahmenfarne (je Stück abwechselnd) und ihre Umrisse für K8.
+	var rahmen_netze: Array[ArrayMesh] = []
+	var rahmen_umrisse: Array[PackedVector3Array] = []
 	var reduziert := false
 	var dichte_faktor := 1.0
 	## Gelände je Zelle (0,5 m Höhe, 1 m Wald): Beide Abfragen sind teuer,
@@ -244,6 +254,10 @@ static func _anfangen(level: Level01) -> void:
 	# Zwischenstand sonst das Level fest.
 	var id := level.get_instance_id()
 	level.tree_exiting.connect(func() -> void: L01Rasen._vergessen(id), CONNECT_ONE_SHOT)
+	for saat: int in [5, 9]:
+		var netz := Farnwerk.rahmen(saat)
+		b.rahmen_netze.append(netz)
+		b.rahmen_umrisse.append(_umriss(netz))
 	for e: Dictionary in Level01.KISTEN:
 		var s: float = e["s"]
 		var q: float = e["q"]
@@ -560,15 +574,6 @@ static func _laub(rng: RandomNumberGenerator, hell: float) -> Color:
 	return Color(g.r * t * rng.randf_range(0.9, 1.15), g.g * t, g.b * t * rng.randf_range(0.85, 1.1))
 
 
-## Ein Rahmenfarn (2–3 m) an `p`.
-static func _rahmenfarn(b: Bau, s: float, p: Vector3, mass: float) -> void:
-	var rng := b.rng
-	var sa := b.sammlung(s)
-	var basis := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3.ONE * mass)
-	sa.rahmen.append(Transform3D(basis, p - Vector3(0.0, 0.05, 0.0)))
-	sa.rahmen_farben.append(_laub(rng, 1.3))
-
-
 ## Wispelgras an einer Kante: `aussen` zeigt über die Kante hinaus.
 static func _wispel(b: Bau, s: float, p: Vector3, aussen: Vector3, ao: float) -> void:
 	var rng := b.rng
@@ -794,7 +799,7 @@ static func _hangweg(b: Bau) -> void:
 		s += RASTER
 	for g: Vector2 in [Vector2(56.0, 1.0), Vector2(59.0, -1.0), Vector2(66.0, 1.0)]:
 		_lippe_quer(b, g.x, g.y, -5.0, 5.0)
-	_rahmenfarne(b, -1.0, 36.0, 102.0, 5.7, 7.0)
+	_rahmenfarne(b, -1.0, 36.0, 102.0, 5.7, 7.0, 1.6)
 
 
 ## C (104–160): Fallklamm. Rechts bis an die Lippe (C4: das Ufer), links der
@@ -816,7 +821,7 @@ static func _fallklamm(b: Bau) -> void:
 	for g: Vector2 in [Vector2(118.0, 1.0), Vector2(121.0, -1.0), Vector2(133.0, 1.0),
 			Vector2(145.0, 1.0)]:
 		_lippe_quer(b, g.x, g.y, -4.5, 4.5)
-	_rahmenfarne(b, -1.0, 106.0, 158.0, 5.2, 8.0)
+	_rahmenfarne(b, -1.0, 106.0, 158.0, 5.2, 8.0, 0.8)
 
 
 ## D (160–198): Bachwiese. Die Wiese reicht zu beiden Seiten weit hinaus;
@@ -846,7 +851,7 @@ static func _bachwiese(b: Bau) -> void:
 			p.y = L01Gelaende.hoehe(p.x, p.z)
 			if absf(p.y - l.mitte.y) < 0.5 and b.sperr_abstand(l.s, q) > 0.5:
 				_grossblatt(b, l.s, p, rng.randf_range(0.9, 1.3))
-	_rahmenfarne(b, -1.0, 164.0, 196.0, 7.0, 7.0)
+	_rahmenfarne(b, -1.0, 164.0, 196.0, 7.0, 8.0)
 	_rahmenfarne(b, 1.0, 166.0, 196.0, 7.2, 9.0)
 	# Die Wurzelwiese unter dem Aufgang (y 7,0) und der Wiesenboden unter G1.
 	s = 196.0
@@ -973,37 +978,127 @@ static func _riss(qn: float, s: float, w: Color) -> float:
 
 
 ## Rahmenfarne auf einer Seite von `von` bis `bis`: je 7–11 m einer, bei
-## |q| `q_von`..`q_bis`, auf dem Gelände bzw. an der gebauten Fläche.
+## |q| `q_von`..`q_bis`, auf dem Gelände bzw. an der gebauten Fläche
+## (Böschung, Wandfuß: `hoch` = Höhe über der Kante, bis zu der er
+## hinaufrücken darf).
+##
+## K8 wird gerechnet, nicht geschätzt: Für jeden Farn fährt die Kamera
+## (`_k8_frei`) die Strecke ab, auf der er rahmt – die Figur 3,5 m vor bis
+## 0,5 m hinter ihm, der Farn also 6–10 m vor der Kamera –, und kein Punkt
+## seines Umrisses darf dabei in die mittleren 40 % des Bildes ragen. Die
+## Wedel sind quer zum Weg gestaucht (sie liegen längs am Rand wie ein
+## Saum, statt als Stern hineinzuragen); passt der Farn nicht, wird er
+## kleiner, rückt die Böschung hinauf, oder er entfällt. Nie zwischen Figur
+## und Kamera: Die Figur steht in der Bildmitte, der Farn außerhalb der
+## mittleren 40 %.
 static func _rahmenfarne(b: Bau, seite: float, von: float, bis: float, q_von: float,
-		q_bis: float) -> void:
+		q_bis: float, hoch: float = 0.5) -> void:
 	var rng := b.rng
 	var s := von + rng.randf_range(0.0, 4.0)
 	while s < bis:
-		var q := seite * rng.randf_range(q_von, q_bis)
 		var l := _lage(b, s)
-		var p := l.punkt(q)
-		var y := NAN
-		# An der Böschung/Wand: auf der gebauten Fläche knapp über dem Fuß.
-		var saum := GelaendeSaum.flaeche_punkt(s, seite, rng.randf_range(0.15, 0.5)) \
-				if seite < 0.0 and s > 33.0 and s < 160.0 else Vector3(NAN, NAN, NAN)
-		if not is_nan(saum.x):
-			p = saum + l.rechts * seite * 0.15
-			y = saum.y - 0.05
-		else:
-			y = L01Gelaende.hoehe(p.x, p.z)
-			if absf(y - l.mitte.y) > 1.0:
-				y = NAN
-		# K8: Die Wedel reichen gut 2,4 m je Maß nach innen; ihre Spitzen
-		# bleiben 6 m vor der Kamera außerhalb der mittleren 40 % des Bildes
-		# (|q| ≥ 0,4 · 6 m · tan 45,75° ≈ 2,5 m). Wo die Wand nahe am Weg
-		# steht (Fallklamm), wird der Farn kleiner oder fällt weg.
-		var q_ist := absf((p - l.mitte).dot(l.rechts))
-		var mass := minf(rng.randf_range(0.85, 1.2), (q_ist - 2.5) / 2.4)
-		if not is_nan(y) and mass >= 0.6 and b.kiste_abstand(s, seite * q_ist) > 2.0 \
-				and b.sperr_abstand(s, seite * q_ist) > 0.6:
-			p.y = y
-			_rahmenfarn(b, s, p, mass)
+		var q_wahl := rng.randf_range(q_von, q_bis)
+		var drehung := rng.randf() * TAU
+		var stauchen := rng.randf_range(0.55, 0.72)
+		var mass_wunsch := rng.randf_range(0.9, 1.25)
+		var ton := _laub(rng, 1.3)
+		var umriss: PackedVector3Array = b.rahmen_umrisse[posmod(floori(s / STUECK), 2)]
+		var gesetzt := false
+		# Versuche: an der Wunschstelle, dann weiter außen bzw. höher.
+		for versuch in 3:
+			var p := Vector3(NAN, NAN, NAN)
+			if seite < 0.0 and s > 33.0 and s < 160.0:
+				# An der Böschung/Wand: auf der gebauten Fläche über dem Fuß.
+				var h := lerpf(0.15, hoch, float(versuch) / 2.0)
+				var saum := GelaendeSaum.flaeche_punkt(s, seite, h)
+				if not is_nan(saum.x):
+					p = saum + l.rechts * seite * 0.15 - Vector3(0.0, 0.05, 0.0)
+			else:
+				p = l.punkt(seite * (q_wahl + float(versuch) * 0.8))
+				var y := L01Gelaende.hoehe(p.x, p.z)
+				p.y = y - 0.05 if absf(y - l.mitte.y) <= 1.0 else NAN
+			if is_nan(p.x) or is_nan(p.y):
+				continue
+			var q_ist := (p - l.mitte).dot(l.rechts)
+			if b.kiste_abstand(s, q_ist) <= 2.0 or b.sperr_abstand(s, q_ist) <= 0.6:
+				continue
+			# Quer zum Weg gestaucht, längs gestreckt, dann gedreht und skaliert.
+			var rahmen := Basis(l.rechts, Vector3.UP, l.rechts.cross(Vector3.UP))
+			var form := rahmen * Basis.from_scale(Vector3(stauchen, 1.0, 1.12)) * rahmen.transposed()
+			var mass := mass_wunsch
+			while mass >= 0.6:
+				var lage := Transform3D(form * Basis(Vector3.UP, drehung)
+						* Basis.from_scale(Vector3.ONE * mass), p)
+				if _k8_frei(b, s, lage, umriss):
+					b.sammlung(s).rahmen.append(lage)
+					b.sammlung(s).rahmen_farben.append(ton)
+					gesetzt = true
+					break
+				mass -= 0.1
+			if gesetzt:
+				break
 		s += rng.randf_range(7.0, 11.0)
+
+
+## K8 für einen Rahmenfarn an der Strecke `s_farn` mit der Lage `lage`
+## (Umriss `umriss` im Netzraum): Die Kamera folgt der Figur von 0,5 m
+## hinter bis 3,5 m vor dem Farn, nachgerechnet wie `KorridorKamera`
+## (9,5 m zurück auf der Kurve, 6 m hoch über der Figur, Blickpunkt 6 m
+## voraus auf Figurhöhe + 1 m, 60° senkrecht bei 16:9). Kein sichtbarer
+## Umrisspunkt darf dabei näher als 0,4 an die Bildmitte kommen.
+static func _k8_frei(b: Bau, s_farn: float, lage: Transform3D, umriss: PackedVector3Array) -> bool:
+	var kurve := b.level.verlauf
+	var laenge := kurve.get_baked_length()
+	var tan_v := tan(deg_to_rad(30.0))
+	var tan_h := tan_v * 16.0 / 9.0
+	var welt := PackedVector3Array()
+	for u in umriss:
+		welt.append(lage * u)
+	var s_fig := s_farn - 0.5
+	while s_fig <= s_farn + 3.51:
+		var fig_y := b.level.boden_bei(s_fig)
+		var mitte := kurve.sample_baked(clampf(s_fig, 0.0, laenge))
+		var kam := kurve.sample_baked(clampf(s_fig - K8_ABSTAND, 0.0, laenge))
+		kam.y += fig_y - mitte.y + K8_HOEHE
+		var blick := kurve.sample_baked(clampf(s_fig + K8_VORLAUF, 0.0, laenge))
+		blick.y = fig_y + 1.0
+		var vorn := (blick - kam).normalized()
+		var rechts := vorn.cross(Vector3.UP).normalized()
+		var oben := rechts.cross(vorn)
+		for w in welt:
+			var d := w - kam
+			var tiefe := d.dot(vorn)
+			if tiefe < 0.3:
+				continue
+			var x := d.dot(rechts) / (tiefe * tan_h)
+			var y := d.dot(oben) / (tiefe * tan_v)
+			if absf(y) <= 1.0 and absf(x) < K8_MITTE:
+				return false
+		s_fig += 1.0
+	return true
+
+
+## Der Umriss eines Netzes für `_k8_frei`: je Winkel (24 Fächer um die
+## Hochachse) der Scheitel, der am weitesten hinausragt, und der höchste.
+static func _umriss(netz: Mesh) -> PackedVector3Array:
+	var weiteste: Array[Vector3] = []
+	weiteste.resize(24)
+	weiteste.fill(Vector3.ZERO)
+	var hoechste: Array[Vector3] = []
+	hoechste.resize(24)
+	hoechste.fill(Vector3.ZERO)
+	for f in netz.get_surface_count():
+		var ecken: PackedVector3Array = netz.surface_get_arrays(f)[Mesh.ARRAY_VERTEX]
+		for e in ecken:
+			var r := Vector2(e.x, e.z).length()
+			var fach := posmod(floori((atan2(e.z, e.x) + PI) / TAU * 24.0), 24)
+			if r > Vector2(weiteste[fach].x, weiteste[fach].z).length():
+				weiteste[fach] = e
+			if e.y > hoechste[fach].y:
+				hoechste[fach] = e
+	var umriss := PackedVector3Array(weiteste)
+	umriss.append_array(PackedVector3Array(hoechste))
+	return umriss
 
 
 # ================================================================ Netze
@@ -1016,7 +1111,7 @@ static func _netze(b: Bau) -> void:
 	var schluessel := b.sammlungen.keys()
 	schluessel.sort()
 	var farn_netze: Array[ArrayMesh] = [Farnwerk.klein(3), Farnwerk.klein(8), Farnwerk.klein(13)]
-	var rahmen_netze: Array[ArrayMesh] = [Farnwerk.rahmen(5), Farnwerk.rahmen(9)]
+	var rahmen_netze := b.rahmen_netze
 	var gross_rng := PropWerkzeug.zufall(4411)
 	var gross_netze: Array[ArrayMesh] = [Bodenstreu.grossblatt(gross_rng, 1.0).netz(),
 			Bodenstreu.grossblatt(gross_rng, 1.0).netz()]
@@ -1076,24 +1171,18 @@ static func _netze(b: Bau) -> void:
 		print("Rasen: %d Stücke, %d Dreiecke" % [schluessel.size(), gesamt])
 
 
-## Die Stilmodelle einer Rolle aus natur2 (`Fremdmodelle.rolle`), als
-## Netze. Die Kenney-Stufe bleibt hier außen vor: Der Rasen steht ganz nah
-## an der Kamera, und aus der Nähe lesen sich deren Pflanzen als Klötzchen
-## (siehe `Fremdmodelle.ROLLEN`, "kenney_ab"). Leer: prozeduraler Rückfall.
+## Die Stilmodelle einer Rolle aus natur2 (`Fremdmodelle.rolle_netze`),
+## nur aus der Nähe tauglich: Die Kenney-Stufe bleibt außen vor (Abstand
+## 0 zum Weg, siehe `Fremdmodelle.ROLLEN`, "kenney_ab"). Leer:
+## prozeduraler Rückfall.
 static func _fremd(kennung: String) -> Array[Dictionary]:
-	var netze: Array[Dictionary] = []
-	var optionen := Fremdmodelle.rolle_optionen(kennung)
-	for name in Fremdmodelle.rolle(kennung):
-		if not name.contains("/"):
-			continue
-		var netz := Fremdmodelle.netz(name, optionen)
-		if not netz.is_empty():
-			netze.append(netz)
-	return netze
+	return Fremdmodelle.rolle_netze(kennung, {}, 0.0)
 
 
-## Je Modell ein MultiMesh (alle Flächen samt ihren Stoffen), die Lagen
-## reihum verteilt; ohne Schatten (Plan 13: Laub wirft keinen).
+## Je Modell und Fläche ein MultiMesh (`flaechen`: eigenes Netz samt Stoff,
+## Schatten nur für harte Flächen – Laub wirft keinen, Plan 13), die Lagen
+## reihum auf die Modelle verteilt. Helligkeit je Instanz ±15 %
+## (Instanzfarbe, grau).
 static func _fremd_felder(eltern: Node3D, name: String, modelle: Array[Dictionary],
 		lagen: Array[Transform3D]) -> void:
 	for j in modelle.size():
@@ -1106,17 +1195,24 @@ static func _fremd_felder(eltern: Node3D, name: String, modelle: Array[Dictionar
 		for l in eigene:
 			mitte += l.origin
 		mitte /= float(eigene.size())
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = modelle[j]["mesh"] as Mesh
-		mm.instance_count = eigene.size()
-		for i in eigene.size():
-			mm.set_instance_transform(i, Transform3D(eigene[i].basis, eigene[i].origin - mitte))
-		var mi := MultiMeshInstance3D.new()
-		mi.name = "%s %d" % [name, j]
-		mi.multimesh = mm
-		mi.position = mitte
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.visibility_range_end = SICHT_FARN
-		mi.visibility_range_end_margin = 2.0
-		eltern.add_child(mi)
+		var flaechen: Array = modelle[j].get("flaechen", [])
+		for f: Dictionary in flaechen:
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_colors = true
+			mm.mesh = f["mesh"] as Mesh
+			mm.instance_count = eigene.size()
+			for i in eigene.size():
+				var o := eigene[i].origin
+				mm.set_instance_transform(i, Transform3D(eigene[i].basis, o - mitte))
+				var hell := 0.85 + 0.3 * fposmod(sin(o.x * 12.9898 + o.z * 78.233) * 43758.55, 1.0)
+				mm.set_instance_color(i, Color(hell, hell, hell))
+			var mi := MultiMeshInstance3D.new()
+			mi.name = "%s %d %s" % [name, j, String(f["art"])]
+			mi.multimesh = mm
+			mi.position = mitte
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(f["schatten"]) \
+					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visibility_range_end = SICHT_FARN
+			mi.visibility_range_end_margin = 2.0
+			eltern.add_child(mi)
