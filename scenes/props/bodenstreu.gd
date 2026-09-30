@@ -1,12 +1,13 @@
 extends RefCounted
 class_name Bodenstreu
 ## Die Streu auf dem Waldboden (Plan Level 01, Abschnitt 8.2): Klee,
-## Blütengruppen, Kiesel, Pilze, Moospolster – dazu Großblattstauden und
-## der Stoff für Farne, die als MultiMesh stehen.
+## Blütengruppen, Kiesel, Pilze – dazu Großblattstauden und der Stoff für
+## Farne, die als MultiMesh stehen. (Moospolster wachsen im Stoff des
+## Rasens: `Rasensaum.polster`.)
 ##
 ## ZWEI WEGE, ein Stoff (`stoff()`, beidseitig, Wind im Vertexshader):
 ## * **Haufen** (verschmolzen): Kleinzeug in großer Zahl und vielen Formen –
-##   Klee, Blüten, Kiesel, Pilze, Moos – wird je Stück in EIN Netz
+##   Klee, Blüten, Kiesel, Pilze – wird je Stück in EIN Netz
 ##   geschrieben (`Haufen.teil()`), ein Zeichenaufruf für alles. Jede Ecke
 ##   trägt den Fuß ihres Teils (UV = Fuß x/z, UV2.x = Fuß y) und seine Art
 ##   (UV2.y): So schrumpft jedes Teil im Vertexshader auf seinen eigenen
@@ -20,9 +21,9 @@ class_name Bodenstreu
 ## `Farnwerk` passen so ohne Umbau hinein: ihre Tönung mal Instanzfarbe.
 ##
 ## ARTEN (UV2.y im Haufen) und ihre Schrumpfstrecke (Kameraabstand in m):
-##   0 KLEIN   Klee, Kiesel, Pilze, Moos     `schrumpf_klein`  (22–30)
+##   0 KLEIN   Klee, Kiesel, Pilze           `schrumpf_klein`  (22–30)
 ##   1 LEUCHT  Hut eines Leuchtpilzes        wie KLEIN, leuchtet warm
-##   2 BLUETE  Blüten und ihre Stängel       `schrumpf_bluete` (22–30,
+##   2 BLUETE  Blüten und ihre Stängel       `schrumpf_bluete` (28–38,
 ##             im Web 14–20: `Effekte.reduziert`)
 ##   3 GROSS   alles im Feld                 `schrumpf_gross`  (30–40)
 ##
@@ -49,8 +50,6 @@ const BLUETEN_FARBEN: Array[Color] = [
 const MITTE_GELB := Color(0.95, 0.62, 0.06)
 ## Kleegrün (linear), etwas blauer und heller als der Rasen.
 const KLEE := Color(0.05, 0.105, 0.035)
-## Moos (linear).
-const MOOS := Color(0.045, 0.085, 0.018)
 ## Kiesel: heller Kalk bis graubraun (linear).
 const KIESEL_HELL := Color(0.36, 0.34, 0.29)
 const KIESEL_DUNKEL := Color(0.2, 0.19, 0.16)
@@ -251,7 +250,7 @@ static func blueten(rng: RandomNumberGenerator, art: int, farbe: Color,
 		var w := rng.randf() * TAU
 		var r := sqrt(rng.randf()) * radius
 		var fuss := Vector3(cos(w) * r, 0.0, sin(w) * r)
-		var hoehe := rng.randf_range(0.14, 0.32)
+		var hoehe := rng.randf_range(0.1, 0.24)
 		var neig := Vector3(rng.randf_range(-0.12, 0.12), 0.0, rng.randf_range(-0.12, 0.12))
 		var kopf := fuss + Vector3.UP * hoehe + neig * hoehe
 		var ton := rng.randf_range(0.88, 1.1)
@@ -304,8 +303,8 @@ static func _stiel(t: Teil, a: Vector3, b: Vector3, breite: float) -> void:
 		q = d.cross(Vector3.RIGHT)
 	q = q.normalized() * breite
 	var n := d.cross(q).normalized()
-	var unten := Color(0.04, 0.07, 0.02, 0.0)
-	var oben := Color(0.07, 0.13, 0.035, 1.0)
+	var unten := Color(0.06, 0.11, 0.03, 0.0)
+	var oben := Color(0.1, 0.19, 0.05, 1.0)
 	t.viereck(a - q, b - q * 0.6, b + q * 0.6, a + q, n, unten, oben, oben, unten, BLUETE)
 
 
@@ -503,39 +502,6 @@ static func pilze(rng: RandomNumberGenerator, hut: float = 0.05, anzahl: int = 3
 	return t
 
 
-## Ein Moospolster: flacher, verbeulter Hügel von `radius` m, `hoehe` m.
-static func moospolster(rng: RandomNumberGenerator, radius: float = 0.3,
-		hoehe: float = 0.1) -> Teil:
-	var t := Teil.new()
-	const N := 9
-	var aussen := PackedVector3Array()
-	var mitte_ring := PackedVector3Array()
-	for k in N:
-		var w := TAU * float(k) / float(N)
-		var r := radius * rng.randf_range(0.75, 1.15)
-		aussen.append(Vector3(cos(w) * r, -0.03, sin(w) * r))
-		mitte_ring.append(Vector3(cos(w) * r * 0.58, hoehe * rng.randf_range(0.6, 0.9),
-				sin(w) * r * 0.58))
-	var kuppe := Vector3(rng.randf_range(-0.05, 0.05), hoehe, rng.randf_range(-0.05, 0.05))
-	var ton := rng.randf_range(0.85, 1.2)
-	var dunkel := Color(MOOS.r * ton * 0.7, MOOS.g * ton * 0.7, MOOS.b * ton * 0.7, 0.0)
-	var mittel := Color(MOOS.r * ton, MOOS.g * ton, MOOS.b * ton, 0.0)
-	var hell := Color(MOOS.r * ton * 1.5, MOOS.g * ton * 1.45, MOOS.b * ton * 1.2, 0.0)
-	for k in N:
-		var j := (k + 1) % N
-		var raus := aussen[k] + aussen[j]
-		raus.y = 0.0
-		var n_rand := (raus.normalized() + Vector3.UP * 0.6).normalized()
-		var n_kuppe := (raus.normalized() * 0.4 + Vector3.UP).normalized()
-		t.dreieck_n(aussen[k], mitte_ring[k], mitte_ring[j], n_rand, n_kuppe, n_kuppe,
-				dunkel, mittel, mittel, KLEIN)
-		t.dreieck_n(aussen[k], mitte_ring[j], aussen[j], n_rand, n_kuppe, n_rand,
-				dunkel, mittel, dunkel, KLEIN)
-		t.dreieck_n(mitte_ring[k], kuppe, mitte_ring[j], n_kuppe, Vector3.UP, n_kuppe,
-				mittel, hell, mittel, KLEIN)
-	return t
-
-
 ## Eine Großblattstaude: 2–4 große, herzförmige Blätter an langen Stielen,
 ## die sich nach außen legen (etwa `groesse` m hoch). Fuß im Ursprung, für
 ## ein Feld. Scheitelfarbe = Tönung (mal Instanzfarbe).
@@ -654,7 +620,7 @@ uniform bool instanziert = false;
 // Kameraabstand (m): von x an schrumpft ein Teil auf seinen Fuß, bei y ist
 // es weg – je Art (siehe `Bodenstreu`).
 uniform vec2 schrumpf_klein = vec2(22.0, 30.0);
-uniform vec2 schrumpf_bluete = vec2(22.0, 30.0);
+uniform vec2 schrumpf_bluete = vec2(28.0, 38.0);
 uniform vec2 schrumpf_gross = vec2(30.0, 40.0);
 uniform float wind_weite = 0.04;
 uniform float leuchten = 1.1;

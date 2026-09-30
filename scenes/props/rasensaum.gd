@@ -3,20 +3,21 @@ class_name Rasensaum
 ## Rasen, der aus dem Boden wächst (Plan Level 01, Abschnitt 8.2).
 ##
 ## Der Boden trägt schon eine Rasentextur (`wald_gemeinsam`); allein las sie
-## sich aus der Spielkamera als Teppich auf Pappe. Hier stehen darauf
-## BÜSCHEL aus gebogenen Halmen, je Stück und Art EIN MultiMesh – tausende
-## Büschel in einer Handvoll Zeichenaufrufen, ohne Schatten, ohne Kollision.
+## sich aus der Spielkamera als Teppich auf Pappe. Hier stehen darauf Halme
+## in Flecken und Büscheln, je Stück und Art EIN MultiMesh – tausende in
+## einer Handvoll Zeichenaufrufen, ohne Schatten, ohne Kollision.
 ##
 ## Drei Dinge lassen sie aus dem Boden wachsen, statt aufgeklebt zu wirken:
-## * **Fuß = Boden.** Der Vertexshader holt an der Stelle des Büschels
-##   dieselbe Rasenfarbe wie der Boden darunter (Rasentextur in einer
-##   groben Mipstufe, Makro, trockene Stellen, Kronenlicht – dieselben
-##   Funktionen aus `wald_gemeinsam`) und mischt sie nach der Wegmaske mit
-##   der dunklen Erde der Trittkante. Der Fuß jedes Halms hat genau diese
-##   Farbe, die Normale zeigt wie die des Bodens nach oben – so gibt es
-##   keine Kante zwischen Halm und Boden.
+## * **Fuß = Boden.** Der Vertexshader holt unter jeder Ecke dieselbe
+##   Rasenfarbe wie der Boden dort (Rasentextur in einer groben Mipstufe,
+##   Makro, trockene Stellen, Kronenlicht – dieselben Funktionen aus
+##   `wald_gemeinsam`) und mischt sie nach der Wegmaske mit der dunklen Erde
+##   der Trittkante. Der Fuß jedes Halms hat genau diese Farbe (eine Spur
+##   dunkler: zwischen den Halmen liegt Schatten), die Normale zeigt wie
+##   die des Bodens nach oben – so gibt es keine Kante zwischen Halm und
+##   Boden.
 ## * **Spitzen heller und wärmer**, auf trockenen Stellen strohig, je Halm
-##   und je Büschel leicht anders (±8 %).
+##   und je Fleck leicht anders (±8 %).
 ## * **Wind** im Vertexshader, in Weltrichtung (kein Knoten bewegt sich).
 ##
 ## INSTANZFARBE (`MultiMesh.use_colors`, der Shader liest sie als Daten, die
@@ -28,23 +29,29 @@ class_name Rasensaum
 ##
 ## AUSBLENDEN (Plan 8.2): Fade-Modi sind in gl_compatibility nicht
 ## verlässlich. Die Halme schrumpfen deshalb im Vertexshader zwischen
-## `SCHRUMPF.x` und `SCHRUMPF.y` Metern Kameraabstand auf ihren Fuß, dazu
-## hart `visibility_range_end` je Stück.
+## `SCHRUMPF.x` und `SCHRUMPF.y` Metern Kameraabstand auf den Ursprung der
+## Instanz, dazu hart `visibility_range_end` je Stück.
 ##
-## NETZE (Fuß im Ursprung, +Y hinauf, Bezugshöhe `BEZUG`):
-##   `bueschel()`  8 Halme, je drei Dreiecke (24 Dreiecke); die Instanz
-##                 skaliert auf 0,14–0,6 m und kippt ihn an der Trittkante.
-##   `wispel()`    6 lange Halme, die nach +X über eine Kante hängen
-##                 (0,5–0,8 m, 42 Dreiecke): Wispelgras an Lippen.
+## NETZE (Ursprung am Boden, +Y hinauf, Bezugshöhe `BEZUG`):
+##   `fleck()`     Rasenfleck: 26 kurze Halme auf einer Scheibe von 0,22 m,
+##                 meist ein Dreieck je Halm (rund 40 Dreiecke) – der
+##                 geschlossene Rasen der Schultern und Wiesen.
+##   `bueschel()`  Horst aus 9 gebogenen Halmen (27 Dreiecke): hohes Gras
+##                 an Kanten und Steinen, die innere Reihe an der
+##                 Trittkante (die Instanz kippt ihn über die Erde).
+##   `wispel()`    8 lange Halme, die nach +X über eine Kante hängen
+##                 (0,5–0,8 m, 56 Dreiecke): Wispelgras an Lippen.
+##   `polster()`   ein Moospolster (27 Dreiecke) im selben Stoff: am Rand
+##                 genau der Boden, die Kuppe heller.
 ## Scheiteldaten: UV = (quer −1..1, t entlang des Halms 0..1), UV2.x =
 ## Tönung des Halms, NORMAL fast senkrecht (wie der Boden).
 ##
 ## Aufruf:
-##     var mm := Rasensaum.feld(eltern, "Gras 3", Rasensaum.bueschel(7),
+##     var mm := Rasensaum.feld(eltern, "Gras 3", Rasensaum.fleck(7),
 ##             lagen, farben, 42.0)
 ## `lagen` sind Welttransformationen (Fuß, Kippung, Maß), `farben` die
-## Instanzfarben (siehe oben). `stoff()` ist geteilt; wer ihn braucht, ruft
-## ihn – die Uniforms des Includes setzt `Wegmaske.einrichten`.
+## Instanzfarben (siehe oben, `farbe()`). `stoff()` ist geteilt; die
+## Uniforms des Includes setzt er selbst (`Wegmaske.einrichten`).
 
 ## Bezugshöhe der Netze (m): Eine Instanz mit Maß 1 ist so hoch.
 const BEZUG := 0.3
@@ -60,14 +67,14 @@ static var _netze := {}
 
 # ================================================================ Netze
 
-## Ein Rasenfleck: `halme` kurze Halme (Vorgabe 20), über eine Scheibe
+## Ein Rasenfleck: `halme` kurze Halme (Vorgabe 26), über eine Scheibe
 ## von `radius` m verteilt, nicht aus einem Punkt – so schließt sich der
 ## Rasen, statt als Reihe einzelner Sterne zu stehen. Drei von vier Halmen
 ## sind ein einziges Dreieck (kurzes Gras biegt sich aus sechs Metern Höhe
 ## nicht sichtbar), jeder vierte hat zwei Abschnitte. Gut die Hälfte legt
 ## sich in eine gemeinsame Richtung (der Fleck ist gekämmt), der Rest
-## kreuz und quer. Bezugshöhe `BEZUG`; rund 30 Dreiecke. Geteilt je Saat.
-static func fleck(saat: int = 1, halme: int = 20, radius: float = 0.2) -> ArrayMesh:
+## kreuz und quer. Bezugshöhe `BEZUG`; rund 40 Dreiecke. Geteilt je Saat.
+static func fleck(saat: int = 1, halme: int = 26, radius: float = 0.22) -> ArrayMesh:
 	var schluessel := "f%d_%d_%.2f" % [saat, halme, radius]
 	if _netze.has(schluessel):
 		return _netze[schluessel]
@@ -86,7 +93,7 @@ static func fleck(saat: int = 1, halme: int = 20, radius: float = 0.2) -> ArrayM
 		var h := BEZUG * rng.randf_range(0.4, 1.0) * lerpf(1.1, 0.8, r / radius)
 		var neigung := h * rng.randf_range(0.12, 0.6)
 		var schwung := h * rng.randf_range(-0.2, 0.2)
-		var breite := rng.randf_range(0.012, 0.02)
+		var breite := rng.randf_range(0.014, 0.024)
 		var ton := rng.randf_range(0.8, 1.16)
 		_halm(st, fuss, aussen, quer, h, neigung, schwung, breite, ton, 2 if i % 4 == 0 else 1)
 	var netz := st.commit()
@@ -109,16 +116,16 @@ static func bueschel(saat: int = 1, halme: int = 9) -> ArrayMesh:
 	var kamm := rng.randf() * TAU
 	for i in halme:
 		var innen := i * 3 < halme
-		var winkel := kamm + rng.randf_range(-1.6, 1.6) if rng.randf() < 0.6 else rng.randf() * TAU
+		var winkel := kamm + rng.randf_range(-1.1, 1.1) if rng.randf() < 0.75 else rng.randf() * TAU
 		var aussen := Vector3(cos(winkel), 0.0, sin(winkel))
 		var quer := Vector3(-sin(winkel), 0.0, cos(winkel))
 		var h := BEZUG * (rng.randf_range(0.85, 1.2) if innen else rng.randf_range(0.5, 1.0))
 		# Überhang: Innen steht der Halm, außen legt er sich – ein Halm, der
 		# senkrecht steht, liest sich als Stachel.
-		var neigung := h * (rng.randf_range(0.15, 0.4) if innen else rng.randf_range(0.4, 0.85))
+		var neigung := h * (rng.randf_range(0.15, 0.4) if innen else rng.randf_range(0.35, 0.7))
 		var schwung := h * rng.randf_range(-0.3, 0.3)
 		var fuss := Vector3(rng.randf_range(-0.04, 0.04), 0.0, rng.randf_range(-0.04, 0.04))
-		var breite := rng.randf_range(0.011, 0.018)
+		var breite := rng.randf_range(0.013, 0.021)
 		var ton := rng.randf_range(0.82, 1.14)
 		_halm(st, fuss, aussen, quer, h, neigung, schwung, breite, ton, 2)
 	var netz := st.commit()
@@ -155,6 +162,47 @@ static func wispel(saat: int = 1, halme: int = 8) -> ArrayMesh:
 					+ Vector3.UP * laenge * (steigen * t - haengen * t * t)
 					+ quer * laenge * 0.12 * t * t * signf(winkel))
 		_band(st, punkte, quer, breite, ton, aussen)
+	var netz := st.commit()
+	_netze[schluessel] = netz
+	return netz
+
+
+## Ein Moospolster: ein flacher, verbeulter Hügel (Radius `radius` m, Höhe
+## `BEZUG` · 0,35), aus derselben Bodenfarbe wie der Rasen – am Rand genau
+## der Boden, oben heller. UV.y steigt nur bis 0,5: Der Wind bewegt ihn
+## kaum, und die Kuppe wird nicht so hell wie eine Halmspitze. Rund 27
+## Dreiecke. Geteilt je Saat.
+static func polster(saat: int = 1, radius: float = 0.25) -> ArrayMesh:
+	var schluessel := "p%d_%.2f" % [saat, radius]
+	if _netze.has(schluessel):
+		return _netze[schluessel]
+	var rng := PropWerkzeug.zufall(saat)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const N := 9
+	var hoehe := BEZUG * 0.35
+	var rand := PackedVector3Array()
+	var ring := PackedVector3Array()
+	for k in N:
+		var w := TAU * float(k) / float(N)
+		var r := radius * rng.randf_range(0.75, 1.15)
+		rand.append(Vector3(cos(w) * r, -0.01, sin(w) * r))
+		ring.append(Vector3(cos(w) * r * 0.6, hoehe * rng.randf_range(0.6, 0.9), sin(w) * r * 0.6))
+	var kuppe := Vector3(rng.randf_range(-0.03, 0.03), hoehe, rng.randf_range(-0.03, 0.03))
+	for k in N:
+		var j := (k + 1) % N
+		var raus := (rand[k] + rand[j]).normalized()
+		var n_rand := (raus + Vector3.UP * 1.2).normalized()
+		var n_ring := (raus * 0.4 + Vector3.UP).normalized()
+		_ecke(st, rand[k], n_rand, Vector2(0.0, 0.0), 1.0)
+		_ecke(st, ring[k], n_ring, Vector2(0.0, 0.35), 1.0)
+		_ecke(st, ring[j], n_ring, Vector2(0.0, 0.35), 1.0)
+		_ecke(st, rand[k], n_rand, Vector2(0.0, 0.0), 1.0)
+		_ecke(st, ring[j], n_ring, Vector2(0.0, 0.35), 1.0)
+		_ecke(st, rand[j], n_rand, Vector2(0.0, 0.0), 1.0)
+		_ecke(st, ring[k], n_ring, Vector2(0.0, 0.35), 1.0)
+		_ecke(st, kuppe, Vector3.UP, Vector2(0.0, 0.5), 1.05)
+		_ecke(st, ring[j], n_ring, Vector2(0.0, 0.35), 1.0)
 	var netz := st.commit()
 	_netze[schluessel] = netz
 	return netz
