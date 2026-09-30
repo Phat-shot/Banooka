@@ -1799,7 +1799,10 @@ static func _profil_stirn(_i: int, probe: Dictionary, kante: float, grund: float
 		r = _rasen_anteil(level, probe)
 		ov = clampf(0.2 + 0.3 * _welle(bogen * 0.9, 13.0) + 0.12 * _welle(bogen * 2.3, 18.0),
 				0.03, 0.4)
-		ov = lerpf(0.05 + 0.08 * (0.5 + 0.5 * _welle(bogen * 3.1, 21.0)), ov, r)
+		# Auf der Spur: krümelig abgebrochen, 4–24 cm hinaus, fast jeder
+		# Querschnitt anders (mit 5–13 cm stand die Kante in der
+		# Nahaufnahme als gerade Linie).
+		ov = lerpf(0.04 + 0.2 * (0.5 + 0.5 * _welle(bogen * 1.7, 21.0)), ov, r)
 	var e := 0.8 if erdig else 0.25
 	var p := GelaendeSaum.Profil.new()
 	# `innen` > 0,45: Die Narbe reicht weiter zurück, unter den Waldboden des
