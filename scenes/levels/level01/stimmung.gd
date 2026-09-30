@@ -111,18 +111,20 @@ const VOEGEL := preload("res://scenes/props/Voegel.tscn")
 ## Plan Wasserfall und Weltenbaum schon in der Öffnung zeigt, reichte der
 ## Dunst erst 50 m weit. Jetzt sind es dort gut 95 m.
 ##
-## B trägt die steilere Nebelkurve (1,6): Der Talwald in 40–80 m behält
-## sein Grün (Nebel bei 60 m 4 statt 10 %), die Ferne bleibt blau – so
+## B trägt die steilere Nebelkurve (1,5): Der Talwald in 40–80 m behält
+## sein Grün (Nebel bei 60 m gut 4 statt 10 %), die Ferne bleibt blau – so
 ## stehen drei Staffeln im Bild statt eines blauen Filters über der
-## rechten Hälfte. Die Nebelfarbe von B ist dafür etwas weniger satt.
+## rechten Hälfte. Die Nebelfarbe von B ist dafür etwas weniger satt. Mit
+## 1,6 und der harten Naht bei 104 fiel die Pforte (s 101) auf 9 % kühl
+## (Ziel ≥ 10 %); die Fallklamm setzt deshalb schon ab s 98 ein (12 m).
 const ZONEN := [
 	{"name": "Hallenwald", "von": -40.0, "bis": 27.0, "rand_bis": 18.0, "nebel_faktor": 3.4,
 			"licht_faktor": 0.85, "nebelfarbe": Color(0.19, 0.36, 0.47),
 			"umgebungsfarbe": Color(0.30, 0.40, 0.36)},
-	{"name": "Hangweg", "von": 27.0, "bis": 104.0, "rand_von": 18.0, "nebel_faktor": 0.6,
-			"licht_faktor": 1.4, "nebelfarbe": Color(0.46, 0.60, 0.74),
-			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "oben": 1.25, "kurve": 1.6},
-	{"name": "Fallklamm", "von": 104.0, "bis": 160.0, "nebel_faktor": 1.0,
+	{"name": "Hangweg", "von": 27.0, "bis": 104.0, "rand_von": 18.0, "rand_bis": 12.0,
+			"nebel_faktor": 0.6, "licht_faktor": 1.4, "nebelfarbe": Color(0.46, 0.60, 0.74),
+			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "oben": 1.25, "kurve": 1.5},
+	{"name": "Fallklamm", "von": 104.0, "bis": 160.0, "rand_von": 12.0, "nebel_faktor": 1.0,
 			"licht_faktor": 0.9, "nebelfarbe": Color(0.36, 0.52, 0.66),
 			"umgebungsfarbe": Color(0.44, 0.56, 0.62)},
 	# Reicht bis ans Ende: Auf der Wendel mischt sich die Zylinderzone
