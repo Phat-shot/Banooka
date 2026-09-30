@@ -885,7 +885,8 @@ static func _wiese_draussen(b: Bau) -> void:
 
 
 ## Horste hohen Grases (0,35–0,6 m) auf der weiten Bachwiese jenseits des
-## Rasens (|q| 12,5–26, gut einer je 2 m²), mit Blütengruppen dazwischen:
+## Rasens (|q| 12,5–26, meist in Gruppen, gut einer je m²), mit
+## Blütengruppen dazwischen:
 ## Aus 15–35 m liest sich die Wiese sonst als glatter Teppich. Nur auf
 ## flachem Boden, nicht im Wald, nicht am oder im Bach. Eigene Netze je
 ## Stück (`horste`), damit ihre Sichtweite von ihrer eigenen Mitte zählt.
@@ -897,27 +898,34 @@ static func _wiesenhorste(b: Bau) -> void:
 		for seite: float in [-1.0, 1.0]:
 			var q := 12.5
 			while q < 26.0:
-				var qq := seite * (q + rng.randf())
-				q += 1.0
-				if rng.randf() >= 0.5 * b.dichte_faktor:
+				var qq := seite * (q + rng.randf() * 1.5)
+				q += 1.5
+				# Je 1,5 × 1,5 m: ein Horst, oft eine Gruppe von drei bis fünf
+				# (Bulte stehen beieinander), sonst nichts.
+				var wurf := rng.randf()
+				if wurf >= 0.7 * b.dichte_faktor:
 					continue
-				var p := l.punkt(qq) + l.vor * rng.randf_range(-0.5, 0.5)
-				var y := L01Gelaende.hoehe(p.x, p.z)
-				if is_nan(y) or absf(b.hoehe_zelle(p + l.rechts * 0.6) - y) > 0.3 \
-						or absf(b.hoehe_zelle(p + l.vor * 0.6) - y) > 0.3:
-					continue
-				p.y = y - 0.015
-				if b.wald(p) > 0.3 or _am_wasser(b, p):
-					continue
-				var sa := b.sammlung(s)
-				sa.horste.append(_bueschel_lage(rng, p, rng.randf_range(0.35, 0.6),
-						Vector3.ZERO))
-				sa.horste_farben.append(Rasensaum.farbe(0.95, 1.0, rng.randf_range(0.3, 0.9),
-						l.kronen))
-				if rng.randf() < 0.12:
-					_bluetengruppe(b, s, p + Vector3(rng.randf_range(-0.4, 0.4), 0.0,
-							rng.randf_range(-0.4, 0.4)), Bereich.WIESE)
-		s += 1.0
+				var mitte := l.punkt(qq) + l.vor * rng.randf_range(-0.7, 0.7)
+				var anzahl := rng.randi_range(3, 5) if wurf < 0.3 * b.dichte_faktor else 1
+				for k in anzahl:
+					var p := mitte + (Vector3(rng.randf_range(-1.0, 1.0), 0.0,
+							rng.randf_range(-1.0, 1.0)) * 0.55 if k > 0 else Vector3.ZERO)
+					var y := L01Gelaende.hoehe(p.x, p.z)
+					if is_nan(y) or absf(b.hoehe_zelle(p + l.rechts * 0.6) - y) > 0.3 \
+							or absf(b.hoehe_zelle(p + l.vor * 0.6) - y) > 0.3:
+						continue
+					p.y = y - 0.015
+					if b.wald(p) > 0.3 or _am_wasser(b, p):
+						continue
+					var sa := b.sammlung(s)
+					sa.horste.append(_bueschel_lage(rng, p, rng.randf_range(0.35, 0.6)
+							* (1.0 if k == 0 else 0.8), Vector3.ZERO))
+					sa.horste_farben.append(Rasensaum.farbe(0.95, 1.0, rng.randf_range(0.3, 0.9),
+							l.kronen))
+				if rng.randf() < 0.18:
+					_bluetengruppe(b, s, mitte + Vector3(rng.randf_range(-0.8, 0.8), 0.0,
+							rng.randf_range(-0.8, 0.8)), Bereich.WIESE)
+		s += 1.5
 
 
 ## Liegt `p` am oder im Wasser (Bachläufe des Geländes, halbe Breite plus
@@ -1237,8 +1245,8 @@ static func _netze(b: Bau) -> void:
 				SICHT_DICHT)
 		Rasensaum.feld(wurzel, "Bueschel %d" % i, Rasensaum.bueschel(31 + n), sa.bueschel,
 				sa.bueschel_farben, sicht_gras)
-		Rasensaum.feld(wurzel, "Horste %d" % i, Rasensaum.bueschel(34 + n), sa.horste,
-				sa.horste_farben, sicht_gras)
+		Rasensaum.feld(wurzel, "Horste %d" % i, Rasensaum.bueschel(34 + n, 18, 0.12, 1.5),
+				sa.horste, sa.horste_farben, sicht_gras)
 		Rasensaum.feld(wurzel, "Wispel %d" % i, Rasensaum.wispel(21 + n), sa.wispel,
 				sa.wispel_farben, sicht_wispel)
 		Rasensaum.feld(wurzel, "Moos %d" % i, Rasensaum.polster(41 + n), sa.polster,
@@ -1263,7 +1271,7 @@ static func _netze(b: Bau) -> void:
 			_fremd_felder(wurzel, "Grossblatt %d" % i, gross_fremd, sa.gross)
 		Bodenstreu.feld(wurzel, "Rahmenfarne %d" % i, rahmen_netze[posmod(i, 2)], sa.rahmen,
 				sa.rahmen_farben, SICHT_FARN)
-		gesamt += sa.gras.size() * 30 + (sa.bueschel.size() + sa.horste.size()) * 27 \
+		gesamt += sa.gras.size() * 30 + sa.bueschel.size() * 27 + sa.horste.size() * 54 \
 				+ sa.wispel.size() * 42 \
 				+ sa.moos.size() * 40 + (sa.polster.size() + sa.moospolster.size()) * 45
 	if b.level.debug:

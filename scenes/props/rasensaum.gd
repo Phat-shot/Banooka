@@ -113,13 +113,16 @@ static func fleck(saat: int = 1, halme: int = 26, radius: float = 0.22) -> Array
 	return netz
 
 
-## Ein Büschel aus `halme` Halmen (Vorgabe 9), die aus einem Horst von gut
-## 8 cm wachsen: für hohes Gras an Kanten und Steinen und für die innere
-## Reihe an der Trittkante. Innen stehen die Halme steiler und höher,
+## Ein Büschel aus `halme` Halmen (Vorgabe 9), die aus einem Horst von
+## ±`horst` m (Vorgabe 4 cm) wachsen, `breit`: Halmbreite als Faktor: für
+## hohes Gras an Kanten und Steinen und für die innere Reihe an der
+## Trittkante; mit 18 breiteren Halmen aus 12 cm ein Bult, der sich auch
+## aus 30 m noch als Horst liest. Innen stehen die Halme steiler und höher,
 ## außen legen sie sich über, alle leicht in eine Richtung gekämmt (ein
 ## gleichmäßiger Stern las sich als Stachelkugel). Geteilt je Saat.
-static func bueschel(saat: int = 1, halme: int = 9) -> ArrayMesh:
-	var schluessel := "b%d_%d" % [saat, halme]
+static func bueschel(saat: int = 1, halme: int = 9, horst: float = 0.04,
+		breit: float = 1.0) -> ArrayMesh:
+	var schluessel := "b%d_%d_%.2f_%.2f" % [saat, halme, horst, breit]
 	if _netze.has(schluessel):
 		return _netze[schluessel]
 	var rng := PropWerkzeug.zufall(saat)
@@ -136,8 +139,11 @@ static func bueschel(saat: int = 1, halme: int = 9) -> ArrayMesh:
 		# senkrecht steht, liest sich als Stachel.
 		var neigung := h * (rng.randf_range(0.15, 0.4) if innen else rng.randf_range(0.35, 0.7))
 		var schwung := h * rng.randf_range(-0.3, 0.3)
-		var fuss := Vector3(rng.randf_range(-0.04, 0.04), 0.0, rng.randf_range(-0.04, 0.04))
-		var breite := rng.randf_range(0.013, 0.021)
+		var fuss := Vector3(rng.randf_range(-horst, horst), 0.0, rng.randf_range(-horst, horst))
+		# Außen stehende Halme eines breiten Horsts legen sich nach außen.
+		if horst > 0.05 and not innen:
+			fuss += aussen * horst * 0.5
+		var breite := rng.randf_range(0.013, 0.021) * breit
 		var ton := rng.randf_range(0.82, 1.14)
 		_halm(st, fuss, aussen, quer, h, neigung, schwung, breite, ton, 2)
 	var netz := st.commit()
