@@ -55,7 +55,7 @@ uniform float fuss_tiefe = 17.0;
 // Schichtbänder: Dichte je Meter und Neigung (tan des Winkels je Achse).
 uniform float schicht_dichte = 0.35;
 uniform vec2 schicht_neigung = vec2(0.062, -0.041);
-uniform float relief = 0.75;
+uniform float relief = 0.55;
 
 varying vec3 v_welt;
 varying vec3 v_wn;
