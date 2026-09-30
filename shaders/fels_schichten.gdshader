@@ -101,15 +101,18 @@ void fragment() {
 	// Meist warmer Sandstein, einzelne Kalkbänke; entlang des Bandes
 	// wechselt der Ton mit dem Weltrauschen, damit kein Band wie mit dem
 	// Lineal gezogen durchläuft.
-	fels_c = mix(warm, grau, 0.75 * smoothstep(0.6, 0.95, kenn + (w.b - 0.5) * 0.35));
-	fels_c *= (0.9 + 0.16 * kenn2) * mix(0.86, 1.1, w.g);
+	fels_c = mix(warm, grau, 0.45 * smoothstep(0.72, 0.97, kenn + (w.b - 0.5) * 0.25));
+	fels_c *= (0.93 + 0.13 * kenn2) * mix(0.86, 1.1, w.g);
 	// Im Band nach unten etwas dunkler, an der Fuge dunkel.
-	fels_c *= mix(1.0, 0.9, 1.0 - innen);
-	float fuge = 1.0 - smoothstep(0.0, 0.06, innen);
-	fels_c *= 1.0 - 0.38 * fuge;
-	// Wasserspuren: lange, schmale Streifen die Wand hinab.
-	float u_seite = mix(v_welt.x, v_welt.z, step(abs(n.z), abs(n.x)));
-	float spur = texture(moos, vec2(u_seite * 0.21, v_welt.y * 0.018) + vec2(0.13, 0.57)).a;
+	fels_c *= mix(1.0, 0.93, 1.0 - innen);
+	float fuge = 1.0 - smoothstep(0.0, 0.05, innen);
+	fels_c *= 1.0 - 0.3 * fuge;
+	// Wasserspuren: lange, schmale Streifen die Wand hinab. Die seitliche
+	// Koordinate wird zwischen X und Z weich gemischt – ein harter Wechsel
+	// flackerte auf verbeulten Flächen als Kamm aus Streifen.
+	float wx = n.x * n.x / max(n.x * n.x + n.z * n.z, 0.0001);
+	float spur = mix(texture(moos, vec2(v_welt.x * 0.21, v_welt.y * 0.018) + vec2(0.13, 0.57)).a,
+			texture(moos, vec2(v_welt.z * 0.21, v_welt.y * 0.018) + vec2(0.13, 0.57)).a, wx);
 	fels_c *= 1.0 - 0.28 * smoothstep(0.58, 0.78, spur) * (1.0 - gew.y);
 
 	// --- Erde (Böschung, Unterseite der Narbe, Ufer)
@@ -117,9 +120,9 @@ void fragment() {
 	float relief_h = fl;
 	if (erdig > 0.01) {
 		vec3 pe = v_welt * erde_kachel;
-		vec3 es = texture(erde, mix(pe.xy, pe.zy, step(abs(n.z), abs(n.x)))).rgb;
+		vec3 es = mix(texture(erde, pe.xy).rgb, texture(erde, pe.zy).rgb, wx);
 		vec3 eo = texture(erde, pe.xz).rgb;
-		vec3 erde_c = mix(es, eo, smoothstep(0.5, 0.85, abs(n.y))) * erde_ton.rgb;
+		vec3 erde_c = mix(es, eo, smoothstep(0.45, 0.8, abs(n.y))) * erde_ton.rgb;
 		flaeche = mix(flaeche, erde_c, erdig);
 		relief_h = mix(relief_h, dot(erde_c, vec3(0.33)), erdig);
 	}

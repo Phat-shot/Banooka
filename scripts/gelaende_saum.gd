@@ -51,7 +51,7 @@ const SCHICHT_DICHTE := 0.35
 ## Neigung der Bänder (tan je Achse, 3–6°), wie im Stoff.
 const SCHICHT_NEIGUNG := Vector2(0.062, -0.041)
 ## Fensterbreiten der geglätteten Linien (m).
-const FENSTER: Array[float] = [0.0, 0.8, 1.6, 3.0, 5.0]
+const FENSTER: Array[float] = [0.0, 0.8, 1.6, 3.0, 5.0, 8.0, 13.0]
 ## Ränder der Karten im Atlas: links Wurzeln, rechts Halme.
 const ATLAS_WURZEL := Vector2(0.0, 0.5)
 const ATLAS_HALM := Vector2(0.5, 1.0)
@@ -359,8 +359,44 @@ static func querschnitte(kurve: Curve3D, proben: Array[Dictionary], seite: float
 		uv2.append(reihe_uv)
 		strecken.append(float(probe["s"]))
 		boden.append(kante_y)
+	_nicht_falten(reihen, linien[0])
 	return {"reihen": reihen, "farben": farben, "uv2": uv2, "s": strecken, "boden": boden,
 			"vorzeichen": vorzeichen(reihen)}
+
+
+## Verhindert, dass sich das Gitter in einer hohlen Ecke faltet: Weit
+## außen liegende Profilpunkte benachbarter Querschnitte laufen dort
+## aufeinander zu und überkreuzen sich (die Normalen der Linie laufen
+## zusammen). Ein Punkt, der gegenüber seinem Vorgänger entlang der Linie
+## zurückläge, rückt knapp vor ihn – das Gitter wird dort schmal, statt
+## sich umzustülpen.
+static func _nicht_falten(reihen: Array[PackedVector3Array], linie: Dictionary) -> void:
+	var basis: PackedVector3Array = linie["p"]
+	var n := reihen.size()
+	if n < 2:
+		return
+	for i in range(1, n):
+		var t := basis[i] - basis[i - 1]
+		t.y = 0.0
+		var schritt := t.length()
+		if schritt < 0.0001:
+			continue
+		t /= schritt
+		var vor := reihen[i - 1]
+		var jetzt := reihen[i]
+		var geaendert := false
+		for j in jetzt.size():
+			var d := jetzt[j] - vor[j]
+			var weit := d.x * t.x + d.z * t.z
+			var mindest := schritt * 0.04
+			if weit < mindest:
+				var p := jetzt[j]
+				p.x += t.x * (mindest - weit)
+				p.z += t.z * (mindest - weit)
+				jetzt[j] = p
+				geaendert = true
+		if geaendert:
+			reihen[i] = jetzt
 
 
 ## Punkt und Normale der Linie mit Fensterbreite `fenster` (zwischen den
