@@ -14,7 +14,10 @@
 //   A  Kronenlicht – Lichtflecken um 3 m (ruhende Lage)
 // Die CPU (`Wegmaske.wert`, `Wegmaske.makro` …) liest dasselbe Bild mit
 // derselben bilinearen Abtastung. Wer hier eine Formel ändert, ändert sie
-// in `scripts/wegmaske.gd` mit – die Probe vergleicht beide.
+// in `scripts/wegmaske.gd` mit – die Probe vergleicht beide
+// (`werkzeuge/wegmaskenprobe.gd`: die Konstanten in `level_check` über
+// `pruefprofil()` "wegmaske", die gezeichnete Maske an 20 Punkten in
+// `pruefe.sh` über `werkzeuge/wegmaskenprobe.sh`, Grenze 0,02).
 //
 // Kosten: `wald_welt()` ist ein Texturzugriff, `kronenlicht_aus()` ein
 // zweiter (die treibende Lage), `rasen_textur()` ein dritter. Wer mehrere
@@ -25,7 +28,8 @@
 // `wald_rasen`, `wald_kachel`, `wald_rasen_kachel`; Konstanten `WALD_…`;
 // Funktionen `wald_welt`, `wald_pendel`, `wegmaske`, `wegmaske_aus`,
 // `makro`, `makro_aus`, `trocken_aus`, `rasen_textur`, `rasen_farbe`,
-// `rasen_farbe_aus`, `kronenlicht`, `kronenlicht_aus`, `kronen_faktor`.
+// `rasen_farbe_aus`, `kronenlicht`, `kronenlicht_aus`, `kronenlicht_grad`,
+// `kronen_uv`, `kronen_faktor`.
 //
 // Anschluss an die Wegkante: Die Decke dunkelt zum Rand auf 0,78 ab
 // (`Wegmaske.RAND_VERDECKUNG`); wer dort ansetzt, beginnt mit demselben
@@ -131,13 +135,27 @@ vec3 rasen_farbe(vec2 welt_xz) {
 }
 
 
+// Texturkoordinate der treibenden Kronenlicht-Lage zur Zeit `t`.
+vec2 kronen_uv(vec2 welt_xz, float t) {
+	return welt_xz * wald_kachel * WALD_KRONEN_FEIN + WALD_KRONEN_DRIFT * t;
+}
+
+
 // Lichtflecken unter dem Kronendach, 0 (Schatten) .. 1 (Fleck). `ruhend`
 // ist der A-Kanal aus `wald_welt()`; die treibende Lage kostet einen
 // zweiten Zugriff. Zwei Lagen, die gegeneinander wandern, flirren wie
 // Laub im Wind, statt als Muster über den Boden zu ziehen.
 float kronenlicht_aus(float ruhend, vec2 welt_xz, float t) {
-	float treibend = texture(wald_rauschen,
-			welt_xz * wald_kachel * WALD_KRONEN_FEIN + WALD_KRONEN_DRIFT * t).a;
+	float treibend = texture(wald_rauschen, kronen_uv(welt_xz, t)).a;
+	return smoothstep(0.55, 0.63, ruhend * 0.5 + treibend * 0.5);
+}
+
+
+// Dasselbe mit vorab geholten Ableitungen der Texturkoordinate: für
+// Stoffe, die das Kronenlicht nur in einem Zweig holen (in einer
+// Verzweigung je Bildpunkt wären implizite Ableitungen undefiniert).
+float kronenlicht_grad(float ruhend, vec2 uv, vec2 uv_dx, vec2 uv_dy) {
+	float treibend = textureGrad(wald_rauschen, uv, uv_dx, uv_dy).a;
 	return smoothstep(0.55, 0.63, ruhend * 0.5 + treibend * 0.5);
 }
 

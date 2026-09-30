@@ -36,6 +36,8 @@ extends Node
 ##   "rand"        Randgang: Wo man vom Weg fallen kann, muss eine Todeszone
 ##                 fangen (`_pruefe_rand`); ohne eigenen Schlüssel an, wenn
 ##                 "todeszonen" an ist
+##   "wegmaske"    CPU-Wegmaske gegen das Shader-Include (`_pruefe_wegmaske`,
+##                 der Teil von `Wegmaskenprobe` ohne Bildschirm)
 ## Das Level muss dafür `breite_bei(s)` und `boden_bei(s)` anbieten; für
 ## die Oberseiten des Begehbaren `BEGEHBARES` und `begehbar(name)` wie
 ## Level 01.
@@ -550,6 +552,8 @@ func _opt_in_proben() -> void:
 	var gefaelle := bool(profil.get("gefaelle", false))
 	var zonen := bool(profil.get("todeszonen", false))
 	var rand := bool(profil.get("rand", zonen))
+	if bool(profil.get("wegmaske", false)):
+		_pruefe_wegmaske()
 	if not (sicht or gefaelle or zonen or rand):
 		return
 	if not _level.has_method("breite_bei") or not _level.has_method("boden_bei"):
@@ -589,6 +593,20 @@ func _opt_in_proben() -> void:
 		if rand:
 			_pruefe_rand()
 		await _zonen_abfragbar(vorher)
+
+
+## Wegmaske (Plan P3): Konstanten der CPU-Maske gleich denen im Shader-
+## Include, das Weltrauschen der GPU gleich dem der CPU. Den Abgleich der
+## gezeichneten Maske (braucht einen Renderer) macht `pruefe.sh` über
+## `werkzeuge/wegmaskenprobe.sh`.
+func _pruefe_wegmaske() -> void:
+	var probleme := 0
+	for zeile in Wegmaskenprobe.ohne_bild():
+		if zeile.begins_with("ABWEICHUNG"):
+			print("  FEHLER  Wegmaske: " + zeile.trim_prefix("ABWEICHUNG").strip_edges())
+			_fehler += 1
+			probleme += 1
+	print("  Wegmaske: CPU und Shader-Include verglichen, %d Probleme" % probleme)
 
 
 func _korridorkamera(wurzel: Node) -> KorridorKamera:
@@ -743,15 +761,19 @@ func _boden_am_blick(blick: Vector3) -> Dictionary:
 ## Je Probestelle der Strahl, den die Kamera schickt. Bewertet wird, wohin
 ## er sie holen würde:
 ##   FEHLER    fester Körper (Ebene 1) holt sie mehr als HERANHOLEN_GRENZE
-##             heran, oder irgendein Treffer setzt sie vor die Figur –
-##             außer einer Kiste, die regelgerecht auf dem Boden steht;
-##             gestapelte oder schwebende Kisten im Schlauch sind FEHLER
-##             (Plan K3: Stapel gehören außen neben den Schlauch)
-##   WARNUNG   eine Kiste auf dem Boden (bergauf trifft der Strahl sie,
-##             sobald sie 3,4–4,6 m vor der Figur steht; Kisten zerbrechen,
-##             die Stelle ist also flüchtig), eine Sichtsperre (Ebene 8, sie
-##             ist dafür da), oder der Boden, wenn der Blickpunkt in ihm
-##             liegt (die Ursache meldet die Gefälleprobe)
+##             heran, oder irgendein Treffer setzt sie vor die Figur – auch
+##             eine Kiste, die regelgerecht auf dem Boden steht (Plan P2);
+##             gestapelte oder schwebende Kisten im Schlauch sind immer
+##             FEHLER (Plan K3: Stapel gehören außen neben den Schlauch)
+##   WARNUNG   eine Kiste auf dem Boden, die die Kamera heranholt, aber
+##             hinter der Figur lässt (Kisten zerbrechen, die Stelle ist
+##             flüchtig), eine Sichtsperre (Ebene 8, sie ist dafür da), oder
+##             der Boden, wenn der Blickpunkt in ihm liegt (die Ursache
+##             meldet die Gefälleprobe)
+## Bergauf trifft der Strahl jede Kiste, die 3,4–4,6 m vor der Figur am
+## Hang steht: Der Blickpunkt liegt auf Figur +1, die Kamera nur auf
+## Figur +4,4, und die Kiste reicht bei 17 % bis Figur +1,7. Kisten gehören
+## dort auf ebene Absätze (Level 01, Wendel).
 ## Nahe Treffer (unter SICHT_MINDEST) ignoriert die Kamera, die Probe auch.
 ##
 ## Zu den Querlagen kommt der Anlauf auf jede Kiste (`_anlaufstellen`).
@@ -789,7 +811,13 @@ func _pruefe_sicht(stellen: Array[Dictionary], modelle: Array[Dictionary],
 ## Kisten vorbei). Stellen 3–5,5 m vor jeder Kiste, halbmeterweise, in
 ## ihrer Querlage (höchstens bis zum Rand). Kisten neben dem Weg (auf
 ## Simsen und Wurzeln) haben keinen Anlauf auf dem Weg.
+##
+## Dazu die Querlagen, in denen der Strahl die Kiste mittig trifft: Die
+## Kamera folgt seitlich nur zu `seiten_faktor`, der Strahl liegt also bei
+## 0,85 · q der Figur. Wer bei q 3 läuft, schickt ihn durch eine Kiste bei
+## q 2,6 – in keiner der Lagen oben. Deshalb auch q/0,85 und ±0,5 m daneben.
 func _anlaufstellen() -> Array[Dictionary]:
+	var faktor := _kamera.seiten_faktor if _kamera != null else 0.85
 	var verlauf := _verlauf()
 	var stellen: Array[Dictionary] = []
 	for knoten in get_tree().get_nodes_in_group("kisten"):
@@ -803,6 +831,11 @@ func _anlaufstellen() -> Array[Dictionary]:
 		var halb: float = float(_level.call("breite_bei", s_k)) * 0.5
 		if absf(q_k) > halb + 0.5:
 			continue
+		var lagen: Array[float] = [q_k]
+		if faktor > 0.01:
+			var mittig := q_k / faktor
+			for dq: float in [0.0, -0.5, 0.5]:
+				lagen.append(mittig + dq)
 		var d := 3.0
 		while d <= 5.51:
 			var s := s_k - d
@@ -811,9 +844,19 @@ func _anlaufstellen() -> Array[Dictionary]:
 			if breite <= 0.0:
 				continue
 			var rand := maxf(breite * 0.5 - SICHT_RANDABSTAND, 0.0)
-			var fuss := _figur_ort(verlauf, s, clampf(q_k, -rand, rand))
-			if fuss.is_finite():
-				stellen.append({"s": s, "q": q_k, "fuss": fuss, "lage": "im Anlauf"})
+			var gesetzt: Array[float] = []
+			for lage in lagen:
+				var q := clampf(lage, -rand, rand)
+				var doppelt := false
+				for g in gesetzt:
+					if absf(g - q) < 0.2:
+						doppelt = true
+				if doppelt:
+					continue
+				gesetzt.append(q)
+				var fuss := _figur_ort(verlauf, s, q)
+				if fuss.is_finite():
+					stellen.append({"s": s, "q": q, "fuss": fuss, "lage": "im Anlauf"})
 	stellen.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return float(a["s"]) < float(b["s"]))
 	return stellen
@@ -841,7 +884,10 @@ func _sicht_funde(stellen: Array[Dictionary], modelle: Array[Dictionary]) -> Arr
 		var schwer := false
 		match art:
 			"kiste":
-				schwer = false
+				# Heranholen an eine Kiste ist flüchtig (sie zerbricht), vor
+				# die Figur nie: Die Kamera schwenkte bei jedem Anlauf an ihr
+				# vorbei (Plan P2, Level 01 bergauf in der Wendel).
+				schwer = vor_figur
 			"kiste_regelwidrig":
 				schwer = true
 			"sperre", "boden":

@@ -250,7 +250,9 @@ static func _ort(rahmen: Dictionary, a: float, q: float, h: float) -> Vector3:
 static func _stein(st: SurfaceTool, rahmen: Dictionary, q: float, breite_q: float,
 		tiefe: float, zurueck: float, rng: RandomNumberGenerator) -> void:
 	# Heller Kalk, aber kein Weiß: In der Sonne überstrahlte er sonst.
-	var grund := Color(0.72, 0.68, 0.58).lerp(Color(0.64, 0.64, 0.55), rng.randf())
+	# LINEAR (der Lippenstoff nimmt ALBEDO = COLOR.rgb): Als sRGB-Wert
+	# gewählt (0,72/0,68/0,58) lagen die Steine als weiße Münzen in der Spur.
+	var grund := Color(0.40, 0.37, 0.30).lerp(Color(0.34, 0.34, 0.28), rng.randf())
 	grund *= rng.randf_range(0.9, 1.05)
 	const N := 10
 	var ra := tiefe * 0.5
@@ -276,7 +278,8 @@ static func _splitter(st: SurfaceTool, rahmen: Dictionary, q: float, breite_q: f
 	var zahl := rng.randi_range(2, 3)
 	var teil := breite_q / float(zahl)
 	for i in zahl:
-		var grund := Color(0.8, 0.69, 0.5).lerp(Color(0.72, 0.64, 0.52), rng.randf())
+		# Warm und satt (linear): blasses Holz wurde im Schatten blaugrau.
+		var grund := Color(0.46, 0.30, 0.14).lerp(Color(0.40, 0.27, 0.15), rng.randf())
 		grund *= rng.randf_range(0.88, 1.04)
 		var b := teil * rng.randf_range(0.34, 0.46)
 		var qm := q - breite_q * 0.5 + teil * (float(i) + 0.5) + rng.randf_range(-0.05, 0.05) * teil
@@ -308,7 +311,9 @@ static func _platte(st: SurfaceTool, rahmen: Dictionary, umriss: Array[Vector2],
 		rng: RandomNumberGenerator) -> void:
 	var n_ := umriss.size()
 	var hell := grund * 1.06
-	var rand_farbe := grund * 0.8
+	# Der Rand dunkel und erdig-moosig: Der Stein liegt IM Boden. Ein Ring
+	# daneben las sich auf der hellen Spur als schwarzer Umriss.
+	var rand_farbe := (grund * 0.8).lerp(Color(0.07, 0.075, 0.035), 0.3 if art == STEIN else 0.0)
 	var flanke := grund * 0.58
 	var kopf := _ort(rahmen, mitte2.x, mitte2.y, woelbung + 0.008)
 	var innen_ring: Array[Vector3] = []
@@ -358,7 +363,7 @@ static func _pilz(st: SurfaceTool, ort: Vector3, hut: float, neigung: Vector3,
 	var stiel_h := hut * rng.randf_range(0.8, 1.3)
 	var fuss := ort - achse * 0.05
 	var kopf := ort + achse * stiel_h
-	var stiel := Color(0.8, 0.76, 0.64)
+	var stiel := Color(0.6, 0.54, 0.37)
 	var glut := Color(1.0, 0.56, 0.2).lerp(Color(1.0, 0.72, 0.3), rng.randf())
 	var drehung := rng.randf() * TAU
 	for k in N:

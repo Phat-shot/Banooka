@@ -4,11 +4,14 @@ class_name L01Weltenbaum
 ## (Plan Abschnitte 5E, 5F, 11 K1/K5, 13).
 ##
 ## WAS HIER ENTSTEHT
-## * Der **Stamm** (Ø 24 m am Fuß, Ø 16 m bei y 36) mit Brettwurzeln, die in
-##   den Knoll und die Wurzelgruben auslaufen, fünf fast waagerechten Ästen,
-##   Konsolenpilzen, Efeu, Maserknollen, Leuchtpilzen und Moosstreifen. Borke
-##   in Weltprojektion (`Weltenbaum.stoff_stamm()`), ab 88 m die dunkle
-##   Fernfassung.
+## * Der **Stamm** (Ø 24 m am Fuß, Ø 16 m bei y 36) mit Brettwurzeln als
+##   dünnen Finnen (oben 0,5–0,9 m, am Fuß 2–3 m, der Grat fällt von
+##   10–12 m am Stamm bis 9–14 m hinaus), die in den Knoll und die
+##   Wurzelgruben auslaufen, tief dunklen Spalten dazwischen mit großen
+##   Farnen (`_fussfarne`), fünf fast waagerechten Ästen, Konsolenpilzen in
+##   Stufen (`Weltenbaum.konsolen_in`), Efeu, zwei kleinen Maserknollen,
+##   Leuchtpilzen und Moosstreifen. Borke in Weltprojektion
+##   (`Weltenbaum.stoff_stamm()`), ab 88 m die dunkle Fernfassung.
 ## * Der **Kronenschirm** aus `Kronenwolke`-Ballen: Unterseite am Rand bei
 ##   y ≈ 33, Oberseite ≈ 70. Über dem Regal hängt ein Vorhang aus Laub weit
 ##   über das Tal hinaus (bis r 46) – im Schlussbild das dunkle obere Band.
@@ -20,14 +23,23 @@ class_name L01Weltenbaum
 ##     ein dunkler Grund, in den Rissen Farne und Leuchtpilze.
 ##   - Außen die **Außenwurzel**: Ihr Kamm ist der Rindenwulst (genau auf der
 ##     Kollision, +0,6), ihr Leib wölbt sich darunter 2 m hinaus und 4 m
-##     hinab, Knorren brechen ihre Linie. Vier Seitenwurzeln stemmen sich wie
-##     Strebepfeiler in die Wurzelgruben, mit Maserknolle am Ansatz.
+##     hinab. Damit sie sich nicht als glatter Schlauch liest: große
+##     Knorren (1,2–2 m) alle 6–10 m auf dem Leib, an drei Stellen eine
+##     dunkle Fuge, die sie in zwei Stränge teilt, acht Seitenwurzeln von
+##     0,8 bis 4,4 m Stärke, die sich in die Wurzelgruben stemmen (die
+##     dicken mit Maserknolle am Ansatz), und Vorhänge aus Würzelchen und
+##     Moos unter dem Bauch (`_vorhaenge_bauen`, Karten mit Alpha-Schnitt).
+##     Alles jenseits der Wulstkollision (q > 4,7) und unter ihrer
+##     Oberkante.
 ##   - Unter dem Weg die Schürze und die Wand bis in die Gruben
-##     (`boden_unter_wendel`), auf der Decke längs laufende Borkenleisten mit
-##     Moos in den Furchen.
-##   - Brüche G1 und G2 mit gesplitterten Stirnflächen (Jahresringe), die
-##     Oberwurzel (S4/S5), drei Wurzelbögen (TORE "art": "wurzelbogen") und
-##     das Kronentor (s 280): zwei Luftwurzeln vom Südwestast.
+##     (`boden_unter_wendel`). Die Decke selbst malt `wegboden.gdshader`
+##     (Rippen an den Rändern, Querrisse, Knoten); an der Innenkante rollt
+##     ein dunkler, bemooster Fuß 0,3 m unter sie (`_flankenfuss`).
+##   - Brüche G1 und G2 mit Stirnflächen, die herausstehen: Faserkamm,
+##     Borkensaum, unruhige Jahresringe um ein verschobenes Mark, nasser
+##     Kern (`Weltenbaum.bruch_in`), die Oberwurzel (S4/S5), drei Wurzelbögen
+##     (TORE "art": "wurzelbogen") und das Kronentor (s 280): zwei
+##     Luftwurzeln vom Südwestast.
 ##
 ## PASSFORM. Die Kollision baut der Rohbau (`Level01.BEGEHBARES`). Hier wird
 ## nur gezeichnet, und zwar so, dass nichts über die Kollision zum Weg hin
@@ -48,13 +60,17 @@ class_name L01Weltenbaum
 ## innerhalb r 13.
 ##
 ## KOSTEN (Plan Abschnitt 13, Grenze 16 Zeichenaufrufe + 6 Schatten, 70k
-## Primitive). Je Kehlenstück ein Netz mit zwei Flächen (Wurzelborke,
-## Deckborke), dazu Stamm, grobe und feine Krone, Kronentor und zwei Farn-
-## MultiMeshes. Schatten werfen nur drei schlichte Schattenkörper (Stamm samt
-## Ästen, Kehle samt Bögen, Kronentor): Die nahen Netze zeichnen keine
-## Schattenstufe. Gemessen als Differenz mit/ohne dieses Modul (Aufrufe samt
-## Schattenstufen / Primitive): s 176 15 / 49k, s 212 16 / 54k,
+## Primitive). Je Kehlenstück ein Netz mit einer Fläche (Wurzelborke), dazu
+## Stamm, grobe und feine Krone, Kronentor, zwei Farn-MultiMeshes in der
+## Kehle, eines am Stammfuß und die Vorhänge. Schatten werfen nur drei
+## schlichte Schattenkörper (Stamm samt Ästen, Kehle samt Bögen,
+## Kronentor): Die nahen Netze zeichnen keine Schattenstufe. Gemessen als
+## Differenz mit/ohne dieses Modul (Aufrufe samt Schattenstufen /
+## Primitive), vor der Nachbesserung: s 176 15 / 49k, s 212 16 / 54k,
 ## s 249 18 / 69k, s 262 19 / 69k, s 281 17 / 62k, vom Grat (s 60) 3 / 11k.
+## Die Nachbesserung nahm je Kehlenstück die Deckfläche weg (−1) und gab
+## Fußfarne und Vorhänge dazu (+1 je, wo sie im Bild sind); die ganze
+## Station liegt bei 241–274 Aufrufen und 170–248k Primitiven (s 212–262).
 ## Ab 88 m übernimmt die Fernfassung (Stamm und Kehle ≈ 4,3k Dreiecke,
 ## dazu die grobe Krone 5,5k); bis 110 m überlappen Nah und Fern – eine
 ## Lücke wäre schlimmer als ein paar doppelt gezeichnete Dreiecke.
@@ -69,15 +85,19 @@ const PROFIL := [
 	Vector2(61.0, 4.6),
 ]
 
-## Brettwurzeln, Winkel in Grad (0 = Osten, 90 = Norden). Die fünf im freien
-## Sektor stemmen den Stamm in den Knoll (Süd- und Westseite, von der
-## Bachwiese aus zu sehen); die drei unter der Wendel laufen in die Gruben.
+## Brettwurzeln, Winkel in Grad (0 = Osten, 90 = Norden): dünne Finnen
+## (`Weltenbaum.brettwurzel_in`), deren Grat von 10–12 m am Stamm bis 9–14 m
+## hinaus auf null fällt. Die sechs im freien Sektor stemmen den Stamm in
+## den Knoll (Süd- und Westseite, von der Bachwiese aus zu sehen); die drei
+## unter der Wendel laufen in die Gruben.
 const BRETTWURZELN := [
-	{"winkel": 178.0, "reichweite": 9.0, "hoehe": 12.0, "dicke": 2.0, "fuss_y": 5.2},
-	{"winkel": 206.0, "reichweite": 11.0, "hoehe": 10.0, "dicke": 2.2, "fuss_y": 5.6},
-	{"winkel": 234.0, "reichweite": 9.5, "hoehe": 11.5, "dicke": 1.9, "fuss_y": 6.2},
-	{"winkel": 259.0, "reichweite": 8.0, "hoehe": 9.0, "dicke": 1.8, "fuss_y": 6.6},
-	{"winkel": 287.0, "reichweite": 5.5, "hoehe": 7.5, "dicke": 1.6, "fuss_y": 6.8},
+	{"winkel": 178.0, "reichweite": 11.0, "hoehe": 12.0, "dicke": 2.2, "fuss_y": 5.2},
+	{"winkel": 203.0, "reichweite": 13.0, "hoehe": 11.0, "dicke": 2.4, "fuss_y": 5.6},
+	{"winkel": 226.0, "reichweite": 9.5, "hoehe": 10.0, "dicke": 1.7, "fuss_y": 6.0},
+	{"winkel": 246.0, "reichweite": 12.0, "hoehe": 11.5, "dicke": 2.1, "fuss_y": 6.3},
+	# Zur Bachwiese hin kurz: Dort läuft der Weg (D) nur 16 m von der Achse.
+	{"winkel": 268.0, "reichweite": 7.5, "hoehe": 9.5, "dicke": 1.8, "fuss_y": 6.6},
+	{"winkel": 291.0, "reichweite": 5.0, "hoehe": 8.0, "dicke": 1.6, "fuss_y": 6.8},
 	{"winkel": 18.0, "reichweite": 13.0, "hoehe": 10.0, "dicke": 2.4, "fuss_y": -2.0},
 	{"winkel": 63.0, "reichweite": 14.0, "hoehe": 10.0, "dicke": 2.4, "fuss_y": -2.0},
 	{"winkel": 108.0, "reichweite": 12.0, "hoehe": 11.0, "dicke": 2.2, "fuss_y": -1.5},
@@ -301,6 +321,42 @@ static func _baum_bauen(level: Level01) -> void:
 			Weltenbaum.stoff_krone(false), false)
 	krone_nah.visibility_range_end = KRONE_NAH_BIS
 	krone_nah.visibility_range_end_margin = RAND
+	_fussfarne(baum)
+
+
+## Große Farne in den Spalten zwischen den Brettwurzeln des freien Sektors:
+## Von der Bachwiese aus füllen sie die dunklen Kehlen am Stammfuß. Ein
+## MultiMesh, ohne Schatten, bis 70 m.
+static func _fussfarne(baum: Node3D) -> void:
+	var rng := PropWerkzeug.zufall(6071)
+	var lagen: Array[Transform3D] = []
+	for i in 5:
+		var a: Dictionary = BRETTWURZELN[i]
+		var b: Dictionary = BRETTWURZELN[i + 1]
+		var w0 := deg_to_rad(float(a["winkel"]))
+		var w1 := deg_to_rad(float(b["winkel"]))
+		var y := (float(a["fuss_y"]) + float(b["fuss_y"])) * 0.5
+		for k in 3:
+			var w := lerpf(w0, w1, rng.randf_range(0.28, 0.72))
+			var r := stamm_radius(y) + rng.randf_range(0.6, 3.4)
+			var ort := Vector3(cos(w) * r, y - 0.15, -sin(w) * r)
+			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(
+					Vector3.ONE * rng.randf_range(0.9, 1.5))
+			lagen.append(Transform3D(basis, ort))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = Farnwerk.gross(73)
+	mm.instance_count = lagen.size()
+	for k in lagen.size():
+		mm.set_instance_transform(k, lagen[k])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Fussfarne"
+	mmi.multimesh = mm
+	mmi.material_override = Farnwerk.stoff(FARN_FARBE)
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.visibility_range_end = 70.0
+	mmi.visibility_range_end_margin = RAND
+	baum.add_child(mmi)
 
 
 ## Die Optionen für `Weltenbaum.stamm_in` – Beiwerk dort, wo man es sieht:
@@ -344,10 +400,12 @@ static func _stamm_optionen(level: Level01, bahn: Bahn) -> Dictionary:
 	for w_grad: float in [194.0, 262.0]:
 		efeu.append({"winkel": deg_to_rad(w_grad), "von": 6.5,
 				"bis": rng.randf_range(20.0, 28.0), "blatt": 0.4, "band": 1.5})
+	# Maserknollen klein und hoch: Mit 1,6–2,4 m Radius lagen sie über den
+	# Brettwurzeln wie Brotlaibe am Stamm.
 	var knollen: Array = []
-	for w_grad: float in [201.0, 240.0, 268.0, 150.0]:
-		knollen.append({"winkel": deg_to_rad(w_grad), "y": rng.randf_range(14.0, 26.0),
-				"radius": rng.randf_range(1.6, 2.4)})
+	for w_grad: float in [214.0, 150.0]:
+		knollen.append({"winkel": deg_to_rad(w_grad), "y": rng.randf_range(18.0, 26.0),
+				"radius": rng.randf_range(0.8, 1.2)})
 	return {
 		"profil": _profil(),
 		"y_von": -4.0,
@@ -473,20 +531,15 @@ static func _kehle_bauen(level: Level01) -> void:
 	var nah := _ziel(false)
 	_kehle_in(nah, bahn, level, "nah")
 	var holz := Weltenbaum.stoff_wurzel()
-	var deck := _deckstoff()
 	for i in (nah["stuecke"] as Array).size():
 		var stueck: Dictionary = nah["stuecke"][i]
-		var netz := ArrayMesh.new()
-		for art: String in ["holz", "deck"]:
-			var st: SurfaceTool = stueck[art]
-			if not bool(stueck["leer_" + art]):
-				st.index()
-				st.generate_tangents()
-				st.commit(netz)
-				netz.surface_set_material(netz.get_surface_count() - 1,
-						holz if art == "holz" else deck)
-		if netz.get_surface_count() == 0:
+		if bool(stueck["leer_holz"]):
 			continue
+		var st: SurfaceTool = stueck["holz"]
+		st.index()
+		st.generate_tangents()
+		var netz := st.commit()
+		netz.surface_set_material(0, holz)
 		var mi := MeshInstance3D.new()
 		mi.name = "Kehle%d" % i
 		mi.mesh = netz
@@ -495,6 +548,7 @@ static func _kehle_bauen(level: Level01) -> void:
 		mi.visibility_range_end_margin = RAND
 		wurzel.add_child(mi)
 	_farne_setzen(wurzel, bahn, level)
+	_vorhaenge_bauen(wurzel, bahn, level)
 
 	var schatten := _ziel(true)
 	_kehle_in(schatten, bahn, level, "schatten")
@@ -513,8 +567,8 @@ static func _kehle_bauen(level: Level01) -> void:
 	_sichtkoerper_boegen(wurzel, bahn, level)
 
 
-## Ein Sammelziel: nah je Stück zwei Sammler (Wurzelborke, Deckborke),
-## grob (Schatten, Ferne) ein einziger.
+## Ein Sammelziel: nah je Stück ein Sammler (Wurzelborke), grob (Schatten,
+## Ferne) ein einziger.
 static func _ziel(grob: bool) -> Dictionary:
 	var ziel := {"grob": grob, "stuecke": [], "einer": null}
 	if grob:
@@ -522,8 +576,7 @@ static func _ziel(grob: bool) -> Dictionary:
 		return ziel
 	for v: Vector2 in STUECKE:
 		(ziel["stuecke"] as Array).append({"von": v.x, "bis": v.y,
-				"holz": Riesenstamm.bauer(), "deck": Riesenstamm.bauer(),
-				"leer_holz": true, "leer_deck": true})
+				"holz": Riesenstamm.bauer(), "leer_holz": true})
 	return ziel
 
 
@@ -572,7 +625,8 @@ static func _kehle_in(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: Strin
 		_flanke_straenge(ziel, bahn, level)
 		_flanke_grund(ziel, bahn, level, 1.2)
 		_faserwurzeln(ziel, bahn, level, PropWerkzeug.zufall(6017))
-		_deckleisten(ziel, bahn, level)
+		_flankenfuss(ziel, bahn, level)
+		_knorren_bauen(ziel, bahn, level)
 		_brueche(ziel, bahn, level, rng)
 		_pilze_in_rissen(ziel, bahn, level, rng)
 	else:
@@ -843,9 +897,12 @@ static func _faserwurzeln(ziel: Dictionary, bahn: Bahn, _level: Level01,
 		if (s > G1.x - 2.0 and s < G1.y + 1.0) or (s > G2.x - 2.0 and s < G2.y + 1.0):
 			s += 2.5
 			continue
-		var laenge := rng.randf_range(2.0, 6.0) * (1.0 if rng.randf() < 0.5 else -1.0)
-		var r := rng.randf_range(0.13, 0.28)
-		var t_oben := rng.randf_range(0.85, 1.08)
+		# Dichter und kräftiger als zuerst (alle 2–4,5 m, bis 0,34 m): Sie
+		# zerteilen die großen, glatten Stränge, die sich von der Seite als
+		# gestapelte Brotlaibe lasen.
+		var laenge := rng.randf_range(2.0, 6.5) * (1.0 if rng.randf() < 0.5 else -1.0)
+		var r := rng.randf_range(0.13, 0.34)
+		var t_oben := rng.randf_range(0.7, 1.08)
 		var t_unten := rng.randf_range(0.03, 0.3)
 		var punkte := PackedVector3Array()
 		var radien := PackedFloat32Array()
@@ -862,7 +919,7 @@ static func _faserwurzeln(ziel: Dictionary, bahn: Bahn, _level: Level01,
 				"saat": rng.randi(), "ende": "spitz", "uv_mass": 1.2})
 		Weltenbaum.gitter_faerben(g, _faserfarbe, 0.2)
 		Weltenbaum.gitter_schreiben(_st_bei(ziel, s), g)
-		s += rng.randf_range(3.0, 6.5)
+		s += rng.randf_range(2.0, 4.5)
 
 
 static func _faserfarbe(_p: Vector3, nn: Vector3) -> Color:
@@ -963,23 +1020,33 @@ static func _aussenprofil(level: Level01, s: float, rauschen: FastNoiseLite) -> 
 	# Der Leib wölbt sich ungleich weit hinaus – an den Seitenwurzeln mehr.
 	var wulst := 1.0 + 0.22 * rauschen.get_noise_1d(s * 0.9) + 0.1 * sin(s / 2.9)
 	var tief := 1.0 + 0.15 * sin(s / 5.7 + 0.4)
-	for sw: float in _seitenwurzel_stellen():
-		wulst += 0.35 * exp(-pow((s - sw) / 2.2, 2.0))
-	# Knorren: Buckel außen am Kamm, höher als der Kamm selbst – aber jenseits
-	# der Wulstkollision (q > 4,7), also nie im Weg. Sie brechen die glatte
-	# Linie, die sich sonst als Bordstein las.
+	var stellen := _seitenwurzel_stellen()
+	for i in stellen.size():
+		wulst += 0.35 * _seitenwurzel_dicke(i) * exp(-pow((s - stellen[i]) / 2.2, 2.0))
+	# Knorren im Profil: flache Buckel außen am Kamm, jenseits der
+	# Wulstkollision (q > 4,7) und unter ihrer Oberkante (+0,6) – nichts, was
+	# man für begehbar hielte. Die großen Knorren sitzen als eigene Körper
+	# darunter (`_knorren_bauen`).
 	var knorren := 0.0
 	for kn in _knorren():
 		knorren += kn.y * exp(-pow((s - kn.x) / kn.z, 2.0))
 	knorren *= kamm
+	# Spalten: An drei Stellen teilt sich die Außenwurzel in zwei Stränge –
+	# eine dunkle Fuge läuft mitten durch den Leib.
+	var fuge := _fuge(s) * kamm
 	var punkte := PackedVector2Array()
 	for k in KAMM.size():
 		var pk: Vector2 = KAMM[k]
 		if k >= 6:
 			pk = Vector2(0.55 + (pk.x - 0.55) * wulst, 0.46 + (pk.y - 0.46) * tief)
 		if k >= 6 and k <= 9:
-			var gewicht: float = [1.0, 0.85, 0.5, 0.2][k - 6]
+			var gewicht: float = [0.5, 0.85, 0.6, 0.25][k - 6]
 			pk += Vector2(0.18, 1.0) * knorren * gewicht
+		if k >= 8 and k <= 12:
+			# Die Fuge zieht die Punkte 9–11 nach innen, der untere Strang
+			# (12) wölbt sich dafür etwas hinaus.
+			var ein: float = [0.1, 0.55, 0.85, 0.5, -0.22][k - 8]
+			pk.x -= ein * fuge
 		var pf: Vector2 = FLACH[k]
 		var pl: Vector2 = LIPPE[k]
 		var p := pk * kamm + pf * flach + pl * lippe
@@ -987,14 +1054,24 @@ static func _aussenprofil(level: Level01, s: float, rauschen: FastNoiseLite) -> 
 	return punkte
 
 
-## Knorren auf der Außenwurzel: Vector3(s, Höhe, halbe Länge), fest gewürfelt.
+## Stärke der Fuge (0..1) an der Stelle s: drei Stellen, an denen sich die
+## Außenwurzel in zwei Stränge teilt, mit weichem Ein- und Auslauf.
+static func _fuge(s: float) -> float:
+	var f := 0.0
+	for z: Vector2 in [Vector2(219.5, 227.5), Vector2(236.5, 241.5), Vector2(259.5, 267.0)]:
+		f = maxf(f, smoothstep(z.x, z.x + 1.8, s) * (1.0 - smoothstep(z.y - 1.8, z.y, s)))
+	return f
+
+
+## Knorren im Profil: Vector3(s, Höhe, halbe Länge), fest gewürfelt.
+## Höchstens 0,22 m, damit der Buckel unter der Wulstoberkante bleibt.
 static func _knorren() -> Array[Vector3]:
 	var liste: Array[Vector3] = []
 	var rng := PropWerkzeug.zufall(5521)
 	var s := 216.0
 	while s < 271.0:
 		if s < G2.x - 1.5 or s > G2.y + 1.5:
-			liste.append(Vector3(s, rng.randf_range(0.18, 0.42), rng.randf_range(0.8, 1.5)))
+			liste.append(Vector3(s, rng.randf_range(0.1, 0.22), rng.randf_range(0.8, 1.5)))
 		s += rng.randf_range(5.5, 9.0)
 	return liste
 
@@ -1027,6 +1104,9 @@ static func _aussenwurzel(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: S
 					p = p.lerp(Vector2(_kante(level, s) + 0.7, -1.8), 0.08)
 				punkte.append(p)
 				var ao: float = AUSSEN_AO[k]
+				# In der Fuge fast schwarz.
+				if k >= 9 and k <= 11:
+					ao *= 1.0 - 0.7 * _fuge(s) * [0.6, 1.0, 0.6][k - 9]
 				# Moos in Flecken, nicht als Teppich.
 				var fleck := maxf(0.0, flecken.get_noise_2d(s, float(k) * 0.7))
 				var moos: float = AUSSEN_MOOS[k] * (0.35 + 1.1 * fleck) \
@@ -1105,7 +1185,14 @@ static func _unterbau(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: Strin
 ## den Füßen der Wurzelbögen, sonst läse sich Bogen und Seitenwurzel als
 ## ein einziger Fangarm.
 static func _seitenwurzel_stellen() -> Array[float]:
-	return [219.0, 237.5, 261.0, 270.5]
+	return [217.0, 223.0, 234.5, 240.0, 248.0, 258.5, 264.0, 270.5]
+
+
+## Dicke der Seitenwurzel `i` relativ zum Strebepfeiler (Radius 1,55–2,2 m):
+## drei mächtige, dazwischen schlanke bis 0,4 m. Gleich dick las sich die
+## Wendel als Rohr auf Stelzen.
+static func _seitenwurzel_dicke(i: int) -> float:
+	return [1.0, 0.38, 0.72, 0.26, 0.9, 0.44, 0.3, 0.85][i % 8]
 
 
 static func _seitenwurzeln(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: String,
@@ -1127,13 +1214,18 @@ static func _seitenwurzeln(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: 
 			Vector3(sw + drift, e + 8.2, boden + 3.0), Vector3(sw + 1.1 * drift, e + 9.4, boden + 0.4),
 			Vector3(sw + 1.15 * drift, e + 10.2, boden - 1.8),
 		]
+		var dicke := _seitenwurzel_dicke(nummer)
+		# Schlanke Wurzeln hängen steiler und näher am Leib.
+		if dicke < 0.6:
+			for k in punkte_sqh.size():
+				var p: Vector3 = punkte_sqh[k]
+				punkte_sqh[k] = Vector3(p.x, e + (p.y - e) * lerpf(0.55, 1.0, dicke), p.z)
 		var punkte := PackedVector3Array()
 		for p: Vector3 in punkte_sqh:
 			punkte.append(bahn.p(p.x, p.y, p.z))
 		var radien := PackedFloat32Array([2.2, 2.0, 1.75, 1.55, 1.6, 1.95, 2.2])
-		if stufe == "schatten":
-			for k in radien.size():
-				radien[k] *= 0.85
+		for k in radien.size():
+			radien[k] *= dicke * (0.85 if stufe == "schatten" else 1.0)
 		var g := Weltenbaum.rohr(punkte, radien, {"seiten": seiten, "beulen": 0.1,
 				"saat": 700 + nummer, "uv_mass": 0.5})
 		var tiefe := deck + boden
@@ -1143,12 +1235,12 @@ static func _seitenwurzeln(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: 
 		Weltenbaum.gitter_faerben(g, farbe, 0.3)
 		var st := _st_bei(ziel, sw)
 		Weltenbaum.gitter_schreiben(st, g)
-		if stufe != "nah":
+		if stufe != "nah" or dicke < 0.6:
 			continue
 		# Maserknolle, wo die Seitenwurzel aus der Außenwurzel bricht.
 		var aussen := (bahn.rahmen(sw).r * 0.85 + Vector3.DOWN * 0.35).normalized()
 		Weltenbaum.knolle_in(st, bahn.p(sw, e + 2.2, -1.6), aussen,
-				rng.randf_range(1.5, 1.9), rng, 0.55)
+				rng.randf_range(1.5, 1.9) * dicke, rng, 0.55)
 		# Ein zweiter, dünner Ausläufer auf halber Höhe.
 		if rng.randf() < 0.6:
 			var ab := punkte[2]
@@ -1165,73 +1257,311 @@ static func _seitenwurzeln(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: 
 			Weltenbaum.gitter_schreiben(st, gz)
 
 
-# ---------------------------------------------------------------- Decke
+# ---------------------------------------------------------------- Knorren
 
-## Stoff der Borkenleisten auf der Decke: kaum Moos von oben, damit die
-## Leisten hell und abgetreten bleiben – das Moos wächst nur in den Furchen
-## (Scheitelfarbe).
-static func _deckstoff() -> ShaderMaterial:
-	return Riesenstamm.borkenstoff({"moos_oben": 0.0, "moos_nord": 0.1, "flechten": 0.3})
-
-
-## Längs laufende Borkenleisten an beiden Rändern der Decke, 1,4 m breit
-## und höchstens 7 cm hoch, mit Moos in den Furchen. Die Leisten setzen aus,
-## wandern und wechseln die Höhe – als gleichmäßige Rillen lasen sie sich
-## wie Schienen. An Lücken und am Wegende laufen sie aus.
-static func _deckleisten(ziel: Dictionary, bahn: Bahn, level: Level01) -> void:
-	var us := [0.0, 0.18, 0.33, 0.52, 0.68, 0.86, 1.0]
+## Große Knorren auf dem Leib der Außenwurzel: 1,2–2 m lange, 0,3–0,55 m
+## hohe Buckel alle 6–10 m, dort, wo die Spielkamera auf den Leib schaut
+## (zwischen Kamm und Bauch). Sie liegen ganz jenseits der Wulstkollision
+## (q > 4,7) und unter ihrer Oberkante (+0,6) – Beiwerk, das nichts
+## Begehbares vortäuscht. Nicht an Seitenwurzeln (die haben ihre
+## Maserknolle), nicht an den Füßen der Wurzelbögen, nicht an G2.
+static func _knorren_bauen(ziel: Dictionary, bahn: Bahn, level: Level01) -> void:
+	var rng := PropWerkzeug.zufall(6041)
 	var rauschen := FastNoiseLite.new()
-	rauschen.seed = 5531
-	rauschen.frequency = 0.22
+	rauschen.seed = 5507
+	rauschen.frequency = 0.25
+	var sperren: Array[Vector2] = [Vector2(G2.x - 2.0, G2.y + 2.0), Vector2(227.0, 231.0),
+			Vector2(251.0, 255.0)]
+	for sw: float in _seitenwurzel_stellen():
+		sperren.append(Vector2(sw - 2.3, sw + 2.3))
+	var s := 216.5 + rng.randf_range(0.0, 2.0)
+	while s < 271.0:
+		var frei := true
+		for sp in sperren:
+			if s > sp.x and s < sp.y:
+				frei = false
+		if not frei:
+			s += 1.0
+			continue
+		var profil := _aussenprofil(level, s, rauschen)
+		var a := profil[7]
+		var b := profil[8]
+		var mitte := a.lerp(b, rng.randf_range(0.35, 0.65))
+		var t2 := (b - a).normalized()
+		var n2 := Vector2(-t2.y, t2.x)
+		if n2.x < 0.0:
+			n2 = -n2
+		var ra := bahn.rahmen(s)
+		var aussen := (ra.r * n2.x + Vector3.UP * n2.y).normalized()
+		var quer := (ra.r * -n2.y + Vector3.UP * n2.x).normalized()
+		var ort := ra.p(mitte.x, mitte.y) - aussen * 0.05
+		_knorre_in(_st_bei(ziel, s), ort, aussen, quer, ra.v, rng.randf_range(0.6, 1.0),
+				rng.randf_range(0.45, 0.62), rng.randf_range(0.3, 0.55), rng)
+		s += rng.randf_range(6.0, 10.0)
+
+
+## Ein Knorren: ovaler, verbeulter Buckel, zu 15 % eingesunken. `laengs`
+## und `quer` spannen die Unterlage, `aussen` zeigt von ihr weg; Halbachsen
+## `a_l`, `a_q`, Höhe `hoch`.
+static func _knorre_in(st: SurfaceTool, mitte: Vector3, aussen: Vector3, quer: Vector3,
+		laengs: Vector3, a_l: float, a_q: float, hoch: float, rng: RandomNumberGenerator) -> void:
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = rng.randi()
+	rauschen.frequency = 2.2
+	const SEITEN := 12
+	var breiten := PackedFloat32Array([1.1, 1.0, 0.86, 0.62, 0.32, 0.0])
+	var g := {"p": [], "uv": [], "ringsum": true}
+	var kerne := PackedVector3Array()
+	for i in breiten.size():
+		var b := breiten[i]
+		var h := sqrt(maxf(0.0, 1.0 - minf(b, 1.0) * minf(b, 1.0))) * hoch
+		if b > 1.0:
+			h = -hoch * 0.18
+		var zeile := PackedVector3Array()
+		var uv := PackedVector2Array()
+		for j in SEITEN + 1:
+			var w := TAU * float(j % SEITEN) / float(SEITEN)
+			var p := mitte + laengs * cos(w) * a_l * b + quer * sin(w) * a_q * b + aussen * h
+			p += aussen * hoch * 0.18 * rauschen.get_noise_3dv(p) * minf(b * 2.0, 1.0)
+			zeile.append(p)
+			uv.append(Vector2(float(j) / float(SEITEN) * 2.0, float(i) * 0.35))
+		(g["p"] as Array).append(zeile)
+		(g["uv"] as Array).append(uv)
+		kerne.append(mitte - aussen * hoch)
+	var farbe := func(p: Vector3, n: Vector3) -> Color:
+		var ao := lerpf(0.42, 1.0, clampf((p - mitte).dot(aussen) / maxf(hoch, 0.01), 0.0, 1.0))
+		return Color(ao, ao, ao, clampf(0.15 + n.y * 0.7, 0.0, 1.0))
+	Weltenbaum.gitter_faerben(g, farbe, 0.4)
+	Weltenbaum.orientieren(g, func(i: int) -> Vector3: return kerne[i])
+	Weltenbaum.neu_faerben(g, farbe, 0.4)
+	Weltenbaum.gitter_schreiben(st, g)
+
+
+# ---------------------------------------------------------------- Vorhänge
+
+static var _vorhang_stoff: ShaderMaterial = null
+
+## Wurzel- und Moosvorhänge unter dem Leib der Außenwurzel: Karten mit
+## Alpha-Schnitt (0,5–1,1 m breit, 1,2–3,2 m lang), die vom Bauch in die
+## Gruben hängen und sich im Wind leise wiegen (nur im Vertexshader, kein
+## Knoten bewegt sich). Ohne Schatten, EIN Netz, bis 70 m sichtbar. Sie
+## brechen die glatte Unterkante, die die Wendel von der Seite als
+## Schlauch zeigte.
+static func _vorhaenge_bauen(eltern: Node3D, bahn: Bahn, level: Level01) -> void:
+	var rng := PropWerkzeug.zufall(6053)
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = 5507
+	rauschen.frequency = 0.25
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var s := 214.5
+	var anzahl := 0
+	while s < 272.0:
+		var weiter := rng.randf_range(0.9, 2.1)
+		var bei_wurzel := false
+		for sw: float in _seitenwurzel_stellen():
+			if absf(s - sw) < 1.4:
+				bei_wurzel = true
+		if (s > G2.x - 0.6 and s < G2.y + 0.6) or bei_wurzel:
+			s += weiter
+			continue
+		var profil := _aussenprofil(level, s, rauschen)
+		var haken := profil[11].lerp(profil[12], rng.randf())
+		var ra := bahn.rahmen(s)
+		var oben := ra.p(haken.x - 0.08, haken.y + 0.05)
+		var breite := rng.randf_range(0.5, 1.1)
+		var laenge := rng.randf_range(1.2, 3.2)
+		var gier := rng.randf_range(-1.2, 1.2)
+		var achse := (ra.v * cos(gier) + ra.r * sin(gier)).normalized()
+		var unten := oben + Vector3.DOWN * laenge + ra.r * laenge * rng.randf_range(0.0, 0.12)
+		var u0 := 0.0 if rng.randf() < 0.5 else 0.5
+		var ton := rng.randf_range(0.8, 1.1)
+		var farbe := Color(ton, ton, ton * rng.randf_range(0.9, 1.05), 1.0)
+		var normale := achse.cross(Vector3.DOWN).normalized()
+		var ecken: Array[Vector3] = [oben - achse * breite * 0.5, oben + achse * breite * 0.5,
+				unten + achse * breite * 0.5 * 0.8, unten - achse * breite * 0.5 * 0.8]
+		var uvs: Array[Vector2] = [Vector2(u0, 0.0), Vector2(u0 + 0.5, 0.0), Vector2(u0 + 0.5, 1.0),
+				Vector2(u0, 1.0)]
+		for k: int in [0, 1, 2, 0, 2, 3]:
+			st.set_color(farbe)
+			st.set_normal(normale)
+			st.set_uv(uvs[k])
+			st.add_vertex(ecken[k])
+		anzahl += 1
+		s += weiter
+	if anzahl == 0:
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = "Wurzelvorhaenge"
+	mi.mesh = st.commit()
+	mi.material_override = _vorhangstoff()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_end = 70.0
+	mi.visibility_range_end_margin = RAND
+	eltern.add_child(mi)
+
+
+## Stoff der Vorhänge, geteilt – nie verändern.
+static func _vorhangstoff() -> ShaderMaterial:
+	if _vorhang_stoff != null:
+		return _vorhang_stoff
+	var shader := Shader.new()
+	shader.code = VORHANG_SHADER
+	_vorhang_stoff = ShaderMaterial.new()
+	_vorhang_stoff.shader = shader
+	_vorhang_stoff.set_shader_parameter("bild", _vorhangbild())
+	return _vorhang_stoff
+
+
+## Bild der Vorhänge, 256²: links und rechts je ein Satz dünner Wurzeln,
+## die von oben herabhängen, sich schlängeln und verzweigen, oben
+## Moospolster. Graubraun hinter den Wurzeln (Alpha 0), damit die Mipmaps
+## nicht dunkel ausfransen; in den kleineren Stufen hält Alpha die Deckung.
+static func _vorhangbild() -> ImageTexture:
+	const K := 256
+	const HALB := 128
+	var bild := Image.create_empty(K, K, false, Image.FORMAT_RGBA8)
+	bild.fill(Color8(70, 56, 40, 0))
+	var rng := PropWerkzeug.zufall(6061)
+	for haelfte in 2:
+		var x0 := float(haelfte * HALB)
+		for n in 13:
+			var x := x0 + rng.randf_range(6.0, float(HALB) - 6.0)
+			var dicke := rng.randf_range(1.3, 3.4)
+			var laenge := rng.randf_range(0.4, 1.0) * float(K)
+			var welle := rng.randf_range(2.0, 7.0)
+			var takt := rng.randf_range(0.02, 0.06)
+			var phase := rng.randf() * TAU
+			var ton := rng.randf_range(0.7, 1.0)
+			for y in int(laenge):
+				var f := float(y) / laenge
+				var cx := x + welle * sin(float(y) * takt + phase) * f
+				var halb := maxf(dicke * (1.0 - 0.75 * f) * 0.5, 0.45)
+				var farbe := Color(0.24, 0.17, 0.11).lerp(Color(0.46, 0.36, 0.25), f * 0.8) * ton
+				for px in range(int(floor(cx - halb)), int(ceil(cx + halb)) + 1):
+					if px < int(x0) or px >= int(x0) + HALB:
+						continue
+					bild.set_pixel(px, y, Color(farbe.r, farbe.g, farbe.b, 1.0))
+			# Eine Seitenwurzel ab halber Höhe.
+			if rng.randf() < 0.5:
+				var y_ab := int(laenge * rng.randf_range(0.25, 0.55))
+				var richtung := -1.0 if rng.randf() < 0.5 else 1.0
+				for k in int(laenge * 0.35):
+					var yy := y_ab + k
+					if yy >= K:
+						break
+					var px := int(x + welle * sin(float(yy) * takt + phase) * 0.5 + richtung * float(k) * 0.35)
+					if px >= int(x0) and px < int(x0) + HALB:
+						bild.set_pixel(px, yy, Color(0.3, 0.22, 0.14, 1.0))
+		# Moospolster am oberen Rand.
+		for n in 7:
+			var mx := x0 + rng.randf_range(4.0, float(HALB) - 4.0)
+			var my := rng.randf_range(0.0, 26.0)
+			var r := rng.randf_range(7.0, 16.0)
+			var gruen := Color(0.2, 0.3, 0.09).lerp(Color(0.32, 0.4, 0.13), rng.randf())
+			for py in range(maxi(0, int(my - r)), mini(K, int(my + r))):
+				for px in range(maxi(int(x0), int(mx - r)), mini(int(x0) + HALB, int(mx + r))):
+					var d := Vector2(float(px) - mx, (float(py) - my) * 1.4).length()
+					if d < r * (0.75 + 0.25 * sin(float(px) * 1.7 + float(py))):
+						var hell := 0.8 + 0.2 * (1.0 - d / r)
+						bild.set_pixel(px, py, Color(gruen.r * hell, gruen.g * hell, gruen.b * hell, 1.0))
+	bild.generate_mipmaps()
+	_deckung_halten(bild)
+	return ImageTexture.create_from_image(bild)
+
+
+## Hebt Alpha in den Mipmaps so weit an, dass bei der Schwelle 0,5 etwa so
+## viel deckt wie in der vollen Auflösung (dünne Wurzeln verschwänden
+## sonst in der Ferne).
+static func _deckung_halten(bild: Image) -> void:
+	var daten := bild.get_data()
+	var k := bild.get_width()
+	var soll := _deckung(daten, 0, k * k, 1.0)
+	for stufe in range(1, bild.get_mipmap_count() + 1):
+		var start := bild.get_mipmap_offset(stufe)
+		var kante := maxi(k >> stufe, 1)
+		var anzahl := kante * kante
+		if anzahl < 4:
+			break
+		var lo := 1.0
+		var hi := 6.0
+		for versuch in 8:
+			var mittel := (lo + hi) * 0.5
+			if _deckung(daten, start, anzahl, mittel) < soll:
+				lo = mittel
+			else:
+				hi = mittel
+		var faktor := (lo + hi) * 0.5
+		for i in anzahl:
+			var j := start + i * 4 + 3
+			daten[j] = mini(255, int(float(daten[j]) * faktor))
+	bild.set_data(k, k, true, Image.FORMAT_RGBA8, daten)
+
+
+static func _deckung(daten: PackedByteArray, start: int, anzahl: int, faktor: float) -> float:
+	var zaehler := 0
+	for i in anzahl:
+		if float(daten[start + i * 4 + 3]) * faktor >= 127.5:
+			zaehler += 1
+	return float(zaehler) / float(anzahl)
+
+
+const VORHANG_SHADER := """
+shader_type spatial;
+render_mode cull_disabled, diffuse_lambert_wrap, specular_disabled;
+
+uniform sampler2D bild : source_color, filter_linear_mipmap, repeat_disable;
+
+void vertex() {
+	// Wiegen im Wind, unten stärker als oben (UV.y 0 oben, 1 unten).
+	float w = UV.y * UV.y * 0.12;
+	VERTEX.x += sin(TIME * 0.8 + VERTEX.z * 0.6 + VERTEX.y * 0.2) * w;
+	VERTEX.z += cos(TIME * 0.7 + VERTEX.x * 0.5) * w * 0.7;
+}
+
+void fragment() {
+	vec4 t = texture(bild, UV);
+	ALBEDO = t.rgb * COLOR.rgb;
+	ALPHA = t.a;
+	ALPHA_SCISSOR_THRESHOLD = 0.5;
+	ROUGHNESS = 0.9;
+}
+"""
+
+
+# ---------------------------------------------------------------- Fuß
+
+## Der Fuß des Fleischs an der Wegkante: ein dunkler, bemooster Saum, der
+## 0,3 m unter die Decke rollt und die Flanke ein Stück hinaufläuft. Ohne
+## ihn schien zwischen Wegkante und unterstem Strang eine helle Linie
+## durch. Früher schlossen das Borkenleisten AUF der Decke – sie lagen
+## beinahe in ihrer Ebene und flimmerten gegen sie; die Rippen am Rand malt
+## jetzt `wegboden.gdshader`. Im Regal (F) spannt der Saum auch den Streifen
+## zwischen Wegkante und Leitlinie. An den Brüchen endet er mit der Decke.
+static func _flankenfuss(ziel: Dictionary, bahn: Bahn, level: Level01) -> void:
+	var n := _flanken_normale()
 	for teil: Vector2 in [Vector2(198.0, G1.x), Vector2(G1.y, G2.x), Vector2(G2.y, 287.0)]:
-		var s_werte := _stellen(teil.x, teil.y, 1.0)
-		for seite: float in [-1.0, 1.0]:
-			var profile: Array = []
-			var farben: Array = []
-			var kerne: Array = []
-			for s in s_werte:
-				var e := _kante(level, s)
-				var auslauf := smoothstep(teil.x, teil.x + 0.8, s) * (1.0 - smoothstep(teil.y - 0.8, teil.y, s))
-				var z := seite * 37.0
-				var leiste := [
-					0.0,
-					0.045 * maxf(0.0, rauschen.get_noise_2d(s, z + 1.0) + 0.15),
-					0.004,
-					0.06 * maxf(0.0, rauschen.get_noise_2d(s, z + 11.0) + 0.3),
-					0.006,
-					0.07 * maxf(0.0, rauschen.get_noise_2d(s, z + 23.0) + 0.45),
-					0.035,
-				]
-				var wandern := 0.22 * rauschen.get_noise_2d(s * 0.35, z + 50.0)
-				var moos_furche := clampf(0.3 + 0.9 * rauschen.get_noise_2d(s * 0.6, z + 70.0), 0.0, 1.0)
-				var punkte := PackedVector2Array()
-				var fa := PackedColorArray()
-				for k in us.size():
-					var u: float = us[k]
-					var quer := e - 1.4 + 1.4 * u + (wandern * (1.0 - u) if k > 0 and k < 6 else 0.0)
-					var h: float = float(leiste[k]) * auslauf
-					punkte.append(Vector2(seite * quer, h - 0.004))
-					var furche := k == 2 or k == 4
-					var ao := 0.8 if furche else (0.97 if k < 6 else 0.8)
-					var moos := moos_furche if furche else (0.4 if k == 0 or k == 6 else 0.03)
-					fa.append(Color(ao, ao, ao, moos))
-				# Innen (links) rollt die Leiste unter den Fuß des Fleischs: Sonst
-				# bliebe zwischen Wegkante und unterstem Strang ein Spalt, in dem
-				# der helle Grund als Linie aufschien.
-				punkte.append(Vector2(seite * (e + (0.45 if seite < 0.0 else 0.02)),
-						(-0.35 if seite < 0.0 else -0.05) * auslauf - 0.004))
-				fa.append(Color(0.45, 0.45, 0.45, 0.6))
-				if seite < 0.0:
-					punkte.reverse()
-					var umgedreht := PackedColorArray()
-					for k in range(fa.size() - 1, -1, -1):
-						umgedreht.append(fa[k])
-					fa = umgedreht
-				profile.append(punkte)
-				farben.append(fa)
-				kerne.append(Vector2(seite * (e - 0.7), -1.0))
-			var g := _loft(bahn, s_werte, profile, farben, kerne, false, 0.8, 0.0)
-			_verteilen(ziel, g, "deck")
+		var s_werte := _stellen(teil.x, teil.y, 0.9)
+		var profile: Array = []
+		var farben: Array = []
+		var kerne: Array = []
+		for s in s_werte:
+			var kante := -_kante(level, s)
+			var fuss := minf(_flanke_fuss(s), kante)
+			var welle := 0.035 * sin(s * 1.7) + 0.03 * sin(s * 0.63 + 1.0)
+			profile.append(PackedVector2Array([
+				Vector2(kante + 0.16, -0.32),
+				Vector2(kante + 0.02, -0.012),
+				Vector2(fuss - 0.02, -0.006),
+				_flanke_punkt(s, 0.04 + welle * 0.4) - n * 0.02,
+				_flanke_punkt(s, 0.11 + welle) - n * 0.05,
+			]))
+			farben.append(PackedColorArray([Color(0.3, 0.3, 0.3, 0.5),
+					Color(0.36, 0.36, 0.36, 0.75), Color(0.4, 0.4, 0.4, 0.8),
+					Color(0.48, 0.48, 0.48, 0.85), Color(0.55, 0.55, 0.55, 0.6)]))
+			kerne.append(Vector2(fuss - 1.2, -1.2))
+		var g := _loft(bahn, s_werte, profile, farben, kerne, false, 0.6, 0.3)
+		_verteilen(ziel, g, "holz")
 
 
 # ---------------------------------------------------------------- Brüche
@@ -1267,7 +1597,7 @@ static func _brueche(ziel: Dictionary, bahn: Bahn, level: Level01,
 		for p in umriss:
 			welt.append(ra.p(p.x, p.y))
 		Weltenbaum.bruch_in(_st_bei(ziel, s), welt, ra.v * stelle.y, rng,
-				{"splitter": 0.9, "flach_ueber": ra.o.y - 0.45})
+				{"splitter": 0.8, "flach_ueber": ra.o.y - 0.3})
 
 
 # ---------------------------------------------------------------- Oberwurzel
@@ -1329,7 +1659,8 @@ static func _oberwurzel(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: Str
 		for p: Vector2 in profile[profile.size() - 1]:
 			ring.append(ra.p(p.x, p.y) - ra.v * 0.03)
 		Weltenbaum.bruch_in(_st_bei(ziel, s_ende), ring, ra.v, PropWerkzeug.zufall(6023),
-				{"splitter": 0.35, "flach_ueber": ra.o.y + _oberwurzel_oben(s_ende) - 0.25})
+				{"splitter": 0.35, "flach_ueber": ra.o.y + _oberwurzel_oben(s_ende) - 0.25,
+				"moos": false})
 
 
 # ---------------------------------------------------------------- Wurzelbögen
@@ -1377,6 +1708,11 @@ static func _bogen_linie(bahn: Bahn, level: Level01, tor: Dictionary) -> PackedV
 			linie.append(bahn.p(s + c.x, c.y, c.z))
 	var letzte := steuer[n - 1]
 	linie.append(bahn.p(s + letzte.x, letzte.y, letzte.z))
+	# Teilbogen ("teil"): Die Wurzel steigt aus dem Fleisch, reicht über den
+	# Weg und bricht ab, ohne sich außen zu schließen – nur der Bogen bei
+	# CP4 (s 229) ist ganz, so kündigt allein er etwas an (Plan 7).
+	if tor.has("teil"):
+		linie = linie.slice(0, maxi(4, roundi(float(linie.size()) * float(tor["teil"]))))
 	return linie
 
 
@@ -1389,6 +1725,7 @@ static func _wurzelboegen(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: S
 			continue
 		var s: float = tor["s"]
 		var linie := _bogen_linie(bahn, level, tor)
+		var teil := tor.has("teil")
 		var st := _st_bei(ziel, s)
 		var anzahl := 3 if stufe == "nah" else 1
 		for strang in anzahl:
@@ -1413,12 +1750,17 @@ static func _wurzelboegen(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: S
 				var w := phase + lauf * windung * TAU / 3.0
 				punkte.append(linie[i] + (seit * cos(w) + auf * sin(w)) * aus)
 				var rel := float(i) / float(linie.size() - 1)
-				# dick in Fleisch und Außenwurzel, im Scheitel dünner
-				var dick := 1.0 + 0.45 * (1.0 - smoothstep(0.0, 0.3, rel)) \
-						+ 0.35 * smoothstep(0.7, 1.0, rel)
+				# dick in Fleisch und Außenwurzel, im Scheitel dünner; ein
+				# Teilbogen läuft spitz aus
+				var dick := 1.0 + 0.45 * (1.0 - smoothstep(0.0, 0.3, rel))
+				if teil:
+					dick *= lerpf(1.0, 0.3, smoothstep(0.55, 1.0, rel))
+				else:
+					dick += 0.35 * smoothstep(0.7, 1.0, rel)
 				radien.append(r * dick * (0.85 + 0.15 * sin(lauf * 0.9 + phase)))
 			var g := Weltenbaum.rohr(punkte, radien, {"seiten": 8 if stufe == "nah" else 5,
-					"beulen": 0.1, "saat": rng.randi(), "uv_mass": 0.7})
+					"beulen": 0.1, "saat": rng.randi(), "uv_mass": 0.7,
+					"ende": "spitz" if teil else "offen"})
 			var deck := level.boden_bei(s)
 			var farbe := func(p: Vector3, nn: Vector3) -> Color:
 				var ao := lerpf(0.45, 1.0, smoothstep(deck - 1.0, deck + 6.0, p.y))
@@ -1493,7 +1835,7 @@ static func _pilze_in_rissen(ziel: Dictionary, bahn: Bahn, level: Level01,
 ## Farne in den oberen Rissen (zwischen den Strängen 1–3), als MultiMesh
 ## in zwei Hälften der Wendel: Der Farnstoff wiegt die Wedel um den Fuß
 ## jeder Instanz, verschmolzen ginge das nicht.
-static func _farne_setzen(eltern: Node3D, bahn: Bahn, _level: Level01) -> void:
+static func _farne_setzen(eltern: Node3D, bahn: Bahn, level: Level01) -> void:
 	var rng := PropWerkzeug.zufall(6029)
 	var n := _flanken_normale()
 	for haelfte: Vector2 in [Vector2(199.0, 238.0), Vector2(238.0, 285.0)]:
@@ -1511,6 +1853,7 @@ static func _farne_setzen(eltern: Node3D, bahn: Bahn, _level: Level01) -> void:
 			basis = basis.scaled(Vector3.ONE * rng.randf_range(1.1, 1.8))
 			lagen.append(Transform3D(basis, ra.p(p.x, p.y)))
 			s += rng.randf_range(4.2, 6.2)
+		lagen.append_array(_kammfarne(bahn, level, haelfte, rng))
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = Farnwerk.klein(71 if haelfte.x < 200.0 else 72)
@@ -1525,6 +1868,37 @@ static func _farne_setzen(eltern: Node3D, bahn: Bahn, _level: Level01) -> void:
 		mmi.visibility_range_end = FARN_BIS
 		mmi.visibility_range_end_margin = RAND
 		eltern.add_child(mmi)
+
+
+## Farnbüschel auf dem Kamm der Außenwurzel (dem Rindenwulst), alle 3,5–7 m:
+## Aus der Spielkamera sieht man vom Leib der Außenwurzel nur den Kamm, und
+## als glattes, gleichmäßig gebogenes Band las er sich als Schlauch. Die
+## Büschel brechen die Linie; weich, man läuft hindurch. Nicht näher als
+## 1,6 m an einer Kiste (am Außenrand stehen welche) und nicht an G2.
+static func _kammfarne(bahn: Bahn, level: Level01, haelfte: Vector2,
+		rng: RandomNumberGenerator) -> Array[Transform3D]:
+	var lagen: Array[Transform3D] = []
+	var kisten := level.kisten_orte()
+	var s := maxf(haelfte.x, G1.y + 1.5) + rng.randf_range(0.0, 2.0)
+	var bis := minf(haelfte.y, 272.0)
+	while s < bis:
+		var weiter := rng.randf_range(3.5, 7.0)
+		if s > G2.x - 1.2 and s < G2.y + 1.2:
+			s += weiter
+			continue
+		var ra := bahn.rahmen(s)
+		var q := _kante(level, s) + rng.randf_range(0.28, 0.5)
+		var ort := ra.p(q, 0.56)
+		var frei := true
+		for k: Vector3 in kisten:
+			if Vector2(k.x - ort.x, k.z - ort.z).length() < 1.6:
+				frei = false
+		if frei:
+			var auf := (Vector3.UP * 0.8 + ra.r * 0.2).normalized()
+			var basis := Basis(Quaternion(Vector3.UP, auf)) * Basis(Vector3.UP, rng.randf() * TAU)
+			lagen.append(Transform3D(basis.scaled(Vector3.ONE * rng.randf_range(0.75, 1.25)), ort))
+		s += weiter
+	return lagen
 
 
 # ================================================================ Kronentor

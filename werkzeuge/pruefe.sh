@@ -69,7 +69,7 @@ done
 # Wasserplattformen (tragen sie den Spieler wirklich mit?), das Hangeln und
 # die Deckungsflecken (hält der Schwarm wirklich ab, oder leuchtet der
 # Fleck nur?). Eine Regel, die keine Prüfung hat, ist eine Behauptung.
-echo "--- 4/4 Krabbeln, Böden, Hangeln, Deckung, Dunkelheit, Zeitmodus, Glätte ---"
+echo "--- 4/4 Krabbeln, Böden, Hangeln, Deckung, Dunkelheit, Zeitmodus, Glätte, Wegmaske ---"
 KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
@@ -106,6 +106,18 @@ GLATT="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Glattpro
 	--fixed-fps 144 2>&1 | grep -Ev "$RAUSCHEN")"
 echo "$GLATT" | grep -E "^---|Zittern|ZITTERT|STUFT|Versetzen|Knoten:|Abweichungen"
 
+# Wegmaske (Level 01): Rechnen CPU und GPU dieselbe Maske? Die Konstanten
+# prüft Stufe 3; hier wird die Maske wirklich gezeichnet und ausgelesen –
+# das geht nur mit einem Renderer, also über xvfb-run wie foto.sh. Ohne
+# Bildschirm und ohne xvfb-run entfällt es mit einem Hinweis.
+MASKE=""
+if [ -n "${DISPLAY:-}" ] || command -v xvfb-run >/dev/null 2>&1; then
+	MASKE="$(MASKE_KOPIE="$ZIEL" GODOT="$GODOT" bash "$PROJEKT/werkzeuge/wegmaskenprobe.sh" 2>&1)"
+	echo "$MASKE" | grep -E "GPU-Abgleich|=== Wegmaske|ABWEICHUNG|ERGEBNIS"
+else
+	echo "Wegmaske: GPU-Abgleich entfällt (kein Bildschirm, kein xvfb-run)"
+fi
+
 if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$LEVEL" | grep -qE "FEHLER" \
 		|| echo "$KRIECH" | grep -qE "FALSCH|IM BODEN" \
@@ -116,6 +128,7 @@ if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$UMRISS" | grep -qE "NEIN" \
 		|| echo "$ZEIT" | grep -qE "NEIN" \
 		|| echo "$GLATT" | grep -qE "RUCKELT|ZITTERT|STUFT|FLIEGT|SCRIPT ERROR" \
+		|| echo "$MASKE" | grep -qE "ABWEICHUNG|SCRIPT ERROR|ABBRUCH" \
 		|| ! echo "$GLATT" | grep -qE "=== 0 Abweichungen"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1

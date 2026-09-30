@@ -67,6 +67,9 @@ class_name L01Wegbauten
 
 ## Borkentönung der Kiefern: rötlich (Eigenfarbe ≤ 1).
 const KIEFER_TON := Color(1.0, 0.78, 0.64)
+## Der Torbaum: unten grau-braun, über 8 m die warme Spiegelrinde der Kiefer.
+const TORBAUM_TON_UNTEN := Color(0.78, 0.72, 0.66)
+const KIEFER_TON_OBEN := Color(1.0, 0.64, 0.44)
 ## Nadeln der Kiefern: dunkles, kühles Grün.
 const NADEL := Color(0.17, 0.31, 0.18)
 ## So weit (m) bleibt Bewuchs von der Mitte einer Kiste weg.
@@ -787,9 +790,29 @@ static func _mooslog(sa: Sammler, level: Level01) -> void:
 	var r: float = e["radius"]
 	var l: float = e["laenge"]
 	var liegt := lage * Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3.ZERO)
-	var netz := Riesenstamm.liegend(r, l, {"saat": 808, "rippen": 10, "aeste": 1, "moos": 1.0})
-	_holz(sa, netz, liegt)
+	var netz := Riesenstamm.liegend(r, l, {"saat": 808, "rippen": 10, "aeste": 0, "moos": 1.0})
+	# Eigener Borkenstoff mit wenig Moos von oben (ein Zeichenaufruf mehr):
+	# Mit dem gewöhnlichen lag ein gleichmäßig grüner Deckel auf dem Stamm.
+	# Das Moos setzt hier die Scheitelfarbe – in Flecken und Zungen.
+	sa.dazu("Mooslog", Riesenstamm.borkenstoff({"moos_oben": 0.12, "moos_nord": 0.2}), true,
+			SICHT_FERN, _log_nachbessern(netz, r, l), liegt)
 	var s: float = e["s"]
+	# Aststummel an den äußeren Dritteln, waagerecht nach vorn und hinten
+	# und nicht höher als die Kapsel: Man springt darüber hinweg, ohne an
+	# etwas hängen zu bleiben, das keine Kollision hat.
+	var stummel := Riesenstamm.bauer()
+	var stummel_rng := PropWerkzeug.zufall(815)
+	for k in 3:
+		var q: float = [-3.2, -2.1, 2.9][k]
+		var richtung := -1.0 if k != 1 else 1.0
+		var start := _p(level, s, q, r * 1.05)
+		var vor := LevelWerkzeuge.richtung(level.verlauf, s)
+		var raus := (vor * richtung + Vector3.DOWN * 0.12).normalized()
+		var laenge := stummel_rng.randf_range(0.26, 0.38)
+		Totholzzaun.stueck(stummel, PackedVector3Array([start, start + raus * (r * 0.8),
+				start + raus * (r * 0.8 + laenge)]), PackedFloat32Array([0.11, 0.09, 0.07]),
+				{"saat": 816 + k, "seiten": 6, "ende": "bruch", "moos": 0.5})
+	_holz(sa, Riesenstamm.fertig(stummel), Transform3D.IDENTITY)
 	# Außen an der Wegkante (K7: über 0,9 m erst ab |q| 5,05): Die Wedel
 	# reichen über die Enden des Stamms.
 	for seite: float in [-1.0, 1.0]:
@@ -807,6 +830,61 @@ static func _mooslog(sa: Sammler, level: Level01) -> void:
 			Riesenstamm.leuchtpilz_in(pilze, ort + Vector3(rng.randf_range(-0.2, 0.2), 0.0,
 					rng.randf_range(-0.05, 0.05)), rng.randf_range(0.035, 0.06), rng)
 	_holz(sa, Riesenstamm.fertig(pilze), Transform3D.IDENTITY)
+
+
+## Das Mooslog nachgebessert, damit es sich nicht als Balken mit grünem
+## Deckel liest (Netz im Raum der Kapsel: Achse +Y, lokal X zeigt nach
+## oben, lokal Z nach hinten zur Kamera):
+## * runde Schattierung: die Unterseite auf 0,4 abgedunkelt;
+## * Moos, das an der Flanke zur Kamera in Zungen herabtropft;
+## * ein Borkenriss längs über zwei Drittel der Länge;
+## * dunkle, morsche Stirnflächen (die Eigenfarbe von `Riesenstamm.liegend`
+##   ist für diesen Stoff zu hell);
+## * ein leichter Bogen, höchstens 6 cm aus der Kapsel.
+static func _log_nachbessern(netz: ArrayMesh, r: float, l: float) -> ArrayMesh:
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = 831
+	rauschen.frequency = 1.6
+	var neu := ArrayMesh.new()
+	var halb := maxf(l * 0.5, 0.1)
+	for f in netz.get_surface_count():
+		var arrays := netz.surface_get_arrays(f)
+		var punkte: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normalen: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var farben: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		var arten: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+		for i in punkte.size():
+			var p := punkte[i]
+			var n := normalen[i]
+			var c := farben[i]
+			var t := clampf(p.y / halb, -1.0, 1.0)
+			p.z += 0.06 * (1.0 - t * t)
+			if arten[i].x > 0.5:
+				# Stirnfläche: morsch und dunkel.
+				c = Color(c.r * 0.32, c.g * 0.28, c.b * 0.24, c.a)
+			else:
+				var ao := lerpf(0.4, 1.0, smoothstep(-0.75, 0.55, n.x))
+				var winkel := atan2(p.z, p.x)
+				var riss := absf(angle_difference(winkel, 0.55)) < 0.07 and t > -0.7 and t < 0.35
+				if riss:
+					ao *= 0.3
+				# Obenauf nur Flecken; an der Flanke zur Kamera schmale Zungen,
+				# die unterschiedlich weit herabtropfen.
+				var moos := c.a * 0.7
+				if n.z > 0.1 and not riss:
+					var zunge := rauschen.get_noise_1d(p.y * 3.1)
+					if zunge > 0.15:
+						var linie := r * (0.7 - 2.2 * (zunge - 0.15))
+						moos = maxf(moos, smoothstep(linie, linie + 0.06, p.x) * 0.95)
+				c = Color(c.r * ao, c.g * ao, c.b * ao, clampf(moos, 0.0, 1.0))
+			punkte[i] = p
+			farben[i] = c
+		arrays[Mesh.ARRAY_VERTEX] = punkte
+		arrays[Mesh.ARRAY_COLOR] = farben
+		neu.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	for m in netz.get_meta_list():
+		neu.set_meta(m, netz.get_meta(m))
+	return neu
 
 
 ## Wurzeln hängen in den Erdspalt, an beiden Lippen, aus der Stirnwand
@@ -834,7 +912,9 @@ static func _lippenwurzeln(sa: Sammler, level: Level01, von: float, bis: float, 
 			var spur := absf(q) < 2.2
 			var dick := rng.randf_range(0.05, 0.09) if spur else rng.randf_range(0.07, 0.17)
 			var tief := rng.randf_range(0.2, 0.6) + (0.25 if spur else 0.0)
-			var lang := rng.randf_range(1.6, 5.5)
+			# Höchstens 2,5 m: Länger hingen sie ohne Stirnwand dahinter wie
+			# Spinnenbeine ins Leere (die Stirnflächen baut der Saum).
+			var lang := rng.randf_range(1.2, 2.5)
 			var schwung := rng.randf_range(0.25, 0.6)
 			var stuetzen := PackedVector3Array()
 			for k in 5:
@@ -978,8 +1058,102 @@ static func _hangweg_hinten(level: Level01) -> void:
 	var stelle := _rahmenstelle("torbaum")
 	if not stelle.is_empty():
 		_torbaum(baum, level, stelle)
-	_wurzeltor(baum, level, "Pfortentor", 1017)
+	_pfortentor(baum, level)
 	baum.fertig()
+
+
+## Das Pfortentor (TORE "Pfortentor", s 101,5): kein Bündel aus gleich
+## dicken Rohren wie `Schluchtsaum.wurzeltor` – das las sich hier, im
+## Wahrzeichenbild, als Gartenschläuche. Zwei Wurzeln verschiedener Stärke,
+## die sich umeinander winden und zum Scheitel dünn werden, Moos nur
+## obenauf und in großen Flecken, außen an den Füßen ein paar hängende
+## Würzelchen (nie über dem Weg), Farne im Scheitel und im Zwickel. Dieselbe
+## Bogenlinie und dieselben Sichtkörper wie `Schluchtsaum.wurzeltor`.
+static func _pfortentor(sa: Sammler, level: Level01) -> void:
+	var tor := _tor_daten("Pfortentor")
+	if tor.is_empty():
+		return
+	var s: float = tor["s"]
+	var weite := float(tor["abstand"]) + 0.8
+	var fuss := 3.2
+	var scheitel: float = tor["scheitel"]
+	var mitte := LevelWerkzeuge.punkt(level.verlauf, s)
+	var vor := LevelWerkzeuge.richtung(level.verlauf, s)
+	var rechts := vor.cross(Vector3.UP).normalized()
+	var linie := func(t: float) -> Vector3:
+		return mitte + rechts * sin(t) * weite + Vector3.UP * (fuss + (scheitel - fuss) * cos(t))
+	var st := _borke(sa)
+	var rng := PropWerkzeug.zufall(1017)
+	# Zwei Stränge: der dicke (0,62 → 0,24) und der schlanke (0,36 → 0,13),
+	# um 180° versetzt, anderthalb Windungen je Hälfte. Die Unterkante liegt
+	# auf dem Scheitel aus TORE.
+	for strang in 2:
+		var r_fuss: float = [0.62, 0.36][strang]
+		var r_oben: float = [0.24, 0.13][strang]
+		var aus: float = [0.3, 0.42][strang]
+		var phase := PI * float(strang) + 0.4
+		var punkte := PackedVector3Array()
+		var radien := PackedFloat32Array()
+		const N := 30
+		for i in N + 1:
+			var t := lerpf(-PI * 0.5 - 0.12, PI * 0.5 + 0.12, float(i) / float(N))
+			var p: Vector3 = linie.call(t)
+			var tangente := (rechts * cos(t) * weite - Vector3.UP * (scheitel - fuss) * sin(t)).normalized()
+			var normale := tangente.cross(vor).normalized()
+			var w := phase + t * 3.0
+			var r := lerpf(r_oben, r_fuss, pow(absf(sin(t)), 1.6))
+			# Die Unterkante bleibt auf dem Scheitel: im Scheitel liegen die
+			# Stränge über der Linie.
+			var hoch := (r + aus) * (1.0 - absf(sin(t)))
+			punkte.append(p + (normale * cos(w) + vor * sin(w)) * aus * absf(sin(t))
+					+ Vector3.UP * hoch)
+			radien.append(r * (0.92 + 0.08 * sin(float(i) * 1.3 + float(strang))))
+		var g := Weltenbaum.rohr(punkte, radien, {"seiten": 9, "beulen": 0.12,
+				"saat": 1080 + strang, "uv_mass": 0.35})
+		var farbe := func(_p: Vector3, n: Vector3) -> Color:
+			var ao := lerpf(0.55, 1.0, clampf(n.y * 0.5 + 0.5, 0.0, 1.0))
+			return Color(ao, ao, ao, clampf(n.y * 1.1 - 0.25, 0.0, 1.0))
+		Weltenbaum.gitter_faerben(g, farbe, 0.3)
+		Weltenbaum.gitter_schreiben(st, g)
+	# Hängende Würzelchen außen an den Füßen – nach außen gebogen, nie über
+	# den Weg (dort fährt die Kamera durch).
+	for seite: float in [-1.0, 1.0]:
+		for k in 3:
+			var t := seite * rng.randf_range(0.95, 1.35)
+			var ansatz: Vector3 = linie.call(t) + rechts * seite * 0.45
+			var laenge := rng.randf_range(0.7, 1.6)
+			var ende := ansatz + rechts * seite * rng.randf_range(0.2, 0.5) + Vector3.DOWN * laenge
+			Totholzzaun.stueck(st, PackedVector3Array([ansatz, ansatz.lerp(ende, 0.5)
+					+ rechts * seite * 0.12, ende]), PackedFloat32Array([0.06, 0.04, 0.02]),
+					{"saat": 1090 + k + int(seite + 1.0) * 5, "seiten": 5, "ende": "spitz",
+					"moos": 0.2})
+	# Farne: zwei im Scheitel, einer im Zwickel am rechten Fuß (bei den
+	# Wurzeln des Torbaums).
+	for t: float in [-0.35, 0.28]:
+		var ort: Vector3 = linie.call(t) + Vector3.UP * 0.55
+		_farn_bei(sa, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), ort), 0, 1095, 1.3)
+	_farn_bei(sa, Transform3D(Basis(Vector3.UP, 0.7), linie.call(1.45) + rechts * 0.3), 0, 1096,
+			1.4)
+	# Sichtkörper wie `Schluchtsaum.wurzeltor`: oben dick, an den Füßen schmal.
+	var knoten := Node3D.new()
+	knoten.name = "Pfortentor"
+	sa.wurzel.add_child(knoten)
+	var sperre := StaticBody3D.new()
+	sperre.name = "Sichtsperre"
+	sperre.collision_layer = LevelWerkzeuge.SICHTSPERRE
+	sperre.collision_mask = 0
+	knoten.add_child(sperre)
+	const STUECKE := 12
+	for i in STUECKE:
+		var a: Vector3 = linie.call(lerpf(-PI * 0.5, PI * 0.5, float(i) / float(STUECKE)))
+		var b: Vector3 = linie.call(lerpf(-PI * 0.5, PI * 0.5, float(i + 1) / float(STUECKE)))
+		var form := CollisionShape3D.new()
+		var kasten := BoxShape3D.new()
+		var dick := 2.7 if minf(a.y, b.y) - mitte.y > 6.0 else 1.1
+		kasten.size = Vector3(dick, dick, a.distance_to(b) + 0.2)
+		form.shape = kasten
+		form.transform = PropWerkzeug.ausrichten_z(a, b)
+		sperre.add_child(form)
 
 
 ## Das Totholzgeländer (s 33–50): ein Spaltzaun gleich hinter der
@@ -1069,13 +1243,16 @@ static func _kanzel(sa: Sammler, level: Level01) -> void:
 		return
 	var s: float = e["s"]
 	var groesse: Vector3 = e["groesse"]
-	var innen: float = float(e["q"]) - groesse.x * 0.5
+	# Innen 0,45 m unter die Wegdecke geschoben und 2 cm tiefer als sie: Die
+	# gerundete Innenkante der Platte lag sonst als graue Rinne neben dem
+	# Rasen der Decke.
+	var innen: float = float(e["q"]) - groesse.x * 0.5 - 0.45
 	var aussen := 10.2
 	var platte := Vector3(aussen - innen, groesse.y, groesse.z + 1.4)
 	_stein(sa, Findling.netz(platte, {"saat": 4401, "eckig": 4.4, "rundung": 0.22,
 			"umriss": 0.03, "moos": 0.85, "moos_oben": 0.7, "ausgetreten": 0.9,
 			"schichten": false}),
-			_kasten_lage(level, s, (innen + aussen) * 0.5, platte, 0.0))
+			_kasten_lage(level, s, (innen + aussen) * 0.5, platte, -0.02))
 	# Farn in den Fugen am Fuß des Geländers, weg von den Kisten.
 	var rng := PropWerkzeug.zufall(4410)
 	for i in 5:
@@ -1371,11 +1548,14 @@ static func _torbaum(sa: Sammler, level: Level01, stelle: Dictionary) -> void:
 	_brocken(sa, Vector3(3.0, 5.0, 3.4), lage.translated_local(Vector3(0.35, -5.3, 0.0)),
 			1031, 0.0, {"moos": 0.9, "kuppe": 0.3}, false)
 	var h := 11.5
-	var netz := Riesenstamm.netz({"hoehe": h, "radius": 0.82, "radius_oben": 0.56,
-			"saat": 1032, "brettwurzeln": 6, "wurzel_reichweite": 1.5, "wurzel_hoehe": 1.8,
+	# Unten 1,0 m stark, grau-braun; über 8 m die warme, rötliche Borke der
+	# Kiefer (`_nach_hoehe_getoent`). Schlanker las sich der Baum vom Grat
+	# aus als Akazie.
+	var netz := Riesenstamm.netz({"hoehe": h, "radius": 1.0, "radius_oben": 0.6,
+			"saat": 1032, "brettwurzeln": 6, "wurzel_reichweite": 1.7, "wurzel_hoehe": 2.0,
 			"neigung": Vector2(-0.5, 0.15), "krumm": 0.12, "drehung": 0.35, "pilze": 1,
 			"efeu": 1, "aeste": 0, "oben": "offen", "rippen": 12})
-	_holz(sa, _getoent(netz, KIEFER_TON), lage)
+	_holz(sa, _nach_hoehe_getoent(netz, TORBAUM_TON_UNTEN, KIEFER_TON_OBEN, 7.0, 9.0), lage)
 	var st := Riesenstamm.bauer()
 	# Der Bogen: lokal X = quer (+q), also nach innen negativ.
 	# Mit zwei Knicken, wie ein Leittrieb, der nach einem Bruch neu
@@ -1383,10 +1563,23 @@ static func _torbaum(sa: Sammler, level: Level01, stelle: Dictionary) -> void:
 	var bogen := PackedVector3Array([Vector3(-0.5, h - 1.2, 0.15), Vector3(-0.9, h + 1.2, 0.3),
 			Vector3(-1.4, h + 2.6, 0.35), Vector3(-2.9, h + 3.7, 0.1), Vector3(-4.3, h + 5.3, -0.05),
 			Vector3(-6.4, h + 6.4, -0.2), Vector3(-7.9, h + 7.3, -0.25), Vector3(-9.0, h + 7.5, -0.3)])
-	var bogen_r := PackedFloat32Array([0.56, 0.51, 0.47, 0.42, 0.36, 0.29, 0.21, 0.13])
+	var bogen_r := PackedFloat32Array([0.6, 0.54, 0.49, 0.43, 0.37, 0.3, 0.22, 0.14])
 	Totholzzaun.stueck(st, _glatt(bogen, 3), _glatt_r(bogen_r, 3), {"saat": 1033,
 			"seiten": 12, "ende": "spitz", "moos": 0.3, "drehung": 0.3, "buckel": 0.08,
-			"ton": KIEFER_TON, "ao": Vector2(1.0, 1.0)})
+			"ton": KIEFER_TON_OBEN, "ao": Vector2(1.0, 1.0)})
+	# Die unteren Etagen: kurze Äste mit Nadelpolstern, 5,5–8 m über dem Weg
+	# nach außen über den Abgrund (q 8,5–10) – unter 8 m liegen sie nicht in
+	# der Sichtlinie zur Krone des Weltenbaums, und über dem Weg hängen sie
+	# nicht. Mit ihnen ist die Krone rund ein Drittel der Höhe, gestuft nach
+	# links bis zum Schirm.
+	var etagen := [
+		[Vector3(0.6, 6.4, 0.35), Vector3(1.0, 0.16, 0.6), 2.6, 2.2],
+		[Vector3(0.7, 6.9, -0.3), Vector3(1.0, 0.18, -0.65), 2.8, 2.3],
+		[Vector3(0.55, 7.5, 0.5), Vector3(0.7, 0.22, 1.0), 2.2, 2.0],
+		[Vector3(0.55, 7.9, -0.45), Vector3(0.75, 0.22, -1.0), 2.2, 2.0],
+		[Vector3(0.5, 8.4, 0.1), Vector3(0.9, 0.3, 0.1), 2.0, 1.9],
+	]
+	_kiefernwipfel(sa, st, lage, etagen, 1060, false)
 	# Der Schirm: Äste nur vom äußeren Bogen (q ≤ 2, h ≥ 17), weit nach vorn
 	# und hinten ausladend – eine breite, flache Krone über dem Tor.
 	var aeste := [
@@ -1427,8 +1620,28 @@ static func _torbaum(sa: Sammler, level: Level01, stelle: Dictionary) -> void:
 		var ziel := Vector3(-0.55, 4.6 + 0.8 * float(k), dz * 0.5)
 		var zug := PackedVector3Array([von, von.lerp(ziel, 0.5) + Vector3.DOWN * 0.35, ziel])
 		Totholzzaun.stueck(st, _glatt(zug, 3), _glatt_r(PackedFloat32Array([0.3, 0.24, 0.2]), 3),
-				{"saat": 1050 + k, "seiten": 7, "moos": 0.45, "ton": KIEFER_TON})
+				{"saat": 1050 + k, "seiten": 7, "moos": 0.45, "ton": TORBAUM_TON_UNTEN})
 	_holz(sa, Riesenstamm.fertig(st), lage)
+
+
+## Kopie eines Netzes, nach Höhe getönt: bis `von` (lokal Y) mit `unten`,
+## ab `bis` mit `oben`, dazwischen gemischt (RGB · Ton, A bleibt).
+static func _nach_hoehe_getoent(netz: ArrayMesh, unten: Color, oben: Color, von: float,
+		bis: float) -> ArrayMesh:
+	var neu := ArrayMesh.new()
+	for f in netz.get_surface_count():
+		var arrays := netz.surface_get_arrays(f)
+		var punkte: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var farben: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		for i in farben.size():
+			var ton := unten.lerp(oben, smoothstep(von, bis, punkte[i].y))
+			var c := farben[i]
+			farben[i] = Color(c.r * ton.r, c.g * ton.g, c.b * ton.b, c.a)
+		arrays[Mesh.ARRAY_COLOR] = farben
+		neu.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	for m in netz.get_meta_list():
+		neu.set_meta(m, netz.get_meta(m))
+	return neu
 
 
 # ================================================================ D Bachwiese

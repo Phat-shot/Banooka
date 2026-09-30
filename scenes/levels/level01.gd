@@ -157,12 +157,39 @@ const ABSCHNITTE := [
 	{"name": "E1", "von": 198.0, "bis": 210.5, "breite": 8.0,
 			"stoff": "wurzelruecken", "kronenlicht": 0.7},
 	# G1 210,5–213,5: 3,0 m, +0,51 m, nicht tödlich (Wiesenboden darunter)
+	#
+	# AB G1 LIEGT DIE DECKE AUF FESTEN HÖHEN, der Absätze wegen. Bergauf
+	# trifft der Kamerastrahl (Blickpunkt Figur +1, Kamera nur Figur +4,4)
+	# jede Kiste, die 3,4–4,6 m voraus am Hang steht, und holt die Kamera
+	# VOR die Figur; die Kiste reicht bei 17 % bis Figur +1,7. Zerbrechliche
+	# Kisten stehen am Hang deshalb nur am Außenrand (q 3,3): In der Wendel
+	# liegt die Sehne Kamera–Blickpunkt innen, der Strahl kommt dort
+	# höchstens bis q 2,6. Die Sprungfeder ist unzerstörbar und muss innen
+	# stehen (Geheimnis S4 unter der Oberwurzel) – sie steht auf einem
+	# ebenen Absatz (E3b), 4,5 m hinter dessen Anfang, wo ihre Oberkante bei
+	# Figur +1,0 liegt. Die Höhe, die der Absatz verschenkt, holt die Decke
+	# mit 18,3 % statt 17 % von G1 bis F1a wieder auf; die Abweichung von
+	# der Kurve bleibt unter 0,5 m. Steiler geht es nicht: Am Innenrand der
+	# Wendel liegt der Blickpunkt rund 6,9 m voraus, bei 18,3 % also 0,26 m
+	# im Boden (Grenze 0,3, Plan K4). Keine Stufen, jeder Übergang bündig.
 	{"name": "E2", "von": 213.5, "bis": 243.0, "breite": 8.0,
+			"hoehe": 10.249, "hoehe_ende": 15.648,
 			"stoff": "wurzelruecken", "kronenlicht": 0.7},
-	# G2 243,0–245,5: 2,5 m, +0,42 m, tödlich
-	{"name": "E3", "von": 245.5, "bis": 273.0, "breite": 8.0,
+	# G2 243,0–245,5: 2,5 m, +0,46 m, tödlich
+	{"name": "E3a", "von": 245.5, "bis": 252.5, "breite": 8.0,
+			"hoehe": 16.106, "hoehe_ende": 17.387,
 			"stoff": "wurzelruecken", "kronenlicht": 0.7},
-	{"name": "F1", "von": 273.0, "bis": 287.0, "breite": 8.0, "breite_ende": 12.0,
+	{"name": "E3b", "von": 252.5, "bis": 257.6, "breite": 8.0,
+			"hoehe": 17.387, "hoehe_ende": 17.387,
+			"stoff": "wurzelruecken", "kronenlicht": 0.7},
+	{"name": "E3c", "von": 257.6, "bis": 273.0, "breite": 8.0,
+			"hoehe": 17.387, "hoehe_ende": 20.205,
+			"stoff": "wurzelruecken", "kronenlicht": 0.7},
+	# F1a trifft die Kurve dort, wo sie flach wird.
+	{"name": "F1a", "von": 273.0, "bis": 277.0, "breite": 8.0, "breite_ende": 9.1429,
+			"hoehe": 20.205, "hoehe_ende": 20.888,
+			"stoff": "wurzelruecken", "kronenlicht": 0.6},
+	{"name": "F1b", "von": 277.0, "bis": 287.0, "breite": 9.1429, "breite_ende": 12.0,
 			"stoff": "wurzelruecken", "kronenlicht": 0.6},
 ]
 
@@ -573,12 +600,15 @@ const TORE := [
 	{"name": "Waldtor", "s": 3.0, "abstand": 7.5, "scheitel": 9.2},
 	{"name": "Pfortentor", "s": 101.5, "abstand": 4.4, "scheitel": 9.2},
 	{"name": "Riesentor", "s": 162.0, "abstand": 9.0, "scheitel": 10.0},
+	# Die Bögen bei 206 und 253 sind Teilbögen ("teil": Anteil der Linie
+	# von innen): Sie reichen über den Weg und brechen ab. Ganz ist nur der
+	# bei CP4 – sonst verwischten drei Bögen den Takt der Abschnittstore.
 	{"name": "Wurzelbogen 1", "s": 206.0, "abstand": 5.0, "scheitel": 9.8,
-			"art": "wurzelbogen"},
+			"art": "wurzelbogen", "teil": 0.58},
 	{"name": "Wurzelbogen 2", "s": 229.0, "abstand": 5.0, "scheitel": 9.8,
 			"art": "wurzelbogen"},
 	{"name": "Wurzelbogen 3", "s": 253.0, "abstand": 5.0, "scheitel": 10.2,
-			"art": "wurzelbogen"},
+			"art": "wurzelbogen", "teil": 0.6},
 	{"name": "Kronentor", "s": 280.0, "abstand": 5.3, "scheitel": 9.5},
 ]
 
@@ -670,27 +700,38 @@ const KISTEN := [
 	{"art": Kiste.Art.NORMAL, "s": 189.2, "q": 6.8, "auf": "Findlingsturm"},
 	{"art": Kiste.Art.NORMAL, "s": 190.4, "q": 6.8, "auf": "Findlingsturm"},
 	{"art": Kiste.Art.NORMAL, "s": 191.5, "q": -6.8, "auf": "Wurzelknie"},
+	# Kein Stapel am Aufgang: Die Leitlinie schwenkt hier auf die Wiese
+	# hinaus, und aus jeder Querlage träfe der Strahl die obere Kiste
+	# (Sichtprobe, Anlauf q/0,85). Zwei Kisten nebeneinander.
 	{"art": Kiste.Art.NORMAL, "s": 196.5, "q": 2.6},
-	{"art": Kiste.Art.NORMAL, "s": 196.5, "q": 2.6, "stapel": 1},
+	{"art": Kiste.Art.NORMAL, "s": 196.5, "q": 3.8},
 	# --- E: 14 ---
-	{"art": Kiste.Art.NORMAL, "s": 202.0, "q": -1.5},
-	{"art": Kiste.Art.NORMAL, "s": 202.0, "q": 0.0},
-	{"art": Kiste.Art.NORMAL, "s": 226.0, "q": -1.2},
-	{"art": Kiste.Art.CHECKPOINT, "s": 232.0, "q": 0.0},
-	{"art": Kiste.Art.NORMAL, "s": 236.0, "q": 1.5},
-	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 236.0, "q": -1.5},
+	# Am Hang zerbrechliche Kisten nur am Außenrand (q 3,3, siehe Absatz
+	# E3b in ABSCHNITTE); das Paar am Aufgang steht, wo der Hang noch flach
+	# ist (bei 198 steigt er erst mit 11 %).
+	{"art": Kiste.Art.NORMAL, "s": 197.8, "q": -1.6},
+	{"art": Kiste.Art.NORMAL, "s": 197.8, "q": -0.2},
+	{"art": Kiste.Art.NORMAL, "s": 226.0, "q": 3.3},
+	{"art": Kiste.Art.CHECKPOINT, "s": 232.0, "q": 3.3},
+	{"art": Kiste.Art.NORMAL, "s": 235.6, "q": 3.3},
+	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 237.0, "q": 3.3},
 	# Auf der Oberwurzel bei q -6,0 statt -6,5: Weiter innen stäke die Kiste
 	# mit ihrer Innenkante im Wurzelfleisch.
 	{"art": Kiste.Art.NORMAL, "s": 253.0, "q": -6.0, "auf": "Oberwurzel"},
 	{"art": Kiste.Art.NORMAL, "s": 255.5, "q": -6.0, "auf": "Oberwurzel"},
 	{"art": Kiste.Art.NORMAL, "s": 258.0, "q": -6.0, "auf": "Oberwurzel"},
 	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 261.0, "q": -6.0, "auf": "Oberwurzel"},
+	# Die Sprungfeder ist unzerstörbar: Sie steht auf dem Absatz E3b.
 	{"art": Kiste.Art.SPRUNG, "s": 257.0, "q": -2.4},
-	{"art": Kiste.Art.TNT, "s": 268.0, "q": -1.5},
-	{"art": Kiste.Art.NORMAL, "s": 268.0, "q": 0.0},
-	{"art": Kiste.Art.NORMAL, "s": 268.0, "q": 1.5},
+	# Die TNT-Reihe am Außenrand, längs: Wer die erste Kiste zerdreht,
+	# zündet die TNT (1,4 m, im Drehschlag-Radius).
+	{"art": Kiste.Art.NORMAL, "s": 266.6, "q": 3.3},
+	{"art": Kiste.Art.TNT, "s": 268.0, "q": 3.3},
+	{"art": Kiste.Art.NORMAL, "s": 269.4, "q": 3.3},
 	# --- F: 3 ---
-	{"art": Kiste.Art.LEBEN, "s": 278.0, "q": 0.0},
+	# Das Leben in der Reihe bei 280,5: Bei 278 stieg der Weg davor noch
+	# mit 10 %, und der Strahl traf die Kiste (Anlauf).
+	{"art": Kiste.Art.LEBEN, "s": 280.5, "q": 0.0},
 	{"art": Kiste.Art.NORMAL, "s": 280.5, "q": -3.0},
 	{"art": Kiste.Art.NORMAL, "s": 280.5, "q": 3.0},
 ]
@@ -752,7 +793,9 @@ const FRUECHTE := [
 	{"art": "reihe", "von": 205.0, "bis": 209.0, "anzahl": 5, "q": 0.0},
 	{"art": "bogen", "von": 209.5, "bis": 214.5, "anzahl": 6, "q": 0.0, "scheitel": 2.3},
 	{"art": "reihe", "von": 216.0, "bis": 220.0, "anzahl": 5, "q": 0.0},
-	{"art": "reihe", "von": 227.5, "bis": 230.5, "anzahl": 3, "q": 0.5},
+	# Hinüber zum Checkpoint am Außenrand.
+	{"art": "punkte", "punkte": [Vector3(227.6, 1.2, 0.9), Vector3(229.0, 2.0, 0.9),
+			Vector3(230.4, 2.7, 0.9)]},
 	{"art": "reihe", "von": 237.5, "bis": 241.5, "anzahl": 4, "q": 0.0},
 	{"art": "bogen", "von": 242.0, "bis": 246.5, "anzahl": 6, "q": 0.0, "scheitel": 2.3},
 	# Geheimnis S5: vom Käfer aus hinauf zur Oberwurzel.
@@ -1228,7 +1271,7 @@ func _zaehlen() -> void:
 
 ## Die Proben, die dieses Level ausdrücklich will (werkzeuge/level_check.gd).
 func pruefprofil() -> Dictionary:
-	return {"sicht": true, "gefaelle": true, "todeszonen": true}
+	return {"sicht": true, "gefaelle": true, "todeszonen": true, "wegmaske": true}
 
 
 ## Der Eintrag aus ABSCHNITTE, der `s` enthält, oder {} in einer Lücke.

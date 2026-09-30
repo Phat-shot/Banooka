@@ -27,9 +27,14 @@ class_name Weltenbaum
 ##   Teil der Zeilen (so lässt sich ein Strang ohne Lichtkante auf mehrere
 ##   Netze verteilen) und lässt über einen Filter Vierecke aus, die nie zu
 ##   sehen sind.
-## * `bruch_in()` (Bruchfläche mit Splittern und Jahresringen),
+## * `bruch_in()` (Bruchfläche, die heraussteht: Faserkamm, Borkensaum,
+##   Jahresringe um ein verschobenes Mark), `brettwurzel_in()` (Brettwurzel
+##   als dünne Finne), `konsolen_in()` (Konsolenpilze in Stufen),
 ##   `knolle_in()` (Maserknolle), `leuchtpilz_in()` (Leuchtpilz mit
 ##   gedämpfter Glut für den Borkenstoff).
+## * Eigenfarben (UV2.x ≥ 0,5) sind LINEAR: Der Borkenstoff nimmt sie als
+##   ALBEDO = COLOR.rgb. Als sRGB-Werte gewählt, erschienen sie viel zu hell
+##   (Bruchflächen wie Pappe).
 ## * Stoffe: `stoff_stamm()`, `stoff_wurzel()`, `stoff_tor()`,
 ##   `stoff_krone()`.
 ##
@@ -45,12 +50,22 @@ class_name Weltenbaum
 ## soll sich als Masse lesen, nicht als heller Fleck.
 const FARBE_KRONE := Color(0.19, 0.4, 0.15)
 ## Die Fernkrone: noch dunkler und kühler – vom Grat aus steht sie 150 m
-## weit im Dunst und soll dort dunkler als der Dunst bleiben.
-const FARBE_KRONE_FERN := Color(0.085, 0.18, 0.09)
+## weit im Dunst und soll dort dunkler als der Dunst UND als die Hügel
+## davor bleiben. Mit 0,085/0,18/0,09 und dem vollen Durchlicht der
+## Kronenwolke stand sie dort als blasser Scherenschnitt, heller als die
+## Hügel; jetzt ×0,7 und mit dunklem Unterband (`stoff_krone`).
+const FARBE_KRONE_FERN := Color(0.06, 0.126, 0.063)
+## Borke der Fernfassung (Stamm, Kehle): kühl und dunkel.
+const FARBE_STAMM_FERN := Color(0.14, 0.15, 0.17)
 
-## Farben der Bruchflächen: faseriges helles Holz, innen morsch.
-const HOLZ := Color(0.5, 0.37, 0.23)
-const MORSCH := Color(0.12, 0.08, 0.05)
+## Farben der Bruchflächen: faseriges Holz, innen morsch. LINEAR – der
+## Borkenstoff zeichnet Eigenfarbe als ALBEDO = COLOR.rgb. Als sRGB-Werte
+## gewählt (0,5/0,37/0,23) erschienen sie als helles Pappbraun (sRGB
+## ≈ 0,73/0,64/0,52); so sind es rund 0,56/0,44/0,29.
+const HOLZ := Color(0.27, 0.16, 0.07)
+const MORSCH := Color(0.03, 0.02, 0.012)
+## Dunkle Borke am Rand eines Bruchs (linear).
+const BRUCH_BORKE := Color(0.035, 0.022, 0.013)
 
 
 # ================================================================ Stamm
@@ -192,8 +207,10 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 			var y_boden: float = y_von + 1.0
 			if boden.is_valid():
 				y_boden = boden.call(winkel)
-			var ao := lerpf(0.34, 1.0, smoothstep(y_boden - 0.5, y_boden + 4.0, yy)) \
-					* lerpf(0.8, 1.0, smoothstep(y_boden + 4.0, y_boden + 12.0, yy))
+			# Unten zwischen den Finnen tief dunkel: Die Spalten sollen sich als
+			# Spalten lesen.
+			var ao := lerpf(0.2, 1.0, smoothstep(y_boden - 0.5, y_boden + 6.0, yy)) \
+					* lerpf(0.72, 1.0, smoothstep(y_boden + 6.0, y_boden + 14.0, yy))
 			if furche:
 				ao *= 0.78
 			if verdeckung.is_valid():
@@ -216,10 +233,10 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 
 	for w: Dictionary in wurzeln:
 		var fuss: float = w["fuss_y"]
-		Riesenstamm.brettwurzel_in(st, Vector3(0.0, fuss, 0.0), float(w["winkel"]),
+		brettwurzel_in(st, Vector3(0.0, fuss, 0.0), float(w["winkel"]),
 				profil_radius(profil, fuss + 1.0), float(w["reichweite"]), float(w["hoehe"]),
-				float(w["dicke"]), float(w.get("schlange", rng.randf_range(-0.3, 0.3))),
-				float(w.get("kruemmung", rng.randf_range(1.6, 2.2))), 1.0, rauschen)
+				float(w["dicke"]), float(w.get("schlange", rng.randf_range(-0.35, 0.35))),
+				rauschen)
 
 	var spitzen := PackedVector3Array()
 	var richtungen := PackedVector3Array()
@@ -234,12 +251,10 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 		var w: float = p["winkel"]
 		var breite: float = p.get("breite", 1.4)
 		var y0: float = p["y"]
-		for k in rng.randi_range(2, 4):
-			var yk := y0 + float(k) * breite * rng.randf_range(0.45, 0.7)
-			var wk := w + rng.randf_range(-0.5, 0.5) * breite / profil_radius(profil, yk)
-			var ort := auf_borke(profil, wk, yk, 0.25)
-			Riesenstamm.konsolenpilz_in(st, ort, Vector3(cos(wk), 0.0, -sin(wk)),
-					breite * rng.randf_range(0.7, 1.15), rng)
+		# Eine Stufe aus 3–7 Konsolen, 0,6–1,2 m breit (`konsolen_in`).
+		var ort := auf_borke(profil, w, y0, 0.05)
+		konsolen_in(st, ort, Vector3(cos(w), 0.0, -sin(w)), clampf(breite * 0.62, 0.6, 1.2),
+				rng.randi_range(3, 7), rng)
 
 	for k: Dictionary in o.get("knollen", []):
 		var w: float = k["winkel"]
@@ -261,6 +276,145 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 			"zweig_spitzen": zweig_spitzen}
 
 
+## Eine Brettwurzel als FINNE: dünn und hoch, im Querschnitt ein Dreieck –
+## oben 0,5–0,9 m, am Fuß 2–3 m –, die Oberkante fällt in einem langen,
+## hohlen Bogen von `hoehe` am Stamm bis unter den Boden bei `reichweite`
+## und schlängelt sich dabei. Die `Riesenstamm`-Brettwurzel (Querschnitt
+## gewölbt, am Fuß 1,6-mal so dick) las sich im Maß des Riesen als dicke
+## Kissen, die am Stamm lehnen. Der Fuß taucht 1 m in den Boden, die
+## Flanken werden nach unten sehr dunkel (die Spalten zwischen den Finnen),
+## auf dem Grat wächst Moos. `schlicht`: wenige Ecken (Ferne, Schatten).
+static func brettwurzel_in(st: SurfaceTool, mitte: Vector3, winkel: float, r_stamm: float,
+		reichweite: float, hoehe: float, dicke: float, schlange: float,
+		rauschen: FastNoiseLite, schlicht: bool = false) -> void:
+	var stationen := 7 if schlicht else 14
+	var v_werte := PackedFloat32Array([-0.12, 0.3, 0.62, 0.86, 1.0]) if schlicht \
+			else PackedFloat32Array([-0.12, 0.12, 0.34, 0.55, 0.74, 0.88, 0.97, 1.0])
+	var fuss_breite := dicke * 1.25
+	var grat_breite := clampf(dicke * 0.34, 0.5, 0.9)
+	var r0 := r_stamm * 0.82
+	var r1 := r_stamm + reichweite
+	var zeilen: Array[PackedVector3Array] = []
+	var uvs: Array[PackedVector2Array] = []
+	var farben: Array[PackedColorArray] = []
+	var arten: Array[PackedVector2Array] = []
+	var massstab := Riesenstamm.borkenmass(r_stamm)
+	for i in stationen:
+		var s := float(i) / float(stationen - 1)
+		var rho := lerpf(r0, r1, s)
+		var w := winkel + (schlange * sin(s * PI * 1.4) + 0.12 * sin(s * 9.0 + winkel * 3.0)) \
+				* reichweite / maxf(rho, 0.1) * 0.35
+		var er := Vector3(cos(w), 0.0, -sin(w))
+		var et := Vector3(-sin(w), 0.0, -cos(w))
+		# Oberkante: hohler Bogen, die Spitze taucht 0,6 m ein.
+		var grat := hoehe * pow(1.0 - s, 1.35) * (1.0 + 0.05 * sin(s * 11.0 + winkel)) - 0.6 * s * s
+		var unten := -1.0
+		var fb := fuss_breite * (1.0 - 0.55 * s)
+		var gb := grat_breite * (1.0 - 0.45 * s)
+		var basis := mitte + er * rho
+		var zeile := PackedVector3Array()
+		var uv := PackedVector2Array()
+		var fa := PackedColorArray()
+		var ar := PackedVector2Array()
+		var bogen := 0.0
+		var vorher := Vector3.ZERO
+		# Von der Flanke auf +et über den Grat zur anderen: die Werte `v`
+		# vorwärts, dann rückwärts (ohne den Grat doppelt). Die Reihenfolge
+		# legt die Vorderseite nach außen (wie `Riesenstamm.brettwurzel_in`).
+		var folge: Array[Vector2] = []
+		for k in v_werte.size():
+			folge.append(Vector2(v_werte[k], 1.0))
+		for k in range(v_werte.size() - 2, -1, -1):
+			folge.append(Vector2(v_werte[k], -1.0))
+		for f in folge:
+			var v := f.x
+			var seite := f.y
+			var yy := lerpf(unten, grat, clampf(v, 0.0, 1.0)) + minf(v, 0.0) * 2.0
+			# Dreieckig mit leicht hohlen Flanken; oben rund.
+			var halb := 0.5 * (gb + (fb - gb) * pow(1.0 - clampf(v, 0.0, 1.0), 1.5))
+			if v >= 0.999:
+				halb = gb * 0.18
+			var beule := 1.0 + 0.18 * rauschen.get_noise_3d(basis.x * 0.6, yy * 0.5, basis.z * 0.6 + seite)
+			var p := basis + Vector3.UP * yy + et * seite * halb * beule
+			if v >= 0.999:
+				p += Vector3.UP * gb * 0.12
+			if bogen == 0.0 and zeile.is_empty():
+				vorher = p
+			bogen += p.distance_to(vorher)
+			vorher = p
+			zeile.append(p)
+			uv.append(Vector2(bogen * Riesenstamm.KACHEL_U, rho * Riesenstamm.KACHEL_V * 2.5) * massstab)
+			# Tief unten in der Spalte fast schwarz, am Grat voll.
+			var ao := lerpf(0.22, 1.0, smoothstep(-0.2, 0.85, v)) * lerpf(0.75, 1.0, smoothstep(0.0, 0.4, s))
+			var moos := 0.15 + 0.75 * smoothstep(0.8, 1.0, v) + 0.35 * (1.0 - smoothstep(0.0, 0.25, v))
+			moos += 0.25 * rauschen.get_noise_3d(p.x * 1.3, p.y * 1.3, p.z * 1.3)
+			fa.append(Color(ao, ao, ao, clampf(moos, 0.0, 1.0)))
+			ar.append(Vector2(Riesenstamm.BORKE, 0.8))
+		zeilen.append(zeile)
+		uvs.append(uv)
+		farben.append(fa)
+		arten.append(ar)
+	Riesenstamm.gitter(st, zeilen, uvs, farben, arten, false)
+
+
+## Konsolenpilze in Stufen: `anzahl` Konsolen (3–7) übereinander, leicht
+## versetzt, je 0,6–1,2 m breit und 0,15–0,3 m dick – im Maß des Riesen,
+## dicker als die Blätter aus `Riesenstamm`, die sich als Papier lasen.
+## Oben gezont (dunkel am Stamm, ocker, cremefarbener Rand), die Unterseite
+## dunkler, damit die Konsole von unten Masse hat. `aussen` zeigt vom Stamm
+## weg. Farben linear.
+static func konsolen_in(st: SurfaceTool, ort: Vector3, aussen: Vector3, breite: float,
+		anzahl: int, rng: RandomNumberGenerator) -> void:
+	var er := Vector3(aussen.x, 0.0, aussen.z).normalized()
+	var et := Vector3.UP.cross(er).normalized()
+	var y := 0.0
+	var seit := 0.0
+	for n in anzahl:
+		var b := clampf(breite * rng.randf_range(0.7, 1.1) * lerpf(1.0, 0.7, float(n) / 6.0), 0.5, 1.2)
+		var p := ort + Vector3.UP * y + et * seit
+		_konsole_in(st, p, er, et, b, rng)
+		y += rng.randf_range(0.28, 0.48)
+		seit += rng.randf_range(-0.25, 0.25) * b
+
+
+static func _konsole_in(st: SurfaceTool, ort: Vector3, er: Vector3, et: Vector3, breite: float,
+		rng: RandomNumberGenerator) -> void:
+	var tiefe := breite * rng.randf_range(0.55, 0.75)
+	var dick := rng.randf_range(0.15, 0.3)
+	const K := 7
+	var rand_oben := PackedVector3Array()
+	var rand_unten := PackedVector3Array()
+	var ring := PackedVector3Array()
+	var welle := rng.randf() * TAU
+	for k in K + 1:
+		var a := lerpf(-PI * 0.5, PI * 0.5, float(k) / float(K))
+		var w := 1.0 + 0.09 * sin(a * 5.0 + welle)
+		var rp := ort + et * sin(a) * breite * 0.5 * w + er * (cos(a) * tiefe * w)
+		rand_oben.append(rp + Vector3.UP * dick * 0.1)
+		rand_unten.append(rp - Vector3.UP * dick * 0.35)
+		ring.append(ort + (rp - ort) * 0.6 + Vector3.UP * dick * 0.75)
+	var kopf := ort + Vector3.UP * dick * 0.95 - er * 0.05
+	var bauch := ort - Vector3.UP * dick * 0.5 + er * tiefe * 0.25
+	var dunkel := Color(0.05, 0.028, 0.012)
+	var ocker := Color(0.3, 0.12, 0.03) * rng.randf_range(0.8, 1.1)
+	var creme := Color(0.5, 0.34, 0.13)
+	var unten_farbe := Color(0.1, 0.075, 0.045)
+	var art := Vector2(Riesenstamm.EIGEN, 0.0)
+	for k in K:
+		dreieck(st, kopf, ring[k], ring[k + 1], Vector3.UP + er * 0.3, dunkel, ocker, ocker, art)
+		dreieck(st, ring[k], rand_oben[k], rand_oben[k + 1], Vector3.UP + er * 0.5, ocker, creme,
+				creme, art)
+		dreieck(st, ring[k], rand_oben[k + 1], ring[k + 1], Vector3.UP + er * 0.5, ocker, creme,
+				ocker, art)
+		var raus := (rand_oben[k] + rand_oben[k + 1]) * 0.5 - ort
+		dreieck(st, rand_oben[k], rand_unten[k], rand_unten[k + 1], raus, creme * 0.8,
+				unten_farbe, unten_farbe, art)
+		dreieck(st, rand_oben[k], rand_unten[k + 1], rand_oben[k + 1], raus, creme * 0.8,
+				unten_farbe, creme * 0.8, art)
+		dreieck(st, bauch, rand_unten[k + 1], rand_unten[k], Vector3.DOWN, unten_farbe * 0.6,
+				unten_farbe, unten_farbe, art)
+
+
 ## Anschwellen des Stamms zu den Brettwurzeln hin.
 static func _wulst(winkel: float, y: float, wurzeln: Array) -> float:
 	var summe := 0.0
@@ -272,7 +426,9 @@ static func _wulst(winkel: float, y: float, wurzeln: Array) -> float:
 			continue
 		var d := angle_difference(winkel, float(w["winkel"]))
 		var f := 1.0 - maxf(yy, 0.0) / hh
-		summe += float(w["reichweite"]) * 0.13 * exp(-(d * d) / 0.012) * f * f
+		# Schmal und schwach: Die Finne soll aus dem Stamm wachsen, nicht
+		# in einem Polster, das die Spalten zwischen den Finnen füllt.
+		summe += float(w["reichweite"]) * 0.07 * exp(-(d * d) / 0.005) * f * f
 	return summe
 
 
@@ -324,11 +480,10 @@ static func stamm_schlicht_in(st: SurfaceTool, o: Dictionary) -> void:
 	if o.get("mit_wurzeln", false):
 		for w: Dictionary in o.get("brettwurzeln", []):
 			var fuss: float = w["fuss_y"]
-			Riesenstamm.brettwurzel_in(st, Vector3(0.0, fuss, 0.0), float(w["winkel"]),
+			brettwurzel_in(st, Vector3(0.0, fuss, 0.0), float(w["winkel"]),
 					profil_radius(profil, fuss + 1.0) * schrumpfen,
 					float(w["reichweite"]) * schrumpfen, float(w["hoehe"]) * schrumpfen,
-					float(w["dicke"]) * schrumpfen, float(w.get("schlange", 0.0)),
-					float(w.get("kruemmung", 1.9)), 1.0, rauschen)
+					float(w["dicke"]) * schrumpfen, float(w.get("schlange", 0.0)), rauschen, true)
 	for a: Dictionary in o.get("aeste", []):
 		var fern := a.duplicate()
 		fern["zweige"] = 0
@@ -759,76 +914,152 @@ static func gitter_rand(g: Dictionary, ende: bool) -> PackedVector3Array:
 
 # ================================================================ Beiwerk
 
-## Bruchfläche über einem geschlossenen Randring: faseriges helles Holz mit
-## Splittern am Rand, zur Mitte hin eingesunken und morsch. `aussen` zeigt
-## aus dem Holz heraus (die Bruchrichtung). Optionen:
-##   splitter     größte Splitterlänge in m (1,35)
-##   flach_ueber  Welt-Y: Randpunkte darüber bekommen höchstens 0,1 m –
-##                an einer Sprunglippe täuschte ein langer Span sonst eine
-##                kürzere Lücke vor
-static func bruch_in(st: SurfaceTool, rand: PackedVector3Array, aussen: Vector3,
+## Bruchfläche über einem geschlossenen Randring: gebrochenes Holz, das
+## HERAUSSTEHT, statt einzusinken. Die alte Fassung (vier Ringstufen bis
+## 0,7 m tief, die Mitte 0,8 m) las sich aus der Spielkamera als Inneres
+## einer Pappschachtel. Jetzt, von außen nach innen:
+## * ein Kamm aus Faserspänen, 0,2 bis `splitter` Meter hinaus in die
+##   Bruchrichtung, lang und kurz im Wechsel – nur unterhalb der oberen
+##   0,3 m (`flach_ueber`): Die Sprunglippe bleibt glatt, ein langer Span
+##   dort täuschte eine kürzere Lücke vor;
+## * ein dunkler Borkensaum, 0,2 m breit, der ein wenig vorsteht;
+## * die Fläche mit neun unruhigen Jahresringen um ein Mark, das NICHT in
+##   der Mitte liegt, höchstens 0,15 m eingesunken;
+## * ein nasser, dunkler Kern um das Mark;
+## * Moospolster an den untersten Randstellen.
+## `aussen` zeigt aus dem Holz heraus (die Bruchrichtung). Optionen:
+##   splitter     größte Spanlänge in m (0,8)
+##   flach_ueber  Welt-Y: Randpunkte darüber bekommen höchstens 0,05 m Span
+##   moos         Moospolster am Fuß (true)
+## Farben linear (Eigenfarbe, siehe HOLZ).
+static func bruch_in(st: SurfaceTool, rand_roh: PackedVector3Array, aussen: Vector3,
 		rng: RandomNumberGenerator, optionen: Dictionary = {}) -> void:
-	var n := rand.size()
-	if n < 3:
+	var n0 := rand_roh.size()
+	if n0 < 3:
 		return
-	var max_splitter: float = optionen.get("splitter", 1.35)
+	var max_splitter: float = optionen.get("splitter", 0.8)
 	var flach_ueber: float = optionen.get("flach_ueber", INF)
+	var mit_moos: bool = optionen.get("moos", true)
+	aussen = aussen.normalized()
+	# Der Rand fein genug für einen Kamm: höchstens 0,3 m je Zahn.
+	var rand := PackedVector3Array()
+	for j in n0:
+		var a := rand_roh[j]
+		var b := rand_roh[(j + 1) % n0]
+		var teile := maxi(1, ceili(a.distance_to(b) / 0.3))
+		for k in teile:
+			rand.append(a.lerp(b, float(k) / float(teile)))
+	var n := rand.size()
 	var mitte := Vector3.ZERO
+	var unten := INF
+	var oben := -INF
 	for p in rand:
 		mitte += p
+		unten = minf(unten, p.y)
+		oben = maxf(oben, p.y)
 	mitte /= float(n)
 	var groesse := 0.0
 	for p in rand:
 		groesse = maxf(groesse, p.distance_to(mitte))
-	var splitter := PackedVector3Array()
-	var toene := PackedFloat32Array()
-	for j in n:
-		var p := rand[j]
-		# Splitter: an wenigen Stellen ragt ein langer, dünner Span hinaus.
-		var zacke := rng.randf()
-		zacke = zacke * zacke * zacke
-		var weit := minf(groesse * (0.02 + 0.12 * zacke), 0.25 + 1.1 * zacke)
-		weit = minf(weit, max_splitter)
-		if p.y > flach_ueber:
-			weit = minf(weit, 0.1)
-		splitter.append(p + aussen * weit + (mitte - p) * 0.06 * zacke)
-		toene.append(rng.randf_range(0.82, 1.12))
-	# Jahresringe: helle und dunkle Bänder, die zur Mitte hin einsinken –
-	# ohne sie läse sich der Bruch als glattes Brett.
-	var stufen := PackedFloat32Array([0.86, 0.7, 0.52, 0.34])
-	var ringtoene := PackedFloat32Array([1.12, 0.68, 1.02, 0.6])
-	var tiefe := minf(groesse * 0.09, 0.7)
-	var ringe: Array[PackedVector3Array] = []
-	for k in stufen.size():
-		var ring := PackedVector3Array()
-		for j in n:
-			var f := stufen[k] * rng.randf_range(0.95, 1.05)
-			ring.append(mitte + (rand[j] - mitte) * f
-					- aussen * tiefe * ((0.3 + 0.25 * float(k)) * rng.randf_range(0.5, 1.0)
-					+ rng.randf_range(-0.2, 0.2)))
-		ringe.append(ring)
-	var tief := mitte - aussen * minf(groesse * 0.12, 0.8)
+	# Das Mark: aus der Mitte zum Rand hin verschoben, wie bei gewachsenem
+	# Holz (die Jahresringe sind auf einer Seite enger).
+	var mark := mitte.lerp(rand[rng.randi() % n], rng.randf_range(0.22, 0.4))
 	var art := Vector2(Riesenstamm.EIGEN, 0.0)
-	var borke := Color(0.2, 0.14, 0.09)
+	var borke := BRUCH_BORKE
+	var kamm_grenze := minf(flach_ueber, oben - 0.3)
+
+	# Borkensaum: 0,2 m breit (höchstens ein Viertel des Weges zum Mark),
+	# 3 cm vorstehend.
+	var saum := PackedVector3Array()
+	for j in n:
+		var zum_mark := mark - rand[j]
+		var d := zum_mark.length()
+		var f := minf(0.2 / maxf(d, 0.01), 0.25)
+		saum.append(rand[j] + zum_mark * f + aussen * 0.03)
 	for j in n:
 		var j2 := (j + 1) % n
-		var a := HOLZ * toene[j]
-		var b := HOLZ * toene[j2]
-		# Rand (Borke) zum Splitter, Splitter zum ersten Ring.
-		dreieck(st, rand[j], splitter[j], splitter[j2], aussen, borke, a * 0.8, b * 0.8, art)
-		dreieck(st, rand[j], splitter[j2], rand[j2], aussen, borke, b * 0.8, borke, art)
-		var aussen_ring := splitter
-		var ton_vorher := 0.9
-		for k in ringe.size():
-			var innen_ring: PackedVector3Array = ringe[k]
-			var ton := ringtoene[k]
-			dreieck(st, aussen_ring[j], innen_ring[j], innen_ring[j2], aussen, a * ton_vorher,
-					a * ton, b * ton, art)
-			dreieck(st, aussen_ring[j], innen_ring[j2], aussen_ring[j2], aussen, a * ton_vorher,
-					b * ton, b * ton_vorher, art)
-			aussen_ring = innen_ring
-			ton_vorher = ton
-		dreieck(st, tief, aussen_ring[j2], aussen_ring[j], aussen, MORSCH, b * 0.45, a * 0.45, art)
+		dreieck(st, rand[j], saum[j], saum[j2], aussen, borke * 0.8, borke, borke, art)
+		dreieck(st, rand[j], saum[j2], rand[j2], aussen, borke * 0.8, borke, borke * 0.8, art)
+
+	# Jahresringe: neun unruhige Ringe vom Saum zum Mark, hell und dunkel im
+	# Wechsel, zur Mitte hin enger und dunkler (nass), leicht eingesunken.
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = rng.randi()
+	rauschen.frequency = 0.9
+	var anteile := PackedFloat32Array([0.93, 0.84, 0.74, 0.64, 0.53, 0.42, 0.31, 0.21, 0.11])
+	var aussen_ring := saum
+	var ton_vorher := 1.0
+	for k in anteile.size():
+		var f := anteile[k]
+		var ring := PackedVector3Array()
+		var tiefe := 0.15 * (1.0 - f) * (1.0 - f) * 1.6
+		for j in n:
+			var p := saum[j]
+			var wackeln := 1.0 + 0.07 * rauschen.get_noise_2d(float(j) * 0.9, float(k) * 3.1)
+			ring.append(mark + (p - mark) * clampf(f * wackeln, 0.02, 0.98) - aussen * minf(tiefe, 0.15))
+		var hell := k % 2 == 0
+		var ton := (1.08 if hell else 0.74) * lerpf(0.55, 1.0, smoothstep(0.1, 0.5, f))
+		for j in n:
+			var j2 := (j + 1) % n
+			var fa := HOLZ * ton_vorher * _holzkorn(rng)
+			var fb := HOLZ * ton * _holzkorn(rng)
+			dreieck(st, aussen_ring[j], ring[j], ring[j2], aussen, fa, fb, fb, art)
+			dreieck(st, aussen_ring[j], ring[j2], aussen_ring[j2], aussen, fa, fb, fa, art)
+		aussen_ring = ring
+		ton_vorher = ton
+	# Der nasse Kern um das Mark.
+	var kern := mark - aussen * 0.15
+	for j in n:
+		var j2 := (j + 1) % n
+		dreieck(st, kern, aussen_ring[j2], aussen_ring[j], aussen, MORSCH,
+				HOLZ * ton_vorher * 0.6, HOLZ * ton_vorher * 0.6, art)
+
+	# Der Kamm aus Faserspänen: je Randstelle ein Keil mit zwei Seiten, lang
+	# und kurz im Wechsel, spitz zulaufend.
+	for j in n:
+		var j2 := (j + 1) % n
+		var a := rand[j]
+		var b := rand[j2]
+		if maxf(a.y, b.y) > kamm_grenze:
+			continue
+		var lang := j % 2 == 0
+		var weit := rng.randf_range(0.45, 1.0) * max_splitter if lang \
+				else rng.randf_range(0.2, 0.45) * max_splitter * 0.7
+		weit = maxf(weit, 0.12)
+		var basis := (a + b) * 0.5
+		var zur_mitte := (mark - basis).normalized()
+		var spitze := basis + aussen * weit + zur_mitte * weit * rng.randf_range(0.05, 0.25) \
+				+ Vector3.DOWN * weit * rng.randf_range(0.0, 0.2)
+		var innen_a := a + zur_mitte * 0.07
+		var innen_b := b + zur_mitte * 0.07
+		var raus := (basis - mark).normalized()
+		var hell := HOLZ * rng.randf_range(0.95, 1.2)
+		dreieck(st, a, b, spitze, raus + aussen * 0.3, borke, borke, hell, art)
+		dreieck(st, innen_a, innen_b, spitze, -raus + aussen * 0.3, HOLZ * 0.5, HOLZ * 0.5,
+				hell, art)
+
+	# Moospolster an den untersten Randstellen: kleine grüne Fächer, die über
+	# den Rand hängen.
+	if mit_moos:
+		var hoehe := maxf(oben - unten, 0.1)
+		for j in n:
+			var p := rand[j]
+			if (p.y - unten) / hoehe > 0.22 or rng.randf() < 0.35:
+				continue
+			var raus := (p - mark).normalized()
+			var gruen := Color(0.045, 0.085, 0.02).lerp(Color(0.085, 0.13, 0.03), rng.randf())
+			for f in rng.randi_range(3, 5):
+				var richtung := (raus * rng.randf_range(0.3, 1.0) + aussen * rng.randf_range(0.2, 0.8)
+						+ Vector3.DOWN * rng.randf_range(0.2, 0.9)).normalized()
+				var laenge := rng.randf_range(0.18, 0.42)
+				var quer := richtung.cross(aussen).normalized() * laenge * 0.28
+				dreieck(st, p - quer, p + quer, p + richtung * laenge, aussen, gruen * 0.6,
+						gruen * 0.6, gruen, art)
+
+
+## Faserkorn: ein leises Zittern der Holzfarbe je Ecke.
+static func _holzkorn(rng: RandomNumberGenerator) -> float:
+	return rng.randf_range(0.9, 1.08)
 
 
 ## Ein Leuchtpilz wie `Riesenstamm.leuchtpilz_in`, aber mit gedämpfter Glut:
@@ -840,7 +1071,8 @@ static func leuchtpilz_in(st: SurfaceTool, ort: Vector3, groesse: float,
 	var stiel_h := groesse * rng.randf_range(1.2, 2.2)
 	var neig := Vector3(rng.randf_range(-0.25, 0.25), 1.0, rng.randf_range(-0.25, 0.25)).normalized()
 	var hut := ort + neig * stiel_h
-	var stiel := Color(0.62, 0.56, 0.44)
+	# Linear (Eigenfarbe): sRGB ≈ 0,62/0,56/0,44, ein blasser Stiel.
+	var stiel := Color(0.34, 0.27, 0.16)
 	var glut := Color(1.0, 0.55, 0.2).lerp(Color(1.0, 0.72, 0.32), rng.randf()) * glut_staerke
 	const N := 6
 	var a := neig.cross(Vector3.RIGHT).normalized()
@@ -952,7 +1184,7 @@ static var _torshader: Shader = null
 static func stoff_stamm(fern: bool = false) -> ShaderMaterial:
 	if fern:
 		return Riesenstamm.borkenstoff({"welt": true, "radius": 12.0, "fern": true,
-				"farbe": Color(0.2, 0.21, 0.24), "moos_farbe": Color(0.3, 0.36, 0.38)})
+				"farbe": FARBE_STAMM_FERN, "moos_farbe": Color(0.22, 0.27, 0.29)})
 	return Riesenstamm.borkenstoff({"welt": true, "radius": 12.0})
 
 
@@ -977,12 +1209,15 @@ static func stoff_tor() -> ShaderMaterial:
 	if not code.contains(ALT):
 		push_warning("Weltenbaum.stoff_tor: Borkenshader verändert, das Tor bleibt ohne Randlicht.")
 	code = code.replace("uniform float relief = 0.6;",
-			"uniform float relief = 0.6;\nuniform vec4 saum_farbe : source_color = vec4(1.0, 0.68, 0.36, 1.0);\nuniform float saum_staerke = 0.55;")
+			"uniform float relief = 0.6;\nuniform vec4 saum_farbe : source_color = vec4(1.0, 0.68, 0.36, 1.0);\nuniform float saum_staerke = 0.25;")
 	code = code.replace(ALT, ALT + """
-	// Randlicht: warm am Umriss, nur auf Borke. Nach oben stärker – dort
-	// fängt das Tor den Taldunst im Gegenlicht.
+	// Randlicht: warm am Umriss, nur auf Borke, nur auf der Oberseite und
+	// nur aus der Nähe. Ohne diese Grenzen waren dünne Stränge aus 100 m
+	// ganz Umriss und hingen als blasse Geistervorhänge im Dunst, und aus
+	// der Nähe hatten schwarze Stöcke rundum einen orangen Rand.
 	float saum = pow(1.0 - clamp(dot(normalize(NORMAL), VIEW), 0.0, 1.0), 4.0);
-	EMISSION += saum_farbe.rgb * saum_staerke * saum * borke * (0.6 + 0.4 * clamp(wn.y + 0.5, 0.0, 1.0));""")
+	saum *= (1.0 - smoothstep(25.0, 60.0, length(VERTEX))) * smoothstep(-0.1, 0.7, wn.y);
+	EMISSION += saum_farbe.rgb * saum_staerke * saum * borke;""")
 	_torshader = Shader.new()
 	_torshader.code = code
 	_torstoff = ShaderMaterial.new()
@@ -991,7 +1226,9 @@ static func stoff_tor() -> ShaderMaterial:
 	_torstoff.set_shader_parameter("rinde", rinde.albedo_texture)
 	_torstoff.set_shader_parameter("rinde_normal", rinde.normal_texture)
 	_torstoff.set_shader_parameter("moos", Riesenstamm.moostextur())
-	_torstoff.set_shader_parameter("borke_farbe", Color(0.62, 0.56, 0.5))
+	# Heller als zuvor (0,62/0,56/0,5): Im Gegenlicht soll die Rinde noch
+	# als Rinde lesen, jetzt, da der Saum sie nicht mehr überstrahlt.
+	_torstoff.set_shader_parameter("borke_farbe", Color(0.8, 0.72, 0.64))
 	_torstoff.set_shader_parameter("moos_farbe", Color(0.78, 0.84, 0.78))
 	_torstoff.set_shader_parameter("moos_oben", 0.7)
 	_torstoff.set_shader_parameter("moos_nord", 0.3)
@@ -999,9 +1236,18 @@ static func stoff_tor() -> ShaderMaterial:
 	return _torstoff
 
 
+static var _krone_fern: ShaderMaterial = null
+
 ## Stoff des Kronenschirms: nah beidseitig mit Lücken im Laub, fern nur
-## Vorderseiten (siehe `Kronenwolke.stoff`).
+## Vorderseiten (siehe `Kronenwolke.stoff`). Die Fernfassung ist eine
+## eigene Abschrift des Kronenstoffs (der geteilte bleibt unberührt) mit
+## wenig Durchlicht und dunkler, kühler Unterseite: Vom Grat aus soll der
+## Schirm eine dunkle Masse mit dunklem Unterband sein, kein blasser Fleck.
 static func stoff_krone(fern: bool = false) -> ShaderMaterial:
 	if fern:
-		return Kronenwolke.stoff(FARBE_KRONE_FERN, false)
+		if _krone_fern == null:
+			_krone_fern = Kronenwolke.stoff(FARBE_KRONE_FERN, false).duplicate() as ShaderMaterial
+			_krone_fern.set_shader_parameter("durchlicht", 0.1)
+			_krone_fern.set_shader_parameter("ton_unten", Vector3(0.24, 0.25, 0.42))
+		return _krone_fern
 	return Kronenwolke.stoff(FARBE_KRONE)

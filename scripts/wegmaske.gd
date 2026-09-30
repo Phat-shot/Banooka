@@ -22,7 +22,10 @@ class_name Wegmaske
 ## und der Shader überein – gemessen an 20 Punkten einer von oben
 ## gezeichneten Testebene höchstens 0,009 (Makro 0,006, Kronenlicht 0,019;
 ## das ist die Genauigkeit des Auslesens, 8 Bit). In der Ferne mittelt die
-## GPU über die Mipmaps, dort stehen keine Halme mehr.
+## GPU über die Mipmaps, dort stehen keine Halme mehr. Die Probe dafür ist
+## `werkzeuge/wegmaskenprobe.gd` (Grenze 0,02): `pruefe.sh` zeichnet und
+## vergleicht (über xvfb-run), `level_check` vergleicht die Konstanten hier
+## mit denen im Include, sobald ein Level "wegmaske" im `pruefprofil()` hat.
 ##
 ## Die Maske (Plan 8.1, dazu Pendel und sicherer Rasenrand):
 ##   d = |q − pendel(s)| + (n − 0,5)·0,45 − 0,12·sin(s·0,09)

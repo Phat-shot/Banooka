@@ -34,10 +34,14 @@ class_name Totholzzaun
 
 ## So tief stecken die Pfosten im Boden.
 const VERSENKT := 0.4
-## Graues, verwittertes Holz der Spaltflächen (Eigenfarbe, ≤ 1).
-const HOLZ_GRAU := Color(0.6, 0.57, 0.52)
-## Tönung der Rinde: blasser und grauer als lebende Borke.
-const RINDE_TON := Color(0.86, 0.84, 0.8)
+## Graues, verwittertes Holz der Spaltflächen (Eigenfarbe, ≤ 1). LINEAR,
+## wie der Borkenstoff sie nimmt (ALBEDO = COLOR.rgb): Als sRGB-Wert
+## gewählt (0,6/0,57/0,52) zeigte er sich als helles Silber, und die Riegel
+## lasen sich als gebürstete Metallrohre. So ist es sRGB ≈ 0,45/0,42/0,38.
+const HOLZ_GRAU := Color(0.17, 0.15, 0.12)
+## Tönung der Rinde (Faktor auf die Rindentextur): dunkler und grauer als
+## lebende Borke.
+const RINDE_TON := Color(0.62, 0.6, 0.56)
 
 static var _stoff: ShaderMaterial = null
 
@@ -171,7 +175,9 @@ static func bauen(linie: PackedVector3Array, optionen: Dictionary = {}) -> Array
 static func _riegel(st: SurfaceTool, rng: RandomNumberGenerator, a: Vector3, b: Vector3,
 		r: float, seite: Vector3, saat: int, ende: String, ton: Color) -> void:
 	var d := b - a
-	var mitte := a + d * 0.5 + Vector3.DOWN * d.length() * 0.012
+	# Durchhang 5–10 cm auf einem Feld von gut 2 m: Gerade Riegel lasen sich
+	# als Rohre.
+	var mitte := a + d * 0.5 + Vector3.DOWN * d.length() * rng.randf_range(0.024, 0.04)
 	var punkte := PackedVector3Array([a, a.lerp(mitte, 0.6), mitte.lerp(b, 0.4), b])
 	var radien := PackedFloat32Array([r, r * 1.02, r * 0.97, r * 0.95])
 	# Die Spaltfläche zeigt mal nach oben, mal zur Seite.
@@ -298,7 +304,11 @@ static func stueck(st: SurfaceTool, punkte: PackedVector3Array, radien: PackedFl
 				if d > grenze:
 					p -= sp * (d - grenze)
 					art = Riesenstamm.EIGEN
-					var g := HOLZ_GRAU * rng.randf_range(0.88, 1.08) * ao_hier
+					# Spaltfläche mit dunklen Rissen längs der Faser: ein paar
+					# Ecken je Ring fast schwarz, versetzt von Ring zu Ring.
+					var riss := rauschen.get_noise_2d(float(jj) * 2.7, bogen * 1.9) > 0.32
+					var g := HOLZ_GRAU * rng.randf_range(0.88, 1.08) * ao_hier \
+							* (0.35 if riss else 1.0)
 					farbe = Color(g.r, g.g, g.b, 0.0)
 			var m := moos * (0.4 + 0.6 * rauschen.get_noise_3d(p.x * 4.0 + bogen, p.y * 4.0, p.z * 4.0))
 			farbe.a = clampf(m, 0.0, 1.0) if art == Riesenstamm.BORKE else 0.0
