@@ -106,7 +106,15 @@ class_name L01Wald
 ## (`SICHT_*`), in der Ferne die schlichten Fassungen. Mit
 ## `Effekte.reduziert` (Web, Handy) wächst der ferne Wald zu 60 % und in
 ## gröberen Zellen (`ZELLE_FERN_WEB`).
-## @MESSUNG@
+## Gemessen (30.09.2026, Verfolger, llvmpipe; Unterschied zum Stand ohne
+## Wald, Aufrufe samt Schatten): s 4 +229k/+61, s 31 +215k/+57,
+## s 46 +207k/+50, s 70 +209k/+48, s 101 +218k/+47, s 119 +215k/+43,
+## s 140 +148k/+32, s 176 +117k/+32, s 212 +108k/+18, s 249 +129k/+19,
+## s 281 +176k/+35; Grafikspeicher +20,5 MB. Das ganze Bild im Web
+## (`Effekte.reduziert`): 273–449 Aufrufe (s 140: 449, s 4: 442). Der
+## Aufbau dauert headless knapp 1,5 s (acht Schritte, je unter 0,4 s), das
+## ganze Level 7,3 s gegen 4,6 s für das alte Level 01 (auf derselben
+## Maschine, ohne Stimmung).
 
 # ================================================================ Maße
 
