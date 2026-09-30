@@ -20,10 +20,12 @@ class_name L01Wald
 ##               (s 31–166), bis `HANG_TIEFE` hinter die Kronenkante des
 ##               Saums: vorn an der Kante niedrige, breite Astbäume, die sich
 ##               über das linke Wegdrittel neigen (ab 9,5 m – der dunkle
-##               Rahmen oben links), dahinter Kronen nach der Walddichte.
+##               Rahmen oben links), und tief beastete Bäume, deren Laub man
+##               von unten sieht; dahinter Kronen nach der Walddichte, dazu
+##               Unterholz zwischen den Stämmen.
 ##   Rahmen      die Bäume auf den Felsnadeln unter der Kante
 ##               (`RAHMENBAUM_STELLEN` "sims"): gedreht, nach außen geneigt,
-##               nie im Sichtkegel zum Weltenbaum.
+##               nie im Sichtkegel zum Weltenbaum; ab `RAHMEN_NAH` schlicht.
 ##   Riesen      zwei Torriesen am Riesentor (`TORRIESEN`), drei Talriesen
 ##               rechts der Bachwiese (`TALRIESEN`), zwei Kanalbäume über C4
 ##               (sie schließen dort das Dach) und drei Überständer im Tal.
@@ -49,7 +51,9 @@ class_name L01Wald
 ##               Reihen, naher Talwald, Überständer
 ##   fern        grobe Krone und vierseitiger Stamm im Laubstoff (0,25k)
 ## Die Kronen sitzen nach ihrer wirklichen Hülle: Scheitel auf der
-## Baumhöhe, der Stamm endet in ihrer Mitte – Laub statt Lolli.
+## Baumhöhe, der Stamm endet in ihrer Mitte – Laub statt Lolli. Riesen und
+## Rahmenbäume wechseln in der Ferne in eine schlichte Fassung gleicher
+## Hülle (`_riese_fern`), Hang- und Talbäume in die ferne.
 ##
 ## REGELN (Plan 7, 11)
 ##   K1  Über |q| < 6 hängt keine Krone tiefer als 9,5 m über der Decke
@@ -68,9 +72,18 @@ class_name L01Wald
 ##
 ## KOSTEN (Plan 13: ≤ 70 Zeichenaufrufe, dazu ≤ 40 für Schatten, ≤ 240k
 ## Dreiecke samt Schatten je Station). Bäume werden je Zelle zu EINEM Netz
-## je Stoff verschmolzen (Stämme mit Schatten, Kronen ohne); Farne und
-## Felsen als MultiMesh. Harte Sichtweiten je Zelle (`SICHT_*`). Mit
+## je Stoff verschmolzen (Stämme, Kronen); Farne und Felsen als MultiMesh.
+## Den Schatten eines Stamms wirft ein schlichter gleicher Achse, der nur
+## in die Schattenkarte zeichnet ("…_schatten"); Laub wirft keinen, nur
+## Felsen, Stümpfe und Moosstämme werfen selbst. Harte Sichtweiten je Zelle
+## (`SICHT_*`), in der Ferne die schlichten Fassungen. Mit
 ## `Effekte.reduziert` (Web, Handy) wächst der ferne Wald zu 60 %.
+## Gemessen (30.09.2026, Verfolger, llvmpipe; Unterschied zum Stand ohne
+## Wald, Aufrufe samt Schatten): s 4 +225k/+62, s 31 +180k/+57,
+## s 46 +167k/+52, s 70 +185k/+49, s 101 +160k/+42, s 119 +171k/+43,
+## s 140 +157k/+46, s 176 +109k/+31, s 212 +79k/+19, s 249 +104k/+19,
+## s 281 +147k/+36; Grafikspeicher +19 MB. Der Aufbau dauert headless gut
+## 2,5 s (sieben Schritte, je unter 0,8 s).
 
 # ================================================================ Maße
 
@@ -872,18 +885,20 @@ static func _zaehle(was: String, n: int = 1) -> void:
 # ================================================================ Hallenwald
 
 static func _hallenwald(level: Level01) -> void:
-	# Stämme und Kronen in Streifen zu 12 m quer zum Weg (er läuft hier
-	# nach Norden), links und rechts getrennt: Was hinter der Kamera liegt,
-	# fällt als Ganzes aus dem Sichtkegel. Bei 22 m zeichnete die Kamera
-	# am Start (s 4) noch die Kronen über und hinter sich.
+	# Stämme und Kronen in Streifen quer zum Weg (er läuft hier nach
+	# Norden), links und rechts getrennt: Was hinter der Kamera liegt, fällt
+	# als Ganzes aus dem Sichtkegel. Die Kronen in schmalen Streifen (12 m) –
+	# bei 22 m zeichnete die Kamera am Start (s 4) noch die Kronen über und
+	# hinter sich –, die Stämme in breiten (22 m): Jede Zelle mit Schatten
+	# kostet je Schattenstufe einen Aufruf mehr.
 	var ws := Waldsetzer.new(_wurzel, "Hallenwald", 0.0)
-	var streifen := Vector2(1000.0, 12.0)
+	var streifen := Vector2(1000.0, 22.0)
 	ws.art("stamm", {"stoff": _borke(), "sicht": SICHT_HALLE, "verschmelzen": true,
 			"zelle": streifen})
 	ws.art("stamm_schatten", {"stoff": _borke(), "schatten": "nur", "sicht": SICHT_HALLE,
 			"verschmelzen": true, "zelle": streifen})
 	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_HALLE), "sicht": SICHT_HALLE,
-			"verschmelzen": true, "karten": true, "zelle": streifen})
+			"verschmelzen": true, "karten": true, "zelle": Vector2(1000.0, 12.0)})
 	ws.art("kranz", {"stoff": Findling.kranzstoff(), "sicht": SICHT_KRANZ,
 			"verschmelzen": true})
 	ws.art("farn", {"stoff": Farnwerk.stoff(FARN), "sicht": SICHT_FARN})
