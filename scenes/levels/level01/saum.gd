@@ -117,10 +117,10 @@ class_name L01Saum
 ## gerundet): 0–18 Zeichenaufrufe und 5–52k Dreiecke je Station, am meisten
 ## auf dem Hangweg (s 46–70), wo man beide Seiten weit voraus sieht.
 ## AUFBAU in acht Schritten (`bauschritte`), gemessen ohne Kopf am Desktop:
-## Felskante vermessen 0,16 s, Wand und Narbe 0,2 s, die drei Stoff-Schritte
-## 0,2 / 0,4 / 0,3 s (Texturen der Bibliothek, die sonst hier im ersten
-## Aufruf lägen), Spalten, Stufen und Ufer 0,2 s, Böschung 0,3 s, Bewuchs
-## 0,35 s – keiner über 0,4 s. `lippe_q` ist O(log n): Lippe und Fuß
+## Felskante vermessen 0,1 s, Wand und Narbe 0,16 s, die drei Stoff-Schritte
+## je 0,23–0,25 s (Texturen der Bibliothek, die sonst hier im ersten Aufruf
+## lägen), Spalten, Stufen und Ufer 0,26 s, Böschung 0,28 s, Bewuchs
+## 0,38 s – keiner über 0,4 s, zusammen 1,9 s (davon 0,7 s Texturen). `lippe_q` ist O(log n): Lippe und Fuß
 ## entstehen einmal je Bau (`_linien_anlegen`), ebenso `querschnitte_links`.
 
 const STUECK := 30.0
@@ -494,7 +494,7 @@ static func _welle(x: float, versatz: float) -> float:
 ## sie las sich die Wand als Schokoladentorte.
 static func _kluft(bogen: float, versatz: float) -> float:
 	var phase := bogen * PI / 9.5 + 1.3 * _welle(bogen * 0.05, versatz)
-	return smoothstep(0.93, 0.99, absf(sin(phase)))
+	return smoothstep(0.86, 0.985, absf(sin(phase)))
 
 
 ## Überhang der Grasnarbe an Stirnflächen, Stufen und Furt (m): 0,15–0,35,
@@ -1365,7 +1365,7 @@ static func _profil_wand(s: float, bogen: float, q_linie: float, kante: float,
 	var hb := clampf(ha + 4.4 + 0.8 * _welle(bogen * 0.08, 10.0), ha + 0.6, 0.66 * h)
 	# Senkrechte Klüfte schneiden die Simse ab und treten 0,8 m zurück
 	# (vom Weg weg), erst ab gut 4 m Wandhöhe.
-	var kluft := _kluft(bogen, 32.0) * smoothstep(4.0, 6.5, h)
+	var kluft := _kluft(bogen, 32.0) * smoothstep(4.0, 6.5, h) * (1.0 - _pfeiler(s))
 	var zurueck := 0.8 * kluft
 	# Die Simse setzen aus (Stücke von 3–8 m)
 	var da := smoothstep(-0.35, 0.2, _welle(bogen * 0.075, 33.0))
@@ -1507,9 +1507,10 @@ static func _abbrueche(st: Stuecke, proben: Array[Dictionary], g: Dictionary,
 					p + runter * (0.1 + h * 0.45) + Vector3.DOWN * h * 0.2,
 					p + runter * (0.04 + h * 0.25) + Vector3.DOWN * h * 0.95,
 					p - n * 0.25 + Vector3.DOWN * (h + 0.1)])
+			# Die Abbruchfläche ist Erde, keine Höhle: braun, nicht schwarz
 			var f := PackedColorArray([_farbe(0.8, 0.1, 0.4, 0.9), _farbe(0.78, 0.2, 0.4, 0.85),
-					_farbe(0.4, 0.9, 0.1, 0.1), _farbe(0.22, 1.0, 0.0, 0.0),
-					_farbe(0.2, 1.0, 0.0, 0.0)])
+					_farbe(0.55, 0.9, 0.15, 0.1), _farbe(0.44, 1.0, 0.05, 0.0),
+					_farbe(0.36, 1.0, 0.0, 0.0)])
 			if not vorher.is_empty():
 				for m in reihe.size() - 1:
 					var aussen := (reihe[m] + reihe[m + 1]) * 0.5 - (p - n * 0.1)

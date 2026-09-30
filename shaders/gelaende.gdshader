@@ -51,7 +51,7 @@ uniform vec3 ton_kuehl = vec3(0.86, 0.97, 1.0);
 uniform float schicht_dichte = 0.35;
 uniform vec2 schicht_neigung = vec2(0.062, -0.041);
 uniform vec3 sandstein_ton = vec3(1.08, 0.94, 0.78);
-uniform vec3 kalk_ton = vec3(1.16, 1.12, 1.02);
+uniform vec3 kalk_ton = vec3(1.05, 1.02, 0.95);
 // Relief: Stärke und Ausblendung nach Entfernung (m)
 uniform float relief_staerke = 0.3;
 uniform vec2 relief_nah = vec2(8.0, 30.0);

@@ -767,10 +767,12 @@ class Modell:
 	func _hallenkante_anlegen(level: Level01) -> void:
 		hallenkante = PackedVector2Array()
 		hallenkante_weich = PackedFloat32Array()
+		# Die Ostkante des Hallenwalds weicher (±3 m): Sie stand als glatte
+		# 15-m-Platte zum Tal.
 		for sq: Vector2 in HALLENKANTE:
 			if sq.x < ECKE.x - 3.0:
 				hallenkante.append(sq)
-				hallenkante_weich.append(KANTE_STEIL)
+				hallenkante_weich.append(3.0)
 		var lippe := PackedVector2Array()
 		var s := ECKE.x
 		while s < ECKE.y:
@@ -1801,7 +1803,7 @@ class Modell:
 	# ------------------------------------------------------------ Felsen
 
 	## Felsausbisse an den Randhügeln und am Westhang, ohne Kollision:
-	## flache, gekippte Platten, zu gut 40 % im Hang versenkt, 8–20 m UNTER
+	## flache, gekippte Blöcke, zu gut einem Drittel im Hang, 8–20 m UNTER
 	## dem Kamm auf der Talseite – je ein großer mit zwei, drei kleinen
 	## daneben. Aufrechte Steine auf dem Kamm lasen sich als Grabsteinreihe;
 	## die Kimm bricht der Wald, nicht der Stein.
@@ -1855,7 +1857,7 @@ class Modell:
 					var w := rng.randf() * TAU
 					p = mitte + Vector2(cos(w), sin(w)) * rng.randf_range(1.5, 4.0) * 1.6
 				var breit := rng.randf_range(6.0, 12.0) if gross else rng.randf_range(2.2, 4.5)
-				var hoch := breit * rng.randf_range(0.3, 0.55)
+				var hoch := breit * rng.randf_range(0.4, 0.62)
 				var g := Vector3(breit, hoch, breit * rng.randf_range(0.55, 0.9))
 				var y := hoehe(p.x, p.y)
 				# Hangnormale, zu 40 % zur Senkrechten, dazu 10–25° Kippung
@@ -1869,7 +1871,7 @@ class Modell:
 					basis = Basis(achse.normalized(), deg_to_rad(rng.randf_range(10.0, 25.0))) * basis
 				basis = basis * Basis(Vector3.UP, rng.randf_range(0.0, TAU))
 				var lage := Transform3D(basis.scaled_local(g), Vector3(p.x, y, p.y))
-				lage.origin -= auf * hoch * rng.randf_range(0.35, 0.45)
+				lage.origin -= auf * hoch * rng.randf_range(0.28, 0.36)
 				liste.append({"netz": formen[rng.randi() % formen.size()], "lage": lage,
 						"farbe": Color(0.0, 0.0, 1.0, 0.0), "zusatz": Vector2(1.0, 0.0)})
 		return liste
