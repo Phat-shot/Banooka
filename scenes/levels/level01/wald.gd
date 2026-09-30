@@ -1230,13 +1230,16 @@ static func _pflanze(ws: Waldsetzer, b: Dictionary, lage: Transform3D, stamm_art
 		_zaehle("nein_kegel_stamm")
 		_grund = "kegel_stamm"
 		return false
+	# "zeichnen": gezeichnet wird so, geprüft wurde `lage` – nur für Lagen,
+	# die ganz in der geprüften Hülle bleiben (kleiner oder gleich).
+	var bild: Transform3D = optionen.get("zeichnen", lage)
 	if not stamm_art.is_empty():
-		ws.setze(stamm_art, stamm, lage, stamm_ton)
+		ws.setze(stamm_art, stamm, bild, stamm_ton)
 		# Den Schatten wirft der schlichte Stamm gleicher Form.
 		if ws.hat_art(stamm_art + "_schatten") and b.get("schatten") != null:
-			ws.setze(stamm_art + "_schatten", b["schatten"] as ArrayMesh, lage)
+			ws.setze(stamm_art + "_schatten", b["schatten"] as ArrayMesh, bild)
 	if not krone_art.is_empty():
-		ws.setze(krone_art, b["krone"] as ArrayMesh, lage, krone_ton)
+		ws.setze(krone_art, b["krone"] as ArrayMesh, bild, krone_ton)
 	# Fernfassung (grobe Krone mit Stamm), sichtbar, wo die Zelle der vollen
 	# endet: gleiche Höhe, gleiche Drehung.
 	var fern_art: String = optionen.get("fern", "")
@@ -1244,9 +1247,11 @@ static func _pflanze(ws: Waldsetzer, b: Dictionary, lage: Transform3D, stamm_art
 		var v: int = b.get("variante", 0)
 		var k := 2 if v == 2 else (1 if v == 1 else 0)
 		var netz := _fernbaum(k)
-		var hoch := float(b.get("hoehe", 12.0)) * lage.basis.y.length()
+		var hoch := float(b.get("hoehe", 12.0)) * bild.basis.y.length()
 		var f := hoch / netz.get_aabb().end.y
-		var fern_lage := Transform3D(lage.basis.orthonormalized().scaled_local(Vector3.ONE * f), fuss)
+		var breit := bild.basis.x.length() / maxf(bild.basis.y.length(), 0.001)
+		var fern_lage := Transform3D(bild.basis.orthonormalized().scaled_local(
+				Vector3(f * breit, f, f * breit)), fuss)
 		ws.setze(fern_art, netz, fern_lage, krone_ton)
 	var kranz_art: String = optionen.get("kranz", "")
 	if not kranz_art.is_empty() and b["kranz"] != null:
@@ -2104,21 +2109,25 @@ static func _hain(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator, mi
 			# verteilt zwischen 0,6 und 1,2.
 			var groesse := rng.randf_range(1.15, 1.5) if n == 0 \
 					else lerpf(0.6, 1.25, pow(rng.randf(), 1.4))
+			var lage := _lage(Vector3(p.x, y, p.y), rng.randf() * TAU,
+					groesse * rng.randf_range(0.9, 1.1), groesse)
 			# Breit und gedrungen oder schmal und hoch, je Baum: Mit nur leicht
 			# gestreckten Kronen stand im Tal dutzendfach derselbe Stapel aus
-			# Polstern. Die Höhe streut nach dem Ort (`_streu`), nicht nach dem
-			# Würfel: So bleibt die Würfelfolge und damit der Wald, wie er war.
-			var dreh := rng.randf() * TAU
-			var breit := remap(rng.randf_range(0.9, 1.1), 0.9, 1.1, 0.82, 1.3)
-			var lage := _lage(Vector3(p.x, y, p.y), dreh, groesse * breit,
-					groesse * lerpf(0.74, 1.16, _streu(p, 11)))
+			# Polstern. Gezeichnet wird er in der geprüften Hülle gestaucht
+			# (Höhe 74–100 %, Breite 78–100 %, gestreut nach dem Ort, `_streu`):
+			# Würfelfolge, Prüfungen und damit der Wald bleiben, wie sie waren
+			# – mit neuen Würfen stand in der Seitenansicht der Wiese (s 186)
+			# plötzlich ein Stamm dicht vor der Kamera.
+			var bild := Transform3D(lage.basis.scaled_local(Vector3(
+					lerpf(0.78, 1.0, _streu(p, 17)), lerpf(0.74, 1.0, _streu(p, 11)),
+					lerpf(0.78, 1.0, _streu(p, 17)))), lage.origin)
 			var ton := ton_hain * _ton(rng, Vector2(0.86, 1.0), 0.03)
 			if nadel:
 				ton = ton * NADEL_TON
 			elif _auf_riegel(p.x, p.y):
 				ton = ton * Color(0.78, 0.84, 0.84)
 			var ok := _pflanze(ws, b, lage, "stamm", "krone", _ton(rng, Vector2(0.8, 0.95), 0.03),
-					ton, {"talkante": true, "fern": "fern"})
+					ton, {"talkante": true, "fern": "fern", "zeichnen": bild})
 			if not ok and groesse > 0.75:
 				# Unter der Kante: ein kleinerer Baum passt vielleicht.
 				groesse = 0.65
