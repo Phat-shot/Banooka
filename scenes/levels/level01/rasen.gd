@@ -19,46 +19,57 @@ class_name L01Rasen
 ##          gebauten Fläche, `GelaendeSaum.flaeche_punkt`); am Wandfuß der
 ##          Fallklamm hohes Gras, Farne, Großblätter
 ##   D      die Bachwiese: auf dem Weg 4 Flecken/m², daneben 6,5, bis 12,5 m
-##          hinaus, viele Blüten; an den Ufern der Furt hohes Gras
-##   E/F    kein Gras auf der Borke: Moospolster, Farne und Leuchtpilze in
-##          den Querrissen des Wurzelrückens (dieselbe Rechnung wie der
-##          Shader, `_riss`), auf dem Moos der Flanken Polster, Farne,
-##          Blüten und am Saum zur Borke kurzes Moosgras; die Wurzelwiese
-##          darunter voll Gras und Blüten
+##          hinaus, viele Blüten; weiter draußen (bis 26 m) Horste hohen
+##          Grases mit Blüten dazwischen; an den Ufern der Furt hohes Gras
+##   E/F    kein Gras auf der Borke: Auf dem Moos der Flanken stehen
+##          Moosflecken (`Rasensaum.moosfleck`, im Moosstoff des Wegbodens)
+##          – licht auf der Fläche, dicht im Saum zur Borke, dort über sie
+##          gelegt, davor kleine Moosinseln auf der Borke –, dazu Polster,
+##          Farne und Blüten; in den Querrissen des Wurzelrückens (dieselbe
+##          Rechnung wie der Shader, `_riss`) Moos, Farne und Leuchtpilze;
+##          die Wurzelwiese darunter voll Gras und Blüten
 ## Wispelgras und hohes Gras auch an den Lippen der Lücken und Stufen
 ## (außerhalb der Spur) und an den Ufern der Furt. Hohes Gras (0,45–0,6 m)
 ## an Steinen, Stämmen und Toren. Nichts wächst in Körpern aus
 ## `BEGEHBARES`, in Stämmen, an den Füßen der Tore und an den Portalen; um
-## jede Kiste bleibt 1 m frei, hohes Gras und große Streu halten 1,5 m.
+## jede Kiste (`Level01.KISTEN`, dieselben Stellen wie `kisten_orte()`)
+## bleibt 1 m frei, hohes Gras und große Streu halten 1,5 m.
 ##
 ## STREU (`Bodenstreu`): Kleeflecken, Blütengruppen (je Gruppe eine Art und
 ## Farbe; auf der Wiese viele, im Hallenwald nur weiße), Kiesel an der
 ## Lippe und an der Trittkante, Pilze (im Hallenwald und in den Rissen
 ## leuchtend), kleine Farne (`Farnwerk.klein`, mit natur2 das Stilmodell
 ## M12), Großblätter (mit natur2 M13) am Wandfuß und an der Furt,
-## Moospolster (`Rasensaum.polster`). RAHMENFARNE (`Farnwerk.rahmen`,
-## 2–3 m) alle 7–11 m: links in A (Gelände, |q| 6,5–8), B (Fuß der
-## Böschung) und C (Fuß der Wand), in D beidseitig (|q| 7–9). Die Kamera
-## steht 9,5 m hinter der Figur, also rahmen sie die unteren Bildecken,
-## wenn die Figur 3,5 m vor ihnen bis 0,5 m hinter ihnen läuft. Nie in den
-## mittleren 40 % des Bildes (Figur in der Mitte): Ihre Wedel reichen gut
-## 2,4 m je Maß nach innen und enden bei |q| ≥ 2,5 – wo die Wand näher
-## am Weg steht, wird der Farn kleiner. Nie zwischen Figur und Kamera: Sie
-## bleiben unter der Sichtlinie.
+## Moospolster (`Rasensaum.polster`).
+##
+## RAHMENFARNE (`Farnwerk.rahmen`, gut 2 m hoch) alle 7–11 m: links in A
+## (Gelände, |q| 6,5–8), B (an der Böschung, bis 1,6 m hinauf) und C (Fuß
+## der Wand), in D beidseitig (|q| 7–9). Die Kamera steht 9,5 m hinter der
+## Figur; sie rahmen die unteren Bildecken, wenn die Figur 3,5 m vor ihnen
+## bis 0,5 m hinter ihnen läuft. K8 wird für jeden Farn nachgerechnet
+## (`_k8_frei`: die Kamera fährt diese Strecke ab, kein Umrisspunkt kommt
+## näher als 0,4 an die Bildmitte); die Wedel liegen dazu quer zum Weg
+## gestaucht. Wo die Wand zu nah am Weg steht (Fallklamm), entfällt der
+## Farn – dort rahmt die Wand selbst. Nie zwischen Figur und Kamera: Die
+## Figur steht in der Bildmitte.
 ##
 ## KOSTEN (Plan 13: ≤ 40 Zeichenaufrufe, ≤ 120k Dreiecke je Station): je
-## Stück von `STUECK` m höchstens neun Netze – Gras (zweimal: die halbe
-## Dichte bis `SICHT_GRAS`, die andere Hälfte nur bis `SICHT_DICHT`),
-## Büschel, Wispelgras, Moospolster, Streu (verschmolzen), Farne,
-## Großblätter, Rahmenfarne –, alle ohne Schatten, mit harter Sichtweite
-## und Schrumpfen im Vertexshader. Gemessen (Verfolger, gegen den Stand
-## ohne Rasen): 2–19 Zeichenaufrufe und 2–107k Dreiecke je Station, am
-## meisten auf der Bachwiese und am Wurzelaufgang (s 176, 212). Web
-## (`Effekte.reduziert`): halbe Dichte (Gras, Streu, Wispelgras), Blüten
-## nur bis 20 m.
+## Stück von `STUECK` m (statt 24 m wie im Plan: feiner abgeschnitten,
+## weniger Dreiecke hinter der Sichtweite) je Art ein Netz – Gras (zweimal:
+## die halbe Dichte bis `SICHT_GRAS`, die andere Hälfte nur bis
+## `SICHT_DICHT`), Büschel, Horste, Wispelgras, Moospolster, Borkenmoos und
+## -polster, Streu (verschmolzen), Farne, Großblätter, Rahmenfarne; leere
+## entfallen. Alle ohne Schatten, mit harter Sichtweite und Schrumpfen im
+## Vertexshader. Gemessen (Verfolger, gegen den Stand ohne Rasen, alle
+## Stationen): siehe Paketbericht; am meisten auf der Bachwiese und am
+## Hangweg. Web (`Effekte.reduziert`): halbe Dichte (Gras, Moos, Streu,
+## Wispelgras, Horste), eine Graslage mit 20 statt 26 Halmen je Fleck, die
+## schon bei 30 m verschwindet (`Rasensaum.SCHRUMPF_WEB`), Blüten nur bis
+## 20 m – rund die Hälfte der Dreiecke.
 ##
-## AUFBAU in sechs Schritten (je Abschnitt einer, zuletzt die Netze), am
-## Desktop ohne Kopf gemessen je 70–260 ms. Die Zwischenstände liegen in
+## AUFBAU in sieben Schritten (je Abschnitt einer, die Wiese abseits des
+## Weges extra, zuletzt die Netze), am Desktop ohne Kopf gemessen je
+## 60–260 ms. Die Zwischenstände liegen in
 ## `_bau` und werden danach vergessen (auch, wenn das Level vorher geht).
 
 ## Länge der Stücke entlang s (m).
@@ -115,6 +126,7 @@ static func bauschritte(level: Level01) -> Array:
 		{"text": "Gras am Hangweg", "tun": func() -> void: _hangweg(_bau)},
 		{"text": "Farne in der Fallklamm", "tun": func() -> void: _fallklamm(_bau)},
 		{"text": "Die Bachwiese blüht", "tun": func() -> void: _bachwiese(_bau)},
+		{"text": "Hohes Gras am Bach", "tun": func() -> void: _wiese_draussen(_bau)},
 		{"text": "Moos in den Wurzelrissen", "tun": func() -> void: _wurzel(_bau)},
 		{"text": "Rasen wird ausgerollt", "tun": func() -> void:
 			_netze(_bau)
@@ -858,9 +870,13 @@ static func _bachwiese(b: Bau) -> void:
 				_grossblatt(b, l.s, p, rng.randf_range(0.9, 1.3))
 	_rahmenfarne(b, -1.0, 164.0, 196.0, 7.0, 8.0)
 	_rahmenfarne(b, 1.0, 166.0, 196.0, 7.2, 9.0)
+
+
+## Die Wiese abseits des Weges: Horste draußen auf der Bachwiese, die
+## Wurzelwiese unter dem Aufgang (y 7,0) und der Wiesenboden unter G1.
+static func _wiese_draussen(b: Bau) -> void:
 	_wiesenhorste(b)
-	# Die Wurzelwiese unter dem Aufgang (y 7,0) und der Wiesenboden unter G1.
-	s = 196.0
+	var s := 196.0
 	while s < 214.0:
 		var l := _lage(b, s)
 		var von := 4.3 if s < 210.0 else -4.0
@@ -917,7 +933,11 @@ static func _am_wasser(b: Bau, p: Vector3) -> bool:
 	var vorher := Vector4(NAN, NAN, NAN, NAN)
 	var xz := Vector2(p.x, p.z)
 	for w in b.wasser:
-		if not is_nan(vorher.x) and not is_nan(w.x):
+		# Grob vorsortiert: nur Abschnitte, deren Rechteck (mit Rand) `p` enthält.
+		var rand := maxf(w.w, vorher.w) + 8.0
+		if not is_nan(vorher.x) and not is_nan(w.x) \
+				and absf(xz.x - (vorher.x + w.x) * 0.5) < absf(w.x - vorher.x) * 0.5 + rand \
+				and absf(xz.y - (vorher.z + w.z) * 0.5) < absf(w.z - vorher.z) * 0.5 + rand:
 			var a := Vector2(vorher.x, vorher.z)
 			var c := Vector2(w.x, w.z)
 			var ac := c - a
