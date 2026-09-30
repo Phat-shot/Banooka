@@ -1676,7 +1676,10 @@ static func _bachwiese(level: Level01) -> void:
 	sa.fern = 110.0
 	_wurzeltor(sa, level, "Riesentor", 1621)
 	# Trittsteine der Furt: Oberseite genau auf der Walze, nass unter der
-	# Wasserlinie (Wasser y 6,0).
+	# Wasserlinie (Wasser y 6,0). Stärker gerundete Oberkante, unruhigerer
+	# Umriss und Flanken mit Anlauf: Mit senkrechten Flanken lasen sie sich
+	# als angeschnittene Torten. Die ebene Oberseite bleibt gut 0,6 m im
+	# Halbmesser (Radius 1,3), die Kollision ist die Walze.
 	for name: String in ["Furtstein 1", "Furtstein 2"]:
 		var e := level.begehbar(name)
 		if e.is_empty():
@@ -1684,7 +1687,8 @@ static func _bachwiese(level: Level01) -> void:
 		var lage: Transform3D = e["lage"]
 		var wasser := 6.0 - lage.origin.y
 		_stein(sa, Findling.scheibe(float(e["radius"]), float(e["hoehe"]),
-				{"saat": 1750 + name.length(), "wasser_y": wasser}), lage)
+				{"saat": 1750 + name.length(), "wasser_y": wasser, "rundung": 0.24,
+				"umriss": 0.2, "beulen": 0.12, "anlauf": 0.1}), lage)
 	_findlingsturm(sa, level)
 	_wurzelknie(sa, level)
 	sa.fertig()
