@@ -2070,6 +2070,13 @@ static func _talwald_nah(level: Level01) -> void:
 	_zaehle("tal_dreiecke", int(zz["dreiecke"]))
 
 
+## Eine feste Streuung 0..1 nach dem Ort (ohne Würfel): für Werte, die
+## neu dazukamen, ohne die Würfelfolge – und damit alle folgenden
+## Platzierungen – zu verschieben.
+static func _streu(p: Vector2, saat: int) -> float:
+	return fposmod(sin(p.x * 12.9898 + p.y * 78.233 + float(saat) * 1.618) * 43758.5453, 1.0)
+
+
 ## Ein Hain des nahen Talwalds um `mitte` (Welt-XZ): `anzahl` Bäume in bis
 ## zu `weite` m, getönt mit `ton_hain`. Der erste steht nahe der Mitte und
 ## ist der größte. Stämme halten im Hain nur 60 % des üblichen Abstands –
@@ -2099,9 +2106,12 @@ static func _hain(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator, mi
 					else lerpf(0.6, 1.25, pow(rng.randf(), 1.4))
 			# Breit und gedrungen oder schmal und hoch, je Baum: Mit nur leicht
 			# gestreckten Kronen stand im Tal dutzendfach derselbe Stapel aus
-			# Polstern.
-			var lage := _lage(Vector3(p.x, y, p.y), rng.randf() * TAU,
-					groesse * rng.randf_range(0.82, 1.3), groesse * rng.randf_range(0.74, 1.16))
+			# Polstern. Die Höhe streut nach dem Ort (`_streu`), nicht nach dem
+			# Würfel: So bleibt die Würfelfolge und damit der Wald, wie er war.
+			var dreh := rng.randf() * TAU
+			var breit := remap(rng.randf_range(0.9, 1.1), 0.9, 1.1, 0.82, 1.3)
+			var lage := _lage(Vector3(p.x, y, p.y), dreh, groesse * breit,
+					groesse * lerpf(0.74, 1.16, _streu(p, 11)))
 			var ton := ton_hain * _ton(rng, Vector2(0.86, 1.0), 0.03)
 			if nadel:
 				ton = ton * NADEL_TON
@@ -2281,9 +2291,10 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 			# Schirmkronen selten: Flach lesen sie sich im Dunst als Scheiben.
 			var k := 2 if nadel else (1 if rng.randf() < 0.25 else 0)
 			var groesse := lerpf(0.72, 1.45, pow(rng.randf(), 1.7)) * (1.08 if y > 16.0 else 1.0)
-			var groesse_y := groesse * rng.randf_range(0.76, 1.14)
-			var lage := _lage(Vector3(px, y, pz), rng.randf() * TAU,
-					groesse * rng.randf_range(0.84, 1.3), groesse_y)
+			var groesse_y := groesse * lerpf(0.76, 1.14, _streu(Vector2(px, pz), 13))
+			var dreh := rng.randf() * TAU
+			var lage := _lage(Vector3(px, y, pz), dreh,
+					groesse * remap(rng.randf_range(0.9, 1.15), 0.9, 1.15, 0.84, 1.3), groesse_y)
 			var huelle := lage * netze[k].get_aabb()
 			if not _talkante_frei(huelle) or not _weg_frei(huelle):
 				continue
