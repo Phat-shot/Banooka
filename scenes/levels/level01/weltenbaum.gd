@@ -35,11 +35,17 @@ class_name L01Weltenbaum
 ##     (`boden_unter_wendel`). Die Decke selbst malt `wegboden.gdshader`
 ##     (Rippen an den Rändern, Querrisse, Knoten); an der Innenkante rollt
 ##     ein dunkler, bemooster Fuß 0,3 m unter sie (`_flankenfuss`).
-##   - Brüche G1 und G2 mit Stirnflächen, die herausstehen: Faserkamm,
-##     Borkensaum, unruhige Jahresringe um ein verschobenes Mark, nasser
-##     Kern (`Weltenbaum.bruch_in`), die Oberwurzel (S4/S5), drei Wurzelbögen
-##     (TORE "art": "wurzelbogen") und das Kronentor (s 280): zwei
-##     Luftwurzeln vom Südwestast.
+##   - Brüche G1 und G2 mit Stirnflächen, die herausstehen und gerissen
+##     sind, nicht gesägt: Faserkamm, Borkensaum, Faserbündel, die bis
+##     0,5 m vor- und zurückspringen, radiale Fasern statt Jahresringen, ein
+##     dunkler Kern, acht abstehende Borkenplatten (`Weltenbaum.bruch_in`
+##     mit "zerfetzt"/"scherben"), Farne am Fuß; die Oberwurzel (S4/S5),
+##     drei Wurzelbögen (TORE "art": "wurzelbogen") und das Kronentor
+##     (s 280): zwei Luftwurzeln vom Südwestast.
+##   - Am Regal (F) buckelt die Lippe 0–0,55 m hinaus, ein gedecktes
+##     Moospolster greift unruhig auf die Decke, darunter hängen Wurzeln;
+##     hinter dem Portal rollt das Ende rund ab (`_regalende`), große Farne
+##     sitzen in seinen Ecken – kein Brett mit rechten Winkeln.
 ##
 ## PASSFORM. Die Kollision baut der Rohbau (`Level01.BEGEHBARES`). Hier wird
 ## nur gezeichnet, und zwar so, dass nichts über die Kollision zum Weg hin

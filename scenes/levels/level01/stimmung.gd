@@ -13,7 +13,12 @@ class_name L01Stimmung
 ## Gegenlichts aus Norden noch gelblich färbte: Die Ferne war heller als der
 ## Weg und flach, kühl waren 0–5 % des Bildes. Deshalb gibt es in Level 01
 ## kein Streulicht mehr (`fog_sun_scatter` 0 in Level01.tscn) – der Blick
-## geht auf dem Grat genau in das Gegenlicht.
+## geht auf dem Grat genau in das Gegenlicht. Auch im Schlussbild nicht (Plan
+## 5F wollte dort leuchtenden Dunst): Die Sonne steht 68° hoch im SSO, der
+## Blick geht nach SW leicht abwärts – rund 90° zur Sonne, wo das Streulicht
+## (hoch 8 des Kosinus) nichts mehr beiträgt. Golden wird das Ziel durch
+## die Sonne selbst: In der Wendel ist sie warm (1,0/0,84/0,60) und 15 %
+## stärker, und ein Lichtschacht fällt neben dem Portal aufs Regal.
 ##
 ## STIMMUNG ENTLANG DES WEGES (`Regler`). Jeder Abschnitt hat sein Licht,
 ## gerechnet wie bei `Stimmungszone` (`nebel_faktor` verkürzt die
@@ -31,7 +36,9 @@ class_name L01Stimmung
 ## Die Werte hängen nicht an Auslösekästen mit einer Überblendung über die
 ## Zeit (`Stimmungszone`), sondern an der Stelle: Der Regler rechnet jedes
 ## Bild aus der Strecke der Figur die Mischung der Zonen (weiche Übergänge
-## über `UEBERGANG` m) und geht ihr in einer knappen Zehntelsekunde nach.
+## über `UEBERGANG` m, an der Enthüllung 18 m) und geht ihr mit einer
+## Zeitkonstante von einer Sechstelsekunde nach (unabhängig von der
+## Bildrate). Steht die Figur, schreibt er nichts.
 ## So sieht jede Stelle immer gleich aus – im Spiel wie auf dem Foto, das
 ## nach 0,8 s Wartezeit sonst eine halbe Überblendung von der vorigen
 ## Aufnahmestelle zeigte –, und die Zonen der Wendel überlagern sich nicht

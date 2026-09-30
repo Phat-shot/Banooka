@@ -231,8 +231,8 @@ const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
 ## Die schlichte Fassung der Riesen (nur vom Grat aus zu sehen): Stamm und
 ## Krone dunkler und etwas kühler als die nahe – sie stehen dort vor dem
 ## dunklen Fuß des Weltenbaums und sollen mit ihm eine Masse bilden.
-const RIESE_FERN_STAMM := Color(0.5, 0.5, 0.52)
-const RIESE_FERN_KRONE := Color(0.7, 0.76, 0.8)
+const RIESE_FERN_STAMM := Color(0.3, 0.3, 0.33)
+const RIESE_FERN_KRONE := Color(0.56, 0.62, 0.68)
 
 ## Die Hallenwald-Reihen je Seite: Querbereich, Abstand entlang s, Arten
 ## (rechts eigene: tief beastete Kronen bis an die Hallenkante – die Halle
