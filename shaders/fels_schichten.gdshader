@@ -103,12 +103,15 @@ void fragment() {
 	vec3 gew = pow(abs(n), vec3(4.0));
 	gew /= (gew.x + gew.y + gew.z);
 	vec3 p = v_welt * fels_kachel;
-	vec2 dzy_x = dFdx(p.zy);
-	vec2 dzy_y = dFdy(p.zy);
-	vec2 dxz_x = dFdx(p.xz);
-	vec2 dxz_y = dFdy(p.xz);
-	vec2 dxy_x = dFdx(p.xy);
-	vec2 dxy_y = dFdy(p.xy);
+	// Ableitungen um die Hälfte vergrößert (gut eine halbe Mipstufe): Die
+	// längs gezogenen Streifen der Felstextur flimmerten aus mittlerer
+	// Entfernung als Strichmuster.
+	vec2 dzy_x = dFdx(p.zy) * 1.5;
+	vec2 dzy_y = dFdy(p.zy) * 1.5;
+	vec2 dxz_x = dFdx(p.xz) * 1.5;
+	vec2 dxz_y = dFdy(p.xz) * 1.5;
+	vec2 dxy_x = dFdx(p.xy) * 1.5;
+	vec2 dxy_y = dFdy(p.xy) * 1.5;
 	// Jedes Band leicht verschoben: Die Textur wiederholt sich nicht von
 	// Band zu Band an derselben Stelle.
 	vec2 versatz = vec2(kenn * 7.3, kenn2 * 3.1);
@@ -139,7 +142,7 @@ void fragment() {
 	vec2 r_uv = achse == 0 ? p.zy : (achse == 1 ? p.xz : p.xy);
 	vec2 r_dx = achse == 0 ? dzy_x : (achse == 1 ? dxz_x : dxy_x);
 	vec2 r_dy = achse == 0 ? dzy_y : (achse == 1 ? dxz_y : dxy_y);
-	float grob = dot(textureGrad(fels, r_uv + versatz, r_dx * 4.0, r_dy * 4.0).rgb,
+	float grob = dot(textureGrad(fels, r_uv + versatz, r_dx * 2.7, r_dy * 2.7).rgb,
 			vec3(0.3, 0.59, 0.11));
 	// Wasserspuren: lange, schmale Streifen die Wand hinab. Die seitliche
 	// Koordinate läuft schräg über X und Z – ein Wechsel der Projektion je

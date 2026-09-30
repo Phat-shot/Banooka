@@ -1061,11 +1061,11 @@ class Modell:
 			_ober_punkt(_weg_welt(sq.x, sq.y), 26.0, HALLE_EBEN, hallenkante_weich[k])
 		# Lippe von B und C: dahinter liegt die Krone der Böschung bzw. Wand –
 		# das Land beginnt auf der Höhe, auf der der Saum sie enden lässt.
-		# Hinter der Wand der Fallklamm (C, wie am Felsturm des Pfeilers)
-		# fällt es dagegen hinter dem Ende der Krone ab (`_profil_saum_links`
-		# deckt das Ende noch zu): Vom Kronentor aus läuft die Sichtlinie zum
-		# Grat gut 10 m hinter der Krone auf y ≈ 26,5 – Land auf Kronenhöhe
-		# verstellte dort Grat, Kanzel und Wasserfall.
+		# Hinter der Wand der Fallklamm (C, hinter dem Pfeiler) fällt es
+		# dagegen hinter dem Ende der Krone ab (`_profil_saum_links` deckt das
+		# Ende noch zu): Vom Kronentor aus läuft die Sichtlinie zum Grat knapp
+		# über die Krone (y 25–27, durch die Scharte des Saums) – Land auf
+		# Kronenhöhe dahinter verstellte Grat, Kanzel und Wasserfall.
 		var s := 34.0
 		while s <= 143.0:
 			var i := _index(s)
@@ -1872,8 +1872,10 @@ class Modell:
 				basis = basis * Basis(Vector3.UP, rng.randf_range(0.0, TAU))
 				var lage := Transform3D(basis.scaled_local(g), Vector3(p.x, y, p.y))
 				lage.origin -= auf * hoch * rng.randf_range(0.28, 0.36)
+				# Etwas dunkler als der freie Fels: Im Dunst lasen sich die
+				# Ausbisse sonst als helle Flecken
 				liste.append({"netz": formen[rng.randi() % formen.size()], "lage": lage,
-						"farbe": Color(0.0, 0.0, 1.0, 0.0), "zusatz": Vector2(1.0, 0.0)})
+						"farbe": Color(0.0, 0.0, 1.0, 0.0), "zusatz": Vector2(0.72, 0.0)})
 		return liste
 
 	# ------------------------------------------------------------ Wald
