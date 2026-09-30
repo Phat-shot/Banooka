@@ -21,7 +21,14 @@ class_name Totholzzaun
 ## Keine Kollision, keine Knoten: `bauen()` liefert EIN Netz im
 ## Scheitelformat von `Riesenstamm` (COLOR.rgb Verdeckung · Tönung, COLOR.a
 ## Moos, UV Rinde, UV2.x Art: 0 Rinde, 1 Eigenfarbe) – der Aufrufer
-## verschmilzt es mit seinen übrigen Holzteilen und setzt `stoff()`.
+## verschmilzt es mit seinen übrigen Holzteilen und setzt `stoff()` oder,
+## um einen Zeichenaufruf zu sparen, den gewöhnlichen
+## `Riesenstamm.borkenstoff()`: Die graue Rinde steckt dann allein in der
+## Tönung (`ton`, Vorgabe `RINDE_TON`), die Spaltflächen tragen ohnehin
+## Eigenfarbe.
+##
+## Maße: Pfosten Ø 20–25 cm, Riegel Ø 15–19 cm – dünner lasen sie sich
+## aus der Spielkamera (8–15 m) als Striche, nicht als Holz.
 ##
 ## Dreiecke: gut 150 je Meter Zaun.
 
@@ -54,6 +61,7 @@ static func stoff() -> ShaderMaterial:
 ##                    denen kein Zaun steht – dort stehen etwa Findlinge
 ##   ende_geborsten   der letzte Pfosten ist ein geborstener Stumpf (false)
 ##   verfall          0..1, wie viel gebrochen und heruntergefallen ist (0,35)
+##   ton              Tönung der Rinde (Color ≤ 1, Vorgabe `RINDE_TON`)
 static func bauen(linie: PackedVector3Array, optionen: Dictionary = {}) -> ArrayMesh:
 	var st := Riesenstamm.bauer()
 	var saat: int = optionen.get("saat", 1)
@@ -64,6 +72,7 @@ static func bauen(linie: PackedVector3Array, optionen: Dictionary = {}) -> Array
 	var luecken: Array = optionen.get("luecken", [])
 	var geborsten: bool = optionen.get("ende_geborsten", false)
 	var verfall: float = optionen.get("verfall", 0.35)
+	var ton: Color = optionen.get("ton", RINDE_TON)
 
 	# Bogenlänge der Linie, um Pfosten gleichmäßig zu verteilen.
 	var laengen := PackedFloat32Array([0.0])
@@ -104,18 +113,18 @@ static func bauen(linie: PackedVector3Array, optionen: Dictionary = {}) -> Array
 		var seite := richtung.cross(Vector3.UP).normalized() * aussen
 		var letzter := k == stellen.size() - 1
 		var ph := hoehe * rng.randf_range(0.9, 1.1)
-		var pr := rng.randf_range(0.075, 0.095)
+		var pr := rng.randf_range(0.1, 0.125)
 		var schief := Vector3(rng.randf_range(-0.07, 0.07), 0.0, rng.randf_range(-0.07, 0.07))
 		if geborsten and letzter:
 			ph = hoehe * 1.35
-			pr = 0.13
+			pr = 0.17
 			schief = seite * 0.1 + richtung * 0.06
 		var kopf := fuss + (Vector3.UP + schief).normalized() * ph
 		var punkte := PackedVector3Array([fuss - Vector3.UP * VERSENKT, fuss.lerp(kopf, 0.5), kopf])
 		var radien := PackedFloat32Array([pr * 1.08, pr, pr * 0.94])
 		stueck(st, punkte, radien, {"saat": saat * 31 + k, "seiten": 7,
 				"ende": "splitter" if (geborsten and letzter) else "keil",
-				"moos": 0.35, "ao": Vector2(0.55, 1.0)})
+				"moos": 0.35, "ao": Vector2(0.55, 1.0), "ton": ton})
 		koepfe.append(kopf)
 		fuesse.append(fuss)
 
@@ -140,7 +149,7 @@ static func bauen(linie: PackedVector3Array, optionen: Dictionary = {}) -> Array
 			var a := a_fuss + Vector3.UP * h + vorn - richtung * rng.randf_range(0.12, 0.28)
 			var b := b_fuss + Vector3.UP * (h + rng.randf_range(-0.06, 0.06)) + vorn \
 					+ richtung * rng.randf_range(0.12, 0.28)
-			var rr := rng.randf_range(0.06, 0.08)
+			var rr := rng.randf_range(0.075, 0.095)
 			var bruch := "splitter"
 			if wurf < verfall * 0.25 and riegel == 1:
 				# Oberer Riegel fehlt: nur ein Stumpf am ersten Pfosten.
@@ -151,16 +160,16 @@ static func bauen(linie: PackedVector3Array, optionen: Dictionary = {}) -> Array
 			elif wurf < verfall * 0.8 and riegel == 1:
 				# Gebrochen und durchgesackt: zwei Stücke mit Knick.
 				var knick := a.lerp(b, rng.randf_range(0.4, 0.6)) + Vector3.DOWN * 0.22
-				_riegel(st, rng, a, knick, rr, seite, saat * 97 + k * 2 + riegel, "splitter")
+				_riegel(st, rng, a, knick, rr, seite, saat * 97 + k * 2 + riegel, "splitter", ton)
 				_riegel(st, rng, knick + richtung * 0.05, b, rr, seite, saat * 89 + k * 2 + riegel,
-						"splitter")
+						"splitter", ton)
 				continue
-			_riegel(st, rng, a, b, rr, seite, saat * 53 + k * 2 + riegel, bruch)
+			_riegel(st, rng, a, b, rr, seite, saat * 53 + k * 2 + riegel, bruch, ton)
 	return Riesenstamm.fertig(st)
 
 
 static func _riegel(st: SurfaceTool, rng: RandomNumberGenerator, a: Vector3, b: Vector3,
-		r: float, seite: Vector3, saat: int, ende: String) -> void:
+		r: float, seite: Vector3, saat: int, ende: String, ton: Color) -> void:
 	var d := b - a
 	var mitte := a + d * 0.5 + Vector3.DOWN * d.length() * 0.012
 	var punkte := PackedVector3Array([a, a.lerp(mitte, 0.5), mitte, mitte.lerp(b, 0.5), b])
@@ -168,7 +177,7 @@ static func _riegel(st: SurfaceTool, rng: RandomNumberGenerator, a: Vector3, b: 
 	# Die Spaltfläche zeigt mal nach oben, mal zur Seite.
 	var spalt := (Vector3.UP * rng.randf_range(-0.3, 1.0) + seite * rng.randf_range(-1.0, 1.0)).normalized()
 	stueck(st, punkte, radien, {"saat": saat, "seiten": 7, "form": "gespalten",
-			"spalt": spalt, "ende": ende, "moos": 0.45, "ao": Vector2(0.85, 0.85)})
+			"spalt": spalt, "ende": ende, "moos": 0.45, "ao": Vector2(0.85, 0.85), "ton": ton})
 
 
 static func _in_luecke(l: float, luecken: Array, rand: float) -> bool:
