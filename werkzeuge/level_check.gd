@@ -38,6 +38,8 @@ extends Node
 ##                 "todeszonen" an ist
 ##   "wegmaske"    CPU-Wegmaske gegen das Shader-Include (`_pruefe_wegmaske`,
 ##                 der Teil von `Wegmaskenprobe` ohne Bildschirm)
+##   "naht"        Nähte des Geländes an den FLACH-Kanten: Das Level liefert
+##                 die Abweichungen über `nahtprobe()` (`_pruefe_naht`)
 ## Das Level muss dafür `breite_bei(s)` und `boden_bei(s)` anbieten; für
 ## die Oberseiten des Begehbaren `BEGEHBARES` und `begehbar(name)` wie
 ## Level 01.
@@ -554,6 +556,8 @@ func _opt_in_proben() -> void:
 	var rand := bool(profil.get("rand", zonen))
 	if bool(profil.get("wegmaske", false)):
 		_pruefe_wegmaske()
+	if bool(profil.get("naht", false)):
+		_pruefe_naht()
 	if not (sicht or gefaelle or zonen or rand):
 		return
 	if not _level.has_method("breite_bei") or not _level.has_method("boden_bei"):
@@ -607,6 +611,30 @@ func _pruefe_wegmaske() -> void:
 			_fehler += 1
 			probleme += 1
 	print("  Wegmaske: CPU und Shader-Include verglichen, %d Probleme" % probleme)
+
+
+## Nähte des Geländes (Level 01, Plan 8.4): Das Level liefert über
+## `nahtprobe()` je Abweichung eine Zeile "ABWEICHUNG …" und zuletzt
+## "GEPRUEFT n" (siehe `L01Gelaende.nahtprobe`).
+func _pruefe_naht() -> void:
+	if not _level.has_method("nahtprobe"):
+		print("  FEHLER  pruefprofil() meldet \"naht\", aber das Level hat kein nahtprobe()")
+		_fehler += 1
+		return
+	var zeilen: PackedStringArray = _level.call("nahtprobe")
+	var probleme := 0
+	var geprueft := "?"
+	for zeile in zeilen:
+		if zeile.begins_with("ABWEICHUNG"):
+			probleme += 1
+			if probleme <= 12:
+				print("  FEHLER  Naht: " + zeile.trim_prefix("ABWEICHUNG").strip_edges())
+		elif zeile.begins_with("GEPRUEFT"):
+			geprueft = zeile.trim_prefix("GEPRUEFT").strip_edges()
+	if probleme > 12:
+		print("  FEHLER  Naht: … und %d weitere" % (probleme - 12))
+	_fehler += probleme
+	print("  Naht: %s Geländepunkte an FLACH-Kanten geprüft, %d Abweichungen" % [geprueft, probleme])
 
 
 func _korridorkamera(wurzel: Node) -> KorridorKamera:

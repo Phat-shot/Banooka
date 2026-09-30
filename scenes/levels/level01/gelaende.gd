@@ -227,6 +227,10 @@ static var _nebel_shader: Shader = null
 ## der Schritte der anderen Module.
 static func bauschritte(level: Level01) -> Array:
 	einrichten(level)
+	# Modell und Feld gelten, solange das Level steht – und nur für dieses
+	# Level: Steht schon ein neues, bleibt dessen Modell.
+	var id := level.get_instance_id()
+	level.tree_exiting.connect(func() -> void: L01Gelaende.vergessen(id), CONNECT_ONE_SHOT)
 	var feld := _feld_anlegen()
 	var schritte: Array = [{"text": "Das Tal wird vermessen", "tun": func() -> void:
 		_modell.sammeln = true
@@ -281,6 +285,45 @@ static func bachlauf() -> Array:
 	if _modell == null:
 		return []
 	return _modell.laeufe_ausgeben()
+
+
+## Vergisst Modell und Feld (mehrere MB): Nach dem Level antwortet
+## `hoehe()` nicht mehr aus einem alten Feld. Das Level ruft es beim
+## Verlassen (siehe `bauschritte`); `level_id` ≠ 0: nur, wenn Modell und
+## Feld zu diesem Level gehören.
+static func vergessen(level_id: int = 0) -> void:
+	if level_id != 0 and _modell != null and _modell.level_id != level_id:
+		return
+	_modell = null
+	_feld = null
+
+
+## Probe der Nähte für `level_check` (Plan 8.4 „An FLACH-Rändern rasten die
+## Scheitel auf die Wegkantenhöhe ein"): Jeder Punkt des Feldes neben einer
+## FLACH-Decke bis 1,5 m hinter der Kante muss 2 cm unter der Decke liegen
+## (± 5 cm). Ausgenommen sind die Stellen, an denen die Naht absichtlich
+## abweicht: Erdspalt, Bach an der Furt, die Ecke der Hochfläche hinter
+## ihrer Oberkante, die Wurzelwiese (7,0) und links, wo der Saum die
+## Böschung aus dem Waldboden wachsen lässt. Rückgabe: je Abweichung eine
+## Zeile "ABWEICHUNG …", zuletzt eine Zeile "GEPRUEFT n".
+static func nahtprobe() -> PackedStringArray:
+	var aus := PackedStringArray()
+	if _modell == null or _feld == null or not _feld.fertig():
+		aus.append("ABWEICHUNG kein Gelände gebaut")
+		return aus
+	var geprueft := 0
+	for k in _feld.punkt_anzahl():
+		var p := _feld.punkt(k)
+		var soll := _modell.flach_soll(p.x, p.z)
+		if is_nan(soll):
+			continue
+		geprueft += 1
+		if absf(p.y - soll) > 0.05:
+			var sq := _modell.projektion(p.x, p.z)
+			aus.append("ABWEICHUNG Gelände neben FLACH bei s %.1f, q %+.1f: y %.2f statt %.2f"
+					% [sq.x, sq.y, p.y, soll])
+	aus.append("GEPRUEFT %d" % geprueft)
+	return aus
 
 
 ## Optik für Wurzelwiese und Wiesenboden G1: Das Höhenfeld zeichnet beide
@@ -440,6 +483,8 @@ class Modell:
 	const BACH_ZELLE := 6.0
 	const BACH_REICHWEITE := 8.0
 
+	## Das Level, für das das Modell gilt (Instanz-ID).
+	var level_id := 0
 	var anzahl := 0
 	var px := PackedFloat32Array()
 	var pz := PackedFloat32Array()
@@ -484,6 +529,8 @@ class Modell:
 	var ober_anfang := PackedFloat32Array()
 	var ober_weich := PackedFloat32Array()
 	var ober_raster: Dictionary = {}
+	# Zellen, die ganz auf einer Seite liegen: 1 Oberland, −1 Tal
+	var ober_seite: Dictionary = {}
 	var ober_vieleck := PackedVector2Array()
 	var pfeilerhuegel := Vector2.ZERO
 	var rausch_grob := FastNoiseLite.new()
@@ -501,6 +548,7 @@ class Modell:
 	var sammeln := false
 
 	func _init(level: Level01) -> void:
+		level_id = level.get_instance_id()
 		ende_s = Level01.M_ENDE
 		_rauschen_anlegen()
 		_weg_lesen(level)
@@ -1041,10 +1089,31 @@ class Modell:
 		mittel /= summe
 		var ergebnis := Vector4(bester, mittel.x, mittel.y, mittel.z)
 		# Die Seite über das geschlossene Vieleck (an Ecken der Kante wäre
-		# die Seite des nächsten Segments falsch).
-		if not Geometry2D.is_point_in_polygon(q, ober_vieleck):
+		# die Seite des nächsten Segments falsch); liegt die ganze Zelle auf
+		# einer Seite, steht sie im Raster.
+		var seite: int = ober_seite.get(zelle, 0)
+		var innen := seite > 0 if seite != 0 else innen_im_vieleck(q, ober_vieleck)
+		if not innen:
 			ergebnis.x = -ergebnis.x
 		return ergebnis
+
+	## Liegt `p` im Vieleck? Halboffener Kreuzungstest (Strahl nach +x): Eine
+	## Ecke genau auf der Höhe des Strahls zählt nur für die Kante, die über
+	## ihr liegt – robust, auch wenn der Strahl durch eine Ecke läuft.
+	## `Geometry2D.is_point_in_polygon` ordnete dort einen Punkt am Start
+	## (s 6,8, q +5,1) dem Tal zu, und die Naht hob ihn auf die Randhügel.
+	static func innen_im_vieleck(p: Vector2, vieleck: PackedVector2Array) -> bool:
+		var innen := false
+		var n := vieleck.size()
+		var j := n - 1
+		for i in n:
+			var a := vieleck[i]
+			var b := vieleck[j]
+			if (a.y > p.y) != (b.y > p.y) \
+					and p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x:
+				innen = not innen
+			j = i
+		return innen
 
 	func _ober_kandidaten(zelle: Vector2i) -> PackedInt32Array:
 		var mitte := (Vector2(zelle) + Vector2(0.5, 0.5)) * OBER_ZELLE
@@ -1064,8 +1133,13 @@ class Modell:
 		# weichen Mittelung sein können (drei Weichen weit, siehe `_ober`)
 		var grenze := kleinster * 1.4 + 9.0 + OBER_ZELLE * 1.42 * 1.4
 		var liste := PackedInt32Array()
+		# Keine Kante näher als die halbe Zelldiagonale: Die ganze Zelle
+		# liegt auf der Seite ihrer Mitte (die Schließung des Vielecks liegt
+		# 1000 m weit draußen).
+		if kleinster > OBER_ZELLE * 0.72:
+			ober_seite[zelle] = 1 if innen_im_vieleck(mitte, ober_vieleck) else -1
 		# Weit im Tal zählt nur die Seite: `_landschaft` nimmt dort das Tal.
-		if kleinster > 20.0 and not Geometry2D.is_point_in_polygon(mitte, ober_vieleck):
+		if kleinster > 20.0 and int(ober_seite[zelle]) < 0:
 			return liste
 		for k in abstaende.size():
 			if abstaende[k] <= grenze:
@@ -1210,12 +1284,47 @@ class Modell:
 		var gewicht := lerpf(a.y, b.y, t)
 		# Um die Ecke der Hochfläche hält die Naht den Rasen nur bis zur
 		# Oberkante: Dahinter bricht das Land hinter der Wand des Saums ab.
-		if seite == 1 and s < ECKE.y + 0.3 and u > wegrand[i] + 0.1:
+		# Nur an der Ecke – davor ist die Hallenkante 27 m weit weg.
+		if seite == 1 and s > ECKE.x - 1.5 and s < ECKE.y + 0.3 and u > wegrand[i] + 0.1:
 			gewicht *= smoothstep(-o.w, o.w, o.x)
 		if gewicht <= 0.0:
 			return h
 		var ziel := (a.x * a.y * (1.0 - t) + b.x * b.y * t) / maxf(a.y * (1.0 - t) + b.y * t, 1e-5)
 		return lerpf(h, ziel, gewicht)
+
+	## Für `nahtprobe`: die Höhe, auf der ein Punkt neben einer FLACH-Decke
+	## liegen muss (2 cm unter ihr), NAN, wo die Naht absichtlich abweicht
+	## oder der Punkt nicht an einer FLACH-Decke liegt (siehe `nahtprobe`).
+	func flach_soll(x: float, z: float) -> float:
+		var sq := projektion(x, z)
+		var s := sq.x
+		if s < -8.0 or s > 193.0:
+			return NAN
+		var seite := 0 if sq.y < 0.0 else 1
+		var u := absf(sq.y)
+		var f := clampf((s - S_MIN) / S_SCHRITT, 0.0, float(anzahl - 1))
+		var i := mini(floori(f), anzahl - 2)
+		var t := f - float(i)
+		if typ[seite][i] != FLACH or typ[seite][i + 1] != FLACH:
+			return NAN
+		# Nahe an einem Deckenende: Dort wechselt die Naht genau an der Kante
+		if (breite[i] <= 0.0) != (breite[i + 1] <= 0.0) or in_luecke(s):
+			return NAN
+		var rand := wegrand[i]
+		if u >= rand + 1.5:
+			return NAN
+		if seite == 0 and saum_da[i] == 1:
+			return NAN
+		if _spalt_hinter(s, sq.y) < SPALT_LIPPE + 0.5:
+			return NAN
+		var nb := _bach_naechst(laeufe[0], x, z)
+		if nb.x < nb.w * 0.5 + 3.0 and u > rand - 0.1:
+			return NAN
+		if seite == 1 and s > ECKE.x - 1.5 and s < ECKE.y + 0.3 and u > rand + 0.1:
+			var o := _ober(x, z)
+			if o.x < o.w + 0.1:
+				return NAN
+		return lerpf(deck[i], deck[i + 1], t) - UNTER_DECKE
 
 	## Profil an der Stelle i: Vector2(Zielhöhe, Gewicht).
 	func _profil(i: int, seite: int, u: float, s: float, h: float, bach: float) -> Vector2:

@@ -499,6 +499,15 @@ func zaehlen() -> Vector2i:
 	return Vector2i(_px.size(), _alle.size() / 3)
 
 
+## Anzahl der Punkte und ein Punkt samt Höhe (für Proben der Nähte).
+func punkt_anzahl() -> int:
+	return _px.size()
+
+
+func punkt(k: int) -> Vector3:
+	return Vector3(_px[k], _py[k], _pz[k])
+
+
 func _gitter_bauen() -> void:
 	_gitter_n = Vector2i(ceili(bereich.size.x / _gitter_zelle), ceili(bereich.size.y / _gitter_zelle))
 	_gitter.clear()

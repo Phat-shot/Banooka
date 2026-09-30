@@ -143,13 +143,68 @@ const KRONE_WEITE_W: Array[float] = [0.8, 1.8, 3.0, 4.5, 6.0, 7.5]
 const KRONE_HOCH_W: Array[float] = [0.05, 0.15, 0.25, 0.4, 0.5, 0.6]
 
 
-## Bauschritte, je {"text": String, "tun": Callable}.
+## Merker eines Baus: Lippe rechts und Fuß links als Polylinie samt ihren
+## Strecken (für die binäre Suche in `lippe_q`), die Querschnitte links
+## (`querschnitte_links`) und die Zwischenstände der Bauschritte. Einmal je
+## Bau angelegt, beim Verlassen des Levels vergessen (`vergessen`).
+static var _lippe := PackedVector2Array()
+static var _lippe_s := PackedFloat32Array()
+static var _fuss := PackedVector2Array()
+static var _fuss_s := PackedFloat32Array()
+static var _querschnitte := {}
+static var _bau := {}
+static var _level_id := 0
+
+
+## Bauschritte, je {"text": String, "tun": Callable}. Fünf Schritte, damit
+## der Ladebalken (auch im Web) nicht lange steht; die Zwischenstände liegen
+## in `_bau`.
 static func bauschritte(level: Level01) -> Array:
-	GelaendeSaum.vergessen()
+	vergessen()
+	_level_id = level.get_instance_id()
+	var id := _level_id
+	level.tree_exiting.connect(func() -> void: L01Saum.vergessen(id), CONNECT_ONE_SHOT)
+	_linien_anlegen(level)
 	return [
-		{"text": "Felskante, Spalten und Ufer", "tun": func() -> void: _rechts(level)},
+		{"text": "Die Felskante wird vermessen", "tun": func() -> void: _rechts_vermessen(level)},
+		{"text": "Felswand und Grasnarbe", "tun": func() -> void: _rechts_bauen(level)},
+		{"text": "Spalten, Stufen und Ufer", "tun": func() -> void: _rechts_quer(level)},
 		{"text": "Böschung und Schichtfels", "tun": func() -> void: _links(level)},
+		{"text": "Farne und Ranken an der Wand", "tun": func() -> void: _links_bewuchs(level)},
 	]
+
+
+## Vergisst alle Merker (Linien, Querschnitte, Flächen); `level_id` ≠ 0:
+## nur, wenn sie zu diesem Level gehören.
+static func vergessen(level_id: int = 0) -> void:
+	if level_id != 0 and level_id != _level_id:
+		return
+	_lippe = PackedVector2Array()
+	_lippe_s = PackedFloat32Array()
+	_fuss = PackedVector2Array()
+	_fuss_s = PackedFloat32Array()
+	_querschnitte = {}
+	_bau = {}
+	_level_id = 0
+	GelaendeSaum.vergessen()
+
+
+## Lippe rechts und Fuß links (einmal je Bau).
+static func _linien_anlegen(level: Level01) -> void:
+	if _lippe.is_empty():
+		_lippe = _lippe_rechts(level)
+		_lippe_s = _strecken(_lippe)
+	if _fuss.is_empty():
+		_fuss = _fuss_links(level)
+		_fuss_s = _strecken(_fuss)
+
+
+static func _strecken(linie: PackedVector2Array) -> PackedFloat32Array:
+	var aus := PackedFloat32Array()
+	aus.resize(linie.size())
+	for i in linie.size():
+		aus[i] = linie[i].x
+	return aus
 
 
 ## Optik für Einträge aus `Level01.BEGEHBARES` mit "optik": "saum" – die
@@ -165,14 +220,25 @@ static func optik(_level: Level01, eintrag: Dictionary) -> Node3D:
 
 
 ## Querabstand der Lippe rechts bzw. des Wandfußes links an der Strecke `s`
-## (positiv), wie gebaut. Für Rasen, Wald und Gelände.
+## (positiv), wie gebaut. Für Rasen, Wald und Gelände. O(log n): Die Linien
+## entstehen einmal je Bau, gesucht wird binär über ihre Strecken; außerhalb
+## gilt der Abstand aus `rand_profil`.
 static func lippe_q(level: Level01, s: float, seite: float) -> float:
-	var linie := _lippe_rechts(level) if seite > 0.0 else _fuss_links(level)
-	for i in linie.size() - 1:
+	_linien_anlegen(level)
+	var linie := _lippe if seite > 0.0 else _fuss
+	var strecken := _lippe_s if seite > 0.0 else _fuss_s
+	var n := linie.size()
+	# Das erste Segment, dessen Ende nicht vor `s` liegt (senkrechte Stücke
+	# wie die Stirn der Kanzel überspringt die Schleife).
+	var i := maxi(strecken.bsearch(s, true) - 1, 0)
+	while i < n - 1:
 		var a := linie[i]
 		var b := linie[i + 1]
-		if s >= a.x and s <= b.x and b.x - a.x > 0.0001:
+		if a.x > s:
+			break
+		if s <= b.x and b.x - a.x > 0.0001:
 			return absf(lerpf(a.y, b.y, (s - a.x) / (b.x - a.x)))
+		i += 1
 	return absf(float(level.rand_profil(s, seite)["abstand"]))
 
 
@@ -185,8 +251,10 @@ static func lippe_q(level: Level01, s: float, seite: float) -> float:
 ## vom Versatz entlang ihrer Normale nur der Anteil quer zum Weg; wo sie
 ## quer zum Weg abbiegt (Ende bei 160), taugt das Profil dafür nicht.
 static func querschnitte_links(level: Level01) -> Dictionary:
-	var proben := GelaendeSaum.linie(level.verlauf, _fuss_links(level), SCHRITT_LINKS,
-			_feste_s())
+	if not _querschnitte.is_empty():
+		return _querschnitte
+	_linien_anlegen(level)
+	var proben := GelaendeSaum.linie(level.verlauf, _fuss, SCHRITT_LINKS, _feste_s())
 	var strecken := PackedFloat32Array()
 	var punkte: Array[PackedVector2Array] = []
 	var n := proben.size()
@@ -205,7 +273,9 @@ static func querschnitte_links(level: Level01) -> Dictionary:
 			reihe.append(Vector2(q, p.y[j]))
 		strecken.append(float(probe["s"]))
 		punkte.append(reihe)
-	return {"s": strecken, "punkte": punkte}
+	# Geteilt – nie verändern.
+	_querschnitte = {"s": strecken, "punkte": punkte}
+	return _querschnitte
 
 
 # ================================================================ Stücke
@@ -453,24 +523,43 @@ static func _platte(s: float) -> float:
 			* (1.0 - smoothstep(PLATTE_BIS - 0.5, PLATTE_BIS + 0.2, s))
 
 
-## Die Felskante rechts.
-static func _rechts(level: Level01) -> void:
-	var st := Stuecke.new(_wurzel(level), "Rechts")
-	var proben := GelaendeSaum.linie(level.verlauf, _lippe_rechts(level), SCHRITT_RECHTS,
-			_feste_s())
+## Die Felskante rechts, Schritt 1: Querschnitte und Normalen.
+static func _rechts_vermessen(level: Level01) -> void:
+	_linien_anlegen(level)
+	var proben := GelaendeSaum.linie(level.verlauf, _lippe, SCHRITT_RECHTS, _feste_s())
 	var g := GelaendeSaum.querschnitte(level.verlauf, proben, 1.0,
 			_profil_rechts.bind(level), _kante.bind(level), _kronen.bind(level))
 	GelaendeSaum.merken(1.0, g)
-	var norm := GelaendeSaum.normalen(g)
+	_bau["rechts_proben"] = proben
+	_bau["rechts_g"] = g
+	_bau["rechts_norm"] = GelaendeSaum.normalen(g)
+
+
+## Schritt 2: Gitter, Karten, Vorsprünge, Nadeln und Steine in die Stücke.
+static func _rechts_bauen(level: Level01) -> void:
+	var st := Stuecke.new(_wurzel(level), "Rechts")
+	var proben: Array[Dictionary] = _bau["rechts_proben"]
+	var g: Dictionary = _bau["rechts_g"]
+	var norm: Array[PackedVector3Array] = _bau["rechts_norm"]
 	_gitter_in_stuecke(st, "Rechts", g, norm)
 	_deckel_an_enden(st, "Rechts", g)
 	_lippenkarten(st, "Rechts", proben, g, 8301)
 	_vorsprung_flaechen(st, level)
 	_felsnadeln(st, level)
 	_ufer_steine(st, proben, g, norm)
-	# Die Stirnflächen liegen in denselben Stücken: je Stück ein Aufruf.
+	_bau["rechts_st"] = st
+
+
+## Schritt 3: Die Stirnflächen liegen in denselben Stücken (je Stück ein
+## Aufruf); danach werden die Netze der rechten Seite fertig.
+static func _rechts_quer(level: Level01) -> void:
+	var st: Stuecke = _bau["rechts_st"]
 	_quer(st, level)
 	st.fertig(SICHT, FERN_AB, SICHT_KARTEN, SICHT_RAND)
+	_bau.erase("rechts_st")
+	_bau.erase("rechts_norm")
+	_bau.erase("rechts_proben")
+	_bau.erase("rechts_g")
 
 
 ## Rand-Daten rechts, auch vor dem Anfang und hinter dem Ende der Felskante
@@ -963,9 +1052,9 @@ static func _hoehe_links(level: Level01, s: float) -> float:
 
 ## Die linke Seite: Böschung, Felsnase, Felswand, Becken.
 static func _links(level: Level01) -> void:
+	_linien_anlegen(level)
 	var st := Stuecke.new(_wurzel(level), "Links")
-	var proben := GelaendeSaum.linie(level.verlauf, _fuss_links(level), SCHRITT_LINKS,
-			_feste_s())
+	var proben := GelaendeSaum.linie(level.verlauf, _fuss, SCHRITT_LINKS, _feste_s())
 	var g := GelaendeSaum.querschnitte(level.verlauf, proben, -1.0,
 			_profil_links.bind(level), _kante.bind(level), _kronen.bind(level))
 	GelaendeSaum.merken(-1.0, g)
@@ -976,7 +1065,17 @@ static func _links(level: Level01) -> void:
 	_abbrueche(st, proben, g, norm)
 	_becken_sims(st, level)
 	st.fertig(SICHT, FERN_AB, SICHT_KARTEN, SICHT_RAND)
+	_bau["links_proben"] = proben
+	_bau["links_g"] = g
+
+
+## Der Bewuchs der linken Seite (eigener Schritt).
+static func _links_bewuchs(level: Level01) -> void:
+	var proben: Array[Dictionary] = _bau["links_proben"]
+	var g: Dictionary = _bau["links_g"]
 	_bewuchs_links(level, proben, g)
+	_bau.erase("links_proben")
+	_bau.erase("links_g")
 
 
 ## Das Profil links (26 Punkte): 0 Schulter unter der Decke (absolut),

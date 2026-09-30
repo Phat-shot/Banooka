@@ -1271,7 +1271,13 @@ func _zaehlen() -> void:
 
 ## Die Proben, die dieses Level ausdrücklich will (werkzeuge/level_check.gd).
 func pruefprofil() -> Dictionary:
-	return {"sicht": true, "gefaelle": true, "todeszonen": true, "wegmaske": true}
+	return {"sicht": true, "gefaelle": true, "todeszonen": true, "wegmaske": true,
+			"naht": true}
+
+
+## Nähte des Geländes an den FLACH-Kanten (für `pruefprofil` "naht").
+func nahtprobe() -> PackedStringArray:
+	return L01Gelaende.nahtprobe()
 
 
 ## Der Eintrag aus ABSCHNITTE, der `s` enthält, oder {} in einer Lücke.
