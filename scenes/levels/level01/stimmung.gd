@@ -53,29 +53,29 @@ const VOEGEL := preload("res://scenes/props/Voegel.tscn")
 ## "umgebungsfarbe" wirken zu `FARBANTEIL`, die Faktoren ganz; "streuung"
 ## ist ein Faktor auf `fog_sun_scatter`.
 const ZONEN := [
-	{"name": "Hallenwald", "von": -40.0, "bis": 30.0, "nebel_faktor": 3.0,
-			"licht_faktor": 0.85, "nebelfarbe": Color(0.20, 0.37, 0.46),
+	{"name": "Hallenwald", "von": -40.0, "bis": 30.0, "nebel_faktor": 3.4,
+			"licht_faktor": 0.85, "nebelfarbe": Color(0.19, 0.36, 0.47),
 			"umgebungsfarbe": Color(0.30, 0.40, 0.36), "streuung": 0.0},
-	{"name": "Hangweg", "von": 30.0, "bis": 104.0, "nebel_faktor": 0.55,
+	{"name": "Hangweg", "von": 30.0, "bis": 104.0, "nebel_faktor": 0.6,
 			"licht_faktor": 1.15, "nebelfarbe": Color(0.42, 0.58, 0.76),
 			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "streuung": 0.0},
-	{"name": "Fallklamm", "von": 104.0, "bis": 160.0, "nebel_faktor": 1.25,
-			"licht_faktor": 0.9, "nebelfarbe": Color(0.40, 0.56, 0.68),
+	{"name": "Fallklamm", "von": 104.0, "bis": 160.0, "nebel_faktor": 1.0,
+			"licht_faktor": 0.9, "nebelfarbe": Color(0.36, 0.52, 0.66),
 			"umgebungsfarbe": Color(0.44, 0.56, 0.62), "streuung": 0.0},
 	# Reicht bis ans Ende: Auf der Wendel mischt sich die Zylinderzone
 	# darüber, und wer von der Wurzel auf die Wiese fällt, steht wieder hier.
 	{"name": "Bachwiese", "von": 160.0, "bis": 400.0, "nebel_faktor": 1.5,
-			"licht_faktor": 1.05, "nebelfarbe": Color(0.38, 0.52, 0.60),
-			"umgebungsfarbe": Color(0.56, 0.60, 0.42), "streuung": 0.0},
+			"licht_faktor": 1.05, "nebelfarbe": Color(0.34, 0.48, 0.58),
+			"umgebungsfarbe": Color(0.56, 0.60, 0.42), "streuung": 0.0, "oben": 1.3},
 ]
 
 ## Wendel und Kronentor: ein Zylinder um die Weltenbaumachse, gemessen an
 ## der Wegdecke unter der Figur. Er beginnt über der Wiese ("unten_y"), die
 ## Bachwiese darunter bleibt die Bachwiese.
 const WENDEL := {"name": "Wendel", "achse": Vector2(72.0, -174.0), "radius": 36.0,
-		"unten_y": 8.8, "hoehe": 40.0, "nebel_faktor": 0.8, "licht_faktor": 1.3,
-		"nebelfarbe": Color(0.46, 0.60, 0.76), "umgebungsfarbe": Color(0.70, 0.60, 0.46),
-		"streuung": 0.0}
+		"unten_y": 8.8, "hoehe": 40.0, "nebel_faktor": 0.8, "licht_faktor": 1.45,
+		"nebelfarbe": Color(0.40, 0.55, 0.72), "umgebungsfarbe": Color(0.70, 0.60, 0.46),
+		"streuung": 0.0, "oben": 1.5}
 
 ## Wie weit die Farben von der Grundstimmung zur Zonenfarbe gehen.
 const FARBANTEIL := 1.0
@@ -90,12 +90,14 @@ const BACHNEBEL_HELLER := 0.22
 
 # ================================================================ Licht
 
-## Lichtschächte: s, q des Fußes, Decke (Welt-Y oder "dach": über dem Weg),
-## Länge, Anzahl der Bahnen, Stärke.
+## Lichtschächte in C: Fuß (s, q). Ohne "decke_y" reichen sie bis über die
+## Krone der linken Wand (dort, wo die hohe Wand im Schatten steht), mit
+## "decke_y" fallen sie aus den Kronen der Kanalbäume über C4, die dort das
+## Dach schließen.
 const SCHAECHTE_C := [
-	{"s": 124.5, "q": -3.3},
 	{"s": 138.5, "q": -3.5},
-	{"s": 151.5, "q": -3.8},
+	{"s": 150.5, "q": 3.4, "decke_y": 22.0},
+	{"s": 157.5, "q": 2.6, "decke_y": 22.0},
 ]
 ## Talriesen: Füße der Schächte rechts auf der Wiese, Decke = Kronen.
 const SCHAECHTE_D := [
@@ -104,7 +106,7 @@ const SCHAECHTE_D := [
 	{"s": 196.5, "q": 3.6},
 ]
 ## Die Kronen der Talriesen beginnen so hoch (Welt-Y).
-const KRONEN_D_Y := 24.0
+const KRONEN_D_Y := 22.0
 ## Das Blätterdach des Hallenwalds liegt so hoch über dem Weg.
 const DACH_A := 13.0
 
@@ -330,17 +332,19 @@ static func _schaechte_setzen(level: Level01) -> void:
 		var oben := level.weg_punkt(s, float(loch["q"]), DACH_A)
 		var fuss := oben + versatz * DACH_A
 		fuss.y = level.weg_punkt(level.verlauf.get_closest_offset(fuss)).y - 0.3
-		_schacht(wurzel, fuss, fall, oben.y + 0.5, 17.0, 4, 0.12, 1.4, int(s * 10.0))
+		_schacht(wurzel, fuss, fall, oben.y + 0.5, 18.0, 5, 0.15, 1.3, int(s * 10.0))
 		_staub(wurzel, fuss, Vector3(4.5, DACH_A - 1.0, 4.5), 60, int(s * 10.0) + 1)
 
 	# C: an der linken Wand, bis über ihre Krone.
 	for e: Dictionary in SCHAECHTE_C:
 		var s: float = e["s"]
 		var fuss := level.weg_punkt(s, float(e["q"]), -0.3)
-		var krone := float(level.rand_profil(s, -1.0)["krone_y"])
+		var krone := float(e.get("decke_y", NAN))
 		if is_nan(krone):
-			krone = fuss.y + 8.0
-		_schacht(wurzel, fuss, fall, krone + 1.0, 18.0, 4, 0.1, 1.2, int(s * 10.0))
+			krone = float(level.rand_profil(s, -1.0)["krone_y"]) + 1.0
+		if is_nan(krone):
+			krone = fuss.y + 9.0
+		_schacht(wurzel, fuss, fall, krone, 18.0, 4, 0.1, 1.2, int(s * 10.0))
 		_staub(wurzel, fuss, Vector3(4.0, minf(krone - fuss.y, 10.0), 4.0), 50,
 				int(s * 10.0) + 1)
 
@@ -348,7 +352,7 @@ static func _schaechte_setzen(level: Level01) -> void:
 	for e: Dictionary in SCHAECHTE_D:
 		var s: float = e["s"]
 		var fuss := level.weg_punkt(s, float(e["q"]), -0.3)
-		_schacht(wurzel, fuss, fall, KRONEN_D_Y, 22.0, 4, 0.1, 1.6, int(s * 10.0))
+		_schacht(wurzel, fuss, fall, KRONEN_D_Y, 18.0, 4, 0.08, 1.6, int(s * 10.0))
 		_staub(wurzel, fuss, Vector3(5.0, 9.0, 5.0), 60, int(s * 10.0) + 1)
 
 

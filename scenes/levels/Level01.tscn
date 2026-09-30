@@ -21,8 +21,8 @@ noise = SubResource("Wolkenrauschen")
 
 [sub_resource type="ShaderMaterial" id="Himmel"]
 shader = ExtResource("5_himmel")
-shader_parameter/zenit = Color(0.16, 0.34, 0.64, 1)
-shader_parameter/horizont = Color(0.44, 0.58, 0.74, 1)
+shader_parameter/zenit = Color(0.14, 0.31, 0.6, 1)
+shader_parameter/horizont = Color(0.38, 0.52, 0.7, 1)
 shader_parameter/dunst = Color(0.42, 0.58, 0.76, 1)
 shader_parameter/boden = Color(0.17, 0.24, 0.19, 1)
 shader_parameter/verlauf_kurve = 0.42
@@ -39,8 +39,9 @@ shader_parameter/wolken_menge = 0.52
 shader_parameter/wolken_weich = 0.2
 shader_parameter/wolken_skala = 0.2
 shader_parameter/wolken_deckung = 0.75
-shader_parameter/wolke_hell = Color(0.8, 0.82, 0.86, 1)
+shader_parameter/wolke_hell = Color(0.74, 0.77, 0.82, 1)
 shader_parameter/wolke_schatten = Color(0.46, 0.54, 0.66, 1)
+shader_parameter/wolken_dunst = 0.45
 
 [sub_resource type="Sky" id="SkyRes"]
 sky_material = SubResource("Himmel")
