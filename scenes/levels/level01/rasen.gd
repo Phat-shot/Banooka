@@ -60,17 +60,19 @@ class_name L01Rasen
 ## `SICHT_DICHT`), Büschel, Horste, Wispelgras, Moospolster, Borkenmoos und
 ## -polster, Streu (verschmolzen), Farne, Großblätter, Rahmenfarne; leere
 ## entfallen. Alle ohne Schatten, mit harter Sichtweite und Schrumpfen im
-## Vertexshader. Gemessen (Verfolger, gegen den Stand ohne Rasen, alle
-## Stationen): siehe Paketbericht; am meisten auf der Bachwiese und am
-## Hangweg. Web (`Effekte.reduziert`): halbe Dichte (Gras, Moos, Streu,
-## Wispelgras, Horste), eine Graslage mit 20 statt 26 Halmen je Fleck, die
-## schon bei 30 m verschwindet (`Rasensaum.SCHRUMPF_WEB`), Blüten nur bis
-## 20 m – rund die Hälfte der Dreiecke.
+## Vertexshader. Gemessen (Verfolger, alle elf Stationen, gegen den Stand
+## ohne Rasen): 5–21 Zeichenaufrufe und 15–106k Dreiecke je Station, am
+## meisten auf der Bachwiese (s 176) und am Hangweg (s 70). Web
+## (`Effekte.reduziert`): halbe Dichte (Gras, Moos, Streu, Wispelgras,
+## Horste), eine Graslage mit 20 statt 26 Halmen je Fleck, die schon bei
+## 30 m verschwindet (`Rasensaum.SCHRUMPF_WEB`), Blüten nur bis 20 m –
+## gemessen 34–49 % der Dreiecke (s 46, 70, 176, 212: 34–48k) bei
+## 11–16 Zeichenaufrufen.
 ##
 ## AUFBAU in sieben Schritten (je Abschnitt einer, die Wiese abseits des
 ## Weges extra, zuletzt die Netze), am Desktop ohne Kopf gemessen je
-## 60–260 ms. Die Zwischenstände liegen in
-## `_bau` und werden danach vergessen (auch, wenn das Level vorher geht).
+## 60–260 ms. Die Zwischenstände liegen in `_bau` und werden danach
+## vergessen (auch, wenn das Level vorher geht).
 
 ## Länge der Stücke entlang s (m).
 const STUECK := 16.0
@@ -979,8 +981,8 @@ static func _wiese_unten(b: Bau, l: Lage, von: float, bis: float) -> void:
 
 
 ## E/F: Wurzelrücken. Kein Gras auf der Borke: Auf dem Moos der Flanken
-## stehen Moosflecken (`Rasensaum.moosfleck`, 6–14 cm, in der Moosfarbe des
-## Wegbodens) – licht auf der ganzen Fläche, dicht im Saum zur Borke, wo
+## stehen Moosflecken (`Rasensaum.moosfleck`, bis 13 cm hoch, in der
+## Moosfarbe des Wegbodens) – licht auf der Fläche, dicht im Saum zur Borke, wo
 ## sie sich über die Borke legen –, dazu Moospolster, kleine Farne und ein
 ## paar Blüten. In den Querrissen (dieselbe Rechnung wie der Shader,
 ## `_riss`) wächst Moos, dazwischen Farne und Leuchtpilze. Die Borke in der

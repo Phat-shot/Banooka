@@ -30,7 +30,8 @@ class_name Rasensaum
 ## AUSBLENDEN (Plan 8.2): Fade-Modi sind in gl_compatibility nicht
 ## verlässlich. Die Halme schrumpfen deshalb im Vertexshader zwischen
 ## `SCHRUMPF.x` und `SCHRUMPF.y` Metern Kameraabstand auf den Ursprung der
-## Instanz, dazu hart `visibility_range_end` je Stück.
+## Instanz, dazu hart `visibility_range_end` je Stück. Im Web
+## (`Effekte.reduziert`) schon zwischen 20 und 30 m (`SCHRUMPF_WEB`).
 ##
 ## NETZE (Ursprung am Boden, +Y hinauf, Bezugshöhe `BEZUG`):
 ##   `fleck()`     Rasenfleck: 26 kurze Halme auf einer Scheibe von 0,22 m,
@@ -38,7 +39,8 @@ class_name Rasensaum
 ##                 geschlossene Rasen der Schultern und Wiesen.
 ##   `bueschel()`  Horst aus 9 gebogenen Halmen (27 Dreiecke): hohes Gras
 ##                 an Kanten und Steinen, die innere Reihe an der
-##                 Trittkante (die Instanz kippt ihn über die Erde).
+##                 Trittkante (die Instanz kippt ihn über die Erde); mit
+##                 mehr, breiteren Halmen aus breiterem Fuß ein Bult.
 ##   `wispel()`    8 lange Halme, die nach +X über eine Kante hängen
 ##                 (0,5–0,8 m, 56 Dreiecke): Wispelgras an Lippen.
 ##   `polster()`   ein Moospolster (45 Dreiecke) im selben Stoff: am Rand
@@ -53,8 +55,9 @@ class_name Rasensaum
 ##     var mm := Rasensaum.feld(eltern, "Gras 3", Rasensaum.fleck(7),
 ##             lagen, farben, 42.0)
 ## `lagen` sind Welttransformationen (Fuß, Kippung, Maß), `farben` die
-## Instanzfarben (siehe oben, `farbe()`). `stoff()` ist geteilt; die
-## Uniforms des Includes setzt er selbst (`Wegmaske.einrichten`).
+## Instanzfarben (siehe oben, `farbe()`). `stoff()` ist geteilt (je
+## Fassung Rasen/Moos und Web einmal); die Uniforms des Includes setzt er
+## selbst (`Wegmaske.einrichten`).
 
 ## Bezugshöhe der Netze (m): Eine Instanz mit Maß 1 ist so hoch.
 const BEZUG := 0.3
@@ -242,8 +245,8 @@ static func polster(saat: int = 1, radius: float = 0.25) -> ArrayMesh:
 ## von `radius` m, in der Mitte am höchsten und steil, zum Rand hin flach
 ## nach außen gelegt – ein Kissen aus Fasern statt einer glatten Kuppel
 ## (die las sich auf dem Wurzelrücken als grüne Perle). Bezugshöhe
-## `BEZUG` in der Mitte; die Instanz staucht ihn auf Moosmaß (6–15 cm).
-## Rund 40 Dreiecke. Geteilt je Saat.
+## `BEZUG` in der Mitte; die Instanz staucht ihn auf Moosmaß (in Level 01
+## bis 13 cm). Rund 40 Dreiecke. Geteilt je Saat.
 static func moosfleck(saat: int = 1, halme: int = 30, radius: float = 0.2) -> ArrayMesh:
 	var schluessel := "m%d_%d_%.2f" % [saat, halme, radius]
 	if _netze.has(schluessel):
