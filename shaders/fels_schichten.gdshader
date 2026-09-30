@@ -101,8 +101,8 @@ void fragment() {
 	// Meist warmer Sandstein, einzelne Kalkbänke; entlang des Bandes
 	// wechselt der Ton mit dem Weltrauschen, damit kein Band wie mit dem
 	// Lineal gezogen durchläuft.
-	fels_c = mix(warm, grau, smoothstep(0.55, 0.92, kenn + (w.b - 0.5) * 0.35));
-	fels_c *= (0.88 + 0.22 * kenn2) * mix(0.86, 1.1, w.g);
+	fels_c = mix(warm, grau, 0.75 * smoothstep(0.6, 0.95, kenn + (w.b - 0.5) * 0.35));
+	fels_c *= (0.9 + 0.16 * kenn2) * mix(0.86, 1.1, w.g);
 	// Im Band nach unten etwas dunkler, an der Fuge dunkel.
 	fels_c *= mix(1.0, 0.9, 1.0 - innen);
 	float fuge = 1.0 - smoothstep(0.0, 0.06, innen);
@@ -138,6 +138,9 @@ void fragment() {
 		gras = rasen_textur(xz);
 		vec3 rasen = rasen_farbe_aus(gras.rgb, w);
 		float r_anteil = smoothstep(0.1, 0.9, rasen_anteil + (gras.a - 0.5) * 0.5 * (1.0 - rasen_anteil) * rasen_anteil * 4.0);
+		// Rasen wächst nicht an steilen Flächen (die Textur liegt von oben
+		// projiziert und zöge sich dort in Streifen).
+		r_anteil *= smoothstep(0.38, 0.62, n.y);
 		flaeche = mix(flaeche, rasen, r_anteil);
 		relief_h = mix(relief_h, 0.4, r_anteil);
 	}

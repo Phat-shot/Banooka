@@ -595,15 +595,15 @@ static func _lippenkarten(st: Stuecke, prefix: String, proben: Array[Dictionary]
 static func _karten_an(st: SurfaceTool, rng: RandomNumberGenerator, oben: Vector3,
 		unten: Vector3, aussen: Vector3, laengs: Vector3, _bogen: float) -> void:
 	# Halme, die über die Kante hängen.
-	if rng.randf() < 0.75:
-		var lang := rng.randf_range(0.18, 0.42)
+	if rng.randf() < 0.9:
+		var lang := rng.randf_range(0.2, 0.5)
 		var ton := Color(0.28, 0.4, 0.12) * rng.randf_range(0.75, 1.15)
 		GelaendeSaum.karte(st, oben + Vector3.UP * 0.02 + laengs * rng.randf_range(-0.2, 0.2),
 				(Vector3.DOWN * 0.75 + aussen * 0.65), laengs, lang,
 				rng.randf_range(0.4, 0.75), GelaendeSaum.ATLAS_HALM, ton)
 	# Wurzeln unter der Narbe, gekreuzt: Die Kamera blickt die Kante entlang.
-	if rng.randf() < 0.5:
-		var lang := rng.randf_range(0.3, 0.8)
+	if rng.randf() < 0.62:
+		var lang := rng.randf_range(0.35, 0.8)
 		var ton := Color(0.42, 0.32, 0.23) * rng.randf_range(0.8, 1.1)
 		var ort := unten + aussen * 0.03 + laengs * rng.randf_range(-0.25, 0.25)
 		GelaendeSaum.karte(st, ort, Vector3.DOWN + aussen * 0.12, laengs, lang,
@@ -679,7 +679,7 @@ static func _polylinie(punkte: Array, s: float) -> float:
 static func _fuss_links(_level: Level01) -> PackedVector2Array:
 	var p := PackedVector2Array()
 	for v: Vector2 in [
-			Vector2(27.6, -5.0), Vector2(77.2, -5.0),
+			Vector2(27.7, -5.0), Vector2(77.2, -5.0),
 			# Nische der Moosbank (wie die Leitlinie)
 			Vector2(78.0, -5.3), Vector2(82.0, -9.5), Vector2(84.0, -11.0), Vector2(92.0, -11.0),
 			Vector2(95.0, -8.0), Vector2(98.0, -5.3),
@@ -713,8 +713,9 @@ static func _pfeiler(s: float) -> float:
 static func _krone_links(level: Level01, s: float) -> float:
 	var sk := clampf(s, 33.0, 159.9)
 	var hoehe: float = level.rand_profil(sk, -1.0)["hoehe"]
-	if s < 33.5:
-		hoehe *= lerpf(0.06, 1.0, smoothstep(27.0, 34.0, s))
+	# Die Böschung wächst hinter dem Erdspalt aus dem Waldboden.
+	if s < 41.0:
+		hoehe *= lerpf(0.03, 1.0, smoothstep(27.7, 41.0, s))
 	hoehe = lerpf(hoehe, PFEILER_HOEHE, _pfeiler(s))
 	return LevelWerkzeuge.punkt(level.verlauf, s).y + hoehe
 
@@ -774,8 +775,9 @@ static func _profil_links(_i: int, probe: Dictionary, level: Level01) -> Gelaend
 ## steilsten gut 50°), oben Waldboden.
 static func _profil_boeschung(bogen: float, q_linie: float, kante: float,
 		wegrand: float, krone: float, rinne: float) -> GelaendeSaum.Profil:
-	var h := maxf(krone - kante, 0.25)
-	var breite := maxf(11.0 - q_linie, 2.6 + h * 0.55)
+	var h := maxf(krone - kante, 0.12)
+	var voll := smoothstep(0.5, 3.5, h)
+	var breite := maxf(lerpf(3.0, 11.0 - q_linie, voll), 2.6 + h * 0.55)
 	var p := GelaendeSaum.Profil.new()
 	p.punkt(-(wegrand - 0.35), kante - 0.03, _farbe(0.78, 0.0, 0.05, 1.0), 0.0, 0.0, 1.0, 0.0, true)
 	p.punkt(-0.22, kante - 0.015, _farbe(0.78, 0.05, 0.2, 1.0))
@@ -802,8 +804,8 @@ static func _profil_boeschung(bogen: float, q_linie: float, kante: float,
 	var k0 := breite
 	for k in 6:
 		var weiter: float = KRONE_WEITE_B[k]
-		var hoch: float = KRONE_HOCH_B[k]
-		p.punkt(k0 + weiter, krone + hoch, _farbe(0.8, 0.5, 0.6, lerpf(0.75, 0.4, float(k) / 5.0)),
+		var hoch: float = KRONE_HOCH_B[k] * voll
+		p.punkt(k0 + weiter, krone + hoch, _farbe(0.78, 0.3, 0.75, lerpf(0.85, 0.6, float(k) / 5.0)),
 				2.5, 0.3)
 	return p
 
@@ -826,8 +828,8 @@ static func _profil_wand(s: float, bogen: float, q_linie: float, kante: float,
 	p.punkt(0.12, fuss_y + 0.35, _farbe(0.55, 0.25, 0.35, 0.0), 0.6, 0.15, 2.0, 0.15)
 	# Simse und Überhang, sanft eingeblendet, damit benachbarte Querschnitte
 	# gleich gebaut sind.
-	var ka := smoothstep(3.5, 6.5, h)
-	var kb := smoothstep(8.0, 11.0, h)
+	var ka := smoothstep(5.5, 8.0, h)
+	var kb := smoothstep(9.0, 11.5, h)
 	var ha := clampf(4.2 + 0.8 * _welle(bogen * 0.09, 9.0), 0.4, 0.38 * h)
 	var hb := clampf(ha + 4.4 + 0.8 * _welle(bogen * 0.08, 10.0), ha + 0.6, 0.66 * h)
 	var wa := (0.5 + 0.35 * (1.0 + _welle(bogen * 0.12, 11.0))) * ka * (1.0 - 0.7 * becken)
@@ -874,7 +876,7 @@ static func _profil_wand(s: float, bogen: float, q_linie: float, kante: float,
 		var weiter: float = KRONE_WEITE_W[k]
 		var hoch: float = KRONE_HOCH_W[k]
 		p.punkt(fo - 0.6 * ovd + weiter, fuss_y + h + hoch,
-				_farbe(0.8, 0.45, 0.65, lerpf(0.6, 0.4, float(k) / 5.0)), 2.5, 0.3)
+				_farbe(0.78, 0.3, 0.8, lerpf(0.75, 0.55, float(k) / 5.0)), 2.5, 0.3)
 	return p
 
 
@@ -988,12 +990,12 @@ static func _bewuchs_links(level: Level01, proben: Array[Dictionary], g: Diction
 	# Auf der Böschung keine Blattballen (sie lesen sich als Kissen) und nur
 	# wenige Wurzeln; Farne auf den Buckeln, am Fuß und an der Kante.
 	var b := Schluchtsaum.bauen(wurzel, kurve, boeschung, {"saat": 8501,
-			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.22, "wurzeln": 0.05,
-			"vorhaenge": 0.0, "simse": 0.22, "fuss": 0.3, "blueten": 0.4})
+			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.12, "wurzeln": 0.0,
+			"vorhaenge": 0.0, "simse": 0.14, "fuss": 0.22, "blueten": 0.4})
 	b.name = "Bewuchs Böschung"
 	var w := Schluchtsaum.bauen(wurzel, kurve, wand, {"saat": 8502,
-			"laubfarbe": Farben.LAUB_HELL, "saum": 0.3, "ranken": 0.75, "wurzeln": 0.1,
-			"vorhaenge": 0.05, "simse": 0.6, "fuss": 0.45, "blueten": 0.3})
+			"laubfarbe": Farben.LAUB_HELL, "saum": 0.0, "ranken": 0.42, "wurzeln": 0.08,
+			"vorhaenge": 0.04, "simse": 0.42, "fuss": 0.32, "blueten": 0.3})
 	w.name = "Bewuchs Felswand"
 	for knoten: Node3D in [b, w]:
 		for kind in knoten.get_children():
@@ -1253,10 +1255,10 @@ static func _profil_furt(_i: int, probe: Dictionary, kante: float) -> GelaendeSa
 	p.punkt(ov * 0.4, kante - 0.006, _farbe(0.78, 0.0, 0.2, 1.0))
 	p.punkt(ov * 0.8, kante - 0.035, _farbe(0.72, 0.15, 0.3, 0.95))
 	p.punkt(ov, kante - 0.12, _farbe(0.5, 0.65, 0.3, 0.4))
-	p.punkt(ov - 0.1, kante - 0.28, _farbe(0.35, 0.95, 0.2, 0.0))
-	p.punkt(0.0, kante - 0.45, _farbe(0.4, 0.9, 0.3, 0.0), 0.0, 0.05, -1.0)
-	p.punkt(0.35, kante - 0.8, _farbe(0.5, 0.8, 0.4, 0.0), 0.0, 0.15)
-	p.punkt(0.8, 6.3, _farbe(0.5, 0.7, 0.5, 0.0), 0.0, 0.15)
+	p.punkt(ov - 0.05, kante - 0.22, _farbe(0.6, 0.5, 0.4, 0.5))
+	p.punkt(0.05, kante - 0.4, _farbe(0.66, 0.3, 0.5, 0.75), 0.0, 0.05)
+	p.punkt(0.4, kante - 0.72, _farbe(0.66, 0.4, 0.6, 0.55), 0.0, 0.12)
+	p.punkt(0.8, 6.3, _farbe(0.56, 0.65, 0.6, 0.15), 0.0, 0.12)
 	p.punkt(1.2, 6.02, _farbe(0.36, 0.6, 0.4, 0.0), 0.0, 0.1)
 	p.punkt(1.6, 5.75, _farbe(0.34, 0.5, 0.3, 0.0), 0.0, 0.1)
 	p.punkt(2.2, 5.45, _farbe(0.32, 0.5, 0.3, 0.0), 0.0, 0.08)
