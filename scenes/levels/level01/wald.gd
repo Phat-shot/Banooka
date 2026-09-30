@@ -228,14 +228,17 @@ const FARN := Color(0.2, 0.42, 0.15)
 const NADEL_TON := Color(0.6, 0.72, 0.76)
 ## Tönung des Totholzes: grau, ausgeblichen.
 const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
-## Die schlichte Fassung der Riesen (nur vom Grat aus zu sehen): Stamm und
-## Krone dunkler und kühler als die nahe, dazu der halbe Nebel des
-## Weltenbaums (`_riesen`) – sie stehen dort vor seinem dunklen Fuß und
-## sollen mit ihm eine Masse bilden. Mit 0,72/0,78/0,84 standen ihre
-## Kronen als grüne Schirme vor dem blauen Riesen, sechs Schirmkiefern vor
-## seinem Stamm; so gehen sie in seine untere Masse über.
-const RIESE_FERN_STAMM := Color(0.4, 0.42, 0.48)
-const RIESE_FERN_KRONE := Color(0.5, 0.58, 0.8)
+## Die schlichte Fassung der Riesen (nur vom Grat aus zu sehen, 100–160 m
+## vor dem Fuß des Weltenbaums): Stamm und Krone etwas dunkler und kühler
+## als die nahe, im vollen Dunst wie der Talwald um sie. Verglichen (s 46):
+## Mit dem halben Nebel des Weltenbaums (`RIESE_FERN_NEBELARM`) und
+## dunkler Tönung verschmolzen ihre Stämme mit seinem – ein Gewirr dunkler
+## Säulen vor dem Stamm, ihre Kronen grüne Schirme vor seiner Krone. Im
+## vollen Dunst treten sie zurück, und der Riese steht als dunkle Masse
+## dahinter: der Größenvergleich statt eines Hains aus Schirmkiefern.
+const RIESE_FERN_STAMM := Color(0.8, 0.8, 0.84)
+const RIESE_FERN_KRONE := Color(0.85, 0.9, 0.96)
+const RIESE_FERN_NEBELARM := false
 
 ## Die Hallenwald-Reihen je Seite: Querbereich, Abstand entlang s, Arten
 ## (rechts eigene: tief beastete Kronen bis an die Hallenkante – die Halle
@@ -1838,12 +1841,15 @@ static func _riesen(level: Level01) -> void:
 	ws.art("kranz", {"stoff": Findling.kranzstoff(), "sicht": SICHT_KRANZ + 20.0,
 			"verschmelzen": true})
 	# Die schlichte Fassung sieht man nur vom Grat aus, 100–160 m weit vor
-	# dem Fuß des Weltenbaums: mit dessen halbem Nebel (`L01Weltenbaum.
-	# nebelarm`) – im vollen Dunst standen die Riesen heller als der Riese
-	# hinter ihnen, als blasse Schirmkiefern.
-	ws.art("stamm_fern", {"stoff": L01Weltenbaum.nebelarm(_borke(), level),
+	# dem Fuß des Weltenbaums (siehe `RIESE_FERN_STAMM`).
+	var borke_fern: Material = _borke()
+	var laub_fern: Material = laub
+	if RIESE_FERN_NEBELARM:
+		borke_fern = L01Weltenbaum.nebelarm(borke_fern, level)
+		laub_fern = L01Weltenbaum.nebelarm(laub_fern, level)
+	ws.art("stamm_fern", {"stoff": borke_fern,
 			"sicht_von": RIESE_NAH, "sicht": SICHT_RIESEN, "verschmelzen": true})
-	ws.art("krone_fern", {"stoff": L01Weltenbaum.nebelarm(laub, level), "sicht_von": RIESE_NAH,
+	ws.art("krone_fern", {"stoff": laub_fern, "sicht_von": RIESE_NAH,
 			"sicht": SICHT_RIESEN, "verschmelzen": true, "karten": true})
 	var rng := PropWerkzeug.zufall(7101)
 	var liste: Array[Dictionary] = []
@@ -1900,10 +1906,8 @@ static func _riesen(level: Level01) -> void:
 					"fussweite": float(dreh["weite"]), "zugabe": float(e["zugabe"]),
 					"ohne_stammtest": geneigt > 0.0, "ohne_krone": true}):
 				var fern := _riese_fern("riese%d_%d" % [i, roundi(v.x * 100.0)], b)
-				# Die schlichte Fassung sieht man nur vom Grat (100–160 m): Dort
-				# standen die hellen Stämme im Frontlicht als blasse Stelzen vor
-				# dem dunklen Fuß des Weltenbaums, ihre Kronen als helle Schirme
-				# – kleine Abbilder des Riesen statt dunkler Masse an seinem Fuß.
+				# Die schlichte Fassung sieht man nur vom Grat (100–160 m), etwas
+				# dunkler und kühler getönt (`RIESE_FERN_STAMM`).
 				ws.setze("stamm_fern", fern["stamm"] as ArrayMesh, lage, RIESE_FERN_STAMM)
 				ws.setze("krone_fern", fern["krone"] as ArrayMesh, lage, ton * RIESE_FERN_KRONE)
 				_staemme.dazu(Vector2(fuss.x, fuss.z), r + 2.5)

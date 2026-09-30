@@ -2136,25 +2136,36 @@ static func _kammfarne(bahn: Bahn, level: Level01, haelfte: Vector2,
 ## Bruchkanten die Härte.
 static func _bruch_und_endfarne(bahn: Bahn, level: Level01, haelfte: Vector2,
 		rng: RandomNumberGenerator) -> Array[Transform3D]:
-	var orte: Array[Vector3] = []
+	# (s, q, Höhe über der Decke, Größe)
+	var orte: Array[Vector4] = []
 	if haelfte.x < G1.y and haelfte.y > G1.y:
 		var wiese := 7.0 - level.boden_bei(G1.y)
 		var e := _kante(level, G1.y)
-		orte.append(Vector3(G1.y + 0.35, e + 1.6, wiese + 0.05))
-		orte.append(Vector3(G1.y + 0.5, -4.6, wiese + 0.05))
-		orte.append(Vector3(G1.x - 0.6, e + 1.3, wiese + 0.05))
+		orte.append(Vector4(G1.y + 0.35, e + 1.6, wiese + 0.05, 1.45))
+		orte.append(Vector4(G1.y + 0.5, -4.6, wiese + 0.05, 1.45))
+		orte.append(Vector4(G1.x - 0.6, e + 1.3, wiese + 0.05, 1.45))
+		# In der Lücke vor der Stirn von G1, auf der Wiese, gut 2,5 m hoch:
+		# Die nahe Lippe verdeckt die Stirn bis gut 1 m über der Wiese, die
+		# Farne ragen darüber und brechen die untere Hälfte der sichtbaren
+		# Bruchfläche (sonst ein dunkles Rechteck über ein Fünftel des Bildes).
+		# Ihre Spitzen bleiben knapp einen Meter unter der Lippe, die Lücke
+		# liest sich weiter; ihre Wedel verschwinden in den Wurzelleibern.
+		for sq: Vector3 in [Vector3(-0.6, -2.4, 5.0), Vector3(-0.9, 0.2, 5.4),
+				Vector3(-0.55, 2.7, 4.8), Vector3(-1.9, -0.9, 3.6)]:
+			var s_f := G1.y + sq.x
+			orte.append(Vector4(s_f, sq.y, 7.0 - level.boden_bei(s_f) + 0.02, sq.z))
 	if haelfte.y > 270.0:
 		# Genau auf die Ecken, groß: Sie nehmen dem Ende die rechten Winkel
 		# (weich, man läuft hindurch; die Kisten stehen 6 m davor).
 		for sq: Vector2 in [Vector2(-0.3, -5.6), Vector2(-0.2, 5.7), Vector2(0.25, 1.9),
 				Vector2(-1.6, 5.9)]:
-			orte.append(Vector3(Level01.M_ENDE + sq.x, sq.y, 0.03))
+			orte.append(Vector4(Level01.M_ENDE + sq.x, sq.y, 0.03,
+					2.3 if absf(sq.y) > 5.0 else 1.45))
 	var lagen: Array[Transform3D] = []
 	for o in orte:
 		var ra := bahn.rahmen(o.x)
-		var gross := 2.3 if o.x > 280.0 and absf(o.y) > 5.0 else 1.45
 		var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE
-				* gross * rng.randf_range(0.85, 1.15))
+				* o.w * rng.randf_range(0.85, 1.15))
 		lagen.append(Transform3D(basis, ra.p(o.y, o.z)))
 	return lagen
 
