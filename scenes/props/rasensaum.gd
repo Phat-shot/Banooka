@@ -60,8 +60,13 @@ class_name Rasensaum
 const BEZUG := 0.3
 ## Kameraabstand (m), ab dem die Halme schrumpfen, und wo sie weg sind.
 const SCHRUMPF := Vector2(28.0, 40.0)
+## Im Web (`Effekte.reduziert`): früher weg. Aus 30 m sind Halme auf einem
+## Handy kein Bildpunkt breit; so halbieren sich Dichte UND Reichweite,
+## ohne dass ein zweites Netz je Stück dazukommt.
+const SCHRUMPF_WEB := Vector2(20.0, 30.0)
 ## Harte Sichtweite je Stück (m, zur Mitte des Stücks).
 const SICHTWEITE := 42.0
+const SICHTWEITE_WEB := 32.0
 
 ## Moos auf Borke: wie `moos_ton` des Wegbodens in der Fassung
 ## `wurzelruecken` (`L01Boden.stoff`).
@@ -368,8 +373,9 @@ static func farbe(verdeckung: float, rasenanteil: float, toenung: float,
 ## `MOOS_TON`, dunkler. So wachsen die Fasern aus genau dem Moos, auf dem
 ## sie stehen.
 static func stoff(moos: bool = false) -> ShaderMaterial:
-	if _stoffe.has(moos):
-		return _stoffe[moos]
+	var schluessel := Vector2i(int(moos), int(Effekte.reduziert))
+	if _stoffe.has(schluessel):
+		return _stoffe[schluessel]
 	if _shader == null:
 		_shader = Shader.new()
 		_shader.code = HALM_SHADER
@@ -378,11 +384,11 @@ static func stoff(moos: bool = false) -> ShaderMaterial:
 	Wegmaske.einrichten(m)
 	var erde := Wegmaske.ERDE_MITTEL
 	m.set_shader_parameter("erde_farbe", Vector3(erde.r, erde.g, erde.b))
-	m.set_shader_parameter("schrumpf", SCHRUMPF)
+	m.set_shader_parameter("schrumpf", SCHRUMPF_WEB if Effekte.reduziert else SCHRUMPF)
 	if moos:
 		m.set_shader_parameter("moos", true)
 		m.set_shader_parameter("moos_ton", Vector3(MOOS_TON.r, MOOS_TON.g, MOOS_TON.b))
-	_stoffe[moos] = m
+	_stoffe[schluessel] = m
 	return m
 
 

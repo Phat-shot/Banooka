@@ -597,7 +597,7 @@ static func feld(eltern: Node3D, name: String, netz: Mesh, lagen: Array[Transfor
 ## Der Streustoff: `instanziert` für Felder (Fuß = Ursprung der Instanz),
 ## sonst für Haufen (Fuß aus UV/UV2). Geteilt – nie verändern.
 static func stoff(instanziert: bool) -> ShaderMaterial:
-	var schluessel := "feld" if instanziert else "haufen"
+	var schluessel := ("feld" if instanziert else "haufen") + ("_web" if Effekte.reduziert else "")
 	if _stoffe.has(schluessel):
 		return _stoffe[schluessel]
 	if _shader == null:

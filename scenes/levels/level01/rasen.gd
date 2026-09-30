@@ -131,6 +131,9 @@ class Sammlung:
 	var gras_farben := PackedColorArray()
 	var bueschel: Array[Transform3D] = []
 	var bueschel_farben := PackedColorArray()
+	## Hohes Gras weit draußen auf der Bachwiese (eigene Mitte, Sichtweite).
+	var horste: Array[Transform3D] = []
+	var horste_farben := PackedColorArray()
 	var wispel: Array[Transform3D] = []
 	var wispel_farben := PackedColorArray()
 	var polster: Array[Transform3D] = []
@@ -164,6 +167,8 @@ class Bau:
 	## Die zwei Rahmenfarne (je Stück abwechselnd) und ihre Umrisse für K8.
 	var rahmen_netze: Array[ArrayMesh] = []
 	var rahmen_umrisse: Array[PackedVector3Array] = []
+	## Bachläufe als (x, Spiegel, z, Breite), Läufe durch NAN getrennt.
+	var wasser: Array[Vector4] = []
 	var reduziert := false
 	var dichte_faktor := 1.0
 	## Gelände je Zelle (0,5 m Höhe, 1 m Wald): Beide Abfragen sind teuer,
@@ -853,6 +858,7 @@ static func _bachwiese(b: Bau) -> void:
 				_grossblatt(b, l.s, p, rng.randf_range(0.9, 1.3))
 	_rahmenfarne(b, -1.0, 164.0, 196.0, 7.0, 8.0)
 	_rahmenfarne(b, 1.0, 166.0, 196.0, 7.2, 9.0)
+	_wiesenhorste(b)
 	# Die Wurzelwiese unter dem Aufgang (y 7,0) und der Wiesenboden unter G1.
 	s = 196.0
 	while s < 214.0:
@@ -860,6 +866,68 @@ static func _bachwiese(b: Bau) -> void:
 		var von := 4.3 if s < 210.0 else -4.0
 		_wiese_unten(b, l, von, 12.0)
 		s += RASTER
+
+
+## Horste hohen Grases (0,35–0,6 m) auf der weiten Bachwiese jenseits des
+## Rasens (|q| 12,5–26, gut einer je 2 m²), mit Blütengruppen dazwischen:
+## Aus 15–35 m liest sich die Wiese sonst als glatter Teppich. Nur auf
+## flachem Boden, nicht im Wald, nicht am oder im Bach. Eigene Netze je
+## Stück (`horste`), damit ihre Sichtweite von ihrer eigenen Mitte zählt.
+static func _wiesenhorste(b: Bau) -> void:
+	var rng := b.rng
+	var s := 160.0
+	while s < 198.0:
+		var l := _lage(b, s)
+		for seite: float in [-1.0, 1.0]:
+			var q := 12.5
+			while q < 26.0:
+				var qq := seite * (q + rng.randf())
+				q += 1.0
+				if rng.randf() >= 0.5 * b.dichte_faktor:
+					continue
+				var p := l.punkt(qq) + l.vor * rng.randf_range(-0.5, 0.5)
+				var y := L01Gelaende.hoehe(p.x, p.z)
+				if is_nan(y) or absf(b.hoehe_zelle(p + l.rechts * 0.6) - y) > 0.3 \
+						or absf(b.hoehe_zelle(p + l.vor * 0.6) - y) > 0.3:
+					continue
+				p.y = y - 0.015
+				if b.wald(p) > 0.3 or _am_wasser(b, p):
+					continue
+				var sa := b.sammlung(s)
+				sa.horste.append(_bueschel_lage(rng, p, rng.randf_range(0.35, 0.6),
+						Vector3.ZERO))
+				sa.horste_farben.append(Rasensaum.farbe(0.95, 1.0, rng.randf_range(0.3, 0.9),
+						l.kronen))
+				if rng.randf() < 0.12:
+					_bluetengruppe(b, s, p + Vector3(rng.randf_range(-0.4, 0.4), 0.0,
+							rng.randf_range(-0.4, 0.4)), Bereich.WIESE)
+		s += 1.0
+
+
+## Liegt `p` am oder im Wasser (Bachläufe des Geländes, halbe Breite plus
+## 1,2 m, oder kaum über dem Spiegel)?
+static func _am_wasser(b: Bau, p: Vector3) -> bool:
+	if b.wasser.is_empty():
+		for lauf: Dictionary in L01Gelaende.bachlauf():
+			var punkte: PackedVector3Array = lauf["punkte"]
+			var breiten: PackedFloat32Array = lauf["breite"]
+			for i in punkte.size():
+				b.wasser.append(Vector4(punkte[i].x, punkte[i].y, punkte[i].z, breiten[i]))
+			b.wasser.append(Vector4(NAN, NAN, NAN, NAN))
+	var vorher := Vector4(NAN, NAN, NAN, NAN)
+	var xz := Vector2(p.x, p.z)
+	for w in b.wasser:
+		if not is_nan(vorher.x) and not is_nan(w.x):
+			var a := Vector2(vorher.x, vorher.z)
+			var c := Vector2(w.x, w.z)
+			var ac := c - a
+			var t := clampf((xz - a).dot(ac) / maxf(ac.length_squared(), 0.0001), 0.0, 1.0)
+			var d := xz.distance_to(a + ac * t)
+			var halb := lerpf(vorher.w, w.w, t) * 0.5
+			if d < halb + 1.2 or (d < halb + 6.0 and p.y < lerpf(vorher.y, w.y, t) + 0.25):
+				return true
+		vorher = w
+	return false
 
 
 ## Die Wurzelwiese (unter dem Weg, auf 7,0) von q `von` bis `bis`.
@@ -1118,6 +1186,15 @@ static func _netze(b: Bau) -> void:
 	# Stilmodelle für Farne und Großblätter, wenn natur2 sie hat (M12, M13).
 	var farn_fremd := _fremd("M12")
 	var gross_fremd := _fremd("M13")
+	# Im Web (halbe Dichte) eine Graslage, die mit dem Stoff schon bei 30 m
+	# verschwindet (`Rasensaum.SCHRUMPF_WEB`): halbe Dreiecke, und kein
+	# zweites Netz je Stück.
+	var sicht_gras := Rasensaum.SICHTWEITE_WEB if b.reduziert else SICHT_GRAS
+	var sicht_wispel := minf(SICHT_WISPEL, sicht_gras)
+	var sicht_streu := minf(SICHT_STREU, sicht_gras)
+	# Im Web auch weniger Halme je Fleck (20 statt 26, Moos 22 statt 30).
+	var halme := 20 if b.reduziert else 26
+	var moos_halme := 22 if b.reduziert else 30
 	var gesamt := 0
 	for i: int in schluessel:
 		var sa: Sammlung = b.sammlungen[i]
@@ -1128,30 +1205,31 @@ static func _netze(b: Bau) -> void:
 		var nah: Array[Transform3D] = []
 		var nah_farben := PackedColorArray()
 		for k in sa.gras.size():
-			# Im Web ist die Dichte ohnehin halb: alles in einer Lage.
 			if k % 2 == 0 or b.reduziert:
 				weit.append(sa.gras[k])
 				weit_farben.append(sa.gras_farben[k])
 			else:
 				nah.append(sa.gras[k])
 				nah_farben.append(sa.gras_farben[k])
-		Rasensaum.feld(wurzel, "Gras %d" % i, Rasensaum.fleck(11 + n), weit, weit_farben,
-				SICHT_GRAS)
-		Rasensaum.feld(wurzel, "Gras nah %d" % i, Rasensaum.fleck(14 + n), nah, nah_farben,
+		Rasensaum.feld(wurzel, "Gras %d" % i, Rasensaum.fleck(11 + n, halme), weit, weit_farben,
+				sicht_gras)
+		Rasensaum.feld(wurzel, "Gras nah %d" % i, Rasensaum.fleck(14 + n, halme), nah, nah_farben,
 				SICHT_DICHT)
 		Rasensaum.feld(wurzel, "Bueschel %d" % i, Rasensaum.bueschel(31 + n), sa.bueschel,
-				sa.bueschel_farben, SICHT_GRAS)
+				sa.bueschel_farben, sicht_gras)
+		Rasensaum.feld(wurzel, "Horste %d" % i, Rasensaum.bueschel(34 + n), sa.horste,
+				sa.horste_farben, sicht_gras)
 		Rasensaum.feld(wurzel, "Wispel %d" % i, Rasensaum.wispel(21 + n), sa.wispel,
-				sa.wispel_farben, SICHT_WISPEL)
+				sa.wispel_farben, sicht_wispel)
 		Rasensaum.feld(wurzel, "Moos %d" % i, Rasensaum.polster(41 + n), sa.polster,
-				sa.polster_farben, SICHT_STREU)
+				sa.polster_farben, sicht_streu)
 		# Wurzelrücken: Moos in der Moosfarbe des Wegbodens (eigener Stoff).
-		Rasensaum.feld(wurzel, "Borkenmoos %d" % i, Rasensaum.moosfleck(51 + n), sa.moos,
-				sa.moos_farben, SICHT_GRAS, true)
+		Rasensaum.feld(wurzel, "Borkenmoos %d" % i, Rasensaum.moosfleck(51 + n, moos_halme),
+				sa.moos, sa.moos_farben, sicht_gras, true)
 		Rasensaum.feld(wurzel, "Borkenpolster %d" % i, Rasensaum.polster(44 + n),
-				sa.moospolster, sa.moospolster_farben, SICHT_STREU, true)
+				sa.moospolster, sa.moospolster_farben, sicht_streu, true)
 		if sa.haufen != null:
-			sa.haufen.knoten(wurzel, "Streu %d" % i, SICHT_STREU)
+			sa.haufen.knoten(wurzel, "Streu %d" % i, sicht_streu)
 			gesamt += sa.haufen.dreiecke()
 		if farn_fremd.is_empty():
 			Bodenstreu.feld(wurzel, "Farne %d" % i, farn_netze[n], sa.farn, sa.farn_farben,
@@ -1165,7 +1243,8 @@ static func _netze(b: Bau) -> void:
 			_fremd_felder(wurzel, "Grossblatt %d" % i, gross_fremd, sa.gross)
 		Bodenstreu.feld(wurzel, "Rahmenfarne %d" % i, rahmen_netze[posmod(i, 2)], sa.rahmen,
 				sa.rahmen_farben, SICHT_FARN)
-		gesamt += sa.gras.size() * 30 + sa.bueschel.size() * 27 + sa.wispel.size() * 42 \
+		gesamt += sa.gras.size() * 30 + (sa.bueschel.size() + sa.horste.size()) * 27 \
+				+ sa.wispel.size() * 42 \
 				+ sa.moos.size() * 40 + (sa.polster.size() + sa.moospolster.size()) * 45
 	if b.level.debug:
 		print("Rasen: %d Stücke, %d Dreiecke" % [schluessel.size(), gesamt])
