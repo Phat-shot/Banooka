@@ -75,8 +75,10 @@ const DICHTE_WIESE_WEG := 4.0
 const DICHTE_WIESE_RAND := 6.5
 const DICHTE_HANG := 4.2
 const DICHTE_KANTE := 5.5
-## Moosgras auf den Flanken des Wurzelrückens (E/F), Flecken je m².
-const DICHTE_MOOS := 4.0
+## Moos auf den Flanken des Wurzelrückens (E/F), Moosflecken je m²: auf
+## der ganzen Fläche und dazu im Saum zur Borke, wo es über sie kriecht.
+const DICHTE_MOOS := 2.2
+const DICHTE_MOOS_SAUM := 6.5
 const DICHTE_HOCH := 2.5
 ## Freiraum um Kisten (m, von der Mitte): nichts / nichts Hohes.
 const KISTE_FREI := 1.0
@@ -126,6 +128,11 @@ class Sammlung:
 	var wispel_farben := PackedColorArray()
 	var polster: Array[Transform3D] = []
 	var polster_farben := PackedColorArray()
+	## Moos auf dem Wurzelrücken (Stoff `Rasensaum.stoff(true)`).
+	var moos: Array[Transform3D] = []
+	var moos_farben := PackedColorArray()
+	var moospolster: Array[Transform3D] = []
+	var moospolster_farben := PackedColorArray()
 	var farn: Array[Transform3D] = []
 	var farn_farben := PackedColorArray()
 	var gross: Array[Transform3D] = []
@@ -424,10 +431,10 @@ static func _streu(b: Bau, s: float, q: float, p: Vector3, m: float, bereich: in
 			r_bluete = 0.06
 			r_kiesel = 0.05 * (1.0 - smoothstep(0.35, 0.7, m)) * smoothstep(0.1, 0.3, m)
 		Bereich.WURZEL:
-			r_moos = 0.22
-			r_farn = 0.07
-			r_pilz = 0.02
-			r_bluete = 0.03
+			r_moos = 0.12
+			r_farn = 0.05
+			r_pilz = 0.015
+			r_bluete = 0.025
 			leucht = 0.85
 		Bereich.WANDFUSS:
 			r_moos = 0.05
@@ -518,10 +525,15 @@ static func _polster(b: Bau, s: float, p: Vector3, mass: float, wurzel: bool,
 	var rng := b.rng
 	var sa := b.sammlung(s)
 	var basis := Basis(Vector3.UP, rng.randf() * TAU) \
-			* Basis.from_scale(Vector3(mass, mass * rng.randf_range(0.7, 1.3), mass))
-	sa.polster.append(Transform3D(basis, p - Vector3(0.0, 0.015, 0.0)))
-	sa.polster_farben.append(Rasensaum.farbe(0.74 if wurzel else 0.85, 1.0,
-			rng.randf_range(0.2, 0.7), kronen))
+			* Basis.from_scale(Vector3(mass, mass * rng.randf_range(0.6, 1.1), mass))
+	var lage := Transform3D(basis, p - Vector3(0.0, 0.015, 0.0))
+	var farbe := Rasensaum.farbe(0.8 if wurzel else 0.85, 1.0, rng.randf_range(0.2, 0.7), kronen)
+	if wurzel:
+		sa.moospolster.append(lage)
+		sa.moospolster_farben.append(farbe)
+	else:
+		sa.polster.append(lage)
+		sa.polster_farben.append(farbe)
 
 
 ## Ein kleiner Farn (Farnwerk.klein) ins Feld des Stücks.
@@ -862,13 +874,17 @@ static func _wiese_unten(b: Bau, l: Lage, von: float, bis: float) -> void:
 				DICHTE_WIESE_RAND * (1.0 - smoothstep(0.2, 0.6, wald)), 0.0, Bereich.WIESE)
 
 
-## E/F: Wurzelrücken. Auf dem Moos der Flanken kurzes, dichtes Moosgras
-## (Rasenflecken, niedrig und dunkler), Moospolster, kleine Farne und ein
-## paar Blüten; in den Querrissen Moos, Farne und Leuchtpilze. Die Borke in
-## der Spur bleibt frei.
+## E/F: Wurzelrücken. Kein Gras auf der Borke: Auf dem Moos der Flanken
+## stehen Moosflecken (`Rasensaum.moosfleck`, 6–14 cm, in der Moosfarbe des
+## Wegbodens) – licht auf der ganzen Fläche, dicht im Saum zur Borke, wo
+## sie sich über die Borke legen –, dazu Moospolster, kleine Farne und ein
+## paar Blüten. In den Querrissen (dieselbe Rechnung wie der Shader,
+## `_riss`) wächst Moos, dazwischen Farne und Leuchtpilze. Die Borke in der
+## Spur bleibt frei. Die ersten Meter der Wurzel sind noch Erde (Wegboden:
+## `erdig`); dort steht kein Moos.
 static func _wurzel(b: Bau) -> void:
 	var rng := b.rng
-	var s := Level01.M_WENDEL + 1.0
+	var s := Level01.M_WENDEL + 3.0
 	while s < Level01.M_ENDE - 0.5:
 		var l := _lage(b, s)
 		if l.halb > 0.0:
@@ -877,10 +893,14 @@ static func _wurzel(b: Bau) -> void:
 				while true:
 					var qa := l.halb * 0.3 + (float(k) + rng.randf()) * RASTER
 					k += 1
-					if qa > l.halb - 0.12:
+					if qa > l.halb - 0.1:
 						break
 					var q := seite * qa
 					var ss := l.s + rng.randf_range(-0.14, 0.14)
+					var kiste := b.kiste_abstand(ss, q)
+					var sperre := b.sperr_abstand(ss, q)
+					if kiste < KISTE_FREI or sperre < 0.1:
+						continue
 					var p := l.punkt(q)
 					var w := Wegmaske.welt(Vector2(p.x, p.z))
 					var qn := q / l.halb
@@ -890,22 +910,52 @@ static func _wurzel(b: Bau) -> void:
 							* smoothstep(0.3, 0.75, absf(qn))
 					var moos := clampf(m + fressen, 0.0, 1.0)
 					var riss := _riss(qn, ss, w)
-					if riss > 0.5 and b.kiste_abstand(ss, q) > KISTE_FREI \
-							and b.sperr_abstand(ss, q) > 0.1:
+					if riss > 0.5:
 						var r := rng.randf()
-						if r < 0.3:
-							_polster(b, ss, p, rng.randf_range(0.45, 0.8), true, l.kronen)
-						elif r < 0.4 and moos > 0.3 and b.kiste_abstand(ss, q) > KISTE_HOCH:
+						if r < 0.55 * b.dichte_faktor:
+							_moos(b, ss, p, rng.randf_range(0.05, 0.1), Vector3.ZERO,
+									rng.randf_range(0.5, 0.8), l.kronen)
+						elif r < 0.66 and moos > 0.3 and kiste > KISTE_HOCH:
 							_farn(b, ss, p, rng.randf_range(0.45, 0.75))
-						elif r < 0.5:
+						elif r < 0.76:
 							_teil(b, ss, p, "pilz_leucht", rng.randf_range(0.7, 1.1))
-					# Am Rand des Mooses (wo es in die Borke frisst) ein Saum aus
-					# kurzem Moosgras, dahinter Polster, Farne und Blüten (Streu).
-					if moos > 0.45:
-						var saum := smoothstep(0.45, 0.6, moos) * (1.0 - smoothstep(0.7, 0.85, moos))
-						_stelle(b, ss, q, p, 1.0, 0.78, l.kronen, DICHTE_MOOS * saum, 0.0,
-								Bereich.WURZEL)
+						continue
+					if moos < 0.45:
+						# Vor dem Saum kleine Moosinseln auf der Borke: Die Grenze
+						# franst aus, statt als Linie längs der Wurzel zu laufen.
+						var insel := smoothstep(0.22, 0.45, moos) * 1.6 * b.dichte_faktor
+						if rng.randf() * DICHTE_MAX < insel:
+							_moos(b, ss, p, rng.randf_range(0.04, 0.07), Vector3.ZERO,
+									rng.randf_range(0.45, 0.75), l.kronen)
+						continue
+					# Im Saum zur Borke dicht und über sie gelegt (zur Spur hin),
+					# auf der Fläche licht und aufrecht.
+					var saum := smoothstep(0.45, 0.58, moos) * (1.0 - smoothstep(0.7, 0.9, moos))
+					var dichte := (DICHTE_MOOS + DICHTE_MOOS_SAUM * saum) * b.dichte_faktor
+					if rng.randf() * DICHTE_MAX < dichte:
+						var kipp := Vector3.ZERO
+						if saum > 0.4:
+							kipp = l.rechts * -seite * deg_to_rad(rng.randf_range(15.0, 35.0))
+						_moos(b, ss, p, rng.randf_range(0.06, 0.1) * lerpf(1.0, 1.45, saum), kipp,
+								rng.randf_range(0.9, 1.4), l.kronen)
+					_streu(b, ss, q, p, 1.0, Bereich.WURZEL, kiste, sperre, l.kronen)
 		s += RASTER
+
+
+## Ein Moosfleck (Rasensaum.moosfleck) der Höhe `h`, waagerecht `breit`
+## mal so groß, auf Wunsch nach `kipp` gelegt (Richtung × Winkel in rad).
+static func _moos(b: Bau, s: float, p: Vector3, h: float, kipp: Vector3, breit: float,
+		kronen: float) -> void:
+	var rng := b.rng
+	var mass := h / Rasensaum.BEZUG
+	var quer := breit * rng.randf_range(0.85, 1.15)
+	var basis := Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(quer, mass, quer))
+	var winkel := kipp.length()
+	if winkel > 0.001:
+		basis = Basis(Vector3.UP.cross(kipp / winkel).normalized(), winkel) * basis
+	var sa := b.sammlung(s)
+	sa.moos.append(Transform3D(basis, p - Vector3(0.0, 0.01, 0.0)))
+	sa.moos_farben.append(Rasensaum.farbe(0.8, 1.0, rng.randf_range(0.2, 0.8), kronen))
 
 
 ## Ein Querriss des Wurzelrückens an (q/halbe Breite, s) wie im Shader
@@ -1000,6 +1050,11 @@ static func _netze(b: Bau) -> void:
 				sa.wispel_farben, SICHT_WISPEL)
 		Rasensaum.feld(wurzel, "Moos %d" % i, Rasensaum.polster(41 + n), sa.polster,
 				sa.polster_farben, SICHT_STREU)
+		# Wurzelrücken: Moos in der Moosfarbe des Wegbodens (eigener Stoff).
+		Rasensaum.feld(wurzel, "Borkenmoos %d" % i, Rasensaum.moosfleck(51 + n), sa.moos,
+				sa.moos_farben, SICHT_GRAS, true)
+		Rasensaum.feld(wurzel, "Borkenpolster %d" % i, Rasensaum.polster(44 + n),
+				sa.moospolster, sa.moospolster_farben, SICHT_STREU, true)
 		if sa.haufen != null:
 			sa.haufen.knoten(wurzel, "Streu %d" % i, SICHT_STREU)
 			gesamt += sa.haufen.dreiecke()
@@ -1015,7 +1070,8 @@ static func _netze(b: Bau) -> void:
 			_fremd_felder(wurzel, "Grossblatt %d" % i, gross_fremd, sa.gross)
 		Bodenstreu.feld(wurzel, "Rahmenfarne %d" % i, rahmen_netze[posmod(i, 2)], sa.rahmen,
 				sa.rahmen_farben, SICHT_FARN)
-		gesamt += sa.gras.size() * 30 + sa.bueschel.size() * 27 + sa.wispel.size() * 42
+		gesamt += sa.gras.size() * 30 + sa.bueschel.size() * 27 + sa.wispel.size() * 42 \
+				+ sa.moos.size() * 40 + (sa.polster.size() + sa.moospolster.size()) * 45
 	if b.level.debug:
 		print("Rasen: %d Stücke, %d Dreiecke" % [schluessel.size(), gesamt])
 
