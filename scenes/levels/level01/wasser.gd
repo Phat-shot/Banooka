@@ -662,15 +662,17 @@ static func _faelle_bauen(level: Level01, stand: Dictionary) -> void:
 	# Bogen quer unter dem Weg hindurch. Sie füllt die Kerbe knapp einen
 	# Meter hoch (`RINNE_SPIEGEL`) und fällt erst nach der Wegmitte auf den
 	# Grund der rechten Lippe: Auf dem Grund lag sie hinter der Kante, die
-	# Kerbe las sich aus der Spielkamera als schwarzer Schlitz. So steht im
-	# Schlitz ein helles, schnelles Band.
+	# Kerbe las sich aus der Spielkamera als schwarzer Schlitz. Unter dem Weg
+	# läuft sie an der hinteren Wand (s 120,15): Die Kamera sieht in den
+	# Schlitz nur bis gut 1 m vor dieser Wand hinab – so steht dort ein
+	# helles, schnelles Band.
 	var grund := L01Saum.FALLKERBE_GRUND
 	for sqh: Vector3 in [Vector3(117.1, -8.1, BECKEN_SPIEGEL + 0.02),
 			Vector3(117.85, -7.9, BECKEN_SPIEGEL + 0.01), Vector3(118.1, -7.8, 19.3),
 			Vector3(118.35, -7.4, RINNE_SPIEGEL + 0.14), Vector3(118.7, -6.8, RINNE_SPIEGEL + 0.05),
-			Vector3(119.15, -5.8, RINNE_SPIEGEL + 0.02), Vector3(119.45, -4.1, RINNE_SPIEGEL),
-			Vector3(119.5, -1.5, RINNE_SPIEGEL - 0.03), Vector3(119.5, 1.2, RINNE_SPIEGEL - 0.12),
-			Vector3(119.5, 2.7, lerpf(RINNE_SPIEGEL, grund + 0.06, 0.6))]:
+			Vector3(119.3, -5.8, RINNE_SPIEGEL + 0.02), Vector3(119.85, -4.1, RINNE_SPIEGEL),
+			Vector3(120.15, -1.5, RINNE_SPIEGEL - 0.03), Vector3(120.15, 1.2, RINNE_SPIEGEL - 0.12),
+			Vector3(119.8, 2.7, lerpf(RINNE_SPIEGEL, grund + 0.06, 0.6))]:
 		var p := LevelWerkzeuge.punkt_frei(level.verlauf, sqh.x, sqh.y)
 		p.y = sqh.z
 		rinne.append(p)
@@ -841,7 +843,7 @@ static func _gischt_bauen(level: Level01, stand: Dictionary) -> void:
 		# Wolke darüber zeigt, wo er stürzt.
 		_wolke(wurzel, "Gischt Becken", fuss + Vector3.DOWN * 0.4, Vector3(5.5, 14.0, 5.5), 44,
 				1.3, 0.1, 1.6, 7101)
-	var kerbe := LevelWerkzeuge.punkt(level.verlauf, 119.5, 0.0)
+	var kerbe := LevelWerkzeuge.punkt(level.verlauf, 120.0, 0.0)
 	kerbe.y = RINNE_SPIEGEL - 0.4
 	# Sie steigt über die Lippe: Den Grund der Kerbe sieht die Kamera nicht,
 	# die Gischt darüber sagt, dass unten Wasser rauscht.
@@ -852,7 +854,7 @@ static func _gischt_bauen(level: Level01, stand: Dictionary) -> void:
 	# ein weißer Hauch über dem Band, der die Kerbe als Wasser ansagt.
 	var wolke := _wolke(wurzel, "Gischt Fallkerbe", kerbe, Vector3(8.5, 2.6, 2.4), 70, 0.16,
 			0.26, 0.6, 7102)
-	wolke.rotation.y = LevelWerkzeuge.drehung(level.verlauf, 119.5)
+	wolke.rotation.y = LevelWerkzeuge.drehung(level.verlauf, 120.0)
 	_sichtweite(wolke, SICHT_NAH)
 	if stand.has("fuss_unten"):
 		var fuss: Vector3 = stand["fuss_unten"]
