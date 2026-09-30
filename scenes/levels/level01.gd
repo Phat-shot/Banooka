@@ -622,8 +622,12 @@ const KISTEN := [
 	{"art": Kiste.Art.NORMAL, "s": 12.0, "q": 1.0},
 	{"art": Kiste.Art.NORMAL, "s": 13.4, "q": 0.0},
 	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 15.5, "q": -2.5},
-	{"art": Kiste.Art.NORMAL, "s": 21.0, "q": -2.8},
-	{"art": Kiste.Art.NORMAL, "s": 21.0, "q": -2.8, "stapel": 1},
+	# Der Stapel steht am linken Rand: Weiter innen träfe der Kamerastrahl
+	# die obere Kiste, sobald man auf ihn zuläuft (3–5 m davor), und holte
+	# die Kamera VOR die Figur (Sichtprobe, Anlauf). Ab q −4,4 geht der
+	# Strahl auch aus der Randlage (Rand 4,4 → Strahl bei −3,74) vorbei.
+	{"art": Kiste.Art.NORMAL, "s": 21.0, "q": -4.4},
+	{"art": Kiste.Art.NORMAL, "s": 21.0, "q": -4.4, "stapel": 1},
 	{"art": Kiste.Art.NORMAL, "s": 21.0, "q": 1.0},
 	{"art": Kiste.Art.SCHUTZ, "s": 21.0, "q": 2.6},
 	{"art": Kiste.Art.NORMAL, "s": 30.5, "q": -2.0},
@@ -639,8 +643,10 @@ const KISTEN := [
 	{"art": Kiste.Art.NORMAL, "s": 85.0, "q": -7.5, "auf": "Moosbank"},
 	{"art": Kiste.Art.NORMAL, "s": 86.5, "q": -8.0, "auf": "Moosbank"},
 	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 88.5, "q": -8.5, "auf": "Moosbank"},
-	{"art": Kiste.Art.NORMAL, "s": 96.0, "q": -2.8},
-	{"art": Kiste.Art.NORMAL, "s": 96.0, "q": -2.8, "stapel": 1},
+	# Halb auf dem Nischenboden (bündig): Bei q −2,8 holte die obere Kiste
+	# die Kamera vor die Figur, von links am Rand (s 92) und im Anlauf.
+	{"art": Kiste.Art.NORMAL, "s": 96.0, "q": -3.5},
+	{"art": Kiste.Art.NORMAL, "s": 96.0, "q": -3.5, "stapel": 1},
 	# --- C: 10 ---
 	{"art": Kiste.Art.CHECKPOINT, "s": 107.0, "q": 0.0},
 	{"art": Kiste.Art.NORMAL, "s": 111.0, "q": 1.5},
@@ -1016,14 +1022,8 @@ func _kisten_setzen() -> void:
 		var k := KISTE.instantiate() as Kiste
 		k.art = e["art"]
 		var s: float = e["s"]
-		var auf: String = e.get("auf", "")
-		if not auf.is_empty() and int(begehbar(auf).get("ebene", 1)) == SPIELERGRENZE:
-			# Die Kiste steht auf Ebene 16. Der Bodenstrahl der Prüfung fragt
-			# (noch) nur Ebene 1 ab und fände darunter nichts oder einen Boden
-			# Meter tiefer. Bis er 1|16 abfragt, gilt sie als absichtlich ohne
-			# Ebene-1-Boden; die zweite Gruppe sagt, warum.
-			k.add_to_group("schwebende_kisten")
-			k.add_to_group("kisten_auf_spielergrenze")
+		# Kisten auf Ebene 16 (Moosbank, Findlingsturm, Wurzelknie,
+		# Oberwurzel) stehen: Der Bodenstrahl der Prüfung fragt 1|16 ab.
 		k.position = kisten_ort(e)
 		k.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 		objekte.add_child(k)
