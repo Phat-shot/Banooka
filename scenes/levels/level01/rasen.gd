@@ -572,7 +572,9 @@ static func _polster(b: Bau, s: float, p: Vector3, mass: float, wurzel: bool,
 	var basis := Basis(Vector3.UP, rng.randf() * TAU) \
 			* Basis.from_scale(Vector3(mass, mass * rng.randf_range(0.6, 1.1), mass))
 	var lage := Transform3D(basis, p - Vector3(0.0, 0.015, 0.0))
-	var farbe := Rasensaum.farbe(0.8 if wurzel else 0.85, 1.0, rng.randf_range(0.2, 0.7), kronen)
+	# Auf dem Wurzelrücken so hell wie die Moosflecken dort (×1,15): Dunkler
+	# lasen sich die großen Polster aus der Spielkamera als glatte Pillen.
+	var farbe := Rasensaum.farbe(0.92 if wurzel else 0.85, 1.0, rng.randf_range(0.2, 0.7), kronen)
 	if wurzel:
 		sa.moospolster.append(lage)
 		sa.moospolster_farben.append(farbe)

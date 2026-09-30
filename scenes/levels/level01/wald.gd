@@ -35,8 +35,9 @@ class_name L01Wald
 ##               Alle in voller Größe (Plan M5: 32–38 m, Stamm Ø 3–4 m): Vom
 ##               Grat aus stehen ihre Kronen vor dem unteren Rand der
 ##               Weltenbaumkrone – der Größenvergleich, den D braucht.
-##   Talwald     nah (bis `NAH_WEIT` vom Weg): in Hainen (Mitten alle
-##               `HAIN_RASTER` m, drei bis acht Bäume je Hain, mehr und weiter,
+##   Talwald     nah (bis `NAH_WEIT` vom Weg): in Hainen (Mitten mindestens
+##               `HAIN_RASTER` m auseinander, wo das Gelände Wald trägt;
+##               drei bis acht Bäume je Hain, mehr und weiter,
 ##               wo das Gelände dichten Wald trägt), ein großer Baum in der
 ##               Mitte, viele kleinere darum (Größe 0,6–1,5, schief verteilt),
 ##               Kronen, die sich überlappen und bis auf gut ein Drittel der
@@ -51,9 +52,11 @@ class_name L01Wald
 ##               nur auf dem gezeichneten Feld, in Hainen (grobes Rauschen
 ##               über der Walddichte), nie als Einzelgänger (mindestens zwei
 ##               Nachbarn in `GRUPPE_WEITE`). Stünde eine Krone von einer
-##               Station aus vor dem Himmel (Himmelsprobe `_schwebt`, auf
+##               Station aus vor dem Himmel (Himmelsprobe `_einsinken`, auf
 ##               einem Raster der Geländehöhe), sinkt sie in den Boden ein:
-##               ein Waldsaum auf dem Kamm statt einer Scheibe in der Luft.
+##               ein Waldsaum auf dem Kamm statt einer Scheibe in der Luft;
+##               hinter einem Kamm so weit, dass sie nicht als Ballon über
+##               ihm hängt (wo das zu tief wäre, fällt der Baum weg).
 ##   Nadelbäume  gestufte, gezackte Kegel (`_tannenkrone`), nah mit
 ##               Blattkarten, fern ohne: spitze Umrisse neben den runden.
 ##   Hecken      rechts der Bachwiese (q 7,4–9,4) und um die Wurzelwiese,
@@ -163,13 +166,22 @@ const HAIN_BLAU := Color(0.78, 0.94, 1.0)
 const HOEHEN_ZELLE := 2.0
 ## Ferne Kronen (`_fernform`): so viel breiter am Fuß, und dort beginnt
 ## ihr Farbverlauf von dunkel (0) nach hell (1).
-const FERN_FUSS := 0.3
+const FERN_FUSS := 0.12
 const FERN_UNTEN := 0.4
+## Lagen der Ballen einer fernen Krone (`_fernbaum`), je Form (0 rund,
+## 1 breit): Höhe über dem Fuß, Abstand von der Achse, Anzahl. Die letzte
+## Lage ist der Wipfel.
+const FERN_LAGEN := [
+	[Vector3(3.6, 1.6, 3), Vector3(7.4, 1.1, 2)],
+	[Vector3(3.4, 2.4, 4), Vector3(6.9, 1.3, 2)],
+]
 ## Dort (Anteil der Höhe) beginnt die Krone eines fernen Baums; so weit
-## (Anteil der Höhe) sinkt er ein, wenn sie sonst vor dem Himmel stünde.
+## (Anteil der Höhe) sinkt er ein, wenn sie sonst vor dem Himmel stünde,
+## und weiter als `FERN_SINKEN_MAX` nie (`_einsinken`).
 const FERN_BODEN := 0.1
 const FERN_SINKEN := 0.2
-## Himmelsprobe des fernen Walds (`_schwebt`): So weit zeichnet die
+const FERN_SINKEN_MAX := 0.5
+## Himmelsprobe des fernen Walds (`_einsinken`): So weit zeichnet die
 ## Korridorkamera (`far`), dahinter ist Himmel. Augen alle `HIMMEL_SCHRITT`
 ## m entlang des Wegs, Proben alle `HIMMEL_TRITT` m auf dem Sehstrahl.
 const KAMERA_FERN := 200.0
@@ -178,11 +190,17 @@ const HIMMEL_TRITT := 3.0
 ## Ein Kamm weiter weg als das verdeckt für die Himmelsprobe nichts: Im
 ## Tiefennebel (12 → 140 m) ist er kaum heller als der Himmel dahinter.
 const KAMM_WEIT := 100.0
+## Gelände hinter einer Krone zählt nur bis so weit von der Station: Was
+## weiter liegt, schneidet die Kamera ab (`far`, sie steht nicht genau im
+## Auge der Probe), die Krone stünde vor dem blanken Himmel.
+const HIMMEL_HINTER := 175.0
 
-## Naher Talwald: Abstand der Hainmitten (m), Mindestabstand der Stämme
-## außerhalb eines Hains (m; im Hain 60 %), und die Lichtung vor der
-## Seitenansicht der Bachwiese (s von, s bis, q von, q bis).
-const HAIN_RASTER := 21.0
+## Naher Talwald: Mindestabstand der Hainmitten (m) und das Raster, auf
+## dem sie gesucht werden (m), Mindestabstand der Stämme außerhalb eines
+## Hains (m; im Hain 60 %), und die Lichtung vor der Seitenansicht der
+## Bachwiese (s von, s bis, q von, q bis).
+const HAIN_RASTER := 18.0
+const HAIN_SCHRITT := 7.0
 const TAL_ABSTAND := 2.3
 const LICHTUNG := Vector4(178.0, 194.0, 16.0, 40.0)
 
@@ -528,7 +546,11 @@ static func _kegel_anlegen(level: Level01) -> void:
 ## zurück auf der Kurve, 6 m über der Figur).
 static func _auge(level: Level01, s: float) -> Vector3:
 	var auge := LevelWerkzeuge.punkt_frei(level.verlauf, s - 9.5, 0.0)
-	auge.y = level.boden_bei(s) + 6.0
+	# Die Korridorkamera hält 6 m über der Figur, gemessen an der Kurve dort,
+	# wo sie selbst steht: bergauf (Wendel, 17 %) 1,6 m tiefer, bergab (C)
+	# bis 2,9 m höher als die Figur + 6 m.
+	var hier := LevelWerkzeuge.punkt_frei(level.verlauf, s, 0.0)
+	auge.y = level.boden_bei(s) + 6.0 + (auge.y - hier.y)
 	return auge
 
 
@@ -880,40 +902,41 @@ static func _talbaum(k: int) -> Dictionary:
 					"saat": 2104})
 
 
-## Ferne Bäume: grobe Krone ohne Karten (drei bis sieben Ballen, gut 0,3k
+## Ferne Bäume: grobe Krone ohne Karten (fünf bis sechs Ballen, gut 0,3k
 ## Dreiecke), unten breiter und heller (`_fernform`), und ein angedeuteter
 ## Stamm im selben Stoff (vier Seiten, dunkel, ohne Wind). Die Krone reicht
 ## bis auf `FERN_BODEN` der Höhe hinab, der Stamm endet in ihrer Mitte: ein
 ## Wald aus Laub, keine Lollis. Fuß im Ursprung.
+## Die Ballen sitzen als Kuppel (`FERN_LAGEN`): ein breiter Kranz unten,
+## zwei Ballen als Wipfel darüber, die Füllkugel der `Kronenwolke`
+## dazwischen – eng genug, dass keine Fuge bleibt (ein einzelner Wipfel
+## stand als Kopf auf dem Kranz, die Krone las sich als Birne). Drei Ballen, auf die Höhe gestreckt,
+## lagen auseinander: Vor dem Himmel hing dann der oberste allein als
+## Ballon über dem Kamm; drei Lagen lasen sich als geschnittener Buchs.
 static func _fernbaum(k: int) -> ArrayMesh:
 	var schluessel := "fern%d" % k
 	if _netze.has(schluessel):
 		return _netze[schluessel]
-	var hoehe := 12.0
-	var o := {"radius": 5.0, "hoehe": 10.0, "saat": 3101 + k, "ballen": 3}
-	match k:
-		1:
-			o["variante"] = 1
-			o["radius"] = 5.6
-			o["hoehe"] = 8.5
-			hoehe = 11.0
-		2:
-			# Nadelbaum: gestufte Kegel (`_tannenkrone`) – aus vier Ballen
-			# auf 14 m war ein Schneemann geworden.
-			hoehe = 14.0
-	# Die flachen Ballen füllen die verlangte Höhe nur zu gut der Hälfte:
-	# größer bestellen, nach der echten Hülle setzen – Scheitel auf `hoehe`
-	# – und in der Höhe strecken, bis die Unterseite auf `FERN_BODEN` der
-	# Höhe liegt. Aus 60 m und mehr ist ein Wald Laub bis zum Boden: Eine
-	# Krone über einem dünnen Stamm las sich dort als Scheibe in der Luft,
-	# eine flache Linse als Seerosenblatt im Dunst.
-	o["hoehe"] = float(o["hoehe"]) * 1.35
-	o["mitte"] = Vector3.ZERO
+	var hoehe := 12.0 if k != 1 else 11.0
 	var roh: ArrayMesh
 	if k == 2:
+		# Nadelbaum: gestufte Kegel (`_tannenkrone`) – aus vier Ballen auf
+		# 14 m war ein Schneemann geworden.
+		hoehe = 14.0
 		roh = _fernform(_tannenkrone(2.9, hoehe * (1.0 - FERN_BODEN), 5, 7, 0, 3101 + k))
 	else:
-		roh = _fernform(Kronenwolke.fern(o))
+		# Lagen (Höhe über dem Fuß, Abstand von der Achse, Anzahl) – der
+		# Radius der Ballen folgt aus `radius` (52–64 %, flach: 80 % hoch).
+		var zentren := PackedVector3Array()
+		var dreh := 0.7 * float(k)
+		for lage: Vector3 in FERN_LAGEN[k]:
+			var n := int(lage.z)
+			for i in n:
+				var w := dreh + TAU * float(i) / float(n)
+				zentren.append(Vector3(cos(w) * lage.y, lage.x, -sin(w) * lage.y))
+			dreh += PI / float(maxi(n, 1))
+		roh = _fernform(Kronenwolke.fern({"radius": 5.0 if k == 0 else 5.2, "saat": 3101 + k,
+				"zentren": zentren}))
 	var rbox := roh.get_aabb()
 	var streck := clampf(hoehe * (1.0 - FERN_BODEN) / rbox.size.y, 1.0, 2.2)
 	var dy := hoehe - rbox.end.y * streck
@@ -1862,7 +1885,8 @@ static func _talstelle(ziel: Vector2, rng: RandomNumberGenerator) -> Vector3:
 
 ## Der nahe Talwald: alles bis `NAH_WEIT` vom Weg, was nicht Hallen- oder
 ## Hangwald ist – in Hainen statt auf einem Raster (sonst eine Plantage aus
-## gleichen Schirmen auf Rasen): Hainmitten alle gut 20 m, je Hain drei bis
+## gleichen Schirmen auf Rasen): Hainmitten gut 18 m auseinander, wo das
+## Gelände Wald trägt (`L01Gelaende.wald` ≥ 0,2), je Hain drei bis
 ## acht Bäume in bis zu 9 m um die Mitte (mehr und weiter, wo das Gelände
 ## dichten Wald trägt), deren Kronen sich überlappen; ein großer Baum in
 ## der Mitte, darum viele kleinere. Zwischen den Hainen offene Wiese mit
@@ -1900,13 +1924,20 @@ static func _talwald_nah(level: Level01) -> void:
 	hain.seed = 8102
 	hain.frequency = 1.0 / HAIN_WEITE
 	hain.fractal_octaves = 2
+	# Hainmitten: Kandidaten auf einem feinen Raster (`HAIN_SCHRITT`), eine
+	# Mitte nur, wo das Gelände Wald trägt und keine andere näher als
+	# `HAIN_RASTER` liegt. Ein grobes Raster fand in schmalen Waldstreifen
+	# (am Fuß der Wand von B, am Talrand) oft keinen Punkt – unter dem Grat
+	# lag dann nur Wiese.
+	var mitten: Array[Vector2] = []
+	var wiese := HAIN_SCHRITT * HAIN_SCHRITT / (21.0 * 21.0)
 	var x := FELD.position.x
 	while x < FELD.end.x:
 		var z := FELD.position.y
 		while z < FELD.end.y:
-			var mitte := Vector2(x + rng.randf_range(0.0, HAIN_RASTER),
-					z + rng.randf_range(0.0, HAIN_RASTER))
-			z += HAIN_RASTER
+			var mitte := Vector2(x + rng.randf_range(0.0, HAIN_SCHRITT),
+					z + rng.randf_range(0.0, HAIN_SCHRITT))
+			z += HAIN_SCHRITT
 			var d := _wegabstand(mitte.x, mitte.y)
 			if d > NAH_WEIT + 6.0 or d < 3.0:
 				continue
@@ -1915,17 +1946,26 @@ static func _talwald_nah(level: Level01) -> void:
 				# Wiese: ab und zu ein Strauch oder ein toter Baum.
 				var y := L01Gelaende.hoehe(mitte.x, mitte.y)
 				if _tal_platz(level, mitte, false):
-					if w > 0.08 and rng.randf() < 0.45:
+					if w > 0.08 and rng.randf() < 0.45 * wiese:
 						_randbusch(ws, rand_busch, Vector3(mitte.x, y, mitte.y), rng)
-					elif rng.randf() < 0.12 and d > 16.0:
+					elif rng.randf() < 0.12 * wiese and d > 16.0:
 						_totholz(ws, tot, Vector3(mitte.x, y, mitte.y), rng)
 				continue
+			var frei := true
+			for m in mitten:
+				if m.distance_squared_to(mitte) < HAIN_RASTER * HAIN_RASTER:
+					frei = false
+					break
+			if not frei:
+				continue
+			mitten.append(mitte)
 			var dicht := smoothstep(0.2, 0.85, w)
 			var anzahl := roundi(lerpf(3.0, 8.0, dicht) * rng.randf_range(0.8, 1.15))
 			var weite := lerpf(4.5, 9.0, dicht)
 			_hain(level, ws, rng, mitte, anzahl, weite, _hainton(hain, mitte.x, mitte.y),
 					rand_busch)
-		x += HAIN_RASTER
+		x += HAIN_SCHRITT
+	_zaehle("tal_haine", mitten.size())
 	_totholz_tal(ws, tot, rng)
 	var zz := ws.fertig()
 	_zaehle("tal_knoten", int(zz["knoten"]))
@@ -2165,12 +2205,12 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 
 ## Der ferne Wald, zweiter Schritt: Einzelgänger fallen weg (eine Krone
 ## allein am Hang liest sich immer als Scheibe; nur Gruppen ab drei Bäumen
-## bleiben), dann die Himmelsprobe (`_schwebt`): Stünde das untere Laub
+## bleiben), dann die Himmelsprobe (`_einsinken`): Stünde das untere Laub
 ## einer Krone von einer Station aus frei vor dem Himmel – auf dem Rücken
-## der Randhügel, am Westhang –, sinkt der Baum um `FERN_SINKEN` seiner
-## Höhe ein, die Krone steckt im Boden: ein Waldsaum auf dem Kamm
-## statt einer Scheibe in der Luft. Er wird dazu etwas kühler (Luft-
-## perspektive). Kein Baum wird deshalb gelöscht.
+## der Randhügel, am Westhang –, sinkt der Baum ein, die Krone steckt im
+## Boden: ein Waldsaum auf dem Kamm statt einer Scheibe in der Luft. Er
+## wird dazu etwas kühler (Luftperspektive). Weg fällt nur, wer hinter
+## einem Kamm als Ballon über ihm hinge und dafür zu tief sinken müsste.
 static func _talwald_fern_setzen() -> void:
 	var zellen := {}
 	for i in _fern_kandidaten.size():
@@ -2206,9 +2246,12 @@ static func _talwald_fern_setzen() -> void:
 		var ton: Color = e["ton"]
 		var groesse: float = e["groesse"]
 		var hoch := netze[k].get_aabb().end.y * groesse
-		# Das untere Laub: Die Krone beginnt bei `FERN_BODEN` der Höhe.
-		if _schwebt(Vector3(p.x, float(e["y"]) + hoch * (FERN_BODEN + 0.1), p.y)):
-			lage.origin.y -= hoch * FERN_SINKEN
+		var tief := _einsinken(Vector3(p.x, float(e["y"]), p.y), hoch)
+		if tief < 0.0:
+			_zaehle("fern_ballon")
+			continue
+		if tief > 0.0:
+			lage.origin.y -= tief
 			ton = ton * Color(0.92, 0.97, 1.04)
 			_zaehle("fern_gesunken")
 		ws.setze("krone", netze[k], lage, ton)
@@ -2264,17 +2307,31 @@ static func _hoehen_anlegen() -> void:
 			i += 1
 
 
-## Schwebt eine ferne Krone? Von einer Station aus liegt ihr unteres Laub
-## (`unten`, Welt) frei im Blick, und dahinter kommt bis zur Sichtweite der
-## Kamera kein Gelände mehr: Dann steht die Krone vor dem Himmel, ihr
-## angedeuteter Stamm verschwindet im Dunst, und sie hängt als Scheibe in
-## der Luft – auf der Rückseite der Randhügel, am Westhang und am Rand des
-## Felds. Dass ein Kamm davor nur den Stamm verdeckt, reicht nicht, und
-## ein Kamm weiter als `KAMM_WEIT` zählt gar nicht: Im Dunst ist er kaum
-## heller als der Himmel, die Krone schwebt trotzdem. Verdeckt ein naher
-## Kamm auch das untere Laub, ragt nur der Wipfel hinter ihm auf; steht
-## dahinter ein Hang, liest sie sich vor ihm als Wald. Beides darf sein.
-static func _schwebt(unten: Vector3) -> bool:
+## Wie tief (m) muss ein ferner Baum (Fuß `fuss`, Höhe `hoch`) einsinken,
+## damit er von keiner Station aus als Scheibe in der Luft hängt? 0: gar
+## nicht; < 0: das geht nicht, er fällt weg.
+## Die Krone schwebt, wenn von einer Station aus ihr unteres Laub frei im
+## Blick liegt und dahinter bis `HIMMEL_HINTER` von der Station kein
+## Gelände mehr kommt: Sie steht vor dem Himmel, ihr angedeuteter Stamm
+## verschwindet im Dunst – auf der Rückseite der Randhügel, am Westhang, am
+## Rand des Felds.
+## Dass ein Kamm davor nur den Stamm verdeckt, reicht nicht, und ein Kamm
+## weiter als `KAMM_WEIT` zählt gar nicht: Im Dunst ist er kaum heller als
+## der Himmel. Verdeckt ein naher Kamm auch das untere Laub, ragt nur der
+## Wipfel hinter ihm auf; steht dahinter ein Hang, liest sie sich vor ihm
+## als Wald. Beides darf sein.
+## Schwebt sie, zählt, ob die Station ihren Fuß sicher sieht (1,5 m über
+## der Sichtlinie über den Kamm davor, `_kammhoehe`): Dann steht der Baum
+## auf einem Kamm und sinkt um `FERN_SINKEN` seiner Höhe ein – ein
+## Waldsaum auf dem Kamm. Verdeckt ihr ein Kamm den Fuß (fast), hinge die
+## Krone als Ballon über ihm, mit Himmel dazwischen: Dann sinkt er, bis die
+## Unterseite der Krone hinter dem Kamm liegt – höchstens um
+## `FERN_SINKEN_MAX` seiner Höhe (sonst läge die Krone von näheren
+## Stationen aus als Hügel am Hang).
+static func _einsinken(fuss: Vector3, hoch: float) -> float:
+	# Das untere Laub: Die Krone beginnt bei `FERN_BODEN` der Höhe.
+	var unten := fuss + Vector3.UP * hoch * (FERN_BODEN + 0.1)
+	var tief := 0.0
 	for k in _himmel_augen.size():
 		var auge := _himmel_augen[k]
 		var zu := unten - auge
@@ -2285,12 +2342,58 @@ static func _schwebt(unten: Vector3) -> bool:
 		if Vector3(zu.x, 0.0, zu.z).normalized().dot(_himmel_blick[k]) < 0.55:
 			continue
 		var dir := zu / e
-		if _gelaende_im_strahl(unten, dir, 2.0, KAMERA_FERN - e):
+		if _gelaende_im_strahl(unten, dir, 2.0, HIMMEL_HINTER - e):
 			continue
 		if _gelaende_im_strahl(auge, dir, 3.0, minf(e - 2.0, KAMM_WEIT)):
 			continue
-		return true
-	return false
+		var noetig := hoch * FERN_SINKEN
+		var kamm := _kammhoehe(auge, fuss)
+		if kamm > fuss.y - 1.5:
+			noetig = maxf(noetig, fuss.y + hoch * FERN_BODEN + 0.5 - kamm)
+		if noetig > hoch * FERN_SINKEN_MAX:
+			return -1.0
+		tief = maxf(tief, noetig)
+	return tief
+
+
+## Höhe der Sichtlinie von `auge` über das Gelände davor, am Ort `ziel`
+## (waagerecht gemessen): Was dort tiefer liegt, verdeckt ein Kamm. -INF,
+## wenn nichts davor liegt. Fein abgetastet (2 m, zwischen den Punkten des
+## Rasters gemittelt) – ein schmaler Grat verdeckt oft gerade die paar
+## Meter, um die es geht; nur für Kronen, die schon als schwebend gelten.
+static func _kammhoehe(auge: Vector3, ziel: Vector3) -> float:
+	var flach := Vector2(ziel.x - auge.x, ziel.z - auge.z)
+	var weit := flach.length()
+	if weit < 8.0:
+		return -INF
+	var dir := flach / weit
+	var steil := -INF
+	var t := 3.0
+	while t < weit - 4.0:
+		var h := _raster_hoehe(auge.x + dir.x * t, auge.z + dir.y * t)
+		if not is_nan(h):
+			steil = maxf(steil, (h - auge.y) / t)
+		t += HOEHEN_ZELLE
+	if steil == -INF:
+		return -INF
+	return auge.y + steil * weit
+
+
+## Geländehöhe aus dem Raster der Himmelsprobe, zwischen den vier nächsten
+## Punkten gemittelt (NAN außerhalb des Felds).
+static func _raster_hoehe(x: float, z: float) -> float:
+	var fx := (x - L01Gelaende.FELD.position.x) / HOEHEN_ZELLE
+	var fz := (z - L01Gelaende.FELD.position.y) / HOEHEN_ZELLE
+	var a := floori(fx)
+	var b := floori(fz)
+	if a < 0 or b < 0 or a >= _hoehen_mass.x - 1 or b >= _hoehen_mass.y - 1:
+		return NAN
+	var u := fx - float(a)
+	var v := fz - float(b)
+	var i := b * _hoehen_mass.x + a
+	var oben := lerpf(_hoehen_raster[i], _hoehen_raster[i + 1], u)
+	var unten := lerpf(_hoehen_raster[i + _hoehen_mass.x], _hoehen_raster[i + _hoehen_mass.x + 1], u)
+	return lerpf(oben, unten, v)
 
 
 ## Liegt Gelände über dem Strahl `von` + t · `dir` für t in [ab, bis]? Aus
