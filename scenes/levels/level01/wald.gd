@@ -1759,25 +1759,24 @@ static func _rahmenbaeume(level: Level01) -> void:
 		var aussen := _rechts_bei(level, s)
 		var gesetzt := false
 		var hoehe: float = stelle["hoehe"]
-		var arten: Array[Dictionary] = []
-		for weit in 3:
-			# Die weiteren Fassungen neigen sich weit über das Tal und bleiben
-			# niedriger: Vom Grat aus stehen die Simse (s 50–98) nahe der
-			# Linie zum Stamm des Weltenbaums, die aufrechte Krone stand
-			# davor.
-			arten.append(_baum("rahmen%d_%d" % [nummer, weit], {
+		# Die weiteren Fassungen neigen sich weit über das Tal und bleiben
+		# niedriger: Vom Grat aus stehen die Simse (s 50–98) nahe der Linie
+		# zum Stamm des Weltenbaums, die aufrechte Krone stand davor. Gebaut
+		# wird eine Fassung erst, wenn ein Versuch sie braucht (Ladezeit).
+		var fassung := func(weit: int) -> Dictionary:
+			return _baum("rahmen%d_%d" % [nummer, weit], {
 					"hoehe": hoehe * [1.0, 0.72, 0.56][weit], "radius": 0.48,
 					"radius_oben": 0.24, "variante": 0, "krone_radius": [3.3, 3.3, 3.0][weit],
 					"ast_start": 0.5, "aeste": 5, "drehung": 1.5, "krumm": 0.6,
 					"neigung": Vector2([3.2, 5.5, 5.0][weit], 0.0),
 					"karten": 50, "pilze": 1, "efeu": 1, "brettwurzeln": 5, "rippen": 12,
-					"wurzel_reichweite": 1.4, "wurzel_hoehe": 1.6, "saat": 6201 + nummer * 7}))
+					"wurzel_reichweite": 1.4, "wurzel_hoehe": 1.6, "saat": 6201 + nummer * 7})
 		# Versuche: erst wie geplant, dann weiter hinaus gedreht und kleiner,
 		# dann die weit geneigte Fassung. Lokal +X (die Neigung) zeigt über
 		# das Tal, leicht in Laufrichtung.
 		var grund := atan2(-aussen.z, aussen.x)
 		for versuch in 24:
-			var b: Dictionary = arten[versuch >> 3]
+			var b: Dictionary = fassung.call(versuch >> 3)
 			var v := versuch % 8
 			var f := 1.0 - 0.06 * floorf(float(v) * 0.5)
 			var w := grund + (0.35 if v % 2 == 0 else -0.35) * (1.0 - float(v) / 8.0)
