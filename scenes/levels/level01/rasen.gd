@@ -711,6 +711,12 @@ static func _lippe_quer(b: Bau, s: float, richtung: float, von_q: float, bis_q: 
 			continue
 		var p := l.punkt(q) + l.vor * richtung * rng.randf_range(-0.04, 0.02)
 		p.y = b.level.boden_bei(s - richtung * 0.05) - 0.02
+		# Neben der Decke (Ufer der Furt) nur, wo das Gelände auf ihrer Höhe
+		# liegt – sonst hinge das Gras in der Luft.
+		if absf(q) > l.halb + 0.1:
+			var zurueck_p := l.punkt(q) - l.vor * richtung * 0.3
+			if absf(L01Gelaende.hoehe(zurueck_p.x, zurueck_p.z) - p.y) > 0.15:
+				continue
 		_wispel(b, s, p, l.vor * richtung, 0.8)
 		# Dahinter hohes Gras (nicht in der Spur, nicht an Kisten)
 		var zurueck := rng.randf_range(0.12, 0.5)
