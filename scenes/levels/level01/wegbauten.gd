@@ -8,8 +8,8 @@ class_name L01Wegbauten
 ##   B  Totholzgeländer (s 33–50) um die Kanzel mit geborstenem Endpfosten,
 ##      Kanzelplatte mit Drehkiefer, Wurzeln in der Kerbe, Spornfels,
 ##      Hangstamm, Nischenboden und Moosbank, die Torbaum-Pforte (links
-##      ein Fels, rechts ein Fels im Griff der Torbaumwurzeln), der Torbaum
-##      und das Pfortentor
+##      ein Fels im Griff der Torbaumwurzeln, rechts ein Fels an der Kante),
+##      der Torbaum auf der Felsnase links und das Pfortentor
 ##   D  Riesentor (s 162), Trittsteine der Furt, Findlingsturm, Wurzelknie
 ##
 ## FINDLING-REGEL (Plan E13, 8.6). Was man betreten kann, hat einen Körper
@@ -45,10 +45,12 @@ class_name L01Wegbauten
 ## Rahmenbäume rechts halten sich aus dem ±6°-Kegel der Sichtlinie zur
 ## Krone des Weltenbaums (nachgerechnet von s 16 bis 96): Der tote Baum
 ## lehnt über den Abgrund und streckt die Äste nach außen, die Drehkiefer
-## wächst als Kaskade in 3,5–5 m Höhe über die Kante, und der Torbaum – der
-## an seinem Fuß (q 7) jede Krone über 8 m in den Kegel stellte – neigt
-## seinen Leittrieb über die Pforte und trägt seinen Schirm links der
-## Sichtlinie (q ≤ 2, 17–20 m über dem Weg).
+## wächst als Kaskade in 3,5–5 m Höhe über die Kante (eine Sichtlinien-
+## probe gegen die gezeichneten Netze fand sie von s 31 bis 84 in keiner
+## Linie zu Stamm oder Krone). Der Torbaum steht links auf der Felsnase:
+## Rechts am Rand (q 7) lag er vom ganzen Grat aus (s 24–80) auf der Linie
+## zum STAMM des Weltenbaums (±5°) und deckte ihn mit Stamm und Krone zu –
+## links liegt er 15–40° daneben, seine Krone neigt sich nach außen.
 ##
 ## KOSTEN (Plan 13: 25 Zeichenaufrufe, 10 für Schatten). `optik()` liefert
 ## für jeden Eintrag nur eine leere Marke; die Netze baut der Bauschritt je
@@ -1127,13 +1129,13 @@ static func _pfortentor(sa: Sammler, level: Level01) -> void:
 					+ rechts * seite * 0.12, ende]), PackedFloat32Array([0.06, 0.04, 0.02]),
 					{"saat": 1090 + k + int(seite + 1.0) * 5, "seiten": 5, "ende": "spitz",
 					"moos": 0.2})
-	# Farne: zwei im Scheitel, einer im Zwickel am rechten Fuß (bei den
+	# Farne: zwei im Scheitel, einer im Zwickel am linken Fuß (bei den
 	# Wurzeln des Torbaums).
 	for t: float in [-0.35, 0.28]:
 		var ort: Vector3 = linie.call(t) + Vector3.UP * 0.55
 		_farn_bei(sa, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), ort), 0, 1095, 1.3)
-	_farn_bei(sa, Transform3D(Basis(Vector3.UP, 0.7), linie.call(1.45) + rechts * 0.3), 0, 1096,
-			1.4)
+	_farn_bei(sa, Transform3D(Basis(Vector3.UP, 0.7), linie.call(-1.45) - rechts * 0.3), 0,
+			1096, 1.4)
 	# Sichtkörper wie `Schluchtsaum.wurzeltor`: oben dick, an den Füßen schmal.
 	var knoten := Node3D.new()
 	knoten.name = "Pfortentor"
@@ -1435,15 +1437,10 @@ static func _nische(sa: Sammler, level: Level01) -> void:
 
 
 ## Die Torbaum-Pforte (s 99,5–103,5): links ein Fels, der aus der Felsnase
-## vorspringt, rechts ein Fels im Griff der Wurzeln des Torbaums, der außen
-## am Rand steht. Darüber das Pfortentor, dessen rechter Fuß in den
-## Torbaum wächst.
+## vorspringt, im Griff der Wurzeln des Torbaums, der oben auf der Felsnase
+## steht; rechts ein freier Fels an der Kante. Darüber das Pfortentor, dessen
+## linker Fuß in den Torbaum wächst.
 static func _pforte(sa: Sammler, level: Level01) -> void:
-	_findling_auf(sa, level, "Pforte links", {"saat": 1011, "eckig": 2.8,
-			"rundung": 0.36, "beulen": 0.34, "unruhe": 0.15, "umriss": 0.12, "moos": 1.0,
-			"moos_oben": 0.9, "ausgetreten": 0.0, "schichten": true, "anlauf": 0.1,
-			"bemoost": Vector2(0.8, 0.55)}, 0.0)
-	_randfarne(sa, level, "Pforte links", 3, 1019)
 	# Hinter der Leitlinie (q < −3,8): Felsmasse bis an die Felsnase.
 	_brocken(sa, Vector3(2.6, 4.2, 5.4), _lage(level, 101.4, -5.4, 0.0, 0.1), 1012, 0.6,
 			{"moos": 0.9, "kuppe": 0.5})
@@ -1455,55 +1452,79 @@ static func _pforte(sa: Sammler, level: Level01) -> void:
 	_farn_bei(sa, _lage(level, 103.9, -4.0, 0.0, 2.0), 0, 1016, 1.5)
 	var links := level.begehbar("Pforte links")
 	if not links.is_empty():
-		# Farn obenauf an der Rückkante, wo man nicht hinkommt, ohne
+		_wurzelstock(sa, level, links)
+	_findling_auf(sa, level, "Pforte rechts", {"saat": 1022, "eckig": 2.8,
+			"rundung": 0.36, "beulen": 0.34, "unruhe": 0.15, "umriss": 0.12, "moos": 1.0,
+			"moos_oben": 0.9, "ausgetreten": 0.0, "schichten": true, "anlauf": 0.1,
+			"bemoost": Vector2(0.8, 0.55)}, 0.0)
+	_randfarne(sa, level, "Pforte rechts", 3, 1019)
+	var rechts := level.begehbar("Pforte rechts")
+	if not rechts.is_empty():
+		# Farn obenauf an der Außenkante, wo man nicht hinkommt, ohne
 		# hinaufzuspringen.
-		var lage_l: Transform3D = links["lage"]
-		var g_l: Vector3 = links["groesse"]
-		_farn_bei(sa, lage_l.translated_local(Vector3(-g_l.x * 0.3, g_l.y * 0.5, 0.9)), 0,
+		var lage_r: Transform3D = rechts["lage"]
+		var g_r: Vector3 = rechts["groesse"]
+		_farn_bei(sa, lage_r.translated_local(Vector3(g_r.x * 0.3, g_r.y * 0.5, 0.9)), 0,
 				1018, 1.1)
-	var e := level.begehbar("Pforte rechts")
-	if not e.is_empty():
-		_wurzelstock(sa, level, e)
 
 
-## Die rechte Pfortenwand: ein Fels genau im Kasten, den drei Wurzeln des
-## Torbaums umklammern. Sie kommen vom Stammfuß über den Abgrund, laufen
-## über die Außenseite hinauf, liegen oben bündig im Moos, hängen an der
-## Wegseite herab und kriechen als flache Oberflächenwurzeln auf den Weg.
+## Fuß des Torbaums (Welt): oben auf der Felsnase, knapp in den Boden
+## gesenkt. Die Höhe kommt aus dem gezeichneten Gelände bzw. der Krone der
+## Felswand des Saums, je nachdem, was dort höher liegt.
+static func _torbaum_fuss(level: Level01, stelle: Dictionary) -> Vector3:
+	var s: float = stelle["s"]
+	var q: float = stelle["q"]
+	var p := _p(level, s, q, float(stelle["fuss"]))
+	var boden := L01Gelaende.hoehe(p.x, p.z)
+	var krone := float(level.rand_profil(s, signf(q)).get("krone_y", NAN))
+	if not is_nan(krone):
+		boden = maxf(boden, krone)
+	if not is_nan(boden) and absf(boden - p.y) < 3.0:
+		p.y = boden
+	p.y -= 0.4
+	return p
+
+
+## Die linke Pfortenwand: ein Fels genau im Kasten, den drei Wurzeln des
+## Torbaums umklammern. Sie kommen vom Stammfuß oben auf der Felsnase, laufen
+## über die Felsmasse hinter der Leitlinie herab, liegen oben bündig im
+## Moos, hängen an der Wegseite herab und kriechen als flache
+## Oberflächenwurzeln auf den Weg.
 static func _wurzelstock(sa: Sammler, level: Level01, e: Dictionary) -> void:
 	var lage: Transform3D = e["lage"]
 	var g: Vector3 = e["groesse"]
 	var h := g * 0.5
 	var boden := -(float(e["oben"]) - h.y)
-	_findling_auf(sa, level, "Pforte rechts", {"saat": 1022, "eckig": 2.9,
+	_findling_auf(sa, level, "Pforte links", {"saat": 1011, "eckig": 2.9,
 			"rundung": 0.36, "beulen": 0.3, "unruhe": 0.14, "umriss": 0.1, "moos": 1.0,
 			"moos_oben": 0.8, "ausgetreten": 0.0, "schichten": true, "anlauf": 0.1,
 			"bemoost": Vector2(0.7, 0.6)}, 0.0)
-	# Der Torbaum in Kastenkoordinaten
+	_randfarne(sa, level, "Pforte links", 2, 1019)
+	# Der Torbaum in Kastenkoordinaten (lokal +X zeigt zum Weg).
 	var stelle := _rahmenstelle("torbaum")
-	var baum := Vector3(4.0, boden - 1.0, 0.0)
+	var baum := Vector3(-4.8, boden + 4.2, 0.0)
 	if not stelle.is_empty():
-		baum = lage.affine_inverse() * _p(level, float(stelle["s"]), float(stelle["q"]),
-				float(stelle["fuss"]))
+		baum = lage.affine_inverse() * _torbaum_fuss(level, stelle)
 	var st := Riesenstamm.bauer()
-	# [Versatz längs (z), Radius, Weg über den Stein]
+	# [Versatz längs (z), Radius, Weg über Felsmasse und Stein]
 	var zuege := [
-		[0.1, 0.3, [Vector3(2.4, -0.1, 0.2), Vector3(1.2, 1.35, 0.15), Vector3(0.55, 1.73, 0.1),
-				Vector3(-0.2, 1.74, -0.05), Vector3(-0.66, 1.4, -0.2), Vector3(-0.74, 0.5, -0.3),
-				Vector3(-0.8, boden + 0.2, -0.45), Vector3(-1.4, boden + 0.02, -0.7),
-				Vector3(-2.2, boden - 0.25, -0.9)]],
-		[1.25, 0.24, [Vector3(2.2, -0.3, 1.2), Vector3(1.1, 1.0, 1.75), Vector3(0.3, 1.62, 1.92),
-				Vector3(-0.5, 1.2, 1.94), Vector3(-0.75, 0.2, 1.9), Vector3(-0.95, boden + 0.12,
-				2.1), Vector3(-1.4, boden - 0.2, 2.5)]],
-		[-1.3, 0.26, [Vector3(2.3, -0.4, -1.1), Vector3(1.0, 1.1, -1.6), Vector3(0.1, 1.7, -1.75),
-				Vector3(-0.6, 1.1, -1.9), Vector3(-0.72, -0.1, -1.8), Vector3(-1.0, boden + 0.12,
-				-1.9), Vector3(-1.6, boden - 0.2, -2.1)]],
+		[0.1, 0.3, [Vector3(-3.3, 2.95, 0.3), Vector3(-2.1, 2.5, 0.25), Vector3(-1.2, 1.95, 0.15),
+				Vector3(-0.55, 1.73, 0.1), Vector3(0.2, 1.74, -0.05), Vector3(0.66, 1.4, -0.2),
+				Vector3(0.74, 0.5, -0.3), Vector3(0.8, boden + 0.2, -0.45),
+				Vector3(1.4, boden + 0.02, -0.7), Vector3(2.2, boden - 0.25, -0.9)]],
+		[1.25, 0.24, [Vector3(-3.2, 2.8, 1.5), Vector3(-2.0, 2.3, 1.7), Vector3(-1.1, 1.8, 1.8),
+				Vector3(-0.3, 1.62, 1.92), Vector3(0.5, 1.2, 1.94), Vector3(0.75, 0.2, 1.9),
+				Vector3(0.95, boden + 0.12, 2.1), Vector3(1.4, boden - 0.2, 2.5)]],
+		[-1.3, 0.26, [Vector3(-3.2, 2.85, -1.4), Vector3(-2.0, 2.35, -1.6),
+				Vector3(-1.0, 1.9, -1.7), Vector3(-0.1, 1.7, -1.75), Vector3(0.6, 1.1, -1.9),
+				Vector3(0.72, -0.1, -1.8), Vector3(1.0, boden + 0.12, -1.9),
+				Vector3(1.6, boden - 0.2, -2.1)]],
 	]
 	for i in zuege.size():
 		var zug: Array = zuege[i]
 		var r: float = zug[1]
-		var punkte := PackedVector3Array([baum + Vector3(-0.3, 1.2, float(zug[0]) * 0.35),
-				baum + Vector3(-0.9, 1.4, float(zug[0]) * 0.7)])
+		var punkte := PackedVector3Array([baum + Vector3(0.45, 0.5, float(zug[0]) * 0.35),
+				baum + Vector3(1.0, 0.1, float(zug[0]) * 0.7)])
 		for p: Vector3 in zug[2]:
 			punkte.append(p)
 		var radien := PackedFloat32Array()
@@ -1517,108 +1538,109 @@ static func _wurzelstock(sa: Sammler, level: Level01, e: Dictionary) -> void:
 	var rng := PropWerkzeug.zufall(1036)
 	for i in 3:
 		var z := rng.randf_range(-1.6, 1.6)
-		var zug := PackedVector3Array([Vector3(-0.7, boden + 0.08, z),
-				Vector3(-1.1, boden + 0.1, z + rng.randf_range(-0.4, 0.4)),
-				Vector3(-1.6, boden + 0.04, z + rng.randf_range(-0.6, 0.6)),
-				Vector3(-2.0, boden - 0.08, z + rng.randf_range(-0.8, 0.8))])
+		var zug := PackedVector3Array([Vector3(0.7, boden + 0.08, z),
+				Vector3(1.1, boden + 0.1, z + rng.randf_range(-0.4, 0.4)),
+				Vector3(1.6, boden + 0.04, z + rng.randf_range(-0.6, 0.6)),
+				Vector3(2.0, boden - 0.08, z + rng.randf_range(-0.8, 0.8))])
 		Totholzzaun.stueck(st, _glatt(zug, 2), _glatt_r(PackedFloat32Array(
 				[0.13, 0.1, 0.07, 0.04]), 2), {"saat": 1037 + i, "seiten": 6, "ende": "spitz",
 				"moos": 0.4, "ton": KIEFER_TON, "ao": Vector2(0.7, 0.8)})
-	_holz(sa, _klemmen(Riesenstamm.fertig(st), h, boden, 1.0, 0.02), lage)
-	_farn_bei(sa, lage.translated_local(Vector3(0.45, h.y, -1.2)), 0, 1039, 1.0)
+	_holz(sa, _klemmen(Riesenstamm.fertig(st), h, boden, -1.0, 0.02), lage)
+	_farn_bei(sa, lage.translated_local(Vector3(-0.45, h.y, -1.2)), 0, 1039, 1.0)
 
 
-## Der Torbaum: eine große Kiefer außen am Rand (q +7, Fuß 1 m unter dem
-## Weg) auf einem Felsfuß. Bis gut 10 m steigt der Stamm senkrecht, dann
-## neigt sich sein Leittrieb in einem weiten Bogen über die Pforte; die
-## Krone liegt als flacher Schirm in 17–20 m über dem Weg. Aufrecht am Rand
-## stünde sie vom Grat aus (s 24–76) genau in der Sichtlinie zur Krone des
-## Weltenbaums (Plan 7, ±6°; nachgerechnet: jede Stelle rechts des Wegs über
-## 8 m liegt darin) – so steht sie links daneben und überdacht das Tor. Aus
-## der Spielkamera nahe der Pforte liegt sie über dem Bildrand; man sieht
-## den Stamm und seinen Bogen. Zwei Wurzelstränge führen vom rechten Fuß
-## des Pfortentors in den Stamm.
+## Der Torbaum: eine große Kiefer auf der Felsnase am linken Pfortenpfosten
+## (q −7,8, hinter der Leitlinie). Bis gut 10 m steigt der Stamm senkrecht,
+## dann neigt sich sein Leittrieb in einem Bogen nach außen über den
+## Hangwald; die Krone liegt als flacher Schirm 17–21 m über dem Weg. Am
+## rechten Rand (q +7) stand er vom Grat aus (s 24–80) genau in der
+## Sichtlinie zum Stamm des Weltenbaums (±5°, nachgerechnet) und verdeckte
+## ihn mit Stamm und Krone; links liegt er 15–40° daneben, seine Krone nach
+## außen noch weiter – und das Bild folgt der Regel „links zu, rechts
+## offen". Aus der Spielkamera an der Pforte steht der Stamm links, die
+## Krone über dem Bildrand. Drei Wurzeln greifen über den linken
+## Pfortenstein (`_wurzelstock`), zwei Stränge führen vom linken Fuß des
+## Pfortentors in den Stamm.
 static func _torbaum(sa: Sammler, level: Level01, stelle: Dictionary) -> void:
 	var s: float = stelle["s"]
-	var q: float = stelle["q"]
-	var fuss: float = stelle["fuss"]
-	var lage := _lage(level, s, q, fuss, 0.0)
-	# Felsfuß: gewölbt, tief unter der Kante, damit er nicht nach Boden
-	# aussieht; der Stamm steht auf seiner Kuppe.
-	_brocken(sa, Vector3(3.0, 5.0, 3.4), lage.translated_local(Vector3(0.35, -5.3, 0.0)),
-			1031, 0.0, {"moos": 0.9, "kuppe": 0.3}, false)
-	var h := 11.5
-	# Unten 1,0 m stark, grau-braun; über 8 m die warme, rötliche Borke der
+	var fuss := _torbaum_fuss(level, stelle)
+	# Lokal: X = quer (+q, zum Weg), Y hoch, −Z voraus. Außen ist −X.
+	var lage := Transform3D(Basis(Vector3.UP, LevelWerkzeuge.drehung(level.verlauf, s)), fuss)
+	# Felsfuß: ein Block, auf dessen Kuppe der Stamm steht, halb in der
+	# Felsnase.
+	_brocken(sa, Vector3(3.2, 2.6, 3.6), lage.translated_local(Vector3(0.5, -1.9, 0.0)),
+			1031, 0.0, {"moos": 0.95, "kuppe": 0.35}, false)
+	var h := 11.0
+	# Unten 1,0 m stark, grau-braun; über 7 m die warme, rötliche Borke der
 	# Kiefer (`_nach_hoehe_getoent`). Schlanker las sich der Baum vom Grat
 	# aus als Akazie.
 	var netz := Riesenstamm.netz({"hoehe": h, "radius": 1.0, "radius_oben": 0.6,
 			"saat": 1032, "brettwurzeln": 6, "wurzel_reichweite": 1.7, "wurzel_hoehe": 2.0,
 			"neigung": Vector2(-0.5, 0.15), "krumm": 0.12, "drehung": 0.35, "pilze": 1,
 			"efeu": 1, "aeste": 0, "oben": "offen", "rippen": 12})
-	_holz(sa, _nach_hoehe_getoent(netz, TORBAUM_TON_UNTEN, KIEFER_TON_OBEN, 7.0, 9.0), lage)
+	_holz(sa, _nach_hoehe_getoent(netz, TORBAUM_TON_UNTEN, KIEFER_TON_OBEN, 6.0, 8.0), lage)
 	var st := Riesenstamm.bauer()
-	# Der Bogen: lokal X = quer (+q), also nach innen negativ.
-	# Mit zwei Knicken, wie ein Leittrieb, der nach einem Bruch neu
-	# ausgetrieben ist – ein glatter Bogen las sich als gebogenes Rohr.
-	var bogen := PackedVector3Array([Vector3(-0.5, h - 1.2, 0.15), Vector3(-0.9, h + 1.2, 0.3),
-			Vector3(-1.4, h + 2.6, 0.35), Vector3(-2.9, h + 3.7, 0.1), Vector3(-4.3, h + 5.3, -0.05),
-			Vector3(-6.4, h + 6.4, -0.2), Vector3(-7.9, h + 7.3, -0.25), Vector3(-9.0, h + 7.5, -0.3)])
+	# Der Bogen nach außen, mit zwei Knicken wie ein Leittrieb, der nach
+	# einem Bruch neu ausgetrieben ist – ein glatter Bogen las sich als
+	# gebogenes Rohr.
+	var bogen := PackedVector3Array([Vector3(-0.5, h - 1.2, 0.15), Vector3(-0.9, h + 1.0, 0.3),
+			Vector3(-1.3, h + 2.3, 0.35), Vector3(-2.4, h + 3.3, 0.1), Vector3(-3.5, h + 4.4, -0.05),
+			Vector3(-4.9, h + 5.3, -0.2), Vector3(-5.9, h + 5.9, -0.25), Vector3(-6.7, h + 6.1, -0.3)])
 	var bogen_r := PackedFloat32Array([0.6, 0.54, 0.49, 0.43, 0.37, 0.3, 0.22, 0.14])
 	Totholzzaun.stueck(st, _glatt(bogen, 3), _glatt_r(bogen_r, 3), {"saat": 1033,
 			"seiten": 12, "ende": "spitz", "moos": 0.3, "drehung": 0.3, "buckel": 0.08,
 			"ton": KIEFER_TON_OBEN, "ao": Vector2(1.0, 1.0)})
-	# Die unteren Etagen: kurze Äste mit Nadelpolstern, 5,5–8 m über dem Weg
-	# nach außen über den Abgrund (q 8,5–10) – unter 8 m liegen sie nicht in
-	# der Sichtlinie zur Krone des Weltenbaums, und über dem Weg hängen sie
-	# nicht. Mit ihnen ist die Krone rund ein Drittel der Höhe, gestuft nach
-	# links bis zum Schirm.
+	# Die unteren Etagen: kurze Äste mit Nadelpolstern nach außen und quer,
+	# gut 6–8 m über dem Fuß – die Krone reicht so über ein Drittel der Höhe
+	# und stuft sich bis zum Schirm.
 	var etagen := [
-		[Vector3(0.6, 6.4, 0.35), Vector3(1.0, 0.16, 0.6), 2.6, 2.2],
-		[Vector3(0.7, 6.9, -0.3), Vector3(1.0, 0.18, -0.65), 2.8, 2.3],
-		[Vector3(0.55, 7.5, 0.5), Vector3(0.7, 0.22, 1.0), 2.2, 2.0],
-		[Vector3(0.55, 7.9, -0.45), Vector3(0.75, 0.22, -1.0), 2.2, 2.0],
-		[Vector3(0.5, 8.4, 0.1), Vector3(0.9, 0.3, 0.1), 2.0, 1.9],
+		[Vector3(-0.6, 6.2, 0.35), Vector3(-1.0, 0.16, 0.6), 2.6, 2.2],
+		[Vector3(-0.7, 6.7, -0.3), Vector3(-1.0, 0.18, -0.65), 2.8, 2.3],
+		[Vector3(-0.55, 7.3, 0.5), Vector3(-0.5, 0.22, 1.0), 2.2, 2.0],
+		[Vector3(-0.55, 7.7, -0.45), Vector3(-0.55, 0.22, -1.0), 2.2, 2.0],
+		[Vector3(-0.5, 8.3, 0.1), Vector3(-0.9, 0.3, 0.1), 2.0, 1.9],
 	]
 	_kiefernwipfel(sa, st, lage, etagen, 1060, false)
-	# Der Schirm: Äste nur vom äußeren Bogen (q ≤ 2, h ≥ 17), weit nach vorn
-	# und hinten ausladend – eine breite, flache Krone über dem Tor.
+	# Der Schirm: Äste vom äußeren Bogen, weit nach vorn und hinten
+	# ausladend – eine breite, flache Krone über dem Hangwald.
 	var aeste := [
-		[Vector3(-5.6, h + 6.15, -0.05), Vector3(0.1, 0.25, 1.0), 3.6, 2.7],
-		[Vector3(-6.0, h + 6.35, -0.1), Vector3(-0.05, 0.22, -1.0), 3.8, 2.8],
-		[Vector3(-6.6, h + 6.7, -0.15), Vector3(-0.35, 0.3, 1.0), 3.2, 2.6],
-		[Vector3(-7.0, h + 6.85, -0.2), Vector3(-0.3, 0.2, -1.0), 3.1, 2.6],
-		[Vector3(-8.0, h + 7.2, -0.25), Vector3(-1.0, 0.25, 0.55), 2.6, 2.5],
-		[Vector3(-8.6, h + 7.4, -0.28), Vector3(-1.0, 0.25, -0.5), 2.5, 2.5],
-		[Vector3(-9.0, h + 7.5, -0.3), Vector3(-1.0, 0.35, 0.0), 1.8, 2.4],
-		[Vector3(-7.4, h + 7.0, -0.22), Vector3(-0.2, 1.0, 0.1), 1.3, 2.2],
-		[Vector3(-6.3, h + 6.5, -0.12), Vector3(0.1, 1.0, -0.3), 1.2, 2.0],
+		[Vector3(-3.9, h + 4.6, -0.05), Vector3(0.1, 0.25, 1.0), 3.4, 2.6],
+		[Vector3(-4.2, h + 4.8, -0.1), Vector3(-0.05, 0.22, -1.0), 3.6, 2.7],
+		[Vector3(-4.8, h + 5.2, -0.15), Vector3(-0.35, 0.3, 1.0), 3.0, 2.5],
+		[Vector3(-5.2, h + 5.4, -0.2), Vector3(-0.3, 0.2, -1.0), 2.9, 2.5],
+		[Vector3(-5.9, h + 5.8, -0.25), Vector3(-1.0, 0.25, 0.55), 2.4, 2.4],
+		[Vector3(-6.3, h + 5.95, -0.28), Vector3(-1.0, 0.25, -0.5), 2.3, 2.4],
+		[Vector3(-6.7, h + 6.1, -0.3), Vector3(-1.0, 0.35, 0.0), 1.7, 2.3],
+		[Vector3(-5.5, h + 5.6, -0.22), Vector3(-0.2, 1.0, 0.1), 1.2, 2.1],
+		[Vector3(-4.6, h + 5.0, -0.12), Vector3(0.1, 1.0, -0.3), 1.1, 1.9],
 	]
 	# Ohne Nebenpolster: Die Krone sieht man nur von Weitem (vom Grat), und
 	# jedes Polster kostet gut 400 Dreiecke, im Tiefenvorlauf doppelt.
 	_kiefernwipfel(sa, st, lage, aeste, 1040, false)
 	# Ein toter Nebentrieb am Knick und trockene Stummel am unteren Stamm.
-	Totholzzaun.stueck(st, PackedVector3Array([Vector3(-0.3, h - 0.5, 0.1), Vector3(0.4, h + 1.0,
-			-0.1), Vector3(0.9, h + 2.3, -0.3)]), PackedFloat32Array([0.16, 0.11, 0.05]),
+	Totholzzaun.stueck(st, PackedVector3Array([Vector3(-0.3, h - 0.5, 0.1), Vector3(0.3, h + 1.0,
+			-0.1), Vector3(0.7, h + 2.3, -0.3)]), PackedFloat32Array([0.16, 0.11, 0.05]),
 			{"saat": 1069, "seiten": 6, "ende": "splitter", "moos": 0.3,
 			"ton": Totholzzaun.RINDE_TON})
 	for i in 4:
 		var y := h * (0.35 + 0.12 * float(i))
 		var w := float(i) * 2.1 + 0.4
-		# Nur nach außen und quer: Über dem Weg (|q| ≤ 6) hängt unter 8,8 m nichts.
-		var raus := Vector3(absf(cos(w)), 0.15, -sin(w)).normalized()
+		# Nur nach außen und quer: Zum Weg hin hängt nichts.
+		var raus := Vector3(-absf(cos(w)), 0.15, -sin(w)).normalized()
 		var start := Vector3(-0.5 * pow(y / h, 1.5), y, 0.0)
 		Totholzzaun.stueck(st, PackedVector3Array([start, start + raus * 0.7,
 				start + raus * 1.3 + Vector3.DOWN * 0.1]), PackedFloat32Array([0.09, 0.06, 0.035]),
 				{"saat": 1070 + i, "seiten": 5, "ende": "splitter", "moos": 0.3,
 				"ton": Totholzzaun.RINDE_TON})
-	# Zwei Stränge vom rechten Torfuß (q 5,2, 3,2 m über dem Weg) in den Stamm.
+	# Zwei Stränge vom linken Torfuß (q −5,2, gut 3 m über dem Weg) in den
+	# Fuß des Stamms.
 	var tor := _tor_daten("Pfortentor")
 	var weite := float(tor.get("abstand", 4.4)) + 0.8
 	for k in 2:
 		var dz := -0.35 + 0.7 * float(k)
-		var von := lage.affine_inverse() * _p(level, s + dz, weite - 0.2, 3.1 + 0.3 * float(k))
-		var ziel := Vector3(-0.55, 4.6 + 0.8 * float(k), dz * 0.5)
-		var zug := PackedVector3Array([von, von.lerp(ziel, 0.5) + Vector3.DOWN * 0.35, ziel])
+		var von := lage.affine_inverse() * _p(level, s + dz, -(weite - 0.2), 3.1 + 0.3 * float(k))
+		var ziel := Vector3(0.6, 0.9 + 0.7 * float(k), dz * 0.5)
+		var zug := PackedVector3Array([von, von.lerp(ziel, 0.5) + Vector3.UP * 0.25, ziel])
 		Totholzzaun.stueck(st, _glatt(zug, 3), _glatt_r(PackedFloat32Array([0.3, 0.24, 0.2]), 3),
 				{"saat": 1050 + k, "seiten": 7, "moos": 0.45, "ton": TORBAUM_TON_UNTEN})
 	_holz(sa, Riesenstamm.fertig(st), lage)

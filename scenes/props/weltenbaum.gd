@@ -437,7 +437,9 @@ static func _wulst(winkel: float, y: float, wurzeln: Array) -> float:
 ## dazu "seiten" (24), "ring_abstand" (5), "schrumpfen" (Faktor auf den
 ## Radius: Die Fernfassung liegt knapp INNERHALB der nahen, damit beim
 ## Wechsel keine Fläche in der anderen flackert). Äste mit 6 Ecken, ohne
-## Zweige. Brettwurzeln nur mit "mit_wurzeln".
+## Zweige. Brettwurzeln nur mit "mit_wurzeln". Ein Ast mit "weglassen"
+## wird gerechnet, aber nicht gezeichnet (die übrigen bleiben gleich
+## gewürfelt) – für einen Schattenkörper, der einen Ast auslässt.
 static func stamm_schlicht_in(st: SurfaceTool, o: Dictionary) -> void:
 	var profil: PackedVector2Array = o["profil"]
 	var saat: int = o.get("saat", 21)
@@ -490,7 +492,11 @@ static func stamm_schlicht_in(st: SurfaceTool, o: Dictionary) -> void:
 		fern["seiten"] = 6
 		fern["stuecke"] = 4
 		fern["radius"] = float(a.get("radius", 2.4)) * schrumpfen
-		ast_in(st, fern, profil, rng)
+		var ziel := st
+		if bool(a.get("weglassen", false)):
+			ziel = SurfaceTool.new()
+			ziel.begin(Mesh.PRIMITIVE_TRIANGLES)
+		ast_in(ziel, fern, profil, rng)
 
 
 ## Ein Ast vom Stamm in die Krone: beginnt tief im Stamm, schwingt erst fast

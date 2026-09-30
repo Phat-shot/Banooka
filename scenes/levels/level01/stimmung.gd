@@ -90,14 +90,31 @@ const VOEGEL := preload("res://scenes/props/Voegel.tscn")
 ## Die Zonen entlang des Weges (s von … bis). "nebelfarbe" und
 ## "umgebungsfarbe" wirken zu `FARBANTEIL`, die Faktoren ganz; "oben" ist
 ## ein Faktor auf das Himmelslicht der Szene (Licht von oben, hebt den Weg
-## gegen Himmel und Dunst, ohne die Schattenseiten aufzuhellen).
+## gegen Himmel und Dunst, ohne die Schattenseiten aufzuhellen). Freiwillig:
+##   "kurve"        `fog_depth_curve` (sonst die der Szene, 1,1)
+##   "sonne_farbe", "sonne_faktor"  Farbe und Stärke der Sonne (Faktor auf
+##                  die der Szene; die Schattenkarten bleiben, wie sie sind)
+##   "rand_von", "rand_bis"  Breite des weichen Übergangs am Anfang bzw.
+##                  Ende (m Strecke, sonst `UEBERGANG`); zwei Zonen, die
+##                  aneinanderstoßen, tragen an der Naht dieselbe Breite.
+##
+## Die Enthüllung (A → B, Naht bei s 27) läuft über 18 m: Mit 8 m wich die
+## Nebelwand (Ende 50 → 225 m) in gut einer Sekunde Lauf zurück – im Lauf
+## ein Ruck statt eines Heraustretens aus dem Wald –, und bei s 24, wo der
+## Plan Wasserfall und Weltenbaum schon in der Öffnung zeigt, reichte der
+## Dunst erst 50 m weit. Jetzt sind es dort gut 95 m.
+##
+## B trägt die steilere Nebelkurve (1,6): Der Talwald in 40–80 m behält
+## sein Grün (Nebel bei 60 m 4 statt 10 %), die Ferne bleibt blau – so
+## stehen drei Staffeln im Bild statt eines blauen Filters über der
+## rechten Hälfte. Die Nebelfarbe von B ist dafür etwas weniger satt.
 const ZONEN := [
-	{"name": "Hallenwald", "von": -40.0, "bis": 30.0, "nebel_faktor": 3.4,
+	{"name": "Hallenwald", "von": -40.0, "bis": 27.0, "rand_bis": 18.0, "nebel_faktor": 3.4,
 			"licht_faktor": 0.85, "nebelfarbe": Color(0.19, 0.36, 0.47),
 			"umgebungsfarbe": Color(0.30, 0.40, 0.36)},
-	{"name": "Hangweg", "von": 30.0, "bis": 104.0, "nebel_faktor": 0.6,
-			"licht_faktor": 1.4, "nebelfarbe": Color(0.42, 0.58, 0.76),
-			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "oben": 1.25},
+	{"name": "Hangweg", "von": 27.0, "bis": 104.0, "rand_von": 18.0, "nebel_faktor": 0.6,
+			"licht_faktor": 1.4, "nebelfarbe": Color(0.46, 0.60, 0.74),
+			"umgebungsfarbe": Color(0.66, 0.62, 0.48), "oben": 1.25, "kurve": 1.6},
 	{"name": "Fallklamm", "von": 104.0, "bis": 160.0, "nebel_faktor": 1.0,
 			"licht_faktor": 0.9, "nebelfarbe": Color(0.36, 0.52, 0.66),
 			"umgebungsfarbe": Color(0.44, 0.56, 0.62)},
@@ -110,25 +127,35 @@ const ZONEN := [
 
 ## Wendel und Kronentor: ein Zylinder um die Weltenbaumachse, gemessen an
 ## der Wegdecke unter der Figur. Er beginnt über der Wiese ("unten_y"), die
-## Bachwiese darunter bleibt die Bachwiese.
+## Bachwiese darunter bleibt die Bachwiese. Die Sonne ist hier golden
+## (Plan 4/5F: „golden nah, blau fern") – warmes Streiflicht auf Borke und
+## Regal, gegen den blauen Taldunst des Schlussbilds.
 const WENDEL := {"name": "Wendel", "achse": Vector2(72.0, -174.0), "radius": 36.0,
 		"unten_y": 8.8, "hoehe": 40.0, "nebel_faktor": 0.8, "licht_faktor": 1.55,
 		"nebelfarbe": Color(0.40, 0.55, 0.72), "umgebungsfarbe": Color(0.70, 0.60, 0.46),
-		"oben": 1.7}
+		"oben": 1.7, "sonne_farbe": Color(1.0, 0.84, 0.60), "sonne_faktor": 1.15}
 
 ## Wie weit die Farben von der Grundstimmung zur Zonenfarbe gehen. Der Plan
 ## nannte ≈ 0,6; hier gelten die Zonenfarben ganz – die Farbe der Szene ist
 ## nur noch die des Himmelsdunsts (= Hangweg), und jede Zone ist auf ihre
 ## Farbziele gestimmt, nicht auf einen Abstand zur Grundfarbe.
 const FARBANTEIL := 1.0
-## Breite der weichen Übergänge zwischen den Zonen (m Strecke).
+## Breite der weichen Übergänge zwischen den Zonen (m Strecke), wo eine
+## Zone nichts anderes sagt.
 const UEBERGANG := 8.0
-## So schnell geht der Regler der Mischung nach (Anteil je Sekunde). Nur
-## gegen Sprünge (Wiedereinstieg am Checkpoint); beim Laufen ändert sich
-## die Mischung ohnehin weich mit der Strecke.
+## So schnell geht der Regler der Mischung nach (Zeitkonstante 1/6 s,
+## unabhängig von der Bildrate). Nur gegen Sprünge (Wiedereinstieg am
+## Checkpoint); beim Laufen ändert sich die Mischung ohnehin weich mit der
+## Strecke.
 const NACHFUEHREN := 6.0
 ## Der Bachnebel ist das Nebellicht, so viel heller (wie beim Bau).
 const BACHNEBEL_HELLER := 0.22
+## Unter diesen Änderungen schreibt der Regler nichts (Farbanteile, Meter
+## bzw. Faktoren) – ein stehendes Bild kostet ihn nichts.
+const SCHWELLE := 0.001
+## So weit (m Strecke) muss sich die Figur bewegen, damit er neu mischt.
+const SCHWELLE_S := 0.02
+
 
 # ================================================================ Licht
 
@@ -149,6 +176,13 @@ const SCHAECHTE_D := [
 ]
 ## Die Kronen der Talriesen beginnen so hoch (Welt-Y).
 const KRONEN_D_Y := 22.0
+## Kronentor (F): ein Schacht neben dem Zielportal, durch eine Lücke im
+## Kronenvorhang des Südwestasts (Decke = Unterseite der Krone). Er fällt
+## auf das Regal und steht vor der dunklen Krone – der Lohn am Ende, und
+## das Hellste im Schlussbild neben dem Portal.
+const SCHAECHTE_F := [
+	{"s": 280.8, "q": 2.6, "decke_y": 33.5},
+]
 ## Das Blätterdach des Hallenwalds liegt so hoch über dem Weg.
 const DACH_A := 13.0
 
@@ -198,15 +232,26 @@ static func _regler_anlegen(level: Level01) -> void:
 	regler.welt = welt
 	regler.bachnebel = L01Gelaende.nebel_stoff()
 	regler.oben = level.get_node_or_null("Himmelslicht") as DirectionalLight3D
+	regler.sonne = level.get_node_or_null("Sonne") as DirectionalLight3D
+	regler.nebelstoffe = L01Weltenbaum.nebel_stoffe().duplicate()
 	level.deko.add_child(regler)
 
 
-## Mischt die Zonen nach der Strecke der Figur und schreibt Nebel und
-## Umgebungslicht in eine eigene Kopie der Levelumgebung.
+## Mischt die Zonen nach der Strecke der Figur und schreibt Nebel,
+## Umgebungslicht und Sonne in eine eigene Kopie der Levelumgebung.
 ##
 ## Die Umgebung der Szene ist eine Unterressource, die allen Instanzen
-## gehört – sie wird deshalb einmal kopiert (wie in `Stimmungszone`).
-## Bewegt keine Knoten, braucht also keine Regel für den Bildtakt.
+## gehört – sie wird deshalb einmal kopiert (wie in `Stimmungszone`). Die
+## Stoffe, in die er sonst schreibt (Bachnebel, Weltenbaum-Nebel), baut das
+## Level je Aufbau selbst; geteilte, zwischengespeicherte Stoffe fasst er
+## nicht an. Bewegt keine Knoten, braucht also keine Regel für den
+## Bildtakt.
+##
+## Kosten: Steht die Figur (weniger als `SCHWELLE_S` m seit dem letzten
+## Mischen) und ist der Stand eingeschwungen, kehrt er sofort zurück.
+## Geschrieben wird nur, was sich um mehr als `SCHWELLE` geändert hat – im
+## Web und auf dem Handy kostet jeder Schreibzugriff einen Weg zum Renderer
+## und jeder Stoffparameter ein neues Hochladen des Stoffpuffers.
 class Regler:
 	extends Node
 
@@ -215,6 +260,10 @@ class Regler:
 	var bachnebel: ShaderMaterial
 	## Das Licht von oben (Level01.tscn "Himmelslicht"), oder null.
 	var oben: DirectionalLight3D
+	## Die Sonne (Level01.tscn "Sonne"), oder null.
+	var sonne: DirectionalLight3D
+	## Stoffe mit eigenem Nebel (Uniforms "nebel_*"), je Aufbau gebaut.
+	var nebelstoffe: Array[ShaderMaterial] = []
 	## Die Zonen und die Wendel – als Kopie, damit ein Prüfwerkzeug sie zur
 	## Laufzeit verstellen kann (`neu_rechnen`).
 	var zonen: Array = []
@@ -224,8 +273,12 @@ class Regler:
 	var _umgebung: Environment
 	var _grund := {}
 	var _stand := {}
+	var _ziel := {}
+	var _geschrieben := {}
 	var _spieler: Node3D
 	var _sofort := true
+	var _s_alt := INF
+	var _ruhig := false
 
 	func _ready() -> void:
 		zonen = ZONEN.duplicate(true)
@@ -236,9 +289,12 @@ class Regler:
 			"nebelfarbe": _umgebung.fog_light_color,
 			"nebelende": _umgebung.fog_depth_end,
 			"nebelbeginn": _umgebung.fog_depth_begin,
+			"kurve": _umgebung.fog_depth_curve,
 			"licht": _umgebung.ambient_light_energy,
 			"umgebungsfarbe": _umgebung.ambient_light_color,
 			"oben": oben.light_energy if oben != null else 0.0,
+			"sonne": sonne.light_energy if sonne != null else 0.0,
+			"sonne_farbe": sonne.light_color if sonne != null else Color.WHITE,
 		}
 
 	## Die Grundstimmung, wie die Szene sie mitbrachte (Kopie).
@@ -253,6 +309,7 @@ class Regler:
 	## Beim nächsten Bild ohne Nachführen auf die Mischung springen.
 	func neu_rechnen() -> void:
 		_sofort = true
+		_s_alt = INF
 
 	func _process(delta: float) -> void:
 		if _spieler == null or not is_instance_valid(_spieler):
@@ -261,68 +318,75 @@ class Regler:
 			return
 		var ort := level.to_local(_spieler.global_position)
 		var s := level.verlauf.get_closest_offset(ort)
-		var ziel := mischung(s)
-		var anteil := 1.0 if _sofort else clampf(delta * NACHFUEHREN, 0.0, 1.0)
+		var bewegt := absf(s - _s_alt) >= SCHWELLE_S
+		if not bewegt and not _sofort and _ruhig:
+			return
+		if bewegt or _sofort or _ziel.is_empty():
+			_ziel = mischung(s)
+			_s_alt = s
+		var anteil := 1.0 if _sofort else 1.0 - exp(-NACHFUEHREN * delta)
 		_sofort = false
 		if _stand.is_empty():
-			_stand = ziel
+			_stand = _ziel.duplicate()
 		else:
-			for k: String in ziel:
-				var z: Variant = ziel[k]
+			for k: String in _ziel:
+				var z: Variant = _ziel[k]
 				if z is Color:
 					_stand[k] = (_stand[k] as Color).lerp(z as Color, anteil)
 				else:
 					_stand[k] = lerpf(float(_stand[k]), float(z), anteil)
+		_ruhig = _abstand(_stand, _ziel) < SCHWELLE
+		if _ruhig:
+			_stand = _ziel.duplicate()
 		_schreiben()
 
 	## Die Werte an der Strecke `s` (ohne Nachführen).
 	func mischung(s: float) -> Dictionary:
-		var gewichte: Array[float] = []
 		var summe := 0.0
 		for z: Dictionary in zonen:
-			var w := _kasten(s, float(z["von"]), float(z["bis"]))
-			gewichte.append(w)
-			summe += w
+			summe += _kasten(s, z)
 		var w_wendel := _zylinder(s)
-		var rest := 1.0 - w_wendel
+		var rest := (1.0 - w_wendel) / maxf(summe, 0.0001)
 		var farbe := Color(0, 0, 0)
 		var umgebung := Color(0, 0, 0)
+		var sonnenfarbe := Color(0, 0, 0)
 		var ende := 0.0
+		var kurve := 0.0
 		var licht := 0.0
 		var von_oben := 0.0
-		var alle: Array[Dictionary] = []
-		var anteile: Array[float] = []
-		for i in zonen.size():
-			if gewichte[i] <= 0.0:
-				continue
-			alle.append(zonen[i] as Dictionary)
-			anteile.append(rest * gewichte[i] / maxf(summe, 0.0001))
-		if w_wendel > 0.0:
-			alle.append(wendel)
-			anteile.append(w_wendel)
+		var sonnenlicht := 0.0
 		var grund_farbe: Color = _grund["nebelfarbe"]
 		var grund_umgebung: Color = _grund["umgebungsfarbe"]
+		var grund_sonne: Color = _grund["sonne_farbe"]
 		var beginn: float = _grund["nebelbeginn"]
-		var grund_ende: float = _grund["nebelende"]
-		for i in alle.size():
-			var z: Dictionary = alle[i]
-			var a := anteile[i]
-			var zf := grund_farbe.lerp(z["nebelfarbe"] as Color, farbanteil)
-			var zu := grund_umgebung.lerp(z["umgebungsfarbe"] as Color, farbanteil)
-			farbe += zf * a
-			umgebung += zu * a
-			ende += (beginn + maxf(grund_ende - beginn, 1.0) / float(z["nebel_faktor"])) * a
+		var strecke := maxf(float(_grund["nebelende"]) - beginn, 1.0)
+		for i in zonen.size() + 1:
+			var z: Dictionary = wendel if i == zonen.size() else zonen[i]
+			var a := w_wendel if i == zonen.size() else _kasten(s, z) * rest
+			if a <= 0.0:
+				continue
+			farbe += grund_farbe.lerp(z["nebelfarbe"] as Color, farbanteil) * a
+			umgebung += grund_umgebung.lerp(z["umgebungsfarbe"] as Color, farbanteil) * a
+			sonnenfarbe += (z.get("sonne_farbe", grund_sonne) as Color) * a
+			ende += (beginn + strecke / float(z["nebel_faktor"])) * a
+			kurve += float(z.get("kurve", _grund["kurve"])) * a
 			licht += float(_grund["licht"]) * float(z["licht_faktor"]) * a
 			von_oben += float(_grund["oben"]) * float(z.get("oben", 1.0)) * a
+			sonnenlicht += float(_grund["sonne"]) * float(z.get("sonne_faktor", 1.0)) * a
 		farbe.a = 1.0
 		umgebung.a = 1.0
+		sonnenfarbe.a = 1.0
 		return {"nebelfarbe": farbe, "umgebungsfarbe": umgebung, "nebelende": ende,
-				"licht": licht, "oben": von_oben}
+				"kurve": kurve, "licht": licht, "oben": von_oben, "sonne": sonnenlicht,
+				"sonne_farbe": sonnenfarbe}
 
-	## Gewicht einer Zone von … bis mit weichen Rändern.
-	func _kasten(s: float, von: float, bis: float) -> float:
-		var h := UEBERGANG * 0.5
-		return smoothstep(von - h, von + h, s) * (1.0 - smoothstep(bis - h, bis + h, s))
+	## Gewicht einer Zone mit weichen Rändern ("rand_von"/"rand_bis").
+	func _kasten(s: float, z: Dictionary) -> float:
+		var von: float = z["von"]
+		var bis: float = z["bis"]
+		var hv := float(z.get("rand_von", UEBERGANG)) * 0.5
+		var hb := float(z.get("rand_bis", UEBERGANG)) * 0.5
+		return smoothstep(von - hv, von + hv, s) * (1.0 - smoothstep(bis - hb, bis + hb, s))
 
 	## Gewicht der Zylinderzone an der Wegdecke unter `s`.
 	func _zylinder(s: float) -> float:
@@ -336,16 +400,62 @@ class Regler:
 				* smoothstep(unten, unten + 2.0, p.y) \
 				* (1.0 - smoothstep(deckel - 2.0, deckel, p.y))
 
+	## Größter Unterschied zweier Stände (Farben je Kanal, Nebelende in
+	## Hundertsteln seiner Länge, sonst der Wert).
+	func _abstand(a: Dictionary, b: Dictionary) -> float:
+		var d := 0.0
+		for k: String in b:
+			d = maxf(d, _unterschied(k, a.get(k), b[k]))
+		return d
+
+	func _unterschied(k: String, a: Variant, b: Variant) -> float:
+		if a == null:
+			return INF
+		if b is Color:
+			var ca := a as Color
+			var cb := b as Color
+			return maxf(maxf(absf(ca.r - cb.r), absf(ca.g - cb.g)), absf(ca.b - cb.b))
+		if k == "nebelende":
+			return absf(float(a) - float(b)) * 0.01
+		return absf(float(a) - float(b))
+
+	## Hat sich `k` seit dem letzten Schreiben merklich geändert? Merkt sich
+	## den neuen Wert, wenn ja.
+	func _neu(k: String) -> bool:
+		var wert: Variant = _stand[k]
+		if _unterschied(k, _geschrieben.get(k), wert) < SCHWELLE:
+			return false
+		_geschrieben[k] = wert
+		return true
+
 	func _schreiben() -> void:
 		var farbe: Color = _stand["nebelfarbe"]
-		_umgebung.fog_light_color = farbe
-		_umgebung.fog_depth_end = float(_stand["nebelende"])
-		_umgebung.ambient_light_energy = float(_stand["licht"])
-		_umgebung.ambient_light_color = _stand["umgebungsfarbe"]
-		if oben != null:
+		var nebel_neu := false
+		if _neu("nebelfarbe"):
+			_umgebung.fog_light_color = farbe
+			if bachnebel != null:
+				bachnebel.set_shader_parameter("farbe", farbe.lightened(BACHNEBEL_HELLER))
+			nebel_neu = true
+		if _neu("nebelende"):
+			_umgebung.fog_depth_end = float(_stand["nebelende"])
+			nebel_neu = true
+		if _neu("kurve"):
+			_umgebung.fog_depth_curve = float(_stand["kurve"])
+			nebel_neu = true
+		if _neu("licht"):
+			_umgebung.ambient_light_energy = float(_stand["licht"])
+		if _neu("umgebungsfarbe"):
+			_umgebung.ambient_light_color = _stand["umgebungsfarbe"]
+		if oben != null and _neu("oben"):
 			oben.light_energy = float(_stand["oben"])
-		if bachnebel != null:
-			bachnebel.set_shader_parameter("farbe", farbe.lightened(BACHNEBEL_HELLER))
+		if sonne != null:
+			if _neu("sonne"):
+				sonne.light_energy = float(_stand["sonne"])
+			if _neu("sonne_farbe"):
+				sonne.light_color = _stand["sonne_farbe"]
+		if nebel_neu:
+			for stoff in nebelstoffe:
+				L01Weltenbaum.nebel_setzen(stoff, _umgebung)
 
 
 # ================================================================ Licht
@@ -395,6 +505,13 @@ static func _schaechte_setzen(level: Level01) -> void:
 		var fuss := level.weg_punkt(s, float(e["q"]), -0.3)
 		_schacht(wurzel, fuss, fall, KRONEN_D_Y, 18.0, 4, 0.08, 1.6, int(s * 10.0))
 		_staub(wurzel, fuss, Vector3(5.0, 9.0, 5.0), 60, int(s * 10.0) + 1)
+
+	# F: durch den Kronenvorhang aufs Regal.
+	for e: Dictionary in SCHAECHTE_F:
+		var s: float = e["s"]
+		var fuss := level.weg_punkt(s, float(e["q"]), -0.3)
+		_schacht(wurzel, fuss, fall, float(e["decke_y"]), 16.0, 5, 0.12, 1.4, int(s * 10.0))
+		_staub(wurzel, fuss, Vector3(4.5, 8.0, 4.5), 60, int(s * 10.0) + 1)
 
 
 static func _schacht(eltern: Node3D, fuss: Vector3, fall: Vector3, decke: float,

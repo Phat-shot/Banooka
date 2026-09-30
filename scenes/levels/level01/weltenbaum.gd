@@ -182,6 +182,35 @@ const AUSSEN_MOOS := [0.7, 0.45, 0.35, 0.65, 0.75, 0.7, 0.6, 0.4, 0.25, 0.16, 0.
 ## Grundfarbe der Farne in den Rissen: etwas dunkler als das Laub am Weg.
 const FARN_FARBE := Color(0.2, 0.4, 0.15)
 
+## EIGENER NEBEL. Vom Grat aus steht der Riese 120–150 m weit im Dunst, der
+## dort 55–60 % deckt: Die abgedunkelte Fernborke lag auf dem Wert des
+## fernen Talwalds und des Himmelsdunsts, die Krone las sich als ein paar
+## blasse Schirmkiefern. Stamm, Krone und ferne Kehle zeichnen deshalb ihren
+## Nebel selbst (FOG im Stoff, gl_compatibility-tauglich), mit gleicher
+## Farbe, Strecke und Kurve wie die Umgebung, aber nur zu `NEBEL_ANTEIL`:
+## eine dunkelblaue Silhouette vor dem Dunst, dunkler als die Hügel davor
+## (Plan 7, L4). Aus der Nähe (Wiese, Wendel) ändert das kaum etwas – dort
+## deckt der Nebel ohnehin wenig. Der Stimmungsregler schreibt die Werte
+## je Zone nach (`nebel_setzen`); die Stoffe sind Abschriften je Aufbau,
+## die geteilten Borken- und Kronenstoffe bleiben unberührt.
+const NEBEL_ANTEIL := 0.5
+const NEBEL_UNIFORMS := """
+uniform vec3 nebel_farbe = vec3(0.18, 0.31, 0.5);
+uniform float nebel_von = 12.0;
+uniform float nebel_bis = 140.0;
+uniform float nebel_kurve = 1.1;
+uniform float nebel_dichte = 0.0;
+"""
+const NEBEL_ZEILE := """
+	FOG = vec4(nebel_farbe, pow(smoothstep(nebel_von, nebel_bis, length(VERTEX)), nebel_kurve)
+			* nebel_dichte);
+"""
+
+## Die Abschriften mit eigenem Nebel dieses Aufbaus.
+static var _nebel_eigen: Array[ShaderMaterial] = []
+## Shader mit eigenem Nebel je Quellshader (einmal übersetzt, nie verändert).
+static var _nebel_shader := {}
+
 
 # ================================================================ Vertrag
 
@@ -207,6 +236,26 @@ static func optik(_level: Level01, _eintrag: Dictionary) -> Node3D:
 ## Radius des Stamms (ohne Rippen) in der Welthöhe `y`.
 static func stamm_radius(y: float) -> float:
 	return Weltenbaum.profil_radius(_profil(), y)
+
+
+## Die Stoffe mit eigenem Nebel dieses Aufbaus (Stamm, Krone, ferne
+## Kehle) – für den Stimmungsregler.
+static func nebel_stoffe() -> Array[ShaderMaterial]:
+	return _nebel_eigen
+
+
+## Schreibt Farbe, Strecke, Kurve und Dichte des Nebels der Umgebung in
+## einen Stoff mit eigenem Nebel (Dichte mal `NEBEL_ANTEIL`). Die Farbe
+## geht linear in den Shader, wie der Renderer sein Nebellicht rechnet.
+static func nebel_setzen(stoff: ShaderMaterial, umgebung: Environment) -> void:
+	var c := umgebung.fog_light_color.srgb_to_linear()
+	var e := umgebung.fog_light_energy
+	stoff.set_shader_parameter("nebel_farbe", Vector3(c.r, c.g, c.b) * e)
+	stoff.set_shader_parameter("nebel_von", umgebung.fog_depth_begin)
+	stoff.set_shader_parameter("nebel_bis", umgebung.fog_depth_end)
+	stoff.set_shader_parameter("nebel_kurve", umgebung.fog_depth_curve)
+	stoff.set_shader_parameter("nebel_dichte",
+			umgebung.fog_density * NEBEL_ANTEIL if umgebung.fog_enabled else 0.0)
 
 
 ## Achse des Stamms in Weltkoordinaten (y = 0).
@@ -260,6 +309,7 @@ static func _profil() -> PackedVector2Array:
 # ================================================================ Baum
 
 static func _baum_bauen(level: Level01) -> void:
+	_nebel_eigen.clear()
 	var baum := Node3D.new()
 	baum.name = "Weltenbaum"
 	baum.position = achse()
@@ -271,13 +321,24 @@ static func _baum_bauen(level: Level01) -> void:
 	# Schattenkörper – die Rippen sähe im Schatten niemand.
 	var st := Riesenstamm.bauer()
 	var info := Weltenbaum.stamm_in(st, o)
-	var nah := _knoten(baum, "StammNah", Riesenstamm.fertig(st), Weltenbaum.stoff_stamm(false),
-			false)
+	var nah := _knoten(baum, "StammNah", Riesenstamm.fertig(st),
+			_nebelarm(Weltenbaum.stoff_stamm(false), level), false)
 	nah.visibility_range_end = NAH_BIS
 	nah.visibility_range_end_margin = RAND
 
+	# Der Südwestast (163°) hängt über dem Regal; sein Schatten lag im
+	# Schlussbild über dem ganzen vorderen Regal, das dunkelste Bild des
+	# Levels (Plan 5F: „das Regal liegt selbst in Sonne"). Der Schattenkörper
+	# lässt ihn aus – sichtbar bleibt er, und das Kronentor an ihm wirft
+	# seinen Schatten weiter.
 	var schatten := Riesenstamm.bauer()
 	var so := o.duplicate()
+	var schatten_aeste: Array = []
+	for a: Dictionary in o["aeste"]:
+		var kopie := a.duplicate()
+		kopie["weglassen"] = absf(rad_to_deg(float(a["winkel"])) - 163.0) < 1.0
+		schatten_aeste.append(kopie)
+	so["aeste"] = schatten_aeste
 	so["seiten"] = 18
 	so["ring_abstand"] = 6.0
 	so["schrumpfen"] = 0.95
@@ -295,7 +356,7 @@ static func _baum_bauen(level: Level01) -> void:
 	fo["mit_wurzeln"] = true
 	Weltenbaum.stamm_schlicht_in(fern_st, fo)
 	var fern := _knoten(baum, "StammFern", Riesenstamm.fertig(fern_st),
-			Weltenbaum.stoff_stamm(true), false)
+			_nebelarm(Weltenbaum.stoff_stamm(true), level), false)
 	fern.visibility_range_begin = FERN_AB
 	fern.visibility_range_begin_margin = RAND
 
@@ -316,12 +377,40 @@ static func _baum_bauen(level: Level01) -> void:
 		zwilling["radius"] = float(b["radius"]) * 0.9
 		zwilling["hoehe"] = float(b["radius"]) * 0.55
 		grob.append(zwilling)
-	_knoten(baum, "Krone", Weltenbaum.krone(grob, true), Weltenbaum.stoff_krone(true), false)
+	_knoten(baum, "Krone", Weltenbaum.krone(grob, true),
+			_nebelarm(Weltenbaum.stoff_krone(true), level), false)
 	var krone_nah := _knoten(baum, "KroneNah", Weltenbaum.krone(fein, false),
-			Weltenbaum.stoff_krone(false), false)
+			_nebelarm(Weltenbaum.stoff_krone(false), level), false)
 	krone_nah.visibility_range_end = KRONE_NAH_BIS
 	krone_nah.visibility_range_end_margin = RAND
 	_fussfarne(baum)
+
+
+## Eine Abschrift von `stoff` mit eigenem Nebel (siehe `NEBEL_ANTEIL`),
+## eingestellt auf die Umgebung des Levels und für den Regler vermerkt. Der
+## Shader entsteht einmal je Quellshader; ohne passende Stelle im Code
+## bleibt der Stoff, wie er ist.
+static func _nebelarm(stoff: Material, level: Level01) -> Material:
+	var alt := stoff as ShaderMaterial
+	if alt == null or alt.shader == null:
+		return stoff
+	var shader: Shader = _nebel_shader.get(alt.shader)
+	if shader == null:
+		const MARKE := "void fragment() {"
+		var code := alt.shader.code
+		if code.count(MARKE) != 1 or code.contains("FOG"):
+			push_warning("L01Weltenbaum: Stoff ohne eigenen Nebel (Shader unerwartet).")
+			return stoff
+		shader = Shader.new()
+		shader.code = code.replace(MARKE, NEBEL_UNIFORMS + "\n" + MARKE + NEBEL_ZEILE)
+		_nebel_shader[alt.shader] = shader
+	var neu := alt.duplicate() as ShaderMaterial
+	neu.shader = shader
+	var welt := level.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if welt != null and welt.environment != null:
+		nebel_setzen(neu, welt.environment)
+	_nebel_eigen.append(neu)
+	return neu
 
 
 ## Große Farne in den Spalten zwischen den Brettwurzeln des freien Sektors:
@@ -507,6 +596,13 @@ static func _kronenballen(info: Dictionary) -> Array:
 			"saat": 31, "ballen": 5, "grob": true})
 	ballen.append({"mitte": Vector3(1.5, 64.0, -1.0), "radius": 10.5, "variante": 0,
 			"saat": 37, "ballen": 4, "grob": true})
+	# Der Schirm: eine flache, geschlossene Masse unter den Ballen (Unterseite
+	# gut 35, Oberseite gut 46). Ohne ihn stand vom Grat aus zwischen den
+	# Ballen der Himmel, und die Krone las sich aus 150 m als fünf, sechs
+	# einzelne Schirmkiefern auf dem Wert des Talwalds; so ist sie EINE
+	# dunkle Kronenmasse mit dunkler Unterseite.
+	ballen.append({"mitte": Vector3(-1.0, 40.5, 1.0), "radius": 29.0, "hoehe": 11.0,
+			"variante": 1, "saat": 41, "ballen": 4, "grob": true})
 	return ballen
 
 
@@ -560,7 +656,7 @@ static func _kehle_bauen(level: Level01) -> void:
 	# Fern in der dunklen Fernborke des Stamms: Aus 150 m sind Furchen nicht
 	# zu sehen, wohl aber, ob sich die Wendel vom Dunst abhebt.
 	var fk := _knoten(wurzel, "KehleFern", Riesenstamm.fertig(fern["einer"]),
-			Weltenbaum.stoff_stamm(true), false)
+			_nebelarm(Weltenbaum.stoff_stamm(true), level), false)
 	fk.visibility_range_begin = FERN_AB
 	fk.visibility_range_begin_margin = RAND
 

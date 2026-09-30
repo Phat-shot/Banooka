@@ -637,7 +637,10 @@ const RAHMENBAUM_STELLEN := [
 	# über den Vorsprung.
 	{"s": 89.5, "q": 9.0, "fuss": -5.0, "hoehe": 14.0, "art": "sims"},
 	{"s": 98.0, "q": 9.0, "fuss": -6.5, "hoehe": 13.0, "art": "sims"},
-	{"s": 101.5, "q": 7.0, "fuss": -1.0, "hoehe": 22.0, "art": "torbaum"},
+	# Der Torbaum steht links auf der Felsnase (Fuß ≈ Krone der Felswand):
+	# Rechts am Rand stand er vom Grat aus genau vor dem Stamm des
+	# Weltenbaums.
+	{"s": 101.5, "q": -7.8, "fuss": 4.4, "hoehe": 22.0, "art": "torbaum"},
 ]
 
 # =========================================================== Spiel

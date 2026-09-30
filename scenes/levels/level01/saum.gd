@@ -949,6 +949,9 @@ static func _felsnadeln(st: Stuecke, level: Level01) -> void:
 		var art: String = stelle["art"]
 		if art != "sims" and art != "torbaum":
 			continue
+		# Der Torbaum steht links auf der Felsnase – dort trägt ihn die Wand.
+		if art == "torbaum" and float(stelle["q"]) < 0.0:
+			continue
 		var s: float = stelle["s"]
 		var q: float = stelle["q"]
 		var kante := level.boden_bei(s)

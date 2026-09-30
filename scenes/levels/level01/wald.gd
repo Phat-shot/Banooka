@@ -363,6 +363,16 @@ static func _vorbereiten(level: Level01) -> void:
 	_kisten = level.kisten_orte()
 	_staemme = Waldsetzer.Raster.new(8.0)
 	_kronen = Waldsetzer.Raster.new(8.0)
+	# Der Torbaum (Wegbauten) steht auf der Felsnase im Hangwald: Stamm und
+	# Schirm (gut 5 m nach außen) bleiben frei.
+	for stelle: Dictionary in Level01.RAHMENBAUM_STELLEN:
+		if String(stelle["art"]) == "torbaum":
+			var s: float = stelle["s"]
+			var q: float = stelle["q"]
+			var fuss := LevelWerkzeuge.punkt_frei(level.verlauf, s, q)
+			var schirm := LevelWerkzeuge.punkt_frei(level.verlauf, s, q + signf(q) * 5.0)
+			_staemme.dazu(Vector2(fuss.x, fuss.z), 3.0)
+			_kronen.dazu(Vector2(schirm.x, schirm.z), 4.5)
 	_wurzel = Node3D.new()
 	_wurzel.name = "Wald"
 	level.geometrie.add_child(_wurzel)
@@ -520,6 +530,26 @@ static func _kegel_anlegen(level: Level01) -> void:
 	while s <= 114.0:
 		_kegel.append({"auge": _auge(level, s), "ziel": krone, "winkel": deg_to_rad(6.0)})
 		s += 2.0
+	# Der Stamm vom Grat aus (s 30–98): die Säule unter der Krone (y 30,
+	# ±4° deckt y 20–40 bei 150 m; darunter steht ohnehin der Talwald vor
+	# dem Knoll). Plan 7 schützte nur die Kronenmitte;
+	# eine Sichtlinienprobe gegen die gezeichneten Netze fand vor dem Stamm
+	# die Kronen der Rahmenbäume auf den Simsen (von s 31 bis 70 je eine,
+	# 7 von 12 Linien bei s 46) und den Torbaum. Nicht für die Riesen von D
+	# (wie die Kronenkegel): Der linke Torriese steht vom ganzen Grat aus auf
+	# dieser Linie, 100–130 m weit im Dunst vor dem dunklen Stamm – der
+	# Größenvergleich. Die letzten 14 m vor der Achse (der Stamm selbst und
+	# seine Brettwurzeln) sind frei.
+	var saeule := Vector3(achse.x, 30.0, achse.y)
+	s = 30.0
+	while s <= 98.0:
+		# An der Enthüllung (s 30–38) etwas enger: Dort stehen die Rahmen-
+		# bäume der hinteren Simse schon 70 m weit, klein vor dem Fuß der
+		# Säule.
+		_kegel.append({"auge": _auge(level, s), "ziel": saeule,
+				"winkel": deg_to_rad(3.0 if s < 40.0 else 4.0),
+				"ziel_frei": 14.0})
+		s += 4.0
 	# Der Stamm (y 15) über der Kuppe von C1 bis zur Fallkerbe und darüber
 	# hinaus (Plan 7: bei s 124 bei x −0,03 im Bild); danach verschwindet er
 	# über C4 hinter dem Walddach.
@@ -1715,24 +1745,36 @@ static func _rahmenbaeume(level: Level01) -> void:
 		fuss.y = level.boden_bei(s) + float(stelle["fuss"])
 		var aussen := _rechts_bei(level, s)
 		var gesetzt := false
-		var b := _baum("rahmen%d" % nummer, {"hoehe": float(stelle["hoehe"]), "radius": 0.48,
-				"radius_oben": 0.24, "variante": 0, "krone_radius": 3.3, "ast_start": 0.5,
-				"aeste": 5, "drehung": 1.5, "krumm": 0.6, "neigung": Vector2(3.2, 0.0),
-				"karten": 50, "pilze": 1, "efeu": 1, "brettwurzeln": 5, "rippen": 12,
-				"wurzel_reichweite": 1.4, "wurzel_hoehe": 1.6, "saat": 6201 + nummer * 7})
-		# Versuche: erst wie geplant, dann weiter hinaus gedreht und kleiner.
-		# Lokal +X (die Neigung) zeigt über das Tal, leicht in Laufrichtung.
+		var hoehe: float = stelle["hoehe"]
+		var arten: Array[Dictionary] = []
+		for weit in 3:
+			# Die weiteren Fassungen neigen sich weit über das Tal und bleiben
+			# niedriger: Vom Grat aus stehen die Simse (s 50–98) nahe der
+			# Linie zum Stamm des Weltenbaums, die aufrechte Krone stand
+			# davor.
+			arten.append(_baum("rahmen%d_%d" % [nummer, weit], {
+					"hoehe": hoehe * [1.0, 0.72, 0.56][weit], "radius": 0.48,
+					"radius_oben": 0.24, "variante": 0, "krone_radius": [3.3, 3.3, 3.0][weit],
+					"ast_start": 0.5, "aeste": 5, "drehung": 1.5, "krumm": 0.6,
+					"neigung": Vector2([3.2, 5.5, 5.0][weit], 0.0),
+					"karten": 50, "pilze": 1, "efeu": 1, "brettwurzeln": 5, "rippen": 12,
+					"wurzel_reichweite": 1.4, "wurzel_hoehe": 1.6, "saat": 6201 + nummer * 7}))
+		# Versuche: erst wie geplant, dann weiter hinaus gedreht und kleiner,
+		# dann die weit geneigte Fassung. Lokal +X (die Neigung) zeigt über
+		# das Tal, leicht in Laufrichtung.
 		var grund := atan2(-aussen.z, aussen.x)
-		for versuch in 8:
-			var f := 1.0 - 0.06 * floorf(float(versuch) * 0.5)
-			var w := grund + (0.35 if versuch % 2 == 0 else -0.35) * (1.0 - float(versuch) / 8.0)
+		for versuch in 24:
+			var b: Dictionary = arten[versuch >> 3]
+			var v := versuch % 8
+			var f := 1.0 - 0.06 * floorf(float(v) * 0.5)
+			var w := grund + (0.35 if v % 2 == 0 else -0.35) * (1.0 - float(v) / 8.0)
 			# ab dem dritten Versuch auch weiter hinaus (die Nadel ist breit)
-			var ort := fuss + aussen * 0.4 * floorf(float(versuch) * 0.5)
+			var ort := fuss + aussen * 0.4 * floorf(float(v) * 0.5)
 			var lage := _lage(ort, w, f, f)
 			var ton := _ton(rng, Vector2(0.82, 0.96))
 			if _pflanze(ws, b, lage, "stamm", "krone", Color(0.9, 0.88, 0.86), ton,
 					{"ohne_stammtest": true}):
-				var fern := _riese_fern("rahmen%d" % nummer, b)
+				var fern := _riese_fern("rahmen%d_%d" % [nummer, versuch >> 3], b)
 				ws.setze("stamm_fern", fern["stamm"] as ArrayMesh, lage, Color(0.9, 0.88, 0.86))
 				ws.setze("krone_fern", fern["krone"] as ArrayMesh, lage, ton)
 				gesetzt = true
