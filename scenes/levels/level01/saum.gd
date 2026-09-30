@@ -485,7 +485,9 @@ static func _in_luecke(p: GelaendeSaum.Profil, grund: float, von: int, bis: int,
 			p.o[j] = o_max
 		# Unter dem Weg dunkler Fels, in der Rinne am Hang Erde und Moos.
 		p.farbe[j] = Color(0.34, 0.5, 0.2, 0.0).lerp(Color(0.6, 0.75, 0.55, 0.0), hang)
-		p.rauschen[j] = 0.0
+		# Der Grund unter dem Weg bleibt eben, die Rinne am Hang ist rau.
+		p.rauschen[j] = 0.3 * hang
+		p.richtung[j] = 1.0
 		p.schicht[j] = 0.0
 
 
@@ -499,8 +501,8 @@ static func _profil_ab(level: Level01, s: float, bogen: float, q_lippe: float,
 	var d2 := clampf(d1 + 4.6 + 1.0 * _welle(bogen * 0.06, 5.0), d1 + 2.4, maxf(h - 2.2, d1 + 2.4))
 	# Die Simse setzen aus: Ein Sims, der die ganze Wand entlangläuft, macht
 	# aus dem Fels eine Torte. Sie tauchen auf 5–15 m auf und verschwinden.
-	var da1 := smoothstep(-0.2, 0.35, _welle(bogen * 0.045, 21.0))
-	var da2 := smoothstep(-0.2, 0.35, _welle(bogen * 0.05, 22.0))
+	var da1 := smoothstep(-0.3, 0.25, _welle(bogen * 0.045, 21.0))
+	var da2 := smoothstep(-0.3, 0.25, _welle(bogen * 0.05, 22.0))
 	var w1 := (0.5 + 0.45 * (1.0 + _welle(bogen * 0.11, 4.0))) * lerpf(0.06, 1.0, da1)
 	var w2 := (0.45 + 0.45 * (1.0 + _welle(bogen * 0.09, 6.0))) * lerpf(0.06, 1.0, da2)
 	d2 = maxf(d2, d1 + 2.4)
@@ -547,14 +549,14 @@ static func _profil_ab(level: Level01, s: float, bogen: float, q_lippe: float,
 	var d14 := maxf(u_bis + 0.6, d1 - 1.0)
 	p.punkt(_ab_o(d14, u_ende), kante - d14, _farbe(0.72, 0.0, 0.2, 0.0), 1.2, 0.8, 1.0, 0.18)
 	p.punkt(_ab_o(d1, u_ende) - 0.05, kante - (d1 - 0.12), _farbe(0.5, 0.2, 0.45, 0.0), 1.6, 0.5)
-	p.punkt(_ab_o(d1, u_ende) + w1 * 0.85, kante - (d1 - 0.02), _farbe(0.9, 0.3, 0.7 * da1, 0.0),
+	p.punkt(_ab_o(d1, u_ende) + w1 * 0.85, kante - (d1 - 0.02), _farbe(0.9, 0.3, 0.9 * da1, 0.0),
 			1.6, 0.4)
 	p.punkt(_ab_o(d1, u_ende) + w1, kante - (d1 + 0.4), _farbe(0.8, 0.1, 0.35, 0.0), 1.8, 0.5)
 	# --- Wand zum zweiten Sims (18–21)
 	var dm := (d1 + 0.4 + d2 - 0.12) * 0.5
 	p.punkt(_ab_o(dm, u_ende) + w1, kante - dm, _farbe(0.76, 0.0, 0.2, 0.0), 2.0, 1.1, 1.0, 0.18)
 	p.punkt(_ab_o(d2, u_ende) + w1 - 0.05, kante - (d2 - 0.12), _farbe(0.52, 0.2, 0.45, 0.0), 2.5, 0.5)
-	p.punkt(_ab_o(d2, u_ende) + w1 + w2 * 0.85, kante - (d2 - 0.02), _farbe(0.88, 0.3, 0.7 * da2, 0.0),
+	p.punkt(_ab_o(d2, u_ende) + w1 + w2 * 0.85, kante - (d2 - 0.02), _farbe(0.88, 0.3, 0.9 * da2, 0.0),
 			2.5, 0.4)
 	p.punkt(_ab_o(d2, u_ende) + w1 + w2, kante - (d2 + 0.4), _farbe(0.78, 0.1, 0.35, 0.0), 2.8, 0.5)
 	# --- Unterer Teil bis zum Fuß (22–26)
@@ -918,6 +920,7 @@ static func _links(level: Level01) -> void:
 	_gitter_in_stuecke(st, "Links", g, norm)
 	_deckel_an_enden(st, "Links", g)
 	_boeschung_steine(st, proben, g, norm)
+	_abbrueche(st, proben, g, norm)
 	_becken_sims(st, level)
 	st.fertig(SICHT, FERN_AB, SICHT_KARTEN, SICHT_RAND)
 	_bewuchs_links(level, proben, g)
@@ -1107,8 +1110,8 @@ static func _boeschung_steine(st: Stuecke, proben: Array[Dictionary], g: Diction
 		var hoch := n.lerp(Vector3.UP, 0.5).normalized()
 		var basis := Basis(Vector3.UP, rng.randf() * TAU)
 		basis = Basis(Quaternion(Vector3.UP, hoch)) * basis
-		GelaendeSaum.stein(st.opak(_stueck("Links", s)), p - n * r * 0.32,
-				Vector3(r * rng.randf_range(1.0, 1.5), r * rng.randf_range(0.55, 0.8),
+		GelaendeSaum.stein(st.opak(_stueck("Links", s)), p - n * r * 0.42,
+				Vector3(r * rng.randf_range(1.0, 1.4), r * rng.randf_range(0.7, 0.95),
 				r * rng.randf_range(0.9, 1.3)), basis, rng.randi_range(1, 900),
 				_farbe(0.86, 0.0, 0.75, 0.0), boden[i])
 		# Kleine Steine am Fuß
@@ -1118,6 +1121,67 @@ static func _boeschung_steine(st: Stuecke, proben: Array[Dictionary], g: Diction
 			GelaendeSaum.stein(st.opak(_stueck("Links", s)), pf + n * 0.02,
 					Vector3(rf * 1.3, rf * 0.7, rf), Basis(Vector3.UP, rng.randf() * TAU),
 					rng.randi_range(1, 900), _farbe(0.8, 0.1, 0.6, 0.0), boden[i])
+
+
+## Abbruchkanten in der Böschung: Hier und da ist der Hang abgerutscht,
+## und eine Grasnarbe steht als kleine Kante über dunkler Erde, aus der
+## Wurzeln hängen – dieselbe Kante wie an der Lippe rechts, nur klein. Je
+## Kante 3–7 m lang, auf einer Höhenlinie des Hangs, zu den Enden hin
+## auslaufend.
+static func _abbrueche(st: Stuecke, proben: Array[Dictionary], g: Dictionary,
+		norm: Array[PackedVector3Array]) -> void:
+	var reihen: Array[PackedVector3Array] = g["reihen"]
+	var boden: PackedFloat32Array = g["boden"]
+	var rng := PropWerkzeug.zufall(8471)
+	var i := 4
+	while i < reihen.size() - 12:
+		var s: float = proben[i]["s"]
+		if s < 36.0 or s > 89.0 or (s > 52.0 and s < 62.0):
+			i += 3
+			continue
+		var laenge := rng.randi_range(5, 10)
+		var j := rng.randi_range(7, 12)
+		var hoch := rng.randf_range(0.3, 0.55)
+		var name := _stueck("Links", s)
+		var vorher := PackedVector3Array()
+		var vorher_f := PackedColorArray()
+		for k in laenge + 1:
+			var ii := i + k
+			var t := float(k) / float(laenge)
+			var mass := smoothstep(0.0, 0.25, t) * (1.0 - smoothstep(0.75, 1.0, t))
+			var p := reihen[ii][j]
+			var n := norm[ii][j]
+			var runter := reihen[ii][j - 2] - reihen[ii][j + 2]
+			runter.y = 0.0
+			runter = runter.normalized()
+			var h := hoch * mass
+			var reihe := PackedVector3Array([
+					p + n * 0.02 - runter * 0.3,
+					p + n * (0.03 + h * 0.15) + runter * (0.05 + h * 0.3),
+					p + runter * (0.1 + h * 0.45) + Vector3.DOWN * h * 0.2,
+					p + runter * (0.04 + h * 0.25) + Vector3.DOWN * h * 0.95,
+					p - n * 0.25 + Vector3.DOWN * (h + 0.1)])
+			var f := PackedColorArray([_farbe(0.8, 0.1, 0.4, 0.9), _farbe(0.78, 0.2, 0.4, 0.85),
+					_farbe(0.4, 0.9, 0.1, 0.1), _farbe(0.22, 1.0, 0.0, 0.0),
+					_farbe(0.2, 1.0, 0.0, 0.0)])
+			if not vorher.is_empty():
+				for m in reihe.size() - 1:
+					var aussen := (reihe[m] + reihe[m + 1]) * 0.5 - (p - n * 0.1)
+					var uv := Vector2(0.0, maxf(boden[ii] - p.y, 0.0))
+					GelaendeSaum.dreieck(st.opak(name), vorher[m], vorher[m + 1], reihe[m], aussen,
+							vorher_f[m], vorher_f[m + 1], f[m], uv, uv, uv)
+					GelaendeSaum.dreieck(st.opak(name), vorher[m + 1], reihe[m + 1], reihe[m], aussen,
+							vorher_f[m + 1], f[m + 1], f[m], uv, uv, uv)
+				# Wurzeln unter der kleinen Narbe
+				if mass > 0.5 and rng.randf() < 0.55:
+					var laengs := (reihe[2] - vorher[2]).normalized()
+					var ton := Color(0.42, 0.32, 0.23) * rng.randf_range(0.8, 1.1)
+					GelaendeSaum.karte(st.karten(name), reihe[2] - runter * 0.05, Vector3.DOWN
+							+ runter * 0.1, laengs, rng.randf_range(0.2, 0.5) * mass,
+							rng.randf_range(0.25, 0.5), GelaendeSaum.ATLAS_WURZEL, ton)
+			vorher = reihe
+			vorher_f = f
+		i += laenge + rng.randi_range(4, 10)
 
 
 ## Der niedrige Felssims zwischen Weg und Becken (Deckenhöhe, Kollision ist

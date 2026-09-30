@@ -21,7 +21,8 @@
 // Bändern vor und zurück (`GelaendeSaum.schicht()`), deshalb liegen Farbe und
 // Form übereinander. Dazu Wasserspuren, die senkrecht die Wand hinablaufen.
 //
-// Texturzugriffe: Weltrauschen 1, Fels 3 (Dreifachprojektion), Moos 2
+// Texturzugriffe: Weltrauschen 1, Fels 3 (Dreifachprojektion, je Band
+// Sandstein ODER Kalk), Moos 2
 // (Polster, Wasserspuren); Erde (3) nur, wo Erde ist, Rasen (1) nur, wo
 // Rasen ist, das treibende Kronenlicht (1) nur unter einem Kronendach – die
 // Verzweigungen hängen an Scheitelwerten und sind räumlich zusammenhängend;
@@ -34,6 +35,8 @@ render_mode diffuse_burley, specular_schlick_ggx;
 #include "res://shaders/wald_gemeinsam.gdshaderinc"
 
 uniform sampler2D fels : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+// Zweite Gesteinsart für die Kalkbänke (grauer, mit Flechten).
+uniform sampler2D kalk : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D erde : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D moos : source_color, filter_linear_mipmap, repeat_enable;
 // Wiederholungen je Meter.
@@ -42,7 +45,7 @@ uniform float erde_kachel = 0.4;
 uniform float moos_kachel = 0.6;
 // Die beiden Gesteinsarten der Bänder.
 uniform vec4 fels_warm : source_color = vec4(1.0, 0.96, 0.9, 1.0);
-uniform vec4 fels_grau : source_color = vec4(0.72, 0.74, 0.74, 1.0);
+uniform vec4 fels_grau : source_color = vec4(1.06, 0.99, 0.86, 1.0);
 uniform vec4 erde_ton : source_color = vec4(0.82, 0.74, 0.66, 1.0);
 uniform vec4 moos_ton : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 // Zum Fuß hin: kühler und dunkler (Luftperspektive nach unten).
@@ -78,31 +81,48 @@ void fragment() {
 	float rasen_anteil = COLOR.a;
 
 	// --- Schichten (wie `GelaendeSaum.schicht`)
-	float phase = v_welt.y * schicht_dichte + dot(xz, schicht_neigung) + (w.g - 0.5) * 1.1;
+	// Die Bänder sind ungleich dick: Eine langsame Welle über die Höhe
+	// staucht und dehnt sie um gut ein Drittel.
+	float phase = v_welt.y * schicht_dichte + dot(xz, schicht_neigung) + (w.g - 0.5) * 1.1
+			+ 0.22 * sin(v_welt.y * 0.61 + 1.7);
 	float band = floor(phase);
 	float innen = phase - band;
 	float kenn = band_hash(band);
 	float kenn2 = band_hash(band + 31.0);
 
-	// --- Fels, dreifach projiziert
+	// --- Fels, dreifach projiziert; je Band eine Gesteinsart: meist warmer
+	// Sandstein (`fels`), jede dritte Bank grauer Kalk mit Flechten
+	// (`kalk`). Gewechselt wird an der Fuge, die den Sprung verdeckt; die
+	// Ableitungen kommen von der unverschobenen Koordinate, der Versatz ist
+	// innerhalb eines Bandes fest.
 	vec3 gew = pow(abs(n), vec3(4.0));
 	gew /= (gew.x + gew.y + gew.z);
 	vec3 p = v_welt * fels_kachel;
+	vec2 dzy_x = dFdx(p.zy);
+	vec2 dzy_y = dFdy(p.zy);
+	vec2 dxz_x = dFdx(p.xz);
+	vec2 dxz_y = dFdy(p.xz);
+	vec2 dxy_x = dFdx(p.xy);
+	vec2 dxy_y = dFdy(p.xy);
 	// Jedes Band leicht verschoben: Die Textur wiederholt sich nicht von
 	// Band zu Band an derselben Stelle.
 	vec2 versatz = vec2(kenn * 7.3, kenn2 * 3.1);
-	vec3 fx = texture(fels, p.zy + versatz).rgb;
-	vec3 fy = texture(fels, p.xz + versatz).rgb;
-	vec3 fz = texture(fels, p.xy + versatz).rgb;
-	vec3 fels_c = fx * gew.x + fy * gew.y + fz * gew.z;
+	bool ist_kalk = kenn + (w.b - 0.5) * 0.3 > 0.74;
+	vec3 fels_c;
+	if (ist_kalk) {
+		fels_c = textureGrad(kalk, p.zy + versatz, dzy_x, dzy_y).rgb * gew.x
+				+ textureGrad(kalk, p.xz + versatz, dxz_x, dxz_y).rgb * gew.y
+				+ textureGrad(kalk, p.xy + versatz, dxy_x, dxy_y).rgb * gew.z;
+		// Heller, warmer Kalk – kein Beton zwischen dem Sandstein.
+		float kl = dot(fels_c, vec3(0.3, 0.59, 0.11));
+		fels_c = mix(fels_c, vec3(kl), 0.35) * 1.3 * fels_grau.rgb;
+	} else {
+		fels_c = textureGrad(fels, p.zy + versatz, dzy_x, dzy_y).rgb * gew.x
+				+ textureGrad(fels, p.xz + versatz, dxz_x, dxz_y).rgb * gew.y
+				+ textureGrad(fels, p.xy + versatz, dxy_x, dxy_y).rgb * gew.z;
+		fels_c *= 1.32 * fels_warm.rgb;
+	}
 	float fl = dot(fels_c, vec3(0.3, 0.59, 0.11));
-	// Warmer Sandstein oder grauer Kalk je Band, dazu die Helligkeit.
-	vec3 grau = vec3(fl) * 1.7 * fels_grau.rgb;
-	vec3 warm = fels_c * 1.32 * fels_warm.rgb;
-	// Meist warmer Sandstein, einzelne Kalkbänke; entlang des Bandes
-	// wechselt der Ton mit dem Weltrauschen, damit kein Band wie mit dem
-	// Lineal gezogen durchläuft.
-	fels_c = mix(warm, grau, 0.45 * smoothstep(0.72, 0.97, kenn + (w.b - 0.5) * 0.25));
 	fels_c *= (0.93 + 0.13 * kenn2) * mix(0.86, 1.1, w.g);
 	// Im Band nach unten etwas dunkler, an der Fuge dunkel.
 	fels_c *= mix(1.0, 0.93, 1.0 - innen);

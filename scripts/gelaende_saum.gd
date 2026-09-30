@@ -281,7 +281,7 @@ static func verschiebung(p: Vector3) -> float:
 static func schicht(p: Vector3) -> Vector2:
 	var w := Wegmaske.welt(Vector2(p.x, p.z))
 	var phase := p.y * SCHICHT_DICHTE + p.x * SCHICHT_NEIGUNG.x + p.z * SCHICHT_NEIGUNG.y \
-			+ (w.g - 0.5) * 1.1
+			+ (w.g - 0.5) * 1.1 + 0.22 * sin(p.y * 0.61 + 1.7)
 	var band := floorf(phase)
 	return Vector2(phase - band, band)
 
@@ -601,9 +601,9 @@ static func stein(st: SurfaceTool, mitte: Vector3, radien: Vector3, basis: Basis
 	var fs := PackedColorArray()
 	for p in punkte:
 		var beule := r.get_noise_3d(p.x * 1.7 + float(saat), p.y * 1.7, p.z * 1.7 - float(saat))
-		var eben := p * (1.0 + beule * 0.28)
-		# Unten etwas abgeflacht, oben eine Kante: Stein, nicht Kartoffel.
-		eben.y = maxf(eben.y, -0.75) * (0.85 if eben.y < 0.0 else 1.0)
+		var eben := p * (1.0 + beule * 0.22)
+		# Unten etwas abgeflacht: Stein, nicht Kartoffel.
+		eben.y = maxf(eben.y, -0.8) * (0.9 if eben.y < 0.0 else 1.0)
 		var w := mitte + basis * Vector3(eben.x * radien.x, eben.y * radien.y, eben.z * radien.z)
 		welt.append(w)
 		var f := farbe
@@ -715,6 +715,7 @@ static func stoff() -> ShaderMaterial:
 	_stoff.shader = STOFF_SHADER
 	Wegmaske.einrichten(_stoff)
 	_stoff.set_shader_parameter("fels", Materialbibliothek.wurzelfels().albedo_texture)
+	_stoff.set_shader_parameter("kalk", Materialbibliothek.fels().albedo_texture)
 	_stoff.set_shader_parameter("erde", Materialbibliothek.waldboden().albedo_texture)
 	_stoff.set_shader_parameter("moos", Riesenstamm.moostextur())
 	return _stoff
