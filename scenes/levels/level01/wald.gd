@@ -229,8 +229,9 @@ const NADEL_TON := Color(0.6, 0.72, 0.76)
 ## Tönung des Totholzes: grau, ausgeblichen.
 const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
 ## Die schlichte Fassung der Riesen (nur vom Grat aus zu sehen): Stamm und
-## Krone dunkler und etwas kühler als die nahe – sie stehen dort vor dem
-## dunklen Fuß des Weltenbaums und sollen mit ihm eine Masse bilden.
+## Krone dunkler und etwas kühler als die nahe, dazu der halbe Nebel des
+## Weltenbaums (`_riesen`) – sie stehen dort vor seinem dunklen Fuß und
+## sollen mit ihm eine Masse bilden.
 const RIESE_FERN_STAMM := Color(0.5, 0.5, 0.53)
 const RIESE_FERN_KRONE := Color(0.72, 0.78, 0.84)
 
