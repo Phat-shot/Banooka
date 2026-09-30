@@ -937,6 +937,16 @@ static func gitter_rand(g: Dictionary, ende: bool) -> PackedVector3Array:
 ##   splitter     größte Spanlänge in m (0,8)
 ##   flach_ueber  Welt-Y: Randpunkte darüber bekommen höchstens 0,05 m Span
 ##   moos         Moospolster am Fuß (true)
+##   zerfetzt     0..1 (0): ein gerissener statt eines gesägten Bruchs – die
+##                Ringe springen in Faserbündeln bis 0,5 m vor und zurück
+##                (flache Facetten, die das Licht brechen), die Töne laufen
+##                in radialen Fasern statt in Ringen, der Kern ist dunkel.
+##                Nahe der oberen Kante (`flach_ueber`) nur zurück, nie vor.
+##                Groß und eben las sich ein Wurzelbruch als rote Tafel mit
+##                Jahresringen, frisch gesägt.
+##   scherben     Zahl der Borkenplatten (0), die vom Rand abstehen (0,5 bis
+##                1,2 m, beidseitig gezeichnet), nur unter `flach_ueber`
+## Ohne die beiden neuen Optionen genau wie bisher (gleiche Zufallsfolge).
 ## Farben linear (Eigenfarbe, siehe HOLZ).
 static func bruch_in(st: SurfaceTool, rand_roh: PackedVector3Array, aussen: Vector3,
 		rng: RandomNumberGenerator, optionen: Dictionary = {}) -> void:
@@ -946,6 +956,8 @@ static func bruch_in(st: SurfaceTool, rand_roh: PackedVector3Array, aussen: Vect
 	var max_splitter: float = optionen.get("splitter", 0.8)
 	var flach_ueber: float = optionen.get("flach_ueber", INF)
 	var mit_moos: bool = optionen.get("moos", true)
+	var zerfetzt: float = optionen.get("zerfetzt", 0.0)
+	var scherben: int = optionen.get("scherben", 0)
 	aussen = aussen.normalized()
 	# Der Rand fein genug für einen Kamm: höchstens 0,3 m je Zahn.
 	var rand := PackedVector3Array()
@@ -995,6 +1007,22 @@ static func bruch_in(st: SurfaceTool, rand_roh: PackedVector3Array, aussen: Vect
 	var anteile := PackedFloat32Array([0.93, 0.84, 0.74, 0.64, 0.53, 0.42, 0.31, 0.21, 0.11])
 	var aussen_ring := saum
 	var ton_vorher := 1.0
+	# Gerissen: Faserbündel (Rauschen quer zum Rand fein, zur Mitte grob),
+	# radiale Faserstreifen, dunkles, entsättigtes Holz.
+	var holz := HOLZ
+	var fasern: FastNoiseLite = null
+	var streifen := PackedFloat32Array()
+	var streifen_vorher := PackedFloat32Array()
+	if zerfetzt > 0.0:
+		holz = HOLZ.lerp(Color(0.15, 0.11, 0.07), 0.55 * zerfetzt)
+		fasern = FastNoiseLite.new()
+		fasern.seed = rng.randi()
+		fasern.frequency = 0.4
+		streifen.resize(n)
+		for j in n:
+			streifen[j] = lerpf(1.0, 0.62 + 0.75 * (0.5 + 0.5 * fasern.get_noise_1d(float(j) * 1.9)),
+					zerfetzt)
+		streifen_vorher = streifen
 	for k in anteile.size():
 		var f := anteile[k]
 		var ring := PackedVector3Array()
@@ -1002,15 +1030,32 @@ static func bruch_in(st: SurfaceTool, rand_roh: PackedVector3Array, aussen: Vect
 		for j in n:
 			var p := saum[j]
 			var wackeln := 1.0 + 0.07 * rauschen.get_noise_2d(float(j) * 0.9, float(k) * 3.1)
-			ring.append(mark + (p - mark) * clampf(f * wackeln, 0.02, 0.98) - aussen * minf(tiefe, 0.15))
+			var r := mark + (p - mark) * clampf(f * wackeln, 0.02, 0.98) - aussen * minf(tiefe, 0.15)
+			if fasern != null:
+				var z := fasern.get_noise_2d(float(j) * 1.5, float(k) * 1.2)
+				z = signf(z) * pow(absf(z), 0.75) * 0.5 * zerfetzt * (0.55 if k == 0 else 1.0)
+				if z > 0.0:
+					# Oben an der Sprunglippe ragt nichts vor.
+					z *= 1.0 - smoothstep(kamm_grenze - 0.7, kamm_grenze, r.y)
+				r += aussen * z
+			ring.append(r)
 		var hell := k % 2 == 0
 		var ton := (1.08 if hell else 0.74) * lerpf(0.55, 1.0, smoothstep(0.1, 0.5, f))
+		if fasern != null:
+			ton = lerpf(ton, 1.0, 0.8 * zerfetzt) * lerpf(1.0, lerpf(0.3, 0.85,
+					smoothstep(0.05, 0.8, f)), zerfetzt)
 		for j in n:
 			var j2 := (j + 1) % n
-			var fa := HOLZ * ton_vorher * _holzkorn(rng)
-			var fb := HOLZ * ton * _holzkorn(rng)
-			dreieck(st, aussen_ring[j], ring[j], ring[j2], aussen, fa, fb, fb, art)
-			dreieck(st, aussen_ring[j], ring[j2], aussen_ring[j2], aussen, fa, fb, fa, art)
+			var fa := holz * ton_vorher * _holzkorn(rng)
+			var fb := holz * ton * _holzkorn(rng)
+			if fasern != null:
+				dreieck(st, aussen_ring[j], ring[j], ring[j2], aussen, fa * streifen_vorher[j],
+						fb * streifen[j], fb * streifen[j2], art)
+				dreieck(st, aussen_ring[j], ring[j2], aussen_ring[j2], aussen,
+						fa * streifen_vorher[j], fb * streifen[j2], fa * streifen_vorher[j2], art)
+			else:
+				dreieck(st, aussen_ring[j], ring[j], ring[j2], aussen, fa, fb, fb, art)
+				dreieck(st, aussen_ring[j], ring[j2], aussen_ring[j2], aussen, fa, fb, fa, art)
 		aussen_ring = ring
 		ton_vorher = ton
 	# Der nasse Kern um das Mark.
@@ -1018,7 +1063,9 @@ static func bruch_in(st: SurfaceTool, rand_roh: PackedVector3Array, aussen: Vect
 	for j in n:
 		var j2 := (j + 1) % n
 		dreieck(st, kern, aussen_ring[j2], aussen_ring[j], aussen, MORSCH,
-				HOLZ * ton_vorher * 0.6, HOLZ * ton_vorher * 0.6, art)
+				holz * ton_vorher * 0.6, holz * ton_vorher * 0.6, art)
+	if scherben > 0:
+		_scherben_in(st, rand, mark, aussen, kamm_grenze, scherben, rng)
 
 	# Der Kamm aus Faserspänen: je Randstelle ein Keil mit zwei Seiten, lang
 	# und kurz im Wechsel, spitz zulaufend.
@@ -1061,6 +1108,47 @@ static func bruch_in(st: SurfaceTool, rand_roh: PackedVector3Array, aussen: Vect
 				var quer := richtung.cross(aussen).normalized() * laenge * 0.28
 				dreieck(st, p - quer, p + quer, p + richtung * laenge, aussen, gruen * 0.6,
 						gruen * 0.6, gruen, art)
+
+
+## Borkenplatten am Rand eines Bruchs: `zahl` Platten, gleichmäßig über den
+## Rand verteilt (nur unter `grenze`), die abgesplittert vom Holz abstehen –
+## außen dunkle Borke, innen helles Bastholz, leicht eingerollt.
+static func _scherben_in(st: SurfaceTool, rand: PackedVector3Array, mark: Vector3,
+		aussen: Vector3, grenze: float, zahl: int, rng: RandomNumberGenerator) -> void:
+	var n := rand.size()
+	var art := Vector2(Riesenstamm.EIGEN, 0.0)
+	var frei := PackedInt32Array()
+	for j in n:
+		if rand[j].y <= grenze - 0.15:
+			frei.append(j)
+	if frei.is_empty():
+		return
+	for i in zahl:
+		var t := (float(i) + rng.randf_range(0.2, 0.8)) / float(zahl)
+		var j := frei[mini(int(t * float(frei.size())), frei.size() - 1)]
+		var p := rand[j]
+		var tangente := (rand[(j + 1) % n] - rand[(j - 1 + n) % n]).normalized()
+		var raus := (p - mark)
+		raus -= aussen * raus.dot(aussen)
+		raus = raus.normalized()
+		var breite := rng.randf_range(0.22, 0.5)
+		var laenge := rng.randf_range(0.5, 1.2)
+		var richtung := (raus * rng.randf_range(0.35, 0.7) + aussen * rng.randf_range(0.6, 1.0)
+				+ Vector3.DOWN * rng.randf_range(0.0, 0.35)).normalized()
+		var b0 := p - tangente * breite * 0.5
+		var b1 := p + tangente * breite * 0.5
+		var roll := raus * rng.randf_range(0.04, 0.12)
+		var m0 := b0 + richtung * laenge * 0.5 + roll + tangente * breite * 0.1
+		var m1 := b1 + richtung * laenge * 0.45 + roll - tangente * breite * 0.15
+		var spitze := p + richtung * laenge + tangente * breite * rng.randf_range(-0.3, 0.3)
+		var borke := BRUCH_BORKE * rng.randf_range(1.6, 2.4)
+		var bast := HOLZ * rng.randf_range(0.8, 1.05)
+		for seite: float in [1.0, -1.0]:
+			var nach := raus * seite
+			var fa := borke if seite > 0.0 else bast
+			dreieck(st, b0, b1, m1, nach, fa * 0.7, fa * 0.7, fa, art)
+			dreieck(st, b0, m1, m0, nach, fa * 0.7, fa, fa, art)
+			dreieck(st, m0, m1, spitze, nach, fa, fa, fa * 1.1, art)
 
 
 ## Faserkorn: ein leises Zittern der Holzfarbe je Ecke.

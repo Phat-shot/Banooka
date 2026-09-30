@@ -164,14 +164,36 @@ const FLACH := [
 	Vector2(1.38, -1.35), Vector2(1.52, -1.82), Vector2(1.56, -2.35), Vector2(1.45, -2.9),
 	Vector2(1.10, -3.4), Vector2(0.45, -3.8), Vector2(-0.40, -4.05),
 ]
-## Die Lippe des Regals (F): außen offen, die Kante rundet sich ab und der
-## Leib wölbt sich unter ihr hinaus.
+## Die Lippe des Regals (F): außen offen. Innen greift ein Moospolster
+## 0,3–0,65 m weit auf die Decke (Punkt 0, knapp darüber, der Rand nach
+## Rauschen), außen ein flacher Borkenwulst (Punkte 1–3, +8 cm), dann rundet
+## sich die Kante ab und der Leib wölbt sich unter ihr hinaus. Die Punkte
+## 1–9 springen nach `_regal_buckel` 0–0,45 m nach außen: Mit der geraden
+## Kante las sich das Regal im Schlussbild als Brett mit rechten Winkeln.
 const LIPPE := [
-	Vector2(-0.10, -0.02), Vector2(0.02, -0.05), Vector2(0.10, -0.15), Vector2(0.22, -0.32),
-	Vector2(0.36, -0.55), Vector2(0.50, -0.85), Vector2(0.66, -1.25), Vector2(0.82, -1.75),
+	Vector2(-0.30, 0.02), Vector2(0.02, 0.06), Vector2(0.16, 0.085), Vector2(0.30, 0.03),
+	Vector2(0.42, -0.22), Vector2(0.54, -0.62), Vector2(0.68, -1.15), Vector2(0.82, -1.75),
 	Vector2(0.95, -2.35), Vector2(1.02, -3.0), Vector2(0.95, -3.6), Vector2(0.70, -4.1),
 	Vector2(0.30, -4.45), Vector2(-0.25, -4.7), Vector2(-0.90, -4.85),
 ]
+## Verdeckung und Moos der Regallippe je Punkt: das Polster hell und grün,
+## kein dunkler Strich an seinem Innenrand.
+const LIPPE_AO := [0.9, 1.0, 1.0, 0.96, 0.9, 0.84, 0.76, 0.66, 0.56, 0.48, 0.42, 0.36,
+		0.32, 0.3, 0.3]
+const LIPPE_MOOS := [0.95, 0.9, 0.7, 0.8, 0.75, 0.6, 0.45, 0.3, 0.2, 0.15, 0.12, 0.1,
+		0.15, 0.3, 0.4]
+## Das Ende des Regals hinter dem Portal (s 287): ein Querschnitt über den
+## Rand, Vector2(a, h) – `a` m hinter dem Wegende, `h` über der Decke. Das
+## Moospolster greift auf die Decke, dann rollt die Schulter ab und taucht
+## wie die Außenwurzel (`_abtauchen`) in den Knoll. `a` ab Punkt 2 wird je
+## Querlage gestreckt (`_regalende`): ein runder Umriss statt eines Bretts.
+const REGALENDE := [
+	Vector2(-0.30, 0.02), Vector2(0.0, 0.055), Vector2(0.28, 0.06), Vector2(0.55, -0.02),
+	Vector2(0.85, -0.24), Vector2(1.15, -0.62), Vector2(1.45, -1.15), Vector2(1.72, -1.85),
+	Vector2(1.95, -2.7), Vector2(2.1, -3.7), Vector2(2.15, -4.9),
+]
+const REGALENDE_AO := [0.9, 1.0, 0.96, 0.9, 0.82, 0.72, 0.62, 0.52, 0.44, 0.38, 0.32]
+const REGALENDE_MOOS := [0.95, 0.9, 0.85, 0.75, 0.6, 0.45, 0.3, 0.22, 0.18, 0.2, 0.3]
 ## Verdeckung und Moos je Punkt der Außenwurzel (Kamm oben bemoost, der
 ## Leib nach unten dunkel).
 const AUSSEN_AO := [0.55, 0.9, 1.0, 1.0, 1.0, 1.0, 0.96, 0.88, 0.76, 0.62, 0.5, 0.42,
@@ -725,6 +747,7 @@ static func _kehle_in(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: Strin
 		_knorren_bauen(ziel, bahn, level)
 		_brueche(ziel, bahn, level, rng)
 		_pilze_in_rissen(ziel, bahn, level, rng)
+		_regalende(ziel, bahn, level)
 	else:
 		_flanke_grob(ziel, bahn, level, stufe)
 	_aussenwurzel(ziel, bahn, level, stufe)
@@ -1144,7 +1167,7 @@ static func _aussenprofil(level: Level01, s: float, rauschen: FastNoiseLite) -> 
 			var ein: float = [0.1, 0.55, 0.85, 0.5, -0.22][k - 8]
 			pk.x -= ein * fuge
 		var pf: Vector2 = FLACH[k]
-		var pl: Vector2 = LIPPE[k]
+		var pl: Vector2 = _lippe_punkt(k, s, rauschen) if lippe > 0.0 else LIPPE[k]
 		var p := pk * kamm + pf * flach + pl * lippe
 		punkte.append(Vector2(e + p.x, p.y - _abtauchen(s)))
 	return punkte
@@ -1157,6 +1180,26 @@ static func _fuge(s: float) -> float:
 	for z: Vector2 in [Vector2(219.5, 227.5), Vector2(236.5, 241.5), Vector2(259.5, 267.0)]:
 		f = maxf(f, smoothstep(z.x, z.x + 1.8, s) * (1.0 - smoothstep(z.y - 1.8, z.y, s)))
 	return f
+
+
+## Wie weit die Lippe des Regals an der Stelle s nach außen buckelt
+## (0–0,45 m, Buckel von 2–3 m): nur nach außen, jenseits der Kollision.
+static func _regal_buckel(s: float, rauschen: FastNoiseLite) -> float:
+	return clampf(0.2 + 0.32 * rauschen.get_noise_1d(s * 1.6 + 17.0)
+			+ 0.12 * rauschen.get_noise_1d(s * 4.1 + 5.0), 0.0, 0.45)
+
+
+## Punkt `k` der Regallippe an der Stelle s (siehe `LIPPE`): der Innenrand
+## des Moospolsters nach Rauschen 0,3–0,65 m auf der Decke, die Außenseite
+## um den Buckel hinaus (zum Bauch hin auslaufend).
+static func _lippe_punkt(k: int, s: float, rauschen: FastNoiseLite) -> Vector2:
+	var p: Vector2 = LIPPE[k]
+	if k == 0:
+		return Vector2(p.x - 0.35 * (0.5 + 0.5 * rauschen.get_noise_1d(s * 2.3 + 40.0)), p.y)
+	var anteil := 1.0
+	if k > 9:
+		anteil = [0.7, 0.4, 0.15, 0.0, 0.0][k - 10]
+	return p + Vector2(_regal_buckel(s, rauschen) * anteil, 0.0)
 
 
 ## Knorren im Profil: Vector3(s, Höhe, halbe Länge), fest gewürfelt.
@@ -1191,6 +1234,7 @@ static func _aussenwurzel(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: S
 		var kerne: Array = []
 		for s in s_werte:
 			var voll := _aussenprofil(level, s, rauschen)
+			var lip := smoothstep(272.4, 273.6, s)
 			var punkte := PackedVector2Array()
 			var fa := PackedColorArray()
 			for k: int in auswahl:
@@ -1207,6 +1251,10 @@ static func _aussenwurzel(ziel: Dictionary, bahn: Bahn, level: Level01, stufe: S
 				var fleck := maxf(0.0, flecken.get_noise_2d(s, float(k) * 0.7))
 				var moos: float = AUSSEN_MOOS[k] * (0.35 + 1.1 * fleck) \
 						+ 0.15 * rauschen.get_noise_2d(s * 1.3, float(k) * 3.0)
+				if lip > 0.0:
+					# Am Regal: Polster und Wulst grün, der Leib wie sonst.
+					ao = lerpf(ao, LIPPE_AO[k], lip)
+					moos = lerpf(moos, float(LIPPE_MOOS[k]) * (0.7 + 0.5 * fleck), lip)
 				fa.append(Color(ao, ao, ao, clampf(moos, 0.0, 1.0)))
 			profile.append(punkte)
 			farben.append(fa)
@@ -1452,21 +1500,29 @@ static func _vorhaenge_bauen(eltern: Node3D, bahn: Bahn, level: Level01) -> void
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var s := 214.5
 	var anzahl := 0
-	while s < 272.0:
+	# Am Regal (ab 273,5) hängen sie weiter außen, unter dem Buckel der Lippe:
+	# Im Schlussbild brechen sie die Unterkante vor dem Tal.
+	while s < 286.5:
 		var weiter := rng.randf_range(0.9, 2.1)
+		var regal := s > 273.5
 		var bei_wurzel := false
 		for sw: float in _seitenwurzel_stellen():
 			if absf(s - sw) < 1.4:
 				bei_wurzel = true
-		if (s > G2.x - 0.6 and s < G2.y + 0.6) or bei_wurzel:
+		if (s > G2.x - 0.6 and s < G2.y + 0.6) or bei_wurzel or (s > 271.5 and s < 273.5):
 			s += weiter
 			continue
 		var profil := _aussenprofil(level, s, rauschen)
 		var haken := profil[11].lerp(profil[12], rng.randf())
+		if regal:
+			haken = profil[7].lerp(profil[8], rng.randf())
 		var ra := bahn.rahmen(s)
 		var oben := ra.p(haken.x - 0.08, haken.y + 0.05)
 		var breite := rng.randf_range(0.5, 1.1)
 		var laenge := rng.randf_range(1.2, 3.2)
+		if regal:
+			laenge = rng.randf_range(1.6, 3.6)
+			weiter = rng.randf_range(1.2, 2.6)
 		var gier := rng.randf_range(-1.2, 1.2)
 		var achse := (ra.v * cos(gier) + ra.r * sin(gier)).normalized()
 		var unten := oben + Vector3.DOWN * laenge + ra.r * laenge * rng.randf_range(0.0, 0.12)
@@ -1660,6 +1716,65 @@ static func _flankenfuss(ziel: Dictionary, bahn: Bahn, level: Level01) -> void:
 		_verteilen(ziel, g, "holz")
 
 
+## Das Ende des Regals hinter dem Portal: Die Decke endet bei s 287 mit
+## einer geraden Kante quer zum Weg, im Schlussbild die Hinterkante eines
+## Bretts mit zwei rechten Ecken vor dem Tal. Darüber legt sich ein
+## Moospolster mit unruhigem Innenrand, dann rollt die Schulter in runden
+## Buckeln ab und taucht wie die Außenwurzel in den Knoll (`REGALENDE`).
+## Hinter der Leitlinie der Endquerwand (287,3), also nie begehbar; an den
+## Seiten läuft der Umriss in die Lippe bzw. die Flanke aus.
+static func _regalende(ziel: Dictionary, bahn: Bahn, level: Level01) -> void:
+	var ende := Level01.M_ENDE
+	var ra := bahn.rahmen(ende)
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = 5531
+	rauschen.frequency = 0.5
+	var links := _flanke_fuss(ende) - 0.1
+	var rechts := _kante(level, ende) + 0.25
+	var schnitte: Array[PackedVector3Array] = []
+	var laengs := PackedFloat32Array()
+	var farben: Array = []
+	var kerne := PackedVector3Array()
+	var q := links
+	while q <= rechts + 0.001:
+		# Rund im Grundriss: in der Mitte gut 1,3-mal so weit hinaus, an den
+		# Seiten knapp; dazu Buckel.
+		var t := inverse_lerp(links, rechts, q) * 2.0 - 1.0
+		var rund := sqrt(maxf(1.0 - t * t, 0.0))
+		var weit := (0.55 + 0.75 * rund) * (0.85 + 0.35 * rauschen.get_noise_1d(q * 1.3))
+		var innen := 0.15 + 0.5 * (0.5 + 0.5 * rauschen.get_noise_1d(q * 2.6 + 30.0))
+		var reihe := PackedVector3Array()
+		var fa := PackedColorArray()
+		for k in REGALENDE.size():
+			var p: Vector2 = REGALENDE[k]
+			var a := -innen if k == 0 else (p.x if k == 1 else p.x * weit)
+			var h := p.y
+			# An den Seiten tiefer: dort taucht schon die Lippe bzw. die Flanke.
+			h -= 0.25 * absf(t) * float(k) / float(REGALENDE.size() - 1)
+			reihe.append(ra.o + ra.r * q + ra.v * a + Vector3.UP * h)
+			var fleck := 0.5 + 0.5 * rauschen.get_noise_2d(q * 1.7, float(k) * 1.1)
+			var ao: float = REGALENDE_AO[k]
+			var moos := float(REGALENDE_MOOS[k]) * (0.65 + 0.6 * fleck)
+			fa.append(Color(ao, ao, ao, clampf(moos, 0.0, 1.0)))
+		schnitte.append(reihe)
+		laengs.append(q)
+		farben.append(fa)
+		kerne.append(ra.o + ra.r * q - ra.v * 1.5 + Vector3.DOWN * 2.0)
+		q += 0.35
+	if schnitte.size() < 2:
+		return
+	var g := Weltenbaum.zug(schnitte, laengs, false, {"uv_mass": 0.6})
+	Weltenbaum.gitter_faerben(g, _weiss, 0.3)
+	var kern := func(i: int) -> Vector3: return kerne[i]
+	Weltenbaum.orientieren(g, kern)
+	g["f"] = farben
+	var s_werte := PackedFloat32Array()
+	for i in schnitte.size():
+		s_werte.append(ende)
+	g["s"] = s_werte
+	_verteilen(ziel, g, "holz")
+
+
 # ---------------------------------------------------------------- Brüche
 
 ## Stirnflächen der Wurzelbrüche G1 (über der Wiese) und G2 (über der
@@ -1692,8 +1807,10 @@ static func _brueche(ziel: Dictionary, bahn: Bahn, level: Level01,
 		var welt := PackedVector3Array()
 		for p in umriss:
 			welt.append(ra.p(p.x, p.y))
+		# Gerissen, nicht gesägt: Aus der Spielkamera stand die Stirn von G1
+		# als rote, ebene Tafel mit Jahresringen im Bild (ein Viertel davon).
 		Weltenbaum.bruch_in(_st_bei(ziel, s), welt, ra.v * stelle.y, rng,
-				{"splitter": 0.8, "flach_ueber": ra.o.y - 0.3})
+				{"splitter": 1.0, "flach_ueber": ra.o.y - 0.3, "zerfetzt": 1.0, "scherben": 8})
 
 
 # ---------------------------------------------------------------- Oberwurzel
@@ -1950,6 +2067,7 @@ static func _farne_setzen(eltern: Node3D, bahn: Bahn, level: Level01) -> void:
 			lagen.append(Transform3D(basis, ra.p(p.x, p.y)))
 			s += rng.randf_range(4.2, 6.2)
 		lagen.append_array(_kammfarne(bahn, level, haelfte, rng))
+		lagen.append_array(_bruch_und_endfarne(bahn, level, haelfte, rng))
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = Farnwerk.klein(71 if haelfte.x < 200.0 else 72)
@@ -1994,6 +2112,31 @@ static func _kammfarne(bahn: Bahn, level: Level01, haelfte: Vector2,
 			var basis := Basis(Quaternion(Vector3.UP, auf)) * Basis(Vector3.UP, rng.randf() * TAU)
 			lagen.append(Transform3D(basis.scaled(Vector3.ONE * rng.randf_range(0.75, 1.25)), ort))
 		s += weiter
+	return lagen
+
+
+## Farne am Stumpf von G1 (am Fuß der Bruchfläche in der Wurzelwiese und
+## außen auf der Wurzel) und an den Ecken des Regalendes hinter dem
+## Portal (auf dem Moospolster, außerhalb der Leitlinie): Sie nehmen den
+## Bruchkanten die Härte.
+static func _bruch_und_endfarne(bahn: Bahn, level: Level01, haelfte: Vector2,
+		rng: RandomNumberGenerator) -> Array[Transform3D]:
+	var orte: Array[Vector3] = []
+	if haelfte.x < G1.y and haelfte.y > G1.y:
+		var wiese := 7.0 - level.boden_bei(G1.y)
+		var e := _kante(level, G1.y)
+		orte.append(Vector3(G1.y + 0.35, e + 1.6, wiese + 0.05))
+		orte.append(Vector3(G1.y + 0.5, -4.6, wiese + 0.05))
+		orte.append(Vector3(G1.x - 0.6, e + 1.3, wiese + 0.05))
+	if haelfte.y > 270.0:
+		for q: float in [-4.8, 4.9, 1.9]:
+			orte.append(Vector3(Level01.M_ENDE + 0.35, q, 0.03))
+	var lagen: Array[Transform3D] = []
+	for o in orte:
+		var ra := bahn.rahmen(o.x)
+		var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE
+				* rng.randf_range(1.2, 1.7))
+		lagen.append(Transform3D(basis, ra.p(o.y, o.z)))
 	return lagen
 
 
