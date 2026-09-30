@@ -6,33 +6,50 @@ class_name L01Wald
 ## `Findling`) und, wo es sie gibt, aus Fremdmodellen (Felsen, M8).
 ##
 ## WAS HIER WÄCHST
-##   Hallenwald  A (s −16 … 34): drei Stammreihen je Seite (|q| 7–10, 12–16,
-##               18–24) und zwei lockere dahinter, Stämme 12–21 m, Ø 0,5 bis
-##               2 m, versetzt, jeder achte schief; drei Heldenstämme mit
-##               Brettwurzeln (die Wurzeln zeigen vom Weg weg), ein
-##               gestürzter Stamm quer durch die Reihen, Farne am Fuß,
-##               Stümpfe, Moosstämme und Felsen am Saum. Die erste Reihe
-##               neigt sich zum Weg und schließt über ihm das Dach – erst ab
-##               9,5 m, mit Löchern über `Level01.LICHTLOECHER`. Rechts endet
-##               der Wald an der Hallenkante (die Enthüllung).
+##   Hallenwald  A (s −16 … 32): drei Stammreihen je Seite (|q| 7–10, 12–16,
+##               18–24), versetzt (±2,4 m), Ø 0,5–2 m, jeder achte schief;
+##               dazwischen Unterholz (Sträucher, junge Bäume). Die erste
+##               Reihe neigt sich zum Weg und schließt über ihm das Dach –
+##               erst ab 9,5 m, mit Löchern über `Level01.LICHTLOECHER` –,
+##               die zweite und dritte tragen tiefe Kronen (ab gut 5 m), die
+##               die Seiten in Augenhöhe schließen. Drei Heldenstämme mit
+##               Brettwurzeln (vom Weg weggedreht), ein gestürzter Stamm quer
+##               durch die Reihen, Farne am Fuß, Stümpfe, Moosstämme und
+##               Felsen am Saum. Rechts endet der Wald an der Hallenkante.
 ##   Hangwald    links über der Böschung und auf der Krone der Fallklamm
-##               (s 30–165), wo das Gelände Wald trägt (`L01Gelaende.wald`):
-##               vorn volle Stämme, deren Kronen sich über das linke
-##               Wegdrittel neigen (dunkler Rahmen oben links), dahinter
-##               schlichte Stämme.
+##               (s 31–166), bis `HANG_TIEFE` hinter die Kronenkante des
+##               Saums: vorn an der Kante niedrige, breite Astbäume, die sich
+##               über das linke Wegdrittel neigen (ab 9,5 m – der dunkle
+##               Rahmen oben links), dahinter Kronen nach der Walddichte.
 ##   Rahmen      die Bäume auf den Felsnadeln unter der Kante
 ##               (`RAHMENBAUM_STELLEN` "sims"): gedreht, nach außen geneigt,
 ##               nie im Sichtkegel zum Weltenbaum.
 ##   Riesen      zwei Torriesen am Riesentor (`TORRIESEN`), drei Talriesen
 ##               rechts der Bachwiese (`TALRIESEN`), zwei Kanalbäume über C4
 ##               (sie schließen dort das Dach) und drei Überständer im Tal.
-##   Talwald     nah (bis `NAH_WEIT` vom Weg): Kronen mit Blattkarten auf
-##               schlichten Stämmen, auf den Riegeln dunkler, Nadelbäume
-##               dunkler und kühler, Lichtungen, wo das Gelände Wiese ist;
-##               fern: flache Kronen mit angedeutetem Stamm, je Zelle ein
-##               Netz, bis 200 m. Dazu graue Totholzstämme.
-##   Hecken      rechts der Bachwiese (q 7–9) und um die Wurzelwiese, grün
-##               mit blühenden Sträuchern dazwischen.
+##               Wo eine Krone vom Grat aus vor dem Weltenbaum stünde, bleibt
+##               der Riese kleiner (Stufen zu 6 %).
+##   Talwald     nah (bis `NAH_WEIT` vom Weg): Kronen auf schlichten
+##               Stämmen, auf den Riegeln dunkler, jeder fünfte ein dunkler,
+##               kühler Nadelbaum; Lichtungen, wo das Gelände Wiese ist
+##               (`L01Gelaende.wald`), an ihren Rändern Sträucher, dazu graue
+##               Totholzstämme. Fern: grobe Kronen mit angedeutetem Stamm im
+##               selben Stoff, je Zelle ein Netz, überall, wo das Gelände
+##               Wald trägt und kein naher Baum steht.
+##   Hecken      rechts der Bachwiese (q 7,4–9,4) und um die Wurzelwiese,
+##               grün mit blühenden Sträuchern dazwischen.
+##
+## DREI FASSUNGEN EINES BAUMS (`_baum`, Dreiecke je Stamm + Krone)
+##   voll        `Riesenstamm.baum`: Rippen, Brettwurzeln, Äste, die in den
+##               Ballen der Krone enden (2,6k + 2,4k) – Rahmenbäume, Riesen
+##   voll, freie Krone  voller Stamm, freie Krone aus drei bis fünf Ballen
+##               an seiner Spitze (1,1–3,2k + 1–1,5k) – Hallen- und Astbäume,
+##               deren Kronen meist über dem Bildrand liegen
+##   mittel      schlichter Stamm, freie Krone (0,2k + 0,9–1,6k) – hintere
+##               Reihen, naher Talwald, Überständer
+##   fern        grobe Krone und vierseitiger Stamm im Laubstoff (0,25k)
+## Die Kronen sitzen nach ihrer wirklichen Hülle: Scheitel auf der
+## Baumhöhe, der Stamm endet in ihrer Mitte – Laub statt Lolli.
 ##
 ## REGELN (Plan 7, 11)
 ##   K1  Über |q| < 6 hängt keine Krone tiefer als 9,5 m über der Decke
@@ -79,9 +96,9 @@ const HALLE_TIEFE := 25.0
 
 ## Sichtweiten bis zur Zellmitte (m).
 const SICHT_HALLE := 120.0
-const SICHT_HANG := 100.0
+const SICHT_HANG := 85.0
 const SICHT_RAHMEN := 110.0
-const SICHT_TAL := 110.0
+const SICHT_TAL := 80.0
 const SICHT_FERN := 210.0
 const SICHT_FARN := 42.0
 const SICHT_FELS := 110.0
@@ -401,16 +418,20 @@ static func _weg_frei(huelle: AABB) -> bool:
 ## und am Boden bleibt er außerhalb des Begehbaren (`fussweite` = Umriss
 ## samt Brettwurzeln zum Weg hin).
 static func _stamm_frei(fuss: Vector3, spitze: Vector3, r: float, fussweite: float = 0.0,
-		zugabe: float = 0.9) -> bool:
+		zugabe: float = 0.9, achse: PackedVector3Array = PackedVector3Array()) -> bool:
 	var i0 := _naechste(fuss.x, fuss.z)
 	if i0 >= 0:
 		var q0 := absf(_quer(i0, fuss.x, fuss.z))
 		var p0 := _bahn_p[i0]
 		if absf(fuss.y - p0.y) < 3.0 and q0 - maxf(fussweite, r) < _bahn_halb[i0] + zugabe:
 			return false
-	for k in 10:
-		var t := float(k) / 9.0
-		var p := fuss.lerp(spitze, t)
+	# Die Achse als Punktfolge (geneigte Stämme biegen sich); ohne Angabe
+	# gerade vom Fuß zur Spitze.
+	var punkte := achse
+	if punkte.is_empty():
+		for k in 10:
+			punkte.append(fuss.lerp(spitze, float(k) / 9.0))
+	for p in punkte:
 		for i in _proben_nahe(p.x, p.z, FREI_Q + r + 1.0):
 			var b := _bahn_p[i]
 			if p.y > b.y + STAMM_FREI_H or p.y < b.y - 0.5:
@@ -552,6 +573,9 @@ static func _baum(schluessel: String, o: Dictionary, mit_kranz: bool = false) ->
 		b["schatten"] = Riesenstamm.schlicht({"hoehe": hoehe, "radius": radius,
 				"radius_oben": float(o.get("radius_oben", radius * 0.55)),
 				"neigung": o.get("neigung", Vector2.ZERO), "krumm": 0.0, "saat": saat})
+	b["hoehe"] = hoehe
+	b["neigung"] = o.get("neigung", Vector2.ZERO)
+	b["variante"] = int(o.get("variante", 0))
 	var krone_roh: ArrayMesh = b["krone"]
 	var krone_netz := _indiziert(krone_roh)
 	b["krone"] = krone_netz
@@ -662,7 +686,7 @@ static func _hallenbaum(art: String) -> Dictionary:
 					"variante": 1, "krone_radius": 5.4, "krone_hoehe": 6.6, "saat": 1106}, true)
 		_:
 			return _baum("schlicht_c", {"mittel": true, "hoehe": 17.0, "radius": 0.4,
-					"variante": 2, "krone_radius": 3.0, "krone_hoehe": 12.0, "ballen": 4,
+					"variante": 2, "krone_radius": 3.0, "krone_hoehe": 12.0, "ballen": 3,
 					"saat": 1108}, true)
 
 
@@ -709,13 +733,15 @@ static func _fernbaum(k: int) -> ArrayMesh:
 			o["ballen"] = 4
 			hoehe = 14.0
 	var kh: float = o["hoehe"]
-	o["mitte"] = Vector3(0.0, hoehe - kh * 0.5, 0.0)
+	# Die Krone reicht bis gut ein Viertel der Höhe hinab: Aus der Ferne
+	# sieht man Laub, kaum Stämme.
+	o["mitte"] = Vector3(0.0, hoehe - kh * 0.62, 0.0)
 	var krone := Kronenwolke.fern(o)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.append_from(krone, 0, Transform3D.IDENTITY)
 	var r := 0.3 if k != 1 else 0.36
-	var oben := hoehe - kh * 0.5
+	var oben := hoehe - kh * 0.62
 	var dunkel := Color(0.3, 0.26, 0.21, 0.0)
 	for j in 4:
 		var w0 := TAU * float(j) / 4.0 + 0.4
@@ -797,8 +823,16 @@ static func _pflanze(ws: Waldsetzer, b: Dictionary, lage: Transform3D, stamm_art
 	# Stammradius in Brusthöhe (aus dem Netz, mal Maßstab)
 	var r := float(b.get("radius", 0.5)) * maxf(lage.basis.x.length(), lage.basis.z.length())
 	var fussweite := float(optionen.get("fussweite", r))
+	# Die Achse samt Neigung (die steckt im Netz, nicht in der Lage).
+	var achse := PackedVector3Array()
+	var h: float = b.get("hoehe", s_box.end.y)
+	for k in 12:
+		var t := float(k) / 11.0
+		achse.append(lage * (Vector3(0.0, t * h * 0.95, 0.0) + _neigung_bei(b, t * 0.95)))
+	spitze = achse[achse.size() - 1]
 	if not bool(optionen.get("ohne_stammtest", false)) \
-			and not _stamm_frei(fuss, spitze, r, fussweite, float(optionen.get("zugabe", 0.9))):
+			and not _stamm_frei(fuss, spitze, r, fussweite, float(optionen.get("zugabe", 0.9)),
+			achse):
 		_zaehle("nein_stamm")
 		_grund = "stamm"
 		return false
@@ -813,6 +847,17 @@ static func _pflanze(ws: Waldsetzer, b: Dictionary, lage: Transform3D, stamm_art
 			ws.setze(stamm_art + "_schatten", b["schatten"] as ArrayMesh, lage)
 	if not krone_art.is_empty():
 		ws.setze(krone_art, b["krone"] as ArrayMesh, lage, krone_ton)
+	# Fernfassung (grobe Krone mit Stamm), sichtbar, wo die Zelle der vollen
+	# endet: gleiche Höhe, gleiche Drehung.
+	var fern_art: String = optionen.get("fern", "")
+	if not fern_art.is_empty():
+		var v: int = b.get("variante", 0)
+		var k := 2 if v == 2 else (1 if v == 1 else 0)
+		var netz := _fernbaum(k)
+		var hoch := float(b.get("hoehe", 12.0)) * lage.basis.y.length()
+		var f := hoch / netz.get_aabb().end.y
+		var fern_lage := Transform3D(lage.basis.orthonormalized().scaled_local(Vector3.ONE * f), fuss)
+		ws.setze(fern_art, netz, fern_lage, krone_ton)
 	var kranz_art: String = optionen.get("kranz", "")
 	if not kranz_art.is_empty() and b["kranz"] != null:
 		# Der Ring liegt flach am Fuß, auch unter einem schiefen Stamm.
@@ -922,7 +967,7 @@ static func _hallenwald(level: Level01) -> void:
 						var w := rng.randf() * TAU
 						kipp = Vector3(cos(w), 0.0, sin(w))
 					var lage := _lage(fuss, dreh, quer, hoch, schief, kipp)
-					var mit_kranz := reihe < 3
+					var mit_kranz := reihe < 1
 					var ton_stamm := _ton(rng, Vector2(0.78, 0.98), 0.03)
 					var ton_krone := _ton(rng, Vector2(0.78, 0.98))
 					if rng.randf() < 0.18:
@@ -931,7 +976,7 @@ static func _hallenwald(level: Level01) -> void:
 							{"kranz": "kranz" if mit_kranz else "", "drehung": dreh}):
 						_staemme.dazu(Vector2(fuss.x, fuss.z), abstand * 0.5)
 						_zaehle("halle")
-						if reihe < 2 and rng.randf() < 0.6:
+						if reihe < 1 and rng.randf() < 0.7:
 							_farne_um(ws, farne, fuss, 0.5 + quer * 0.5, rng.randi_range(1, 3), rng)
 						break
 					elif OS.has_environment("WALD_BAEUME"):
@@ -1152,6 +1197,10 @@ static func _hangwald(level: Level01) -> void:
 			"verschmelzen": true})
 	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_HALLE), "sicht": SICHT_HANG,
 			"verschmelzen": true, "karten": true})
+	ws.art("fern", {"stoff": Kronenwolke.stoff(LAUB_HALLE, false), "sicht_von": SICHT_HANG,
+			"sicht": SICHT_FERN, "verschmelzen": true, "rand": 8.0})
+	var unterholz := _indiziert(Kronenwolke.netz({"radius": 1.7, "hoehe": 2.4, "variante": 1,
+			"karten": 18, "ballen": 3, "saat": 5301}))
 	var quer := L01Saum.querschnitte_links(level)
 	var strecken: PackedFloat32Array = quer.get("s", PackedFloat32Array())
 	var punkte: Array = quer.get("punkte", [])
@@ -1164,7 +1213,9 @@ static func _hangwald(level: Level01) -> void:
 		var u := rng.randf_range(0.5, 3.0)
 		while u < HANG_TIEFE:
 			var ss := s + rng.randf_range(-2.6, 2.6)
-			var q := -(kante.x + u)
+			# Nie im Kameraraum (|q| < 6), auch wo die Kronenkante der Wand
+			# dicht am Weg liegt (Fallklamm).
+			var q := -maxf(kante.x + u, FREI_Q + 0.8)
 			var tiefe := u
 			u += rng.randf_range(5.0, 7.5)
 			var fuss := _boden(level, ss, q)
@@ -1187,8 +1238,8 @@ static func _hangwald(level: Level01) -> void:
 			var vorn := tiefe < 10.0
 			var art := "dach"
 			if not vorn or rng.randf() >= 0.55:
-				var auswahl: Array = ["hoch", "mittel", "duenn"] if vorn \
-						else ["schlicht_a", "schlicht_b", "schlicht_c"]
+				var auswahl: Array = ["hoch", "tief", "duenn", "tief"] if vorn \
+						else ["tief", "tief", "schlicht_a", "schlicht_b", "schlicht_c"]
 				art = String(auswahl[rng.randi_range(0, auswahl.size() - 1)])
 			# Ganz vorn an der Kante (bis s 110) oft ein Astbaum: niedrig und
 			# breit, zum Weg geneigt – seine Äste hängen über dem linken
@@ -1208,11 +1259,18 @@ static func _hangwald(level: Level01) -> void:
 				if rng.randf() < 0.2 and not versuch_art.begins_with("ast"):
 					ton_krone = ton_krone * NADEL_TON
 				if _pflanze(ws, b, lage, "stamm", "krone", _ton(rng, Vector2(0.78, 0.96), 0.03),
-						ton_krone):
+						ton_krone, {"fern": "fern"}):
 					_staemme.dazu(Vector2(fuss.x, fuss.z), 2.4)
 					_zaehle("hang")
 					if versuch_art.begins_with("ast"):
 						_zaehle("hang_ast")
+					# Unterholz zwischen den Stämmen: Vom Weg aus sieht man den
+					# Hang von unten, dort sonst nur Stämme auf Rasen.
+					if rng.randf() < 0.6:
+						var w2 := rng.randf() * TAU
+						var ort := fuss + Vector3(cos(w2), 0.0, sin(w2)) * rng.randf_range(2.2, 3.4)
+						ort.y = L01Gelaende.hoehe(ort.x, ort.z)
+						_randbusch(ws, unterholz, ort, rng)
 					break
 		s += rng.randf_range(5.5, 7.5)
 	var z := ws.fertig()
@@ -1422,6 +1480,9 @@ static func _talwald_nah(level: Level01) -> void:
 	ws.art("stamm", {"stoff": _borke(), "sicht": SICHT_TAL, "verschmelzen": true})
 	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_TAL), "sicht": SICHT_TAL,
 			"verschmelzen": true, "karten": true})
+	# Hinter `SICHT_TAL` dieselben Bäume in der Fernfassung.
+	ws.art("fern", {"stoff": Kronenwolke.stoff(LAUB_TAL, false), "sicht_von": SICHT_TAL,
+			"sicht": SICHT_FERN, "verschmelzen": true, "rand": 8.0})
 	var rng := PropWerkzeug.zufall(8101)
 	var tot: Array[ArrayMesh] = [
 		Riesenstamm.netz({"hoehe": 11.0, "radius": 0.42, "oben": "bruch", "aeste": 3,
@@ -1468,8 +1529,8 @@ static func _talwald_nah(level: Level01) -> void:
 			var nadel := rng.randf() < 0.18
 			var k := 2
 			if not nadel:
-				var auswahl: Array[int] = [0, 1, 3]
-				k = auswahl[rng.randi_range(0, 2)]
+				var auswahl: Array[int] = [0, 3, 0, 3, 1]
+				k = auswahl[rng.randi_range(0, auswahl.size() - 1)]
 			var b := _talbaum(k)
 			var groesse := rng.randf_range(0.8, 1.2)
 			var lage := _lage(Vector3(px, y, pz), rng.randf() * TAU, groesse * rng.randf_range(0.9, 1.1),
@@ -1480,14 +1541,14 @@ static func _talwald_nah(level: Level01) -> void:
 			elif _auf_riegel(px, pz):
 				ton = ton * Color(0.78, 0.84, 0.84)
 			if _pflanze(ws, b, lage, "stamm", "krone", _ton(rng, Vector2(0.8, 0.95), 0.03), ton,
-					{"talkante": true}):
+					{"talkante": true, "fern": "fern"}):
 				_staemme.dazu(Vector2(px, pz), 2.3)
 				_zaehle("tal")
 			else:
 				# Unter der Kante: ein kleinerer Baum passt vielleicht.
 				lage = _lage(Vector3(px, y, pz), rng.randf() * TAU, 0.7, 0.62)
 				if _pflanze(ws, b, lage, "stamm", "krone", Color(0.9, 0.9, 0.9), ton,
-						{"talkante": true}):
+						{"talkante": true, "fern": "fern"}):
 					_staemme.dazu(Vector2(px, pz), 1.6)
 					_zaehle("tal_klein")
 		x += raster
@@ -1593,7 +1654,7 @@ static func _talwald_fern(_level: Level01) -> void:
 			if d < FERN_AB:
 				continue
 			var w := L01Gelaende.wald(px, pz)
-			if w < rng.randf_range(0.22, 0.58):
+			if w < rng.randf_range(0.16, 0.5):
 				continue
 			if not _kronen.frei(Vector2(px, pz), 3.6):
 				continue
