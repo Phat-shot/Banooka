@@ -617,9 +617,22 @@ static func _kiefernwipfel(sa: Sammler, st: SurfaceTool, lage: Transform3D, aest
 ## das Windgewicht): Alle Polster teilen EINEN Stoff, sonst legte
 ## `Kronenwolke.stoff` je Ton einen neuen an, und das verschmolzene Netz
 ## trüge ohnehin nur den ersten.
+##
+## Große Polster (r > 1,7) werden zu drei kleineren Büscheln: Kiefernlaub
+## steht in Büscheln, und Ballen unter 0,9 m baut `Kronenwolke` mit einem
+## Viertel der Dreiecke.
 static func _polster(sa: Sammler, mitte: Vector3, r: float, saat: int, hell: float = 1.0) -> void:
+	if r > 1.7:
+		var rng := PropWerkzeug.zufall(saat)
+		var dreh := rng.randf() * TAU
+		for k in 3:
+			var a := dreh + TAU * float(k) / 3.0 + rng.randf_range(-0.3, 0.3)
+			var ort := mitte + Vector3(cos(a) * r * 0.42, rng.randf_range(-0.12, 0.18) * r,
+					-sin(a) * r * 0.42)
+			_polster(sa, ort, minf(r * 0.6, 1.7), saat * 3 + k, hell * rng.randf_range(0.94, 1.06))
+		return
 	var netz := Kronenwolke.netz({"radius": r, "hoehe": r * 0.5, "variante": 1, "saat": saat,
-			"ballen": 4 if r < 1.4 else 5, "karten": clampi(int(r * r * 6.0), 12, 50)})
+			"ballen": 3 if r < 1.4 else 4, "karten": clampi(int(r * r * 6.0), 10, 40)})
 	if absf(hell - 1.0) > 0.001:
 		netz = _getoent(netz, Color(hell, hell, hell))
 	_krone(sa, NADEL, netz, Transform3D(Basis.IDENTITY, mitte))
