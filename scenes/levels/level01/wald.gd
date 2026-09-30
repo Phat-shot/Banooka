@@ -216,8 +216,6 @@ static func _gemessen(was: String, tun: Callable) -> void:
 static func _schritt_halle(level: Level01) -> void:
 	_vorbereiten(level)
 	_hallenwald(level)
-	if OS.has_environment("WALD_KEGEL"):
-		print("HALLE ", _zahlen)
 
 
 static func _schritt_rest(level: Level01) -> void:
@@ -592,10 +590,6 @@ static func _baum(schluessel: String, o: Dictionary, mit_kranz: bool = false) ->
 		b["kranz"] = Findling.kranz(fuss, 0.02, clampf(r0 * 1.6, 0.6, 2.5), 0.62,
 				clampf(r0 * 0.15, 0.08, 0.4))
 	_netze[schluessel] = b
-	if OS.has_environment("WALD_DEBUG"):
-		print("BAUM %-12s Stamm %5d  Krone %5d  Krone unten %.1f  Hülle %s" % [schluessel,
-				Waldsetzer._dreiecke(stamm_netz), Waldsetzer._dreiecke(krone_netz),
-				float(b["krone_unten"]), str(krone_netz.get_aabb().size.snappedf(0.1))])
 	return b
 
 
@@ -760,8 +754,6 @@ static func _fernbaum(k: int) -> ArrayMesh:
 	st.index()
 	var netz := st.commit()
 	_netze[schluessel] = netz
-	if OS.has_environment("WALD_DEBUG"):
-		print("FERN %d  %d Dreiecke" % [k, Waldsetzer._dreiecke(netz)])
 	return netz
 
 
@@ -795,7 +787,7 @@ static func _pflanze(ws: Waldsetzer, b: Dictionary, lage: Transform3D, stamm_art
 	var huelle := _huelle(lage, b["huelle"] as AABB)
 	if not _weg_frei(huelle):
 		_zaehle("nein_k1")
-		_grund = "k1 Krone %s" % str(huelle) if OS.has_environment("WALD_KEGEL") else "k1"
+		_grund = "k1"
 		return false
 	if bool(optionen.get("talkante", false)) and not _talkante_frei(huelle):
 		_zaehle("nein_kante")
@@ -805,16 +797,6 @@ static func _pflanze(ws: Waldsetzer, b: Dictionary, lage: Transform3D, stamm_art
 	if not _kegel_frei(huelle):
 		_zaehle("nein_kegel")
 		_grund = "kegel"
-		if OS.has_environment("WALD_KEGEL"):
-			for k: Dictionary in _kegel:
-				var alt := _kegel
-				_kegel = [k]
-				var frei := _kegel_frei(huelle)
-				_kegel = alt
-				if not frei:
-					_grund = "kegel %s -> %s, Krone %s" % [str((k["auge"] as Vector3).snappedf(0.1)),
-							str((k["ziel"] as Vector3).snappedf(0.1)), str(huelle)]
-					break
 		return false
 	var fuss := lage.origin
 	var stamm: ArrayMesh = b["stamm"]
@@ -865,10 +847,6 @@ static func _pflanze(ws: Waldsetzer, b: Dictionary, lage: Transform3D, stamm_art
 				Vector3(lage.basis.x.length(), 1.0, lage.basis.z.length()))
 		ws.setze(kranz_art, b["kranz"] as ArrayMesh, Transform3D(flach, fuss), Color(1, 1, 1, 1))
 	_kronen.dazu(Vector2(huelle.get_center().x, huelle.get_center().z), krone_r * 0.75)
-	if OS.has_environment("WALD_BAEUME"):
-		var i := _naechste(fuss.x, fuss.z)
-		print("PFLANZE %s s %.1f q %.1f krone %.1f-%.1f" % [ws.wurzel.name, _bahn_s[i],
-				_quer(i, fuss.x, fuss.z), huelle.position.y - fuss.y, huelle.end.y - fuss.y])
 	return true
 
 
@@ -946,6 +924,11 @@ static func _hallenwald(level: Level01) -> void:
 					_zaehle("halle_ohne_platz")
 					continue
 				var art: String = arten[rng.randi_range(0, arten.size() - 1)]
+				# Links in der ersten Reihe oft ein Astbaum: Seine Krone hängt
+				# ab 9,5 m über dem linken Wegdrittel – das Laub oben links im
+				# Bild (bis in den Hangweg hinein).
+				if reihe == 0 and seite < 0.0 and ss > 6.0 and rng.randf() < 0.55:
+					art = "ast_rund" if rng.randf() < 0.5 else "ast"
 				# Hält die Wahl eine Regel nicht (meist K1: Krone zu tief über
 				# dem Weg), versucht es ein schlanker Baum mit freier Drehung.
 				var versuche: Array[String] = [art]
@@ -956,13 +939,13 @@ static func _hallenwald(level: Level01) -> void:
 					# Zum Weg (lokal +X) neigt sich nur der Dachbaum; sonst frei.
 					var richtung := -seite * _rechts_bei(level, ss)
 					var dreh := rng.randf() * TAU
-					if versuch_art == "dach":
+					if versuch_art == "dach" or versuch_art.begins_with("ast"):
 						dreh = atan2(-richtung.z, richtung.x) + rng.randf_range(-0.35, 0.35)
 					var quer := rng.randf_range(0.8, 1.25)
 					var hoch := rng.randf_range(0.9, 1.12)
 					var schief := 0.0
 					var kipp := Vector3.RIGHT
-					if rng.randf() < 0.13 and versuch_art != "dach":
+					if rng.randf() < 0.13 and versuch_art != "dach" and not versuch_art.begins_with("ast"):
 						schief = deg_to_rad(rng.randf_range(5.0, 8.0))
 						var w := rng.randf() * TAU
 						kipp = Vector3(cos(w), 0.0, sin(w))
@@ -979,8 +962,6 @@ static func _hallenwald(level: Level01) -> void:
 						if reihe < 1 and rng.randf() < 0.7:
 							_farne_um(ws, farne, fuss, 0.5 + quer * 0.5, rng.randi_range(1, 3), rng)
 						break
-					elif OS.has_environment("WALD_BAEUME"):
-						print("NEIN Halle s %.1f q %.1f %s: %s" % [ss, q, versuch_art, _grund])
 
 	# Das Dach über dem Weg: die Kronen der ersten Reihe reichen bis q ±3;
 	# dazwischen schließen Kronen ohne eigenen Stamm (sie hängen an den
