@@ -79,16 +79,18 @@ const HALLE_TIEFE := 25.0
 
 ## Sichtweiten bis zur Zellmitte (m).
 const SICHT_HALLE := 120.0
-const SICHT_HANG := 130.0
-const SICHT_RAHMEN := 170.0
-const SICHT_TAL := 105.0
-const SICHT_FERN := 200.0
+const SICHT_HANG := 100.0
+const SICHT_RAHMEN := 110.0
+const SICHT_TAL := 110.0
+const SICHT_FERN := 210.0
 const SICHT_FARN := 42.0
 const SICHT_FELS := 110.0
 const SICHT_HECKE := 90.0
 const SICHT_KRANZ := 60.0
-## Die Riesen stehen als eine Zelle um s 170: vom Grat ab gut s 40 zu sehen.
-const SICHT_RIESEN := 150.0
+## Die Riesen stehen als eine Zelle um s 170: vom Grat ab gut s 40 zu sehen,
+## bis `RIESE_NAH` in der vollen Fassung.
+const SICHT_RIESEN := 170.0
+const RIESE_NAH := 90.0
 ## Zellgrößen (m).
 const ZELLE_HANG := 45.0
 const ZELLE_TAL := 48.0
@@ -100,8 +102,8 @@ const FERN_RASTER := 10.5
 const LAUB_HALLE := Color(0.15, 0.33, 0.14)
 const LAUB_TAL := Color(0.21, 0.45, 0.16)
 const LAUB_FERN := Color(0.2, 0.42, 0.17)
-const LAUB_HECKE := Color(0.19, 0.41, 0.15)
-const BLUETE := Color(0.93, 0.76, 0.8)
+const LAUB_HECKE := Color(0.23, 0.47, 0.17)
+const BLUETE := Color(0.96, 0.86, 0.88)
 const FARN := Color(0.2, 0.42, 0.15)
 ## Tönung der Nadelbäume: dunkler und kühler.
 const NADEL_TON := Color(0.6, 0.72, 0.76)
@@ -112,16 +114,16 @@ const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
 const REIHEN := [
 	{"q": Vector2(7.0, 10.0), "abstand": Vector2(5.5, 7.5), "arten": ["dach", "dach", "hoch", "duenn"]},
 	{"q": Vector2(12.0, 16.0), "abstand": Vector2(6.0, 8.0),
-			"arten": ["duenn", "schlicht_a", "schlicht_b", "schlicht_a", "schlicht_c"]},
+			"arten": ["tief", "tief", "duenn", "schlicht_a", "schlicht_c"]},
 	{"q": Vector2(18.0, 24.0), "abstand": Vector2(6.5, 9.0),
-			"arten": ["schlicht_a", "schlicht_b", "schlicht_c"]},
+			"arten": ["tief", "schlicht_a", "schlicht_b", "schlicht_c"]},
 ]
 ## Anfang des Hallenwalds (hinter dem Start) und Ende links (Übergang in den
 ## Hangwald).
 const HALLE_VON := -16.0
 const HALLE_LINKS_BIS := 36.0
 ## Heldenstämme mit Brettwurzeln: (s, q).
-const HELDEN := [Vector2(10.6, -8.4), Vector2(19.2, 8.6), Vector2(30.6, -8.8)]
+const HELDEN := [Vector2(10.6, -8.4), Vector2(19.2, 8.6), Vector2(29.8, -8.8)]
 ## Stellen, an denen schon etwas steht (Wegbauten): (s, q, Radius).
 const BESETZT := [Vector3(3.4, -9.0, 3.0), Vector3(2.6, 9.0, 3.0), Vector3(28.0, 7.0, 3.5),
 		Vector3(31.0, 6.5, 2.5), Vector3(8.0, 0.0, 5.0)]
@@ -600,10 +602,10 @@ static func _hallenbaum(art: String) -> Dictionary:
 					"variante": 1, "krone_radius": 5.2, "krone_hoehe": 5.0, "rippen": 10,
 					"neigung": Vector2(2.4, 0.0), "pilze": 1, "saat": 1104}, true)
 		"ast":
-			return _baum("ast", {"hoehe": 12.0, "radius": 0.55, "radius_oben": 0.3,
-					"variante": 1, "krone_radius": 4.8, "ast_start": 0.45, "ast_steil": 0.4,
-					"aeste": 5, "karten": 40, "neigung": Vector2(3.4, 0.0), "krumm": 0.4,
-					"drehung": 0.9, "pilze": 1, "rippen": 10, "saat": 1107}, true)
+			return _baum("ast", {"krone_frei": true, "hoehe": 12.5, "radius": 0.55,
+					"radius_oben": 0.3, "variante": 1, "krone_radius": 5.2, "krone_hoehe": 4.6,
+					"neigung": Vector2(3.6, 0.0), "krumm": 0.4, "drehung": 0.9, "pilze": 1,
+					"rippen": 10, "saat": 1107}, true)
 		"hoch":
 			return _baum("hoch", {"krone_frei": true, "hoehe": 18.0, "radius": 0.45,
 					"variante": 0, "krone_radius": 4.4, "krone_hoehe": 6.5, "rippen": 10,
@@ -616,15 +618,24 @@ static func _hallenbaum(art: String) -> Dictionary:
 			return _baum("duenn", {"krone_frei": true, "hoehe": 16.5, "radius": 0.32,
 					"variante": 2, "krone_radius": 2.8, "krone_hoehe": 7.0, "rippen": 10,
 					"saat": 1103}, true)
+		"tief":
+			# Tief beastet: Die Krone beginnt gut fünf Meter über dem Boden. In
+			# der zweiten und dritten Reihe (nie über dem Weg) schließt sie die
+			# Seiten in Augenhöhe der Kamera – das dunkle Seitenlaub der Halle.
+			return _baum("tief", {"mittel": true, "hoehe": 14.0, "radius": 0.5,
+					"variante": 0, "krone_radius": 4.6, "krone_hoehe": 8.6, "ballen": 4,
+					"karten": 26, "saat": 1109}, true)
 		"schlicht_a":
-			return _baum("schlicht_a", {"mittel": true, "hoehe": 17.0, "radius": 0.45,
-					"variante": 0, "krone_radius": 4.6, "krone_hoehe": 7.5, "saat": 1105}, true)
+			return _baum("schlicht_a", {"mittel": true, "hoehe": 16.0, "radius": 0.45,
+					"variante": 0, "krone_radius": 4.8, "krone_hoehe": 8.6, "ballen": 4,
+					"saat": 1105}, true)
 		"schlicht_b":
-			return _baum("schlicht_b", {"mittel": true, "hoehe": 16.0, "radius": 0.4,
-					"variante": 1, "krone_radius": 5.0, "krone_hoehe": 5.2, "saat": 1106}, true)
+			return _baum("schlicht_b", {"mittel": true, "hoehe": 15.0, "radius": 0.42,
+					"variante": 1, "krone_radius": 5.4, "krone_hoehe": 6.6, "saat": 1106}, true)
 		_:
 			return _baum("schlicht_c", {"mittel": true, "hoehe": 17.0, "radius": 0.4,
-					"variante": 2, "krone_radius": 2.6, "krone_hoehe": 9.0, "saat": 1108}, true)
+					"variante": 2, "krone_radius": 3.0, "krone_hoehe": 12.0, "ballen": 4,
+					"saat": 1108}, true)
 
 
 ## Talbäume (M3, Rückfall), mittlere Fassung: 0 rund, 1 breit, 2 Nadelbaum,
@@ -633,16 +644,16 @@ static func _talbaum(k: int) -> Dictionary:
 	match k % 4:
 		0:
 			return _baum("tal0", {"mittel": true, "hoehe": 12.0, "radius": 0.34, "variante": 0,
-					"krone_radius": 4.2, "krone_hoehe": 5.6, "saat": 2101})
+					"krone_radius": 4.8, "krone_hoehe": 8.0, "saat": 2101})
 		1:
 			return _baum("tal1", {"mittel": true, "hoehe": 11.0, "radius": 0.36, "variante": 1,
-					"krone_radius": 4.8, "krone_hoehe": 4.2, "saat": 2102})
+					"krone_radius": 5.4, "krone_hoehe": 6.4, "saat": 2102})
 		2:
-			return _baum("tal2", {"mittel": true, "hoehe": 13.0, "radius": 0.3, "variante": 2,
-					"krone_radius": 2.4, "krone_hoehe": 8.0, "ballen": 4, "saat": 2103})
+			return _baum("tal2", {"mittel": true, "hoehe": 14.0, "radius": 0.3, "variante": 2,
+					"krone_radius": 2.8, "krone_hoehe": 10.5, "ballen": 4, "saat": 2103})
 		_:
-			return _baum("tal3", {"mittel": true, "hoehe": 14.0, "radius": 0.42, "variante": 0,
-					"krone_radius": 5.0, "krone_hoehe": 6.6, "saat": 2104})
+			return _baum("tal3", {"mittel": true, "hoehe": 15.0, "radius": 0.42, "variante": 0,
+					"krone_radius": 5.4, "krone_hoehe": 9.0, "ballen": 4, "saat": 2104})
 
 
 ## Ferne Bäume: flache Krone ohne Karten (vier grobe Ballen, gut 0,3k
@@ -655,18 +666,18 @@ static func _fernbaum(k: int) -> ArrayMesh:
 	if _netze.has(schluessel):
 		return _netze[schluessel]
 	var hoehe := 12.0
-	var o := {"radius": 5.0, "hoehe": 6.4, "saat": 3101 + k, "ballen": 3}
+	var o := {"radius": 5.0, "hoehe": 8.0, "saat": 3101 + k, "ballen": 3}
 	match k:
 		1:
 			o["variante"] = 1
 			o["radius"] = 5.6
-			o["hoehe"] = 4.8
+			o["hoehe"] = 6.5
 			hoehe = 11.0
 		2:
 			# Nadelbaum: schlank und hoch
 			o["variante"] = 2
-			o["radius"] = 2.5
-			o["hoehe"] = 9.0
+			o["radius"] = 2.8
+			o["hoehe"] = 10.5
 			o["ballen"] = 4
 			hoehe = 14.0
 	var kh: float = o["hoehe"]
@@ -791,12 +802,17 @@ static func _zaehle(was: String, n: int = 1) -> void:
 # ================================================================ Hallenwald
 
 static func _hallenwald(level: Level01) -> void:
+	# Stämme und Kronen in Streifen zu 22 m quer zum Weg (er läuft hier
+	# nach Norden): Was hinter der Kamera liegt, fällt als Ganzes aus dem
+	# Sichtkegel.
 	var ws := Waldsetzer.new(_wurzel, "Hallenwald", 0.0)
-	ws.art("stamm", {"stoff": _borke(), "sicht": SICHT_HALLE, "verschmelzen": true})
+	var streifen := Vector2(1000.0, 22.0)
+	ws.art("stamm", {"stoff": _borke(), "sicht": SICHT_HALLE, "verschmelzen": true,
+			"zelle": streifen})
 	ws.art("stamm_schatten", {"stoff": _borke(), "schatten": "nur", "sicht": SICHT_HALLE,
-			"verschmelzen": true})
+			"verschmelzen": true, "zelle": streifen})
 	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_HALLE), "sicht": SICHT_HALLE,
-			"verschmelzen": true, "karten": true})
+			"verschmelzen": true, "karten": true, "zelle": streifen})
 	ws.art("kranz", {"stoff": Findling.kranzstoff(), "sicht": SICHT_KRANZ,
 			"verschmelzen": true})
 	ws.art("farn", {"stoff": Farnwerk.stoff(FARN), "sicht": SICHT_FARN})
@@ -806,9 +822,9 @@ static func _hallenwald(level: Level01) -> void:
 	# Heldenstämme zuerst: Sie haben ihren Platz.
 	for k in HELDEN.size():
 		var stelle: Vector2 = HELDEN[k]
-		var b := _baum("held%d" % k, {"hoehe": 20.0 + float(k), "radius": 0.9 + 0.08 * float(k),
-				"variante": 1, "krone_radius": 5.0, "ast_start": 0.6, "aeste": 5, "karten": 60,
-				"rippen": 14,
+		var b := _baum("held%d" % k, {"krone_frei": true, "hoehe": 20.0 + float(k),
+				"radius": 0.9 + 0.08 * float(k), "variante": 1, "krone_radius": 5.6,
+				"krone_hoehe": 5.4, "ballen": 5, "karten": 36, "rippen": 12,
 				"brettwurzeln": 6, "wurzel_reichweite": 2.3, "wurzel_hoehe": 3.2,
 				"wurzel_dicke": 0.34, "pilze": 2, "efeu": 1 + k % 2, "saat": 1201 + k}, true)
 		var fuss := _boden(level, stelle.x, stelle.y)
@@ -900,6 +916,8 @@ static func _hallenwald(level: Level01) -> void:
 		ws.setze("krone", dach["krone"] as ArrayMesh, lage, _ton(rng, Vector2(0.72, 0.88)))
 		_zaehle("dachkronen")
 
+	_unterholz(level, ws, rng)
+
 	# Der gestürzte Stamm quer durch die Reihen links, Stümpfe und
 	# Moosstämme am Saum.
 	var liegend := Riesenstamm.liegend(0.55, 13.0, {"saat": 1401, "rippen": 11, "aeste": 2})
@@ -911,6 +929,43 @@ static func _hallenwald(level: Level01) -> void:
 	var z := ws.fertig()
 	_zaehle("halle_knoten", int(z["knoten"]))
 	_zaehle("halle_dreiecke", int(z["dreiecke"]))
+
+
+## Unterholz zwischen den Reihen: Sträucher und junge Bäume, im Stoff der
+## Kronen (kein eigener Zeichenaufruf). Sie schließen die Lücken zwischen
+## den Stämmen in Augenhöhe – der Hallenwald bekommt eine Tiefe, statt als
+## Säulenreihe auf Rasen zu stehen.
+static func _unterholz(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator) -> void:
+	var busch := _indiziert(Kronenwolke.netz({"radius": 1.5, "variante": 1, "karten": 18,
+			"ballen": 3, "saat": 4301}))
+	var jung := _baum("jungbaum", {"mittel": true, "hoehe": 6.5, "radius": 0.14, "variante": 0,
+			"krone_radius": 2.2, "krone_hoehe": 3.6, "ballen": 3, "karten": 16, "saat": 4302})
+	for seite: float in [-1.0, 1.0]:
+		var s := HALLE_VON + rng.randf_range(0.0, 3.0)
+		var bis := HALLE_LINKS_BIS - 4.0 if seite < 0.0 else 24.0
+		while s < bis:
+			var ss := s
+			s += rng.randf_range(3.6, 5.8)
+			var q := seite * rng.randf_range(8.8, 19.0)
+			if not _halle_platz(level, ss, q):
+				continue
+			var fuss := _boden(level, ss, q)
+			if not _staemme.frei(Vector2(fuss.x, fuss.z), 1.4):
+				continue
+			if rng.randf() < 0.3:
+				var lage := _lage(fuss, rng.randf() * TAU, rng.randf_range(0.8, 1.2),
+						rng.randf_range(0.8, 1.25))
+				if _pflanze(ws, jung, lage, "stamm", "krone", Color(0.9, 0.9, 0.88),
+						_ton(rng, Vector2(0.8, 1.0))):
+					_staemme.dazu(Vector2(fuss.x, fuss.z), 1.2)
+					_zaehle("jungbaeume")
+			else:
+				var gross := rng.randf_range(0.7, 1.4)
+				var lage := _lage(fuss + Vector3.UP * 0.35 * gross, rng.randf() * TAU,
+						gross * rng.randf_range(0.9, 1.2), gross)
+				ws.setze("krone", busch, lage, _ton(rng, Vector2(0.72, 0.95)))
+				_staemme.dazu(Vector2(fuss.x, fuss.z), 1.0)
+				_zaehle("unterholz")
 
 
 ## Darf im Hallenwald bei (s, q) ein Stamm stehen?
@@ -1070,9 +1125,14 @@ static func _hangwald(level: Level01) -> void:
 			u += rng.randf_range(5.0, 7.5)
 			var fuss := _boden(level, ss, q)
 			var w := L01Gelaende.wald(fuss.x, fuss.z)
-			# Vorn dichter: Die erste Reihe rahmt das Bild, egal was der
-			# Boden sagt; weiter hinten entscheidet die Walddichte.
-			var schwelle := rng.randf_range(0.18, 0.55) if tiefe < 7.0 else rng.randf_range(0.35, 0.8)
+			# Die erste Reihe an der Kante rahmt das Bild, egal was der Boden
+			# sagt (der Rasen der Krone läuft dort erst in Waldboden über);
+			# ab und zu eine Lücke. Weiter hinten entscheidet die Walddichte.
+			var schwelle := rng.randf_range(0.35, 0.75)
+			if tiefe < 4.0:
+				schwelle = -1.0 if rng.randf() < 0.8 else 2.0
+			elif tiefe < 9.0:
+				schwelle = rng.randf_range(0.1, 0.45)
 			if w < schwelle:
 				continue
 			# Nur oben auf der Krone, nicht in der Wand
@@ -1183,14 +1243,21 @@ static func _rahmenbaeume(level: Level01) -> void:
 static func _riesen(level: Level01) -> void:
 	# Zellen zu 70 m: Die Riesen am Weg und die Überständer im Tal sind
 	# getrennte Knoten mit eigener Sichtweite.
+	# Nah (bis `RIESE_NAH`) die volle Fassung, dahinter eine schlichte mit
+	# gleichem Umriss: Vom Grat aus stehen die Riesen 100–160 m weit im
+	# Dunst, dort zählten sonst 5k Dreiecke je Baum.
 	var ws := Waldsetzer.new(_wurzel, "Riesen", 70.0)
-	ws.art("stamm", {"stoff": _borke(), "sicht": SICHT_RIESEN, "verschmelzen": true})
+	var laub := Kronenwolke.stoff(Color(0.2, 0.42, 0.15))
+	ws.art("stamm", {"stoff": _borke(), "sicht": RIESE_NAH, "verschmelzen": true})
 	ws.art("stamm_schatten", {"stoff": _borke(), "schatten": "nur", "sicht": SICHT_RIESEN,
 			"verschmelzen": true})
-	ws.art("krone", {"stoff": Kronenwolke.stoff(Color(0.2, 0.42, 0.15)), "sicht": SICHT_RIESEN,
-			"verschmelzen": true, "karten": true})
+	ws.art("krone", {"stoff": laub, "sicht": RIESE_NAH, "verschmelzen": true, "karten": true})
 	ws.art("kranz", {"stoff": Findling.kranzstoff(), "sicht": SICHT_KRANZ + 20.0,
 			"verschmelzen": true})
+	ws.art("stamm_fern", {"stoff": _borke(), "sicht_von": RIESE_NAH, "sicht": SICHT_RIESEN,
+			"verschmelzen": true})
+	ws.art("krone_fern", {"stoff": laub, "sicht_von": RIESE_NAH, "sicht": SICHT_RIESEN,
+			"verschmelzen": true, "karten": true})
 	var rng := PropWerkzeug.zufall(7101)
 	var liste: Array[Dictionary] = []
 	# Die Torriesen stehen am Riesentor dicht an der Wiese (q ±9): kurze
@@ -1232,10 +1299,14 @@ static func _riesen(level: Level01) -> void:
 		for stufe in 7:
 			var f := 1.0 - 0.06 * float(stufe)
 			var lage := _lage(fuss, w, lerpf(1.0, f, 0.5), f)
-			if _pflanze(ws, b, lage, "stamm", "krone", Color(0.94, 0.93, 0.92),
-					_ton(rng, Vector2(0.84, 0.96)), {"kranz": "kranz", "drehung": w,
+			var ton := _ton(rng, Vector2(0.84, 0.96))
+			if _pflanze(ws, b, lage, "stamm", "krone", Color(0.94, 0.93, 0.92), ton,
+					{"kranz": "kranz", "drehung": w,
 					"fussweite": float(dreh["weite"]) * f, "zugabe": float(e["zugabe"]),
 					"ohne_stammtest": geneigt > 0.0}):
+				var fern := _riese_fern("riese%d" % i, b)
+				ws.setze("stamm_fern", fern["stamm"] as ArrayMesh, lage, Color(0.94, 0.93, 0.92))
+				ws.setze("krone_fern", fern["krone"] as ArrayMesh, lage, ton)
 				_staemme.dazu(Vector2(fuss.x, fuss.z), r + 2.5)
 				_zaehle("riesen")
 				_zaehle("riesen_stufe", stufe)
@@ -1260,6 +1331,23 @@ static func _riesen(level: Level01) -> void:
 			_staemme.dazu(Vector2(ort.x, ort.z), 4.0)
 			_zaehle("ueberstaender")
 	ws.fertig()
+
+
+## Schlichte Fassung eines Riesen: der Schattenstamm (acht Seiten, gleiche
+## Achse) und eine Krone aus fünf groben Ballen über derselben Hülle wie
+## die volle – der Umriss springt beim Wechsel nicht.
+static func _riese_fern(schluessel: String, b: Dictionary) -> Dictionary:
+	var name := schluessel + "_fern"
+	if _netze.has(name):
+		return _netze[name]
+	var huelle: AABB = b["huelle"]
+	var kr := maxf(huelle.size.x, huelle.size.z) * 0.36
+	var krone := _indiziert(Kronenwolke.netz({"radius": kr, "hoehe": huelle.size.y * 0.72,
+			"variante": 1, "ballen": 5, "karten": 24, "mitte": huelle.get_center(),
+			"saat": huelle.size.x as int + 17}))
+	var f := {"stamm": b["schatten"], "krone": krone}
+	_netze[name] = f
+	return f
 
 
 ## Eine Stelle für einen Überständer nahe `ziel`: Wald, tiefer Grund, weit
@@ -1297,7 +1385,7 @@ static func _talwald_nah(level: Level01) -> void:
 		Riesenstamm.netz({"hoehe": 8.0, "radius": 0.5, "oben": "bruch", "aeste": 2,
 				"ast_start": 0.5, "ast_laenge": 2.4, "moos": 0.4, "brettwurzeln": 4,
 				"saat": 8202})]
-	var raster := 6.4
+	var raster := 5.8
 	var x := FELD.position.x
 	while x < FELD.end.x:
 		var z := FELD.position.y
@@ -1320,7 +1408,7 @@ static func _talwald_nah(level: Level01) -> void:
 				continue
 			var y := L01Gelaende.hoehe(px, pz)
 			var w := L01Gelaende.wald(px, pz)
-			if w < rng.randf_range(0.3, 0.72):
+			if w < rng.randf_range(0.25, 0.6):
 				# Lichtung: ab und zu ein toter Baum am Rand
 				if w > 0.12 and rng.randf() < 0.035 and d > 16.0:
 					_totholz(ws, tot, Vector3(px, y, pz), rng)
@@ -1435,7 +1523,7 @@ static func _talwald_fern(_level: Level01) -> void:
 			if d < FERN_AB:
 				continue
 			var w := L01Gelaende.wald(px, pz)
-			if w < rng.randf_range(0.28, 0.7):
+			if w < rng.randf_range(0.22, 0.58):
 				continue
 			if not _kronen.frei(Vector2(px, pz), 3.6):
 				continue
@@ -1499,8 +1587,9 @@ static func _hecken(level: Level01) -> void:
 			"verschmelzen": true, "karten": true})
 	var busch: Array[ArrayMesh] = []
 	for k in 3:
-		busch.append(Kronenwolke.netz({"radius": 1.15 + 0.15 * float(k), "variante": 1 if k != 1 else 0,
-				"karten": 26, "ballen": 5, "saat": 9601 + k}))
+		busch.append(_indiziert(Kronenwolke.netz({"radius": 1.35 + 0.15 * float(k),
+				"hoehe": 2.3 + 0.25 * float(k), "variante": 0, "karten": 26, "ballen": 3,
+				"saat": 9601 + k})))
 	var rng := PropWerkzeug.zufall(9501)
 	# Stücke der Hecke: [von, bis, q von Leitlinie (innen), Breite]
 	var stuecke := [Vector4(159.8, 172.3, 7.4, 1.9), Vector4(183.8, 194.4, 7.4, 1.9)]
@@ -1537,11 +1626,11 @@ static func _busch(level: Level01, ws: Waldsetzer, busch: Array[ArrayMesh], s: f
 		return
 	var netz := busch[rng.randi_range(0, busch.size() - 1)]
 	var hoch := rng.randf_range(0.8, 1.3)
-	var lage := _lage(fuss + Vector3.UP * (netz.get_aabb().size.y * 0.3 * hoch), rng.randf() * TAU,
-			rng.randf_range(0.85, 1.2), hoch)
-	var bluehend := rng.randf() < 0.28
+	var lage := _lage(fuss + Vector3.UP * (netz.get_aabb().size.y * 0.36 * hoch), rng.randf() * TAU,
+			rng.randf_range(0.9, 1.25), hoch)
+	var bluehend := rng.randf() < 0.2
 	ws.setze("bluete" if bluehend else "gruen", netz, lage,
-			_ton(rng, Vector2(0.85, 1.0) if bluehend else Vector2(0.78, 1.0)))
+			_ton(rng, Vector2(0.9, 1.0) if bluehend else Vector2(0.85, 1.0)))
 	_zaehle("buesche")
 
 

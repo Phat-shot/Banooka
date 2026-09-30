@@ -77,7 +77,9 @@ func _init(eltern: Node3D, name: String, zellmass: float = 40.0) -> void:
 ##   sicht         harte Sichtweite bis zur Zellmitte in m (0 = unbegrenzt)
 ##   sicht_von     erst ab dieser Entfernung sichtbar (0)
 ##   rand          Übergangszone der Sichtweiten (`RAND`)
-##   zelle         eigene Zellgröße (sonst die des Setzers; 0 = eine Zelle)
+##   zelle         eigene Zellgröße (sonst die des Setzers; 0 = eine Zelle);
+##                 als Vector2(x, z) auch länglich – etwa Streifen quer zu
+##                 einem Weg, der nach Norden läuft
 ##   verschmelzen  je Zelle ein Netz (false = MultiMesh je Netz)
 ##   karten        beim Verschmelzen die Blattkarten mitskalieren (false)
 func art(name: String, optionen: Dictionary = {}) -> void:
@@ -89,7 +91,7 @@ func art(name: String, optionen: Dictionary = {}) -> void:
 		"sicht": float(optionen.get("sicht", 0.0)),
 		"sicht_von": float(optionen.get("sicht_von", 0.0)),
 		"rand": float(optionen.get("rand", RAND)),
-		"zelle": float(optionen.get("zelle", zelle)),
+		"zelle": _zellmass(optionen.get("zelle", zelle)),
 		"verschmelzen": bool(optionen.get("verschmelzen", false)),
 		"karten": bool(optionen.get("karten", false)),
 		# Zellschlüssel -> Array von [netz, lage, farbe]
@@ -111,10 +113,10 @@ func setze(name: String, netz: Mesh, lage: Transform3D, farbe: Color = Color(1, 
 	if netz == null or not _arten.has(name):
 		return
 	var a: Dictionary = _arten[name]
-	var z: float = a["zelle"]
+	var z: Vector2 = a["zelle"]
 	var schluessel := Vector2i.ZERO
-	if z > 0.0:
-		schluessel = Vector2i(floori(lage.origin.x / z), floori(lage.origin.z / z))
+	if z.x > 0.0 and z.y > 0.0:
+		schluessel = Vector2i(floori(lage.origin.x / z.x), floori(lage.origin.z / z.y))
 	var zellen: Dictionary = a["zellen"]
 	if not zellen.has(schluessel):
 		zellen[schluessel] = []
@@ -190,6 +192,15 @@ func fertig() -> Dictionary:
 					knoten += 1
 					dreiecke += _dreiecke(n) * liste.size()
 	return {"knoten": knoten, "dreiecke": dreiecke}
+
+
+## Zellmaß als Vector2 (x, z): eine Zahl gilt für beide Richtungen, 0 heißt
+## eine Zelle für alles.
+static func _zellmass(wert: Variant) -> Vector2:
+	if wert is Vector2:
+		return wert
+	var z := float(wert)
+	return Vector2(z, z)
 
 
 ## true/false oder "nur" (zeichnet nur in die Schattenkarte: ein schlichter
