@@ -21,10 +21,12 @@ class_name L01Gelaende
 ##   **Wurzelwiese** genau auf 7,0.
 ## * Der **Bach** als gegrabenes Bett (`bachlauf()`): Tümpel unter dem
 ##   unteren Fall, Kanal am Fuß von C4 (`KANAL` – er ersetzt die Punkte 1–2
-##   von `Level01.BACH`, die 20 m weiter im Tal lagen), Furt, am Knoll
-##   vorbei nach Norden durch eine Schlucht aus dem Tal. Die Ufer liegen
-##   über dem Wasserspiegel, damit die Wasserflächen im Ufer enden – nur
-##   im Kanal steht das Wasser an der Wand von C4.
+##   von `Level01.BACH`, die 20 m weiter im Tal lagen), ein Bogen um die
+##   Riesen (`BOGEN`, statt Punkt 3), Furt, am Knoll vorbei nach Norden
+##   durch eine Schlucht aus dem Tal. Die Ufer liegen über dem Wasser-
+##   spiegel, damit die Wasserflächen im Ufer enden – nur im Kanal steht das
+##   Wasser an der Wand von C4. WASSER BAUT NACH `bachlauf()`, NICHT NACH
+##   `Level01.BACH` (die Punkte 1–3 dort liegen nicht im Bett).
 ## * **Randhügel** im Osten, Norden und Süden (y 30–45) mit Felsen auf dem
 ##   Kamm (`GelaendeFeld.felsbrocken`, in die Stücke gemischt).
 ##
@@ -68,6 +70,11 @@ class_name L01Gelaende
 ##
 ## FÜR ANDERE MODULE:
 ##   `hoehe(x, z)`   gezeichnete Höhe (nach dem Bau, sonst die Funktion)
+##   `nebel_stoff()` der Stoff des Bachnebels: `stimmung` setzt "farbe" je
+##                   Zone (beim Bau gilt das Nebellicht der Grundstimmung);
+##                   am Tümpel bleibt Platz für die Gischt von `wasser`
+##   `vergessen()`   beim Verlassen des Levels (verbunden in `bauschritte`)
+##   `nahtprobe()`   für `level_check` ("naht")
 ##   `wald(x, z)`    Walddichte 0..1 – danach ist der Boden abgedunkelt;
 ##                   der Waldsetzer pflanzt am besten genau dort
 ##   `bachlauf()`    die Bachlinien, wie das Bett gegraben ist
@@ -118,6 +125,12 @@ const RINNE_KERBE := [Vector3(58.5, -30.0, 30.4), Vector3(57.8, -20.0, 29.4),
 ## draußen im Tal; das Bett folgt hier dem Fuß, siehe `bachlauf()`.
 const KANAL := [Vector2(126.0, 12.0), Vector2(133.0, 10.2), Vector2(140.0, 9.4),
 		Vector2(147.0, 9.2), Vector2(153.0, 9.8), Vector2(158.0, 12.0), Vector2(163.0, 16.2)]
+## Vom Ende des Kanals in weitem Bogen um den rechten Torriesen und den
+## ersten Talriesen (s 166, q 12,5) zur Furt, die er fast rechtwinklig
+## quert: Stellen (s, q). Ersetzt `Level01.BACH[3]` (86 | −134), über den
+## der Bach vom Kanal 20 m nach Osten und in einer Haarnadel zurück zur
+## Furt lief.
+const BOGEN := [Vector2(168.0, 19.0), Vector2(173.0, 16.2), Vector2(176.4, 9.5)]
 
 ## Kuppen im Tal: (x, z, Radius, Höhe).
 const KUPPEN := [
@@ -151,8 +164,11 @@ const TAL_RADIEN := Vector2(108.0, 152.0)
 
 ## Querriegel im Tal (x0, z0, x1, z1) mit (Breite, Höhe): Sie teilen den
 ## Blick vom Grat in Bänder – naher Talboden, Riegel, ferner Boden, Hügel.
-const RIEGEL := [Vector4(58.0, -72.0, 112.0, -84.0), Vector4(98.0, -130.0, 142.0, -114.0)]
-const RIEGEL_MASS := [Vector2(16.0, 5.5), Vector2(18.0, 7.0)]
+## Bewaldet und 10–12 m hoch: vom Grat aus ein dunkles Band im Mittelgrund.
+## Der zweite beginnt erst bei x 112 – näher an der Bachwiese stand er als
+## grüner Buckel vor dem Stammfuß.
+const RIEGEL := [Vector4(58.0, -72.0, 112.0, -84.0), Vector4(112.0, -124.9, 142.0, -114.0)]
+const RIEGEL_MASS := [Vector2(17.0, 11.0), Vector2(18.0, 10.0)]
 
 ## Die Ostkante des Hallenwaldbodens (s, q) bis zur Lippe von B.
 const HALLENKANTE := [Vector2(-60.0, 27.0), Vector2(0.0, 27.0), Vector2(18.0, 26.0),
@@ -172,6 +188,8 @@ const NEBEL_UNTER_DECKE := 5.0
 ## ausgeblendet ist (von, bis in Metern).
 const NEBEL_STAERKE := 0.26
 const NEBEL_NAH := Vector2(7.0, 20.0)
+## So weit um den Tümpel bleibt es frei (dort die Gischt von `wasser`).
+const NEBEL_TUEMPEL := 14.0
 
 ## Tafeln, die sich um die Hochachse zur Kamera drehen; die vier Ecken
 ## einer Tafel liegen alle in ihrer Mitte, UV sagt, welche Ecke, UV2 die
@@ -218,6 +236,7 @@ static var _modell: Modell = null
 static var _feld: GelaendeFeld = null
 static var _stoff_cache: ShaderMaterial = null
 static var _nebel_shader: Shader = null
+static var _nebel_stoff: ShaderMaterial = null
 
 
 # ================================================================ Haken
@@ -296,6 +315,7 @@ static func vergessen(level_id: int = 0) -> void:
 		return
 	_modell = null
 	_feld = null
+	_nebel_stoff = null
 
 
 ## Probe der Nähte für `level_check` (Plan 8.4 „An FLACH-Rändern rasten die
@@ -324,6 +344,13 @@ static func nahtprobe() -> PackedStringArray:
 					% [sq.x, sq.y, p.y, soll])
 	aus.append("GEPRUEFT %d" % geprueft)
 	return aus
+
+
+## Der Stoff des Bachnebels (eigener je Bau, nicht geteilt): `stimmung`
+## setzt darin "farbe" je Zone (anfangs das Nebellicht der Umgebung beim
+## Bau, etwas heller) oder "staerke" (0 schaltet ihn ab). Ohne Nebel: null.
+static func nebel_stoff() -> ShaderMaterial:
+	return _nebel_stoff
 
 
 ## Optik für Wurzelwiese und Wiesenboden G1: Das Höhenfeld zeichnet beide
@@ -410,6 +437,7 @@ static func _nebel_bauen(level: Level01) -> void:
 	var stoff := ShaderMaterial.new()
 	stoff.shader = _nebel_shader
 	stoff.render_priority = 1
+	_nebel_stoff = stoff
 	var licht := Color(0.42, 0.52, 0.46)
 	var umgebung := level.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if umgebung != null and umgebung.environment != null:
@@ -458,7 +486,14 @@ class Modell:
 	const SAUM_KRONE := 20
 	const SAUM_LINKS_BIS := 158.0
 	const SAUM_UNTER := 0.35
-	const SAUM_DECKT := 0.35
+	const SAUM_DECKT := 0.1
+	# Hinter der Wand der Fallklamm (s 118–158) liegt das Land höchstens
+	# so hoch über der Decke; der Rücken fällt dorthin so weit (m) hinter
+	# dem Ende der Krone ab (höchstens 45°).
+	const C_HINTER := 3.0
+	const C_RUECKEN := 12.0
+	# Fuß des Ufers über dem Kanal (RAENDER C4 rechts, "fuss_y")
+	const C4_FUSS := 5.4
 	# Die Ecke der Hochfläche (s von, bis), wie weit die Oberkante des
 	# Geländes hinter der Lippe liegt und wie steil sie abbricht
 	const ECKE := Vector2(21.0, 33.2)
@@ -826,8 +861,13 @@ class Modell:
 			var t := float(k) / float(KANAL.size() - 1)
 			_lauf_punkt(lauf, _weg_welt(sq.x, sq.y), lerpf(4.6, 4.8, t), lerpf(6.3, 6.2, t),
 					7.0, true)
-		# BACH[1] und BACH[2] ersetzt der Kanal; (76, −124) ist dessen Ende.
-		for k in range(3, bach.size()):
+		# BACH[1] und BACH[2] ersetzt der Kanal, BACH[3] der Bogen zur Furt
+		for k in BOGEN.size():
+			var sq: Vector2 = BOGEN[k]
+			var t := float(k + 1) / float(BOGEN.size() + 1)
+			_lauf_punkt(lauf, _weg_welt(sq.x, sq.y), lerpf(4.8, 5.3, t), lerpf(6.2, 6.0, t),
+					lerpf(7.0, 10.0, t), false)
+		for k in range(4, bach.size()):
 			var e: Dictionary = bach[k]
 			var w: Vector3 = e["punkt"]
 			_lauf_punkt(lauf, Vector2(w.x, w.z), float(e["bett_y"]), float(e["wasser_y"]),
@@ -939,6 +979,10 @@ class Modell:
 					continue
 				if _nah_am_weg(ort, w, breit * 0.5):
 					continue
+				# Am Tümpel unter dem unteren Fall steht die Gischt des Wassers
+				# (Modul `wasser`), kein zweiter Nebel
+				if ort.distance_to(p[0]) < NEBEL_TUEMPEL:
+					continue
 				var mitte := ort + quer * zufall.randf_range(-0.25, 0.25) * breit
 				var hoch := zufall.randf_range(2.2, 3.0)
 				aus.append({"mitte": Vector3(mitte.x, w - 0.25 + hoch * 0.5, mitte.y),
@@ -995,6 +1039,11 @@ class Modell:
 			_ober_punkt(_weg_welt(sq.x, sq.y), 26.0, HALLE_EBEN, hallenkante_weich[k])
 		# Lippe von B und C: dahinter liegt die Krone der Böschung bzw. Wand –
 		# das Land beginnt auf der Höhe, auf der der Saum sie enden lässt.
+		# Hinter der Wand der Fallklamm (C, wie am Felsturm des Pfeilers)
+		# fällt es dagegen hinter dem Ende der Krone ab (`_profil_saum_links`
+		# deckt das Ende noch zu): Vom Kronentor aus läuft die Sichtlinie zum
+		# Grat gut 10 m hinter der Krone auf y ≈ 26,5 – Land auf Kronenhöhe
+		# verstellte dort Grat, Kanzel und Wasserfall.
 		var s := 34.0
 		while s <= 143.0:
 			var i := _index(s)
@@ -1006,6 +1055,7 @@ class Modell:
 			if saum_da[i] == 1:
 				anfang = a_r + saum_ende_q[i] + 1.0
 				oben = saum_ende_y[i] + SAUM_DECKT
+			oben = lerpf(oben, minf(oben, deck[i] + C_HINTER), _c_rippe(s))
 			_ober_punkt(_weg_welt(s, a_r), oben, anfang)
 			s += 2.0
 		# C4: über den Weg auf die linke Wand, dann der Nordfuß
@@ -1019,10 +1069,10 @@ class Modell:
 			var t4 := smoothstep(146.0, 160.0, s4)
 			var q4 := abstand[0][i] + 3.0
 			var oben4 := krone[0][i]
-			# Mit Saum: hinter dem Ende seiner Krone, auf deren Höhe
+			# Mit Saum: hinter dem Ende seiner Krone, darunter (siehe oben)
 			if saum_da[i] == 1:
 				q4 = saum_ende_q[i] + 0.5
-				oben4 = saum_ende_y[i] + SAUM_DECKT
+				oben4 = minf(saum_ende_y[i] + SAUM_DECKT, deck[i] + C_HINTER)
 			_ober_punkt(_weg_welt(s4, -q4), lerpf(oben4, 12.0, t4),
 					1.5, lerpf(KANTE_STEIL, FUSS_WEICH, t4))
 		for f: Vector3 in NORDFUSS:
@@ -1035,6 +1085,11 @@ class Modell:
 		ober_vieleck.append(Vector2(-1000.0, -1000.0))
 		ober_vieleck.append(Vector2(-1000.0, 1000.0))
 		ober_vieleck.append(Vector2(erster.x, 1000.0))
+
+	## Anteil der Fallklamm hinter dem Pfeiler (0..1), deren Wand als Rippe
+	## steht: Das Land dahinter liegt tief (`C_HINTER`).
+	static func _c_rippe(s: float) -> float:
+		return smoothstep(113.0, 119.0, s)
 
 	func _ober_punkt(p: Vector2, oben: float, anfang: float,
 			weich: float = KANTE_STEIL) -> void:
@@ -1204,18 +1259,37 @@ class Modell:
 		# wieder (der Feldrand liegt so immer hinter dem Kamm).
 		var t := smoothstep(0.66, 1.03, rund)
 		t -= 0.35 * smoothstep(1.08, 1.4, rund)
+		# Die Kerbe des Bachs im Norden: nur so breit, wie der Bach sie braucht
+		# (von der Wendel aus stand sonst der gemalte Himmel neben dem Hang)
+		var kerbe := 1.0
 		if z < -200.0:
-			t *= smoothstep(24.0, 52.0, x + 0.25 * (z + 260.0))
+			kerbe = smoothstep(30.0, 46.0, x + 0.25 * (z + 260.0))
+		t *= kerbe
 		# Im Nordosten (nah an Bachwiese und Wendel) etwas niedriger
 		var kamm := 37.0 + 8.0 * rausch_kamm.get_noise_2d(x, z) \
 				+ 3.0 * rausch_grob.get_noise_2d(z * 1.5, x * 1.5) \
 				- 6.0 * smoothstep(-150.0, -220.0, z) * smoothstep(90.0, 150.0, x)
-		return lerpf(h, maxf(h, kamm), t)
+		var y := lerpf(h, maxf(h, kamm), t)
+		# Erosionsrinnen die Hänge hinab (quer zum Ring gerippt, um 23 m):
+		# Die Hänge lesen sich nicht als ein glatter Golfplatzrand.
+		var winkel := atan2(ez, ex)
+		var rille := 1.0 - absf(rausch_fein.get_noise_2d(winkel * 90.0, rund * 25.0))
+		y -= 3.2 * rille * rille * rille * 4.0 * t * maxf(1.0 - t, 0.0)
+		# Ein zweiter, höherer Kamm dahinter (160–190 m von den Stationen):
+		# Die Silhouetten stehen gestaffelt.
+		var t2 := smoothstep(1.12, 1.22, rund) * kerbe
+		var kamm2 := kamm + 10.0 + 5.0 * rausch_grob.get_noise_2d(x * 0.7 + 90.0, z * 0.7)
+		return maxf(y, lerpf(y, kamm2, t2))
 
 	func _oberland_hoehe(x: float, z: float, o: Vector4) -> float:
 		var anfang := o.z
 		var anstieg := smoothstep(anfang + 4.0, anfang + 75.0, o.x)
-		var h := o.y + (HANG_Y - o.y) * pow(anstieg, 0.85)
+		# Nördlich der Fallklamm steigt der Westhang nur bis 28: Vom
+		# Kronentor aus (Blick nach Südsüdwest) bleibt er unter Augenhöhe,
+		# und Grat, Kanzel und Wasserfall stehen frei.
+		var hang_y := lerpf(HANG_Y, 28.0, smoothstep(-100.0, -140.0, z)
+				* (1.0 - smoothstep(-200.0, -250.0, z)))
+		var h := o.y + (hang_y - o.y) * pow(anstieg, 0.85)
 		# Rauschen erst hinter dem Anfang (die Krone bleibt bündig)
 		var rausch := smoothstep(anfang + 1.0, anfang + 10.0, o.x)
 		h += rausch * (1.6 * rausch_grob.get_noise_2d(x + 300.0, z)
@@ -1227,7 +1301,8 @@ class Modell:
 		# Feldrand ab – von Osten ist er die Kimm, nicht die Schnittkante.
 		var kamm_x := WESTKAMM_X + 9.0 * rausch_kamm.get_noise_2d(z * 0.8, 51.0)
 		var dk := (x - kamm_x) / 11.0
-		h += (4.0 + 4.0 * rausch_kamm.get_noise_2d(z * 1.7, 7.0)) * exp(-dk * dk)
+		h += (4.0 + 4.0 * rausch_kamm.get_noise_2d(z * 1.7, 7.0)) * exp(-dk * dk) \
+				* lerpf(1.0, 0.4, smoothstep(-100.0, -140.0, z) * (1.0 - smoothstep(-200.0, -250.0, z)))
 		h -= 0.4 * maxf(kamm_x - x, 0.0)
 		return h
 
@@ -1324,6 +1399,9 @@ class Modell:
 			var o := _ober(x, z)
 			if o.x < o.w + 0.1:
 				return NAN
+		# Hinter C4 hebt sich das Ufer über dem Kanal erst zur Wiese
+		if seite == 1 and s < 163.0 and u > rand - 0.1:
+			return NAN
 		return lerpf(deck[i], deck[i + 1], t) - UNTER_DECKE
 
 	## Profil an der Stelle i: Vector2(Zielhöhe, Gewicht).
@@ -1336,9 +1414,25 @@ class Modell:
 			return Vector2(h, 0.0)
 		if seite == 0 and saum_da[i] == 1:
 			return _profil_saum_links(i, ty, u, s, h, kante, rand, auf_decke)
+		# Rechts hinter C4 (159,5–162,5) hebt sich das Ufer über dem Kanal zur
+		# Bachwiese: kein Sprung von 2 m bei 160 (der als Wand quer zum Weg
+		# stand); das Ufer des Saums taucht darunter.
+		if seite == 1 and s > 159.0 and s < 163.0 and auf_decke:
+			var b := smoothstep(159.5, 162.5, s)
+			var fl := Vector2(kante - UNTER_DECKE, (1.0 - smoothstep(rand + 1.5, rand + 7.0, u))
+					* (1.0 - bach * smoothstep(rand - 0.05, rand + 0.4, u)))
+			var uf := Vector2(kante - UNTER_DECKE, 1.0)
+			if u >= rand - 0.05:
+				uf = Vector2(lerpf(kante - 2.0, C4_FUSS - 0.8, smoothstep(rand, rand + 2.5, u)),
+						1.0 - smoothstep(rand + 2.5, rand + 6.0, u))
+			return uf.lerp(fl, b)
 		# Unter der Decke. UFER dort nur auf der Grenzstelle einer Furt-Decke
 		# (183,0 gehört zu beidem): Sie endet sichtbar, also bündig wie FLACH.
 		if auf_decke and u < rand - 0.05:
+			# Über dem Kanal (C4) steht der Saum bis 146,5 als Felswand: Das
+			# Feld bleibt dort tief unter der Decke, wie an FELS_AB.
+			if ty == UFER and s < 165.0:
+				return Vector2(kante - lerpf(UNTER_DECKE, UNTER_WEG, _c4_wand(s)), 1.0)
 			if ty == FLACH or ty == UFER:
 				return Vector2(kante - UNTER_DECKE, 1.0)
 			return Vector2(kante - UNTER_WEG, 1.0)
@@ -1346,15 +1440,21 @@ class Modell:
 			# In einer Lücke: Erdspalt (FLACH) und Furt (UFER) regeln Riss und
 			# Bach, sonst tief und dunkel unter der Todeszone.
 			if ty == UFER:
-				# Die Ufer der Furt zeichnet der Saum (|q| ≤ 8, unter der
-				# Wasserlinie taucht er unter das Bett): Bis dorthin bleibt
-				# das Feld unter seiner Böschung.
-				if s > furt.x and s < furt.y and u < 9.2:
-					var d := minf(s - furt.x, furt.y - s)
-					var k_ufer := deck[_index(furt.x - 0.25)] if s - furt.x < furt.y - s \
+				# Die Ufer der Furt zeichnet der Saum (bis |q| 10,6 entlang
+				# `L01Saum.furt_linie`, unter der Wasserlinie taucht er unter
+				# das Bett): Bis dorthin bleibt das Feld 0,25 m unter ihm.
+				if s > furt.x and s < furt.y and u < L01Saum.FURT_ENDE_Q + 0.6:
+					var q := u if seite == 1 else -u
+					var d0 := s - L01Saum.furt_linie(q, 0)
+					var d1 := L01Saum.furt_linie(q, 1) - s
+					var d := minf(d0, d1)
+					var k_ufer := deck[_index(furt.x - 0.25)] if d0 < d1 \
 							else deck[_index(furt.y + 0.25)]
-					var ufer := _furt_ufer(d, k_ufer)
-					var w := (1.0 - smoothstep(8.0, 9.2, u)) * (1.0 - smoothstep(1.3, 1.8, d))
+					k_ufer = L01Saum.furt_kante(q, k_ufer)
+					var ufer := L01Saum.furt_hoehe(d, k_ufer) - 0.25
+					var bis := L01Saum.furt_hoehe_bis(k_ufer)
+					var w := (1.0 - smoothstep(L01Saum.FURT_ENDE_Q - 0.4, L01Saum.FURT_ENDE_Q + 0.6, u)) \
+							* (1.0 - smoothstep(bis - 0.5, bis, d))
 					return Vector2(minf(h, ufer), w)
 				return Vector2(h, 0.0)
 			if u < rand + 0.5 and ty != FLACH:
@@ -1411,6 +1511,13 @@ class Modell:
 				var a := abstand[seite][i]
 				var fu := fuss[seite][i]
 				var y := lerpf(kante - 2.0, fu - 0.8, smoothstep(a, a + 2.5, u))
+				# Über dem Kanal bis 146,5 noch die Felswand des Saums (siehe
+				# `L01Saum._ufer_anteil`): das Feld hinter ihr, steil wie an
+				# FELS_AB, bis auf das Bett des Kanals
+				var wand_c4 := _c4_wand(s) if seite == 1 else 0.0
+				if wand_c4 > 0.0:
+					var steil := maxf(kante - 3.0 - 4.7 * maxf(u - a + 1.5, 0.0), fu - 0.8)
+					y = lerpf(y, minf(y, steil), wand_c4)
 				return Vector2(y, 1.0 - smoothstep(a + 2.5, a + 6.0, u))
 		return Vector2(h, 0.0)
 
@@ -1438,7 +1545,9 @@ class Modell:
 				return Vector2(tief, 1.0)
 			y = _saum_krone(i, u, h, maxf(k, wand), e)
 			y = lerpf(tief, y, smoothstep(wand + 0.4, wand + 0.9, u))
-			return Vector2(y, 1.0 - smoothstep(e + 1.0, e + 8.0, u))
+			# Hinter der Rippe der Fallklamm fällt der Rücken weich ab
+			var ruecken := lerpf(8.0, C_RUECKEN, _c_rippe(s))
+			return Vector2(y, 1.0 - smoothstep(e + 1.0, e + ruecken, u))
 		# Böschung (auch ihr Anfang aus dem Waldboden vor s 33): unter dem
 		# Hang 1,5 m unter der Linie Fuß → Kronenkante (wie vorher) und nie
 		# weniger als `SAUM_UNTER` unter der Fläche (Rinne der Kerbe)
@@ -1454,17 +1563,10 @@ class Modell:
 		y = _saum_krone(i, u, h, k, e)
 		return Vector2(y, 1.0 - smoothstep(e + 1.0, e + 8.0, u))
 
-	## Unter dem Ufer der Furt, das der Saum baut (`L01Saum._profil_furt`),
-	## `d` Meter von der Deckenkante, `k` deren Höhe: 0,25 m darunter.
-	static func _furt_ufer(d: float, k: float) -> float:
-		var stellen := [Vector2(0.0, k - 0.6), Vector2(0.4, k - 0.97), Vector2(0.8, 6.05),
-				Vector2(1.2, 5.77), Vector2(1.6, 5.25), Vector2(2.2, 4.5)]
-		for j in stellen.size() - 1:
-			var a: Vector2 = stellen[j]
-			var b: Vector2 = stellen[j + 1]
-			if d <= b.x:
-				return lerpf(a.y, b.y, clampf((d - a.x) / (b.x - a.x), 0.0, 1.0))
-		return 4.5
+	## Anteil der Felswand über dem Kanal (C4 rechts): bis zur Stufe voll, bis
+	## 152 zum Ufer hin weniger (wie `L01Saum._ufer_anteil`).
+	static func _c4_wand(s: float) -> float:
+		return 1.0 - L01Saum._ufer_anteil(s)
 
 	## Das Feld an der Krone links (ab `von`): `SAUM_UNTER` unter ihr, ab
 	## 2,5–4,5 m hinter `von` darf das Land darüber treten, und am Ende der
@@ -1646,13 +1748,17 @@ class Modell:
 		for s: float in [56.2, 56.8, 57.5, 58.2, 58.8]:
 			liste.append({"punkte": PackedVector2Array([_weg_welt(s, -4.8), _weg_welt(s, -14.0)]),
 					"abstand": 0.6, "reihen": PackedFloat32Array([0.0])})
-		# Die Ufer der Furt, die der Saum baut: Reihen quer, damit das Feld
-		# dort unter ihm bleibt
-		for ende: Vector2 in [Vector2(furt.x, 1.0), Vector2(furt.y, -1.0)]:
-			for d: float in [0.12, 0.45, 0.85, 1.25, 1.65]:
-				var s := ende.x + ende.y * d
-				liste.append({"punkte": PackedVector2Array([_weg_welt(s, -9.5), _weg_welt(s, 9.5)]),
-						"abstand": 0.8, "reihen": PackedFloat32Array([0.0])})
+		# Die Ufer der Furt, die der Saum baut: Reihen entlang seiner
+		# Uferlinie (`L01Saum.furt_linie`), damit das Feld dort unter ihm bleibt
+		for ende in 2:
+			var richtung := 1.0 if ende == 0 else -1.0
+			for d: float in [0.12, 0.45, 0.85, 1.25, 1.65, 2.1]:
+				var reihe := PackedVector2Array()
+				var q := -L01Saum.FURT_ENDE_Q
+				while q <= L01Saum.FURT_ENDE_Q + 0.001:
+					reihe.append(_weg_welt(L01Saum.furt_linie(q, ende) + richtung * d, q))
+					q += 1.0
+				liste.append({"punkte": reihe, "abstand": 0.8, "reihen": PackedFloat32Array([0.0])})
 		# Wasserlinien der Bäche, je Abschnitt (die Breite ändert sich)
 		for lauf in laeufe:
 			var p: PackedVector2Array = lauf["p"]
@@ -1666,8 +1772,11 @@ class Modell:
 
 	# ------------------------------------------------------------ Felsen
 
-	## Felsen auf den Kämmen der Randhügel und des Westhangs, ohne
-	## Kollision: an den höchsten Stellen des Kamms, zu zweit oder dritt.
+	## Felsausbisse an den Randhügeln und am Westhang, ohne Kollision:
+	## flache, gekippte Platten, zu gut 40 % im Hang versenkt, 8–20 m UNTER
+	## dem Kamm auf der Talseite – je ein großer mit zwei, drei kleinen
+	## daneben. Aufrechte Steine auf dem Kamm lasen sich als Grabsteinreihe;
+	## die Kimm bricht der Wald, nicht der Stein.
 	func felsen() -> Array:
 		var liste: Array = []
 		var rng := RandomNumberGenerator.new()
@@ -1676,36 +1785,64 @@ class Modell:
 		for k in 6:
 			formen.append(GelaendeFeld.felsbrocken(Vector3.ONE, 4200 + k))
 		var orte: Array[Vector2] = []
-		# Randhügel: entlang des Kamms (rund ≈ 1,04), wo er hoch ist
-		var n := 90
+		# Randhügel: unter dem Kamm (rund ≈ 1,04) auf der Talseite, wo das
+		# Rauschen will
+		var n := 64
 		for k in n:
-			var w := TAU * float(k) / float(n)
+			var w := TAU * (float(k) + rng.randf_range(-0.3, 0.3)) / float(n)
 			var c := cos(w)
 			var sn := sin(w)
 			var norm := pow(pow(absf(c), 3.0) + pow(absf(sn), 3.0), 1.0 / 3.0)
-			var p := TAL_MITTE + Vector2(c * TAL_RADIEN.x, sn * TAL_RADIEN.y) * (1.04 / norm)
-			if not FELD.grow(-6.0).has_point(p) or p.x < 30.0:
+			var richtung := Vector2(c * TAL_RADIEN.x, sn * TAL_RADIEN.y) / norm
+			var kamm := TAL_MITTE + richtung * 1.04
+			if not FELD.grow(-8.0).has_point(kamm) or kamm.x < 30.0:
 				continue
-			if rausch_kamm.get_noise_2d(p.x, p.y) < 0.1:
+			if rausch_kamm.get_noise_2d(kamm.x * 1.9, kamm.y * 1.9) < 0.12:
 				continue
-			orte.append(p)
-		# Westhang: auf dem Grat
-		var zz := 30.0
+			var kamm_y := hoehe(kamm.x, kamm.y)
+			# Von außen nach innen: die erste Stelle 8–20 m unter dem Kamm
+			var ziel := 8.0 + 12.0 * rng.randf()
+			var r := 1.0
+			while r > 0.8:
+				var p := TAL_MITTE + richtung * r
+				if kamm_y - hoehe(p.x, p.y) >= ziel:
+					orte.append(p)
+					break
+				r -= 0.01
+		# Westhang: alle gut 30 m, wo das Rauschen hoch ist, auf der Talseite
+		# des Kamms
+		var zz := 20.0
 		while zz > -310.0:
 			var kx := WESTKAMM_X + 9.0 * rausch_kamm.get_noise_2d(zz * 0.8, 51.0)
-			if rausch_kamm.get_noise_2d(zz * 1.7, 7.0) > 0.05:
-				orte.append(Vector2(kx, zz))
-			zz -= 14.0
+			if rausch_kamm.get_noise_2d(zz * 2.3, 91.0) > 0.35:
+				orte.append(Vector2(kx + rng.randf_range(10.0, 20.0), zz))
+			zz -= 30.0
 		for ort in orte:
-			var anzahl := 1 + rng.randi() % 3
+			var anzahl := 3 + rng.randi() % 2
+			var mitte := ort
 			for k in anzahl:
-				var p := ort + Vector2(rng.randf_range(-7.0, 7.0), rng.randf_range(-7.0, 7.0))
-				var breit := rng.randf_range(4.0, 9.0)
-				var g := Vector3(breit, rng.randf_range(4.0, 10.0), breit * rng.randf_range(0.6, 1.0))
+				var gross := k == 0
+				var p := mitte
+				if not gross:
+					var w := rng.randf() * TAU
+					p = mitte + Vector2(cos(w), sin(w)) * rng.randf_range(1.5, 4.0) * 1.6
+				var breit := rng.randf_range(6.0, 12.0) if gross else rng.randf_range(2.2, 4.5)
+				var hoch := breit * rng.randf_range(0.3, 0.55)
+				var g := Vector3(breit, hoch, breit * rng.randf_range(0.55, 0.9))
 				var y := hoehe(p.x, p.y)
-				var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled_local(g)
-				liste.append({"netz": formen[rng.randi() % formen.size()],
-						"lage": Transform3D(basis, Vector3(p.x, y, p.y)),
+				# Hangnormale, zu 40 % zur Senkrechten, dazu 10–25° Kippung
+				var e := 1.5
+				var normale := Vector3(hoehe(p.x - e, p.y) - hoehe(p.x + e, p.y), 2.0 * e,
+						hoehe(p.x, p.y - e) - hoehe(p.x, p.y + e)).normalized()
+				var auf := normale.lerp(Vector3.UP, 0.4).normalized()
+				var basis := Basis(Quaternion(Vector3.UP, auf))
+				var achse := Vector3(rng.randf_range(-1.0, 1.0), 0.0, rng.randf_range(-1.0, 1.0))
+				if achse.length_squared() > 0.001:
+					basis = Basis(achse.normalized(), deg_to_rad(rng.randf_range(10.0, 25.0))) * basis
+				basis = basis * Basis(Vector3.UP, rng.randf_range(0.0, TAU))
+				var lage := Transform3D(basis.scaled_local(g), Vector3(p.x, y, p.y))
+				lage.origin -= auf * hoch * rng.randf_range(0.35, 0.45)
+				liste.append({"netz": formen[rng.randi() % formen.size()], "lage": lage,
 						"farbe": Color(0.0, 0.0, 1.0, 0.0), "zusatz": Vector2(1.0, 0.0)})
 		return liste
 
@@ -1728,6 +1865,8 @@ class Modell:
 		# Die Randhänge bewaldet, die Kämme selbst licht (Fels und Gras)
 		w_tal = maxf(w_tal, smoothstep(9.0, 18.0, y) * (0.55 + 0.45 * smoothstep(-0.3, 0.2, n)))
 		w_tal *= 1.0 - 0.6 * smoothstep(31.0, 41.0, y)
+		# Die Riegel dicht bewaldet: ein dunkles Band im Mittelgrund
+		w_tal = maxf(w_tal, 0.9 * _riegel_anteil(x, z))
 		var w := lerpf(w_tal, w_ober, smoothstep(-2.0, 4.0, o.x))
 		var i := _index(s)
 		if s > -12.0 and s < ende_s:
@@ -1742,6 +1881,11 @@ class Modell:
 			# Bachwiese D und Wurzelwiese: offen
 			if s > 158.0 and s < 216.0 and u < 16.0:
 				w *= smoothstep(10.0, 16.0, u) * 0.6
+			# Links hinter der Krone, die der Saum baut: Ihr Rasen geht in
+			# 6 m in den Waldboden über, statt an einer Linie zu enden.
+			if seite == 0 and saum_da[i] == 1:
+				var e := saum_ende_q[i]
+				w *= smoothstep(e - 0.5, e + 6.0, u)
 		# Um den Weltenbaum keine Bäume (Knoll, Gruben)
 		w *= smoothstep(40.0, 56.0, Vector2(x, z).distance_to(ACHSE))
 		# Am Bach offen
@@ -1749,6 +1893,19 @@ class Modell:
 			var nb := _bach_naechst(lauf, x, z)
 			w *= smoothstep(nb.w * 0.5 + 1.0, nb.w * 0.5 + 6.0, nb.x)
 		return clampf(w, 0.0, 1.0)
+
+	## Wie sehr ein Punkt auf einem Riegel liegt (0..1).
+	func _riegel_anteil(x: float, z: float) -> float:
+		var aus := 0.0
+		for k in RIEGEL.size():
+			var r: Vector4 = RIEGEL[k]
+			var m: Vector2 = RIEGEL_MASS[k]
+			var a := Vector2(r.x, r.y)
+			var ab := Vector2(r.z, r.w) - a
+			var tt := clampf((Vector2(x, z) - a).dot(ab) / ab.length_squared(), 0.0, 1.0)
+			var d := Vector2(x, z).distance_to(a + ab * tt) / m.x
+			aus = maxf(aus, 1.0 - smoothstep(0.55, 0.95, d))
+		return aus
 
 	## Projektion und Walddichte eines Punkts für farbe()/zusatz(): aus der
 	## Ablage von `hoehe()`, sonst neu gerechnet.
@@ -1778,7 +1935,9 @@ class Modell:
 	func farbe(p: Vector3, n: Vector3) -> Color:
 		_merken(p)
 		var w := _letzt_wald
-		var fels := smoothstep(0.8, 0.62, n.y)
+		# Fels erst über gut 55°: Flachere Hänge (der Rücken der Rippe von C,
+		# die Randhügel) tragen Waldboden und Moos, auf denen Bäume stehen.
+		var fels := smoothstep(0.68, 0.54, n.y)
 		# Die Lippe des Erdspalts liegt oben auf dem Waldboden: Ihre Normale
 		# neigt sich zur Wand darunter (unter der Narbe des Saums), ihre Farbe
 		# bliebe sonst als Felsband neben der Narbe stehen.
@@ -1809,6 +1968,9 @@ class Modell:
 		# Südhang (Normale nach +z) trockener, Nordhang frischer
 		ton += 0.9 * n.z * (1.0 - n.y) * 2.0
 		ton -= 0.5 * smoothstep(TAL_Y + 1.0, TAL_Y - 1.5, p.y)
+		# Offene Wiesen fern vom Weg warm: Zwischen dem dunklen Wald liest
+		# sich der Talboden als Flickenteppich, auch durch den Dunst.
+		ton += 0.35 * (1.0 - _letzt_wald) * smoothstep(20.0, 45.0, absf(_letzt_sq.y))
 		for lauf in laeufe:
 			var nb := _bach_naechst(lauf, p.x, p.z)
 			ton -= 0.6 * (1.0 - smoothstep(nb.w * 0.5, nb.w * 0.5 + 8.0, nb.x))
@@ -1840,7 +2002,7 @@ class Modell:
 		var w := _letzt_wald
 		# Walddach dunkel, Lichtungen fern vom Weg etwas heller: Von oben muss
 		# sich das Tal in Flächen lesen, auch durch den Dunst.
-		var ao := lerpf(1.0, 0.5, w)
+		var ao := lerpf(1.0, 0.38, w)
 		ao *= 1.0 + 0.12 * (1.0 - w) * smoothstep(12.0, 30.0, u)
 		var licht := w * 0.8
 		# Kronenschatten des Weltenbaums (die Krone wirft keinen echten):

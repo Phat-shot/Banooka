@@ -592,18 +592,40 @@ static func deckel(st: SurfaceTool, reihe: PackedVector3Array, farben: PackedCol
 ## sie wird trotzdem gebaut, falls der Boden dort zurückweicht. `farbe` wie
 ## im Stoff (Moos, Erde), die Verdeckung nach unten dunkler.
 static func stein(st: SurfaceTool, mitte: Vector3, radien: Vector3, basis: Basis,
-		saat: int, farbe: Color, kante_y: float, kronen: float = 0.0) -> void:
+		saat: int, farbe: Color, kante_y: float, kronen: float = 0.0,
+		kantig: bool = false) -> void:
 	# Große Steine feiner geteilt: Mit 80 Flächen las sich ein flacher Stein
 	# als Sechseckplatte.
-	var kugel := _ikosphaere(2 if maxf(radien.x, radien.z) > 0.8 else 1)
+	var kugel := _ikosphaere(2 if maxf(radien.x, radien.z) > 0.8 or kantig else 1)
 	var punkte: PackedVector3Array = kugel["punkte"]
 	var flaechen: PackedInt32Array = kugel["flaechen"]
 	var r := rauschen()
 	var welt := PackedVector3Array()
 	var fs := PackedColorArray()
+	# Kantig: der Schnitt von neun Halbräumen (wie `GelaendeFeld.felsbrocken`)
+	# – gebrochener Fels mit Flächen und Graten statt einer Kartoffel.
+	var ebenen: Array[Vector4] = []
+	if kantig:
+		var zufall := RandomNumberGenerator.new()
+		zufall.seed = saat * 7919 + 13
+		for k in 6:
+			var w := TAU * (float(k) + zufall.randf_range(-0.3, 0.3)) / 6.0
+			var n := Vector3(cos(w), zufall.randf_range(-0.25, 0.35), sin(w)).normalized()
+			ebenen.append(Vector4(n.x, n.y, n.z, zufall.randf_range(0.7, 0.95)))
+		for k in 3:
+			var w := TAU * float(k) / 3.0 + zufall.randf_range(0.0, 2.0)
+			var n := Vector3(cos(w) * 0.9, 1.0, sin(w) * 0.9).normalized()
+			ebenen.append(Vector4(n.x, n.y, n.z, zufall.randf_range(0.65, 0.9)))
 	for p in punkte:
 		var beule := r.get_noise_3d(p.x * 1.7 + float(saat), p.y * 1.7, p.z * 1.7 - float(saat))
-		var eben := p * (1.0 + beule * 0.22)
+		var eben := p * (1.0 + beule * (0.08 if kantig else 0.22))
+		if kantig:
+			var weite := 1.3
+			for e in ebenen:
+				var dn := p.dot(Vector3(e.x, e.y, e.z))
+				if dn > 0.05:
+					weite = minf(weite, e.w / dn)
+			eben = eben * weite
 		# Unten etwas abgeflacht: Stein, nicht Kartoffel.
 		eben.y = maxf(eben.y, -0.8) * (0.9 if eben.y < 0.0 else 1.0)
 		var w := mitte + basis * Vector3(eben.x * radien.x, eben.y * radien.y, eben.z * radien.z)
@@ -630,11 +652,25 @@ static func stein(st: SurfaceTool, mitte: Vector3, radien: Vector3, basis: Basis
 		var ic := flaechen[k + 2]
 		var a := welt[ia]
 		var aussen := (a + welt[ib] + welt[ic]) / 3.0 - mitte
+		var na := n[ia].normalized()
+		var nb := n[ib].normalized()
+		var nc := n[ic].normalized()
+		if kantig:
+			# Flach schattiert: Jede Bruchfläche fängt das Licht für sich.
+			var fn := (welt[ib] - a).cross(welt[ic] - a)
+			if fn.length_squared() < 1e-12:
+				continue
+			fn = fn.normalized()
+			if fn.dot(aussen) < 0.0:
+				fn = -fn
+			na = fn
+			nb = fn
+			nc = fn
 		dreieck(st, a, welt[ib], welt[ic], aussen, fs[ia], fs[ib], fs[ic],
 				Vector2(kronen, maxf(kante_y - a.y, 0.0)),
 				Vector2(kronen, maxf(kante_y - welt[ib].y, 0.0)),
 				Vector2(kronen, maxf(kante_y - welt[ic].y, 0.0)),
-				n[ia].normalized(), n[ib].normalized(), n[ic].normalized())
+				na, nb, nc)
 
 
 static var _kugeln: Dictionary = {}

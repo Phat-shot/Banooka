@@ -6,8 +6,11 @@
 //                 Makrovariation und dasselbe Kronenlicht wie der Rasenrand
 //                 der Wegdecke, damit die Naht an A und D verschwindet
 //   G  Waldboden  Erde, Laub und Moos (Bibliothek), dunkler und grüner
-//   B  Fels       Bibliotheksfels in Dreifachprojektion (Welt), Moos auf
-//                 allem, was nach oben schaut; Relief aus den Ableitungen
+//   B  Fels       Bibliotheksfels in Dreifachprojektion (Welt), in den
+//                 Schichtbändern der Felswände (`fels_gemeinsam`: warmer
+//                 Sandstein, jede vierte Bank heller Kalk, Fugen), Moos auf
+//                 allem, was nach oben schaut; Relief aus einem groben
+//                 Abgriff und den Bankkanten, bis 30 m ausgeblendet
 //   A  Schlamm    nasse Erde an Bach und Gruben
 // UV2.x = gebackene Verdeckung (Walddach, Kronenschatten des Weltenbaums,
 // Gruben, Mulden, Wegrand ab 0,78 wie die Decke), UV2.y = Stärke des
@@ -15,7 +18,7 @@
 // warm-trocken; am Rand der Wegdecke 0).
 //
 // Texturzugriffe: Weltrauschen und Rasen immer, die übrigen nur wo ihr
-// Gewicht > 0 ist (Fels drei, sonst einer); das treibende Kronenlicht nur
+// Gewicht > 0 ist (Fels drei und ein grober fürs Relief, sonst einer); das treibende Kronenlicht nur
 // unter einem Dach. Die Zweige sind räumlich zusammenhängend und holen mit
 // vorab gerechneten Ableitungen (in einem Zweig, den nicht alle Bildpunkte
 // eines Blocks nehmen, sind implizite Ableitungen in GLSL ES 3.0
@@ -24,6 +27,7 @@ shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/wald_gemeinsam.gdshaderinc"
+#include "res://shaders/fels_gemeinsam.gdshaderinc"
 
 uniform sampler2D waldboden : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D fels : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -42,6 +46,15 @@ uniform vec4 moos_ton : source_color = vec4(0.62, 0.7, 0.5, 1.0);
 // Tönung der Böden: warm-trocken und kühl-feucht (Faktoren je Kanal)
 uniform vec3 ton_warm = vec3(1.1, 1.03, 0.8);
 uniform vec3 ton_kuehl = vec3(0.86, 0.97, 1.0);
+// Schichtbänder wie an den Felswänden (`fels_schichten`): Dichte, Neigung
+// und die Töne der beiden Gesteinsarten über dem grauen Bibliotheksfels.
+uniform float schicht_dichte = 0.35;
+uniform vec2 schicht_neigung = vec2(0.062, -0.041);
+uniform vec3 sandstein_ton = vec3(1.08, 0.94, 0.78);
+uniform vec3 kalk_ton = vec3(1.16, 1.12, 1.02);
+// Relief: Stärke und Ausblendung nach Entfernung (m)
+uniform float relief_staerke = 0.3;
+uniform vec2 relief_nah = vec2(8.0, 30.0);
 
 varying vec3 v_welt;
 varying vec3 v_n;
@@ -72,8 +85,6 @@ void fragment() {
 	vec3 fp = v_welt * fels_kachel;
 	vec3 fp_dx = dFdx(fp);
 	vec3 fp_dy = dFdy(fp);
-	vec3 dpx = dFdx(VERTEX);
-	vec3 dpy = dFdy(VERTEX);
 
 	// Wiese: genau wie der Rasenrand der Wegdecke
 	vec4 gras = rasen_textur(xz);
@@ -100,12 +111,24 @@ void fragment() {
 		vec3 f = fx * tw.x + fy * tw.y + fz * tw.z;
 		float fl = dot(f, vec3(0.3, 0.55, 0.15));
 		f = mix(f, vec3(fl), 0.22) * fels_ton.rgb * mix(0.9, 1.06, w.g);
+		// Dieselben Bänke wie an den Felswänden; ihre Helligkeit (mit den
+		// schmalen Fugen) wird in der Ferne ruhig, dort flimmerte sie
+		float phase = fels_phase(v_welt, w.g, schicht_dichte, schicht_neigung);
+		f *= (fels_ist_kalk(phase, w.b) ? kalk_ton : sandstein_ton)
+				* mix(0.94, fels_band_hell(phase), 1.0 - smoothstep(50.0, 120.0, length(VERTEX)));
 		// Moos, wo der Fels nach oben schaut, in Zungen
 		float moos = smoothstep(0.55, 0.85, n.y + (w.b - 0.5) * 0.5);
 		f = mix(f, rasen * moos_ton.rgb, moos * 0.7);
 		farbe += f * g.b;
 		rauh += 0.9 * g.b;
-		relief += fl * g.b * (1.0 - moos);
+		// Relief aus der vorherrschenden Projektion, zwei Mipstufen gröber,
+		// und den Bankkanten
+		int achse = fels_achse(tw);
+		vec2 r_uv = achse == 0 ? fp.zy : (achse == 1 ? fp.xz : fp.xy);
+		vec2 r_dx = achse == 0 ? fp_dx.zy : (achse == 1 ? fp_dx.xz : fp_dx.xy);
+		vec2 r_dy = achse == 0 ? fp_dy.zy : (achse == 1 ? fp_dy.xz : fp_dy.xy);
+		float grob = dot(textureGrad(fels, r_uv, r_dx * 4.0, r_dy * 4.0).rgb, vec3(0.3, 0.55, 0.15));
+		relief += (grob * 1.4 + 0.15 * fels_bank_hoehe(phase)) * g.b * (1.0 - moos);
 	}
 	if (g.a > 0.004) {
 		vec3 e = textureGrad(erde, euv, euv_dx, euv_dy).rgb;
@@ -114,18 +137,12 @@ void fragment() {
 		rauh += 0.62 * g.a;
 	}
 
-	// Relief des Felses aus den Bildschirmableitungen der Helligkeit (wie
-	// der Wurzelrücken der Wegdecke): kein Tangentenraum nötig. Außerhalb
-	// jedes Zweigs – ohne Fels ist `relief` 0 und die Normale bleibt. In
-	// der Ferne verblasst es: Dort würfe es nur Pixelrauschen.
-	relief *= 1.0 - smoothstep(22.0, 70.0, length(VERTEX));
-	float dhx = dFdx(relief);
-	float dhy = dFdy(relief);
-	vec3 r1 = cross(dpy, NORMAL);
-	vec3 r2 = cross(NORMAL, dpx);
-	float det = dot(dpx, r1);
-	vec3 gefaelle = sign(det) * (dhx * r1 + dhy * r2);
-	NORMAL = normalize(abs(det) * NORMAL - gefaelle * 0.6);
+	// Relief des Felses aus den Bildschirmableitungen (siehe
+	// `fels_gemeinsam`): kein Tangentenraum nötig. Außerhalb jedes Zweigs –
+	// ohne Fels ist `relief` 0 und die Normale bleibt. In der Ferne verblasst
+	// es: Dort würfe es nur Pixelrauschen.
+	relief *= fels_relief_nah(VERTEX, relief_nah.x, relief_nah.y);
+	NORMAL = fels_relief_normale(NORMAL, VERTEX, relief, relief_staerke);
 
 	float licht = 0.5;
 	if (UV2.y > 0.005) {

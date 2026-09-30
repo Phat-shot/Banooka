@@ -23,17 +23,22 @@
 // Form übereinander. Dazu Wasserspuren, die senkrecht die Wand hinablaufen.
 //
 // Texturzugriffe: Weltrauschen 1, Fels 3 (Dreifachprojektion, je Band
-// Sandstein ODER Kalk), Moos 2
+// Sandstein ODER Kalk) und 1 grob (Relief), Moos 2
 // (Polster, Wasserspuren); Erde (3) nur, wo Erde ist, Rasen (1) nur, wo
 // Rasen ist, das treibende Kronenlicht (1) nur unter einem Kronendach – die
 // Verzweigungen hängen an Scheitelwerten und sind räumlich zusammenhängend;
 // in ihnen wird mit vorab geholten Ableitungen gelesen. Kein SCREEN_TEXTURE,
 // kein DEPTH_TEXTURE (gl_compatibility). Das Relief kommt aus den
-// Bildschirmableitungen der Helligkeit, eine Normalmap braucht es nicht.
+// Bildschirmableitungen einer Höhe, eine Normalmap braucht es nicht: aus
+// einem zwei Mipstufen gröberen Abgriff der vorherrschenden Projektion
+// (ein Zugriff mehr) und den Bankkanten, bis 35 m ausgeblendet (siehe
+// `fels_gemeinsam` – aus feinem Korn gab es je 2×2-Pixelblock eine eigene
+// Normale, eine Treppe aus Pixeln).
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/wald_gemeinsam.gdshaderinc"
+#include "res://shaders/fels_gemeinsam.gdshaderinc"
 
 uniform sampler2D fels : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 // Zweite Gesteinsart für die Kalkbänke (grauer, mit Flechten).
@@ -55,7 +60,13 @@ uniform float fuss_tiefe = 17.0;
 // Schichtbänder: Dichte je Meter und Neigung (tan des Winkels je Achse).
 uniform float schicht_dichte = 0.35;
 uniform vec2 schicht_neigung = vec2(0.062, -0.041);
-uniform float relief = 0.55;
+uniform float relief = 0.3;
+// Das Relief verblasst zwischen diesen Entfernungen (m).
+uniform vec2 relief_nah = vec2(10.0, 35.0);
+// Entsättigung des Gesteins und Ton der Mitte (ockergrau statt
+// Schokolade).
+uniform float fels_grau_anteil = 0.28;
+uniform vec3 fels_mitte_ton = vec3(1.0, 0.95, 0.86);
 
 varying vec3 v_welt;
 varying vec3 v_wn;
@@ -64,11 +75,6 @@ varying vec3 v_wn;
 void vertex() {
 	v_welt = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_wn = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-}
-
-
-float band_hash(float b) {
-	return fract(sin(b * 12.9898 + 3.7) * 43758.5453);
 }
 
 
@@ -81,18 +87,16 @@ void fragment() {
 	float moos_erlaubt = COLOR.b;
 	float rasen_anteil = COLOR.a;
 
-	// --- Schichten (wie `GelaendeSaum.schicht`)
+	// --- Schichten (wie `GelaendeSaum.schicht`, siehe `fels_gemeinsam`)
 	// Die Bänder sind ungleich dick: Eine langsame Welle über die Höhe
 	// staucht und dehnt sie um gut ein Drittel.
-	float phase = v_welt.y * schicht_dichte + dot(xz, schicht_neigung) + (w.g - 0.5) * 1.1
-			+ 0.22 * sin(v_welt.y * 0.61 + 1.7);
+	float phase = fels_phase(v_welt, w.g, schicht_dichte, schicht_neigung);
 	float band = floor(phase);
-	float innen = phase - band;
-	float kenn = band_hash(band);
-	float kenn2 = band_hash(band + 31.0);
+	float kenn = fels_band_hash(band);
+	float kenn2 = fels_band_hash(band + 31.0);
 
 	// --- Fels, dreifach projiziert; je Band eine Gesteinsart: meist warmer
-	// Sandstein (`fels`), jede dritte Bank grauer Kalk mit Flechten
+	// Sandstein (`fels`), jede vierte Bank grauer Kalk mit Flechten
 	// (`kalk`). Gewechselt wird an der Fuge, die den Sprung verdeckt; die
 	// Ableitungen kommen von der unverschobenen Koordinate, der Versatz ist
 	// innerhalb eines Bandes fest.
@@ -108,7 +112,7 @@ void fragment() {
 	// Jedes Band leicht verschoben: Die Textur wiederholt sich nicht von
 	// Band zu Band an derselben Stelle.
 	vec2 versatz = vec2(kenn * 7.3, kenn2 * 3.1);
-	bool ist_kalk = kenn + (w.b - 0.5) * 0.3 > 0.74;
+	bool ist_kalk = fels_ist_kalk(phase, w.b);
 	vec3 fels_c;
 	if (ist_kalk) {
 		fels_c = textureGrad(kalk, p.zy + versatz, dzy_x, dzy_y).rgb * gew.x
@@ -123,12 +127,20 @@ void fragment() {
 				+ textureGrad(fels, p.xy + versatz, dxy_x, dxy_y).rgb * gew.z;
 		fels_c *= 1.32 * fels_warm.rgb;
 	}
+	// Weniger gesättigt, zur Mitte hin ockergrau: Der Sandstein las sich
+	// als Schokoladentorte.
 	float fl = dot(fels_c, vec3(0.3, 0.59, 0.11));
-	fels_c *= (0.93 + 0.13 * kenn2) * mix(0.86, 1.1, w.g);
-	// Im Band nach unten etwas dunkler, an der Fuge dunkel.
-	fels_c *= mix(1.0, 0.93, 1.0 - innen);
-	float fuge = 1.0 - smoothstep(0.0, 0.05, innen);
-	fels_c *= 1.0 - 0.3 * fuge;
+	fels_c = mix(fels_c, vec3(fl), fels_grau_anteil) * fels_mitte_ton;
+	// Von Band zu Band kräftig verschieden hell, im Band nach unten dunkler,
+	// an der Fuge dunkel.
+	fels_c *= fels_band_hell(phase) * mix(0.86, 1.1, w.g);
+	// Relief aus dem groben Abgriff der vorherrschenden Projektion
+	int achse = fels_achse(gew);
+	vec2 r_uv = achse == 0 ? p.zy : (achse == 1 ? p.xz : p.xy);
+	vec2 r_dx = achse == 0 ? dzy_x : (achse == 1 ? dxz_x : dxy_x);
+	vec2 r_dy = achse == 0 ? dzy_y : (achse == 1 ? dxz_y : dxy_y);
+	float grob = dot(textureGrad(fels, r_uv + versatz, r_dx * 4.0, r_dy * 4.0).rgb,
+			vec3(0.3, 0.59, 0.11));
 	// Wasserspuren: lange, schmale Streifen die Wand hinab. Die seitliche
 	// Koordinate läuft schräg über X und Z – ein Wechsel der Projektion je
 	// nach Normale flackerte auf verbeulten Flächen als Kamm aus Streifen.
@@ -152,14 +164,15 @@ void fragment() {
 
 	// --- Erde (Böschung, Unterseite der Narbe, Ufer)
 	vec3 flaeche = fels_c;
-	float relief_h = fl;
+	float relief_h = grob * 1.4 + 0.15 * fels_bank_hoehe(phase);
 	if (erdig > 0.01) {
 		vec3 es = mix(textureGrad(erde, pe.xy, pe_xy_dx, pe_xy_dy).rgb,
 				textureGrad(erde, pe.zy, pe_zy_dx, pe_zy_dy).rgb, wx);
 		vec3 eo = textureGrad(erde, pe.xz, pe_xz_dx, pe_xz_dy).rgb;
 		vec3 erde_c = mix(es, eo, smoothstep(0.45, 0.8, abs(n.y))) * erde_ton.rgb;
 		flaeche = mix(flaeche, erde_c, erdig);
-		relief_h = mix(relief_h, dot(erde_c, vec3(0.33)), erdig);
+		// Erde: dasselbe grobe Relief, flacher
+		relief_h = mix(relief_h, grob * 0.8, erdig);
 	}
 
 	// --- Moos: wo es darf und wo die Fläche nach oben schaut; in Zungen
@@ -168,7 +181,7 @@ void fragment() {
 	float moos_m = moos_erlaubt * (0.2 + 0.8 * oben) + (w.b - 0.5) * 0.45;
 	float moos_a = smoothstep(0.45, 0.66, moos_m + (mt.a - 0.5) * 0.9);
 	flaeche = mix(flaeche, mt.rgb * moos_ton.rgb * 1.1, moos_a);
-	relief_h = mix(relief_h, dot(mt.rgb, vec3(0.33)) * 0.6, moos_a);
+	relief_h = mix(relief_h, grob * 0.5, moos_a);
 
 	// --- Rasen: dieselbe Farbe wie der Rasen der Wegdecke
 	vec4 gras = vec4(0.5);
@@ -196,17 +209,10 @@ void fragment() {
 	float tief = smoothstep(3.0, fuss_tiefe, UV2.y);
 	flaeche = mix(flaeche, flaeche * fuss_ton.rgb, tief);
 
-	// --- Relief aus den Bildschirmableitungen (wie `Riesenstamm.borkenstoff`)
-	vec3 dpx = dFdx(VERTEX);
-	vec3 dpy = dFdy(VERTEX);
-	float dhx = dFdx(relief_h);
-	float dhy = dFdy(relief_h);
-	vec3 r1 = cross(dpy, NORMAL);
-	vec3 r2 = cross(NORMAL, dpx);
-	float det = dot(dpx, r1);
-	vec3 gefaelle = sign(det) * (dhx * r1 + dhy * r2);
-	float rel = relief * (1.0 - 0.7 * rasen_anteil) * (1.0 - 0.5 * moos_a);
-	NORMAL = normalize(abs(det) * NORMAL - gefaelle * rel);
+	// --- Relief aus den Bildschirmableitungen (siehe `fels_gemeinsam`)
+	float rel = relief * (1.0 - 0.7 * rasen_anteil) * (1.0 - 0.5 * moos_a)
+			* fels_relief_nah(VERTEX, relief_nah.x, relief_nah.y);
+	NORMAL = fels_relief_normale(NORMAL, VERTEX, relief_h, rel);
 
 	ALBEDO = flaeche * ao * kronen_faktor(licht, UV2.x, rasen_anteil);
 	ROUGHNESS = mix(mix(0.86, 0.95, erdig), 0.92, max(moos_a, rasen_anteil));
