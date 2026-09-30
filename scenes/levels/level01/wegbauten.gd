@@ -180,7 +180,7 @@ static func _stein(sa: Sammler, netz: Mesh, trafo: Transform3D) -> void:
 
 
 static func _kranz(sa: Sammler, netz: Mesh, trafo: Transform3D) -> void:
-	sa.dazu("Kranz", _kranzstoff(), false, SICHT_NAH, netz, trafo)
+	sa.dazu("Kranz", Findling.kranzstoff(), false, SICHT_NAH, netz, trafo)
 
 
 static func _borke(sa: Sammler) -> SurfaceTool:
@@ -205,30 +205,6 @@ static func _krone(sa: Sammler, farbe: Color, netz: Mesh, trafo: Transform3D) ->
 
 static func _farn(sa: Sammler, netz: Mesh, trafo: Transform3D) -> void:
 	sa.dazu("Farn", Farnwerk.stoff(), false, SICHT_NAH, netz, trafo)
-
-
-static var _kranz_stoff: ShaderMaterial = null
-
-## Verdeckungskranz in reinem Schwarz. `Findling.kranzstoff()` zeichnet die
-## Scheitelfarbe (0,02) unbeleuchtet – im Schlagschatten der Steine ist der
-## Boden dunkler als das, und der Kranz hellte ihn als grüne Scheibe auf.
-## Schwarz mit Deckkraft kann nur abdunkeln. Geteilt – nie verändern.
-static func _kranzstoff() -> ShaderMaterial:
-	if _kranz_stoff != null:
-		return _kranz_stoff
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
-
-void fragment() {
-	ALBEDO = vec3(0.0);
-	ALPHA = COLOR.a;
-}
-"""
-	_kranz_stoff = ShaderMaterial.new()
-	_kranz_stoff.shader = shader
-	return _kranz_stoff
 
 
 # ================================================================ Lage
@@ -307,28 +283,13 @@ static func _findling_auf(sa: Sammler, level: Level01, name: String, optionen: D
 		return
 	var groesse: Vector3 = e["groesse"]
 	var lage: Transform3D = e["lage"]
-	_stein(sa, Findling.netz(groesse, optionen), lage)
+	var netz := Findling.netz(groesse, optionen)
+	_stein(sa, netz, lage)
 	if not is_nan(boden_h):
 		var oben: float = e.get("oben", 0.0)
 		var boden_lokal := boden_h - (oben - groesse.y * 0.5)
-		_kranz(sa, _kranz_im_kasten(groesse, boden_lokal, optionen), lage)
-
-
-## Verdeckungsring um einen Kasten auf der lokalen Höhe `y` (der Boden
-## schneidet den Stein dort, nicht an seiner Unterkante).
-static func _kranz_im_kasten(groesse: Vector3, y: float, optionen: Dictionary = {}) -> ArrayMesh:
-	var h := groesse.abs() * 0.5
-	var eckig: float = optionen.get("eckig", 3.6)
-	var radien := PackedFloat32Array()
-	for j in 40:
-		var w := TAU * float(j) / 40.0
-		var c := cos(w)
-		var s := sin(w)
-		var e := 2.0 / eckig
-		var p := Vector2(h.x * signf(c) * pow(absf(c), e), h.z * signf(s) * pow(absf(s), e))
-		radien.append(p.length())
-	var breite := clampf(minf(h.x, h.z) * 0.6, 0.35, 1.0)
-	return Findling.kranz(radien, y + 0.025, breite, 0.5, 0.25)
+		var breite := clampf(minf(groesse.x, groesse.z) * 0.3, 0.35, 0.8)
+		_kranz(sa, _fussring(netz, boden_lokal, breite), lage)
 
 
 ## Ein Findling aus mehreren Blöcken, die den Kasten eines BEGEHBARES-
@@ -364,12 +325,92 @@ static func _findling_teile(sa: Sammler, level: Level01, name: String, fugen: Ar
 		if optionen.get("schichten_wechseln", false):
 			o["schichten"] = i % 2 == 1
 		o.erase("schichten_wechseln")
+		o.erase("bemoost")
 		o = _mit_kisten_auf(level, name, teil, g, o)
-		_stein(sa, Findling.netz(g, o), teil)
-	if not is_nan(boden_h):
-		var oben: float = e.get("oben", 0.0)
-		var boden_lokal := boden_h - (oben - groesse.y * 0.5)
-		_kranz(sa, _kranz_im_kasten(groesse, boden_lokal, optionen), lage)
+		var netz := Findling.netz(g, o)
+		var moos: Vector2 = optionen.get("bemoost", Vector2.ZERO)
+		if moos.x > 0.0:
+			var boden_lokal := boden_h - (float(e.get("oben", 0.0)) - groesse.y * 0.5)
+			netz = _bemoost(netz, g * 0.5, boden_lokal, moos.x, moos.y, saat + i)
+		_stein(sa, netz, teil)
+		if not is_nan(boden_h):
+			var boden_lokal := boden_h - (float(e.get("oben", 0.0)) - groesse.y * 0.5)
+			var breite := clampf(minf(g.x, g.z) * 0.3, 0.35, 0.8)
+			_kranz(sa, _fussring(netz, boden_lokal, breite), teil)
+
+
+## Kleine Farne auf der Oberkante eines Kastens, an seinen Rändern: Sie
+## brechen die harte Kante, an der die ebene Oberseite in die Flanke
+## übergeht (sonst liest sich der Stein wie ein Sockel mit Moosdeckel).
+## Weg von den Kisten; weich, man läuft hindurch.
+static func _randfarne(sa: Sammler, level: Level01, name: String, anzahl: int, saat: int) -> void:
+	var e := level.begehbar(name)
+	if e.is_empty():
+		return
+	var lage: Transform3D = e["lage"]
+	var g: Vector3 = e["groesse"]
+	var h := g * 0.5
+	var rng := PropWerkzeug.zufall(saat)
+	var gesetzt := 0
+	for versuch in anzahl * 4:
+		if gesetzt >= anzahl:
+			break
+		# Auf dem Umfang: Seite würfeln, dann die Stelle darauf.
+		var seite := rng.randi_range(0, 3)
+		var t := rng.randf_range(-0.85, 0.85)
+		var ort := Vector3.ZERO
+		match seite:
+			0:
+				ort = Vector3(h.x - 0.25, h.y, t * h.z)
+			1:
+				ort = Vector3(-h.x + 0.25, h.y, t * h.z)
+			2:
+				ort = Vector3(t * h.x, h.y, h.z - 0.25)
+			_:
+				ort = Vector3(t * h.x, h.y, -h.z + 0.25)
+		var welt := lage * ort
+		if not _frei(welt, 1.1):
+			continue
+		var trafo := Transform3D(Basis(Vector3.UP, rng.randf() * TAU), welt)
+		_farn_bei(sa, trafo, 0, saat + versuch, rng.randf_range(0.8, 1.3))
+		gesetzt += 1
+
+
+## Verdeckungsring genau um den Fuß eines Netzes (lokale Koordinaten): Der
+## Umriss wird dort abgelesen, wo das Netz die Bodenhöhe `y` schneidet –
+## je Winkel der größte Abstand der Ecken in einem Band um `y`. Nach dem
+## Kasten gerechnet lag der Ring an Steinen mit tiefen Beulen bis 0,4 m
+## neben dem Fuß, und zwischen Stein und Ring blieb ein heller Streifen.
+static func _fussring(netz: ArrayMesh, y: float, breite: float, staerke: float = 0.55,
+		mitte: Vector3 = Vector3.ZERO) -> ArrayMesh:
+	const N := 36
+	var radien := PackedFloat32Array()
+	radien.resize(N)
+	for f in netz.get_surface_count():
+		var punkte: PackedVector3Array = netz.surface_get_arrays(f)[Mesh.ARRAY_VERTEX]
+		for p in punkte:
+			if absf(p.y - y) > 0.3:
+				continue
+			var d := Vector2(p.x - mitte.x, p.z - mitte.z)
+			var w := atan2(-d.y, d.x)
+			var k := posmod(int(floor(w / TAU * float(N) + 0.5)), N)
+			radien[k] = maxf(radien[k], d.length())
+	# Leere Winkel aus den Nachbarn füllen.
+	for runde in 3:
+		for k in N:
+			if radien[k] <= 0.0:
+				radien[k] = maxf(radien[(k + 1) % N], radien[(k + N - 1) % N]) * 0.97
+	var ring := Findling.kranz(radien, y + 0.025, breite, staerke, 0.25)
+	if mitte != Vector3.ZERO and ring != null:
+		var verschoben := ArrayMesh.new()
+		var arr := ring.surface_get_arrays(0)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		for i in v.size():
+			v[i] += Vector3(mitte.x, 0.0, mitte.z)
+		arr[Mesh.ARRAY_VERTEX] = v
+		verschoben.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		return verschoben
+	return ring
 
 
 ## Optionen für einen Stein, auf dem Kisten stehen: Die ebene Fläche
@@ -413,10 +454,11 @@ static func _brocken(sa: Sammler, groesse: Vector3, trafo: Transform3D, saat: in
 	var o := {"saat": saat}
 	o.merge(optionen, true)
 	var t := trafo.translated_local(Vector3(0.0, groesse.y * 0.5 - einsinken, 0.0))
-	_stein(sa, Findling.brocken(groesse, o), t)
+	var netz := Findling.brocken(groesse, o)
+	_stein(sa, netz, t)
 	if ring:
-		_kranz(sa, _kranz_im_kasten(groesse * 0.92, -groesse.y * 0.5 + einsinken,
-				{"eckig": 2.6}), t)
+		var breite := clampf(minf(groesse.x, groesse.z) * 0.35, 0.3, 0.8)
+		_kranz(sa, _fussring(netz, -groesse.y * 0.5 + einsinken, breite), t)
 
 
 ## Farn an einer Stelle (Fuß auf `trafo`), `art` 0 klein, 1 groß, 2 Rahmen.
@@ -500,6 +542,37 @@ static func _getoent(netz: ArrayMesh, ton: Color) -> ArrayMesh:
 	return neu
 
 
+## Legt Moos über einen Stein: COLOR.a (Moosanteil im Stoff von `Findling`)
+## wächst von `ab` (Anteil der Höhe über dem Boden) nach oben auf `staerke`,
+## in Flecken und Zungen aus Rauschen, auf allem, was nach oben schaut,
+## mehr. Die Findlinge tragen Moos sonst nur in Zungen über der Kante –
+## eine Moosbank muss aber grün sein.
+static func _bemoost(netz: ArrayMesh, h: Vector3, boden: float, staerke: float, ab: float,
+		saat: int) -> ArrayMesh:
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = saat
+	rauschen.frequency = 0.7
+	rauschen.fractal_octaves = 2
+	var neu := ArrayMesh.new()
+	for f in netz.get_surface_count():
+		var arrays := netz.surface_get_arrays(f)
+		var punkte: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normalen: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var farben: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		for i in punkte.size():
+			var v := punkte[i]
+			var hoch := clampf((v.y - boden) / maxf(h.y - boden, 0.1), 0.0, 1.0)
+			var fleck := 0.5 + 0.7 * rauschen.get_noise_3d(v.x * 1.3, v.y * 0.6, v.z * 1.3)
+			var m := smoothstep(ab, ab + 0.35, hoch + (fleck - 0.5) * 0.5) * staerke
+			m += maxf(normalen[i].y, 0.0) * 0.35 * staerke
+			var c := farben[i]
+			c.a = clampf(maxf(c.a, m * clampf(fleck + 0.35, 0.0, 1.0)), 0.0, 1.0)
+			farben[i] = c
+		arrays[Mesh.ARRAY_COLOR] = farben
+		neu.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return neu
+
+
 ## Klemmt ein Netz (Kastenkoordinaten, Halbmaße `h`, Wegdecke auf der
 ## lokalen Höhe `boden`) in seinen Kasten: Über dem Grundriss nie höher als
 ## die Oberkante; auf erreichbarem Boden neben dem Kasten nie höher als
@@ -535,17 +608,16 @@ static func _klemmen(netz: ArrayMesh, h: Vector3, boden: float, aussen: float,
 	return neu
 
 
-## Ein Kiefernwipfel: Äste entlang `aeste` ([Anteil der Höhe, Richtung,
-## Länge, Polsterradius]) von der Achse `achse(y)` (Kastenkoordinaten des
-## Baums), jeder mit einem flachen Nadelpolster am Ende und einem zweiten,
-## kleineren daneben. Die Äste gehen in den Rohsammler `st`, die Polster in
-## die Krone. `lage` setzt alles in die Welt.
-static func _kiefernwipfel(sa: Sammler, st: SurfaceTool, lage: Transform3D, achse: Callable,
-		h: float, aeste: Array, saat: int) -> void:
+## Ein Kiefernwipfel: Äste ([Ansatz, Richtung, Länge, Polsterradius] in den
+## Koordinaten des Baums), jeder mit einem flachen Nadelpolster am Ende und
+## an jedem zweiten ein kleineres daneben. Die Äste gehen in den Rohsammler
+## `st`, die Polster in die Krone. `lage` setzt alles in die Welt.
+static func _kiefernwipfel(sa: Sammler, st: SurfaceTool, lage: Transform3D, aeste: Array,
+		saat: int) -> void:
 	var rng := PropWerkzeug.zufall(saat)
 	for i in aeste.size():
 		var ast: Array = aeste[i]
-		var start: Vector3 = achse.call(float(ast[0]) * h)
+		var start: Vector3 = ast[0]
 		var richtung: Vector3 = (ast[1] as Vector3).normalized()
 		var laenge: float = ast[2]
 		var polster: float = ast[3]
@@ -553,22 +625,22 @@ static func _kiefernwipfel(sa: Sammler, st: SurfaceTool, lage: Transform3D, achs
 		var knick := start + (richtung + Vector3.UP * 0.35).normalized() * laenge * 0.45
 		var ende := start + richtung * laenge + Vector3.UP * laenge * 0.12
 		var r0 := clampf(laenge * 0.045, 0.07, 0.2)
-		Totholzzaun.stueck(st, _glatt(PackedVector3Array([start, knick, ende]), 3),
-				_glatt_r(PackedFloat32Array([r0, r0 * 0.62, r0 * 0.3]), 3), {"saat": saat + i * 7,
+		Totholzzaun.stueck(st, _glatt(PackedVector3Array([start, knick, ende]), 2),
+				_glatt_r(PackedFloat32Array([r0, r0 * 0.62, r0 * 0.3]), 2), {"saat": saat + i * 7,
 				"seiten": 6, "ende": "spitz", "moos": 0.1, "ton": KIEFER_TON})
-		# Ein Seitenzweig zum zweiten Polster.
-		var quer := richtung.cross(Vector3.UP).normalized() * (1.0 if i % 2 == 0 else -1.0)
-		var zweig_ende := knick + (quer * 0.8 + richtung * 0.5).normalized() * laenge * 0.4 \
-				+ Vector3.UP * 0.15
-		Totholzzaun.stueck(st, PackedVector3Array([knick, knick.lerp(zweig_ende, 0.5)
-				+ Vector3.UP * 0.1, zweig_ende]), PackedFloat32Array([r0 * 0.5, r0 * 0.35,
-				r0 * 0.2]), {"saat": saat + i * 7 + 3, "seiten": 5, "ende": "spitz", "moos": 0.0,
-				"ton": KIEFER_TON})
 		_polster(sa, lage * (ende + Vector3.UP * polster * 0.18), polster, saat + 40 + i,
-				rng.randf_range(0.93, 1.07))
+				rng.randf_range(0.9, 1.1))
 		if i % 2 == 0:
-			_polster(sa, lage * (zweig_ende + Vector3.UP * polster * 0.12), polster * 0.62,
-					saat + 60 + i, rng.randf_range(0.9, 1.08))
+			# Ein Seitenzweig zum zweiten Polster.
+			var quer := richtung.cross(Vector3.UP).normalized() * (1.0 if i % 4 == 0 else -1.0)
+			var zweig_ende := knick + (quer * 0.8 + richtung * 0.5).normalized() * laenge * 0.42 \
+					+ Vector3.UP * 0.15
+			Totholzzaun.stueck(st, PackedVector3Array([knick, knick.lerp(zweig_ende, 0.5)
+					+ Vector3.UP * 0.1, zweig_ende]), PackedFloat32Array([r0 * 0.5, r0 * 0.35,
+					r0 * 0.2]), {"saat": saat + i * 7 + 3, "seiten": 5, "ende": "spitz",
+					"moos": 0.0, "ton": KIEFER_TON})
+			_polster(sa, lage * (zweig_ende + Vector3.UP * polster * 0.12), polster * 0.65,
+					saat + 60 + i, rng.randf_range(0.88, 1.08))
 
 
 ## Nadelpolster einer Kiefer: flache, breite Wolke an `mitte` (Welt).
@@ -698,16 +770,16 @@ static func _wurzelnest(sa: Sammler, level: Level01) -> void:
 
 
 ## Das Waldtor bei s 3 zwischen zwei Stämmen der ersten Reihe. Die Kronen
-## gehören zum Blätterdach des Hallenwalds (ab 9,5 m über dem Weg); aus der
-## Spielkamera sieht man hier ohnehin nur Füße und Schatten.
+## gehören zum Blätterdach des Hallenwalds (ab 9,5 m über dem Weg). Die
+## Spielkamera steht hier auf s 0 und sieht die Stämme nie – sie stehen
+## neben ihr –, nur ihre Schatten: deshalb die schlichte Fassung.
 static func _waldtor(sa: Sammler, level: Level01) -> void:
 	var tor := _tor_daten("Waldtor")
 	var s: float = tor["s"]
 	for seite: float in [-1.0, 1.0]:
 		var q := seite * (float(tor["abstand"]) + 1.5)
-		var netz := Riesenstamm.netz({"hoehe": 19.0, "radius": 0.85, "radius_oben": 0.55,
-				"saat": 71 + int(seite), "rippen": 12, "brettwurzeln": 4,
-				"wurzel_reichweite": 2.2, "wurzel_hoehe": 2.4, "pilze": 0, "aeste": 0})
+		var netz := Riesenstamm.schlicht({"hoehe": 19.0, "radius": 0.85, "radius_oben": 0.55,
+				"saat": 71 + int(seite)})
 		var lage := _lage(level, s + 0.4 * seite, q, 0.0, seite)
 		_holz(sa, netz, lage)
 		var fuss: PackedFloat32Array = netz.get_meta("fuss_radien", PackedFloat32Array())
@@ -767,7 +839,7 @@ static func _lippenwurzeln(sa: Sammler, level: Level01, von: float, bis: float, 
 		var s_kante := von if lippe == 0 else bis
 		var hinein := 1.0 if lippe == 0 else -1.0
 		var y_kante := level.boden_bei(s_kante - hinein * 0.05)
-		var anzahl := int((rechts - links) / 1.5)
+		var anzahl := int((rechts - links) / 1.9)
 		for i in anzahl:
 			var q := lerpf(links, rechts, (float(i) + rng.randf_range(0.1, 0.9)) / float(anzahl))
 			# In der Spur (|q| < 2,2) sitzen die Lippensteine: dort nur
@@ -1020,11 +1092,13 @@ static func _kanzel(sa: Sammler, level: Level01) -> void:
 		_drehkiefer(sa, level, stelle)
 
 
-## Die Drehkiefer auf der Kanzel: bis über Kopfhöhe senkrecht im Zylinder
-## der Kollision (Radius 0,45 bis +6 m; bis 4 m ist die Figur je dort),
-## dann weit über den Abgrund hinausgebogen, die Nadelpolster tief (4–7 m)
-## und außen (q ≥ 10). So rahmt sie das Tal, ohne den Weltenbaum zu
-## verdecken.
+## Die Drehkiefer auf der Kanzel: eine Kaskadenkiefer, wie sie an Felskanten
+## wächst. Bis 2,6 m senkrecht im Zylinder der Kollision (Radius 0,45; die
+## Figur kommt mit einem Sprung bis gut 3 m), dann knickt der Stamm über den
+## Abgrund und läuft fast waagerecht hinaus; die Nadelpolster liegen in
+## 3,5–5 m Höhe weit draußen (q 11–16). Höher und näher am Weg stünde die
+## Krone von s 24 bis 40 in der Sichtlinie zur Krone des Weltenbaums
+## (Plan 7, ±6°) – so rahmt sie das Tal darunter.
 static func _drehkiefer(sa: Sammler, level: Level01, stelle: Dictionary) -> void:
 	var s: float = stelle["s"]
 	var q: float = stelle["q"]
@@ -1034,12 +1108,13 @@ static func _drehkiefer(sa: Sammler, level: Level01, stelle: Dictionary) -> void
 	rauschen.seed = 4161
 	# Stamm (lokal: X nach außen, Y hoch, −Z voraus)
 	var achse := PackedVector3Array([Vector3(0.0, -0.8, 0.0), Vector3(0.02, 1.0, 0.0),
-			Vector3(0.0, 2.4, -0.04), Vector3(0.05, 3.6, -0.1), Vector3(0.5, 4.5, -0.22),
-			Vector3(1.5, 5.15, -0.32), Vector3(2.7, 5.5, -0.28), Vector3(3.9, 5.7, -0.12),
-			Vector3(4.6, 6.1, 0.05)])
-	var radien := PackedFloat32Array([0.46, 0.42, 0.4, 0.37, 0.32, 0.26, 0.2, 0.14, 0.09])
-	Totholzzaun.stueck(st, _glatt(achse, 3), _glatt_r(radien, 3), {"saat": 4162, "seiten": 14,
-			"ende": "spitz", "moos": 0.35, "drehung": 0.55, "buckel": 0.1,
+			Vector3(-0.02, 2.0, -0.05), Vector3(0.2, 2.75, -0.12), Vector3(1.0, 3.35, -0.22),
+			Vector3(2.3, 3.6, -0.3), Vector3(3.7, 3.7, -0.22), Vector3(5.0, 3.9, -0.05),
+			Vector3(6.1, 4.25, 0.12), Vector3(6.9, 4.7, 0.2)])
+	var radien := PackedFloat32Array([0.46, 0.43, 0.41, 0.38, 0.33, 0.28, 0.23, 0.18, 0.13,
+			0.08])
+	Totholzzaun.stueck(st, _glatt(achse, 3), _glatt_r(radien, 3), {"saat": 4162, "seiten": 12,
+			"ende": "spitz", "moos": 0.45, "drehung": 0.7, "buckel": 0.12,
 			"ton": KIEFER_TON, "ao": Vector2(0.55, 1.0)})
 	# Wurzeln krallen sich in den Fels, zwei laufen über den Rand hinab.
 	# Flach: Die Kanzel ist begehbar, und nur der Stamm hat Kollision.
@@ -1052,23 +1127,23 @@ static func _drehkiefer(sa: Sammler, level: Level01, stelle: Dictionary) -> void
 		var wurzel := PackedVector3Array([Vector3(0.3, 0.1, z * 0.4), Vector3(0.9, 0.06, z),
 				Vector3(1.35, -0.1, z * 1.2), Vector3(1.55, -0.8, z * 1.3),
 				Vector3(1.6, -1.8, z * 1.2)])
-		Totholzzaun.stueck(st, _glatt(wurzel, 3), _glatt_r(PackedFloat32Array(
-				[0.2, 0.16, 0.14, 0.11, 0.07]), 3), {"saat": 4170 + k, "seiten": 6,
+		Totholzzaun.stueck(st, _glatt(wurzel, 2), _glatt_r(PackedFloat32Array(
+				[0.2, 0.16, 0.14, 0.11, 0.07]), 2), {"saat": 4170 + k, "seiten": 6,
 				"ende": "spitz", "moos": 0.5, "ton": KIEFER_TON})
-	var kurve := _glatt(achse, 3)
-	var achse_bei := func(y: float) -> Vector3:
-		var best := kurve[0]
-		for p in kurve:
-			if absf(p.y - y) < absf(best.y - y):
-				best = p
-		return best
-	# [Anteil der Höhe (von 6,1 m), Richtung, Länge, Polsterradius]
+	# Ein trockener Ast über der Kanzel, oben am Knick.
+	Totholzzaun.stueck(st, PackedVector3Array([Vector3(0.4, 3.0, -0.15), Vector3(0.2, 3.8, 0.4),
+			Vector3(0.1, 4.3, 0.9)]), PackedFloat32Array([0.07, 0.05, 0.03]), {"saat": 4175,
+			"seiten": 5, "ende": "splitter", "moos": 0.2, "ton": Totholzzaun.RINDE_TON})
+	# [Ansatz, Richtung, Länge, Polsterradius]
 	var aeste := [
-		[0.9, Vector3(1.0, 0.1, 0.35), 2.2, 1.7], [0.94, Vector3(0.6, 0.25, -1.0), 2.0, 1.5],
-		[0.82, Vector3(0.5, 0.15, 1.0), 2.1, 1.4], [0.78, Vector3(1.0, 0.0, -0.6), 2.6, 1.5],
-		[0.99, Vector3(0.2, 0.6, 0.1), 1.4, 1.3], [0.72, Vector3(0.1, 0.1, 1.0), 1.6, 1.1],
+		[Vector3(2.3, 3.6, -0.3), Vector3(0.3, 0.15, -1.0), 1.7, 1.3],
+		[Vector3(3.3, 3.68, -0.25), Vector3(0.35, 0.2, 1.0), 1.9, 1.5],
+		[Vector3(4.6, 3.85, -0.1), Vector3(0.5, 0.25, -1.0), 1.8, 1.5],
+		[Vector3(6.3, 4.35, 0.14), Vector3(1.0, 0.3, 0.25), 1.3, 1.7],
+		[Vector3(5.4, 4.0, 0.0), Vector3(0.2, 1.0, 0.15), 0.9, 1.2],
+		[Vector3(5.8, 4.15, 0.08), Vector3(0.3, 0.1, 1.0), 1.5, 1.3],
 	]
-	_kiefernwipfel(sa, st, lage, achse_bei, 6.1, aeste, 4180)
+	_kiefernwipfel(sa, st, lage, aeste, 4180)
 	_holz(sa, Riesenstamm.fertig(st), lage)
 	_kranz(sa, Findling.kranz(_kreis(0.9, 24), 0.02, 0.9, 0.5, 0.25), lage)
 
@@ -1116,11 +1191,13 @@ static func _nische(sa: Sammler, level: Level01) -> void:
 			func(s: float) -> Vector2:
 				return Vector2(float(q_bei.call(s)) - 0.6, -float(halb.call(s))),
 			halb, "Boden")
-	# Fugen zwischen den Kisten (s 85, 86,5, 88,5 → z +2, +0,5, −1,5).
-	_findling_teile(sa, level, "Moosbank", [3.0, 1.25, -0.5, -2.8], {"saat": 8701,
-			"eckig": 3.0, "rundung": 0.28, "beulen": 0.2, "unruhe": 0.12, "umriss": 0.07,
-			"moos": 1.2, "moos_oben": 1.0, "ausgetreten": 0.1, "schichten_wechseln": true,
-			"anlauf": 0.06}, 0.0)
+	# Ein Block mit Schichten und tiefen Beulen: In Blöcke zerlegt las sich
+	# die Bank als Reihe von Fässern.
+	_findling_teile(sa, level, "Moosbank", [], {"saat": 8702, "eckig": 3.2,
+			"rundung": 0.32, "beulen": 0.45, "unruhe": 0.18, "umriss": 0.1, "moos": 1.0,
+			"moos_oben": 1.0, "ausgetreten": 0.1, "schichten": true, "anlauf": 0.12,
+			"bemoost": Vector2(0.85, 0.55)}, 0.0)
+	_randfarne(sa, level, "Moosbank", 7, 8790)
 	var bank := level.begehbar("Moosbank")
 	var bank_lage: Transform3D = bank["lage"]
 	var bank_g: Vector3 = bank["groesse"]
@@ -1146,7 +1223,7 @@ static func _nische(sa: Sammler, level: Level01) -> void:
 		var radien := PackedFloat32Array()
 		for k in zug.size():
 			radien.append(r * lerpf(1.35, 0.35, float(k) / float(zug.size() - 1)))
-		Totholzzaun.stueck(wst, _glatt(zug, 3), _glatt_r(radien, 3), {"saat": 8750 + i,
+		Totholzzaun.stueck(wst, _glatt(zug, 2), _glatt_r(radien, 2), {"saat": 8750 + i,
 				"seiten": 7, "ende": "spitz", "moos": 0.6, "buckel": 0.14,
 				"ao": Vector2(0.7, 0.8)})
 	var bank_wurzeln := _klemmen(Riesenstamm.fertig(wst), bank_g * 0.5, bank_boden, -1.0, 0.02)
@@ -1189,9 +1266,11 @@ static func _nische(sa: Sammler, level: Level01) -> void:
 ## am Rand steht. Darüber das Pfortentor, dessen rechter Fuß in den
 ## Torbaum wächst.
 static func _pforte(sa: Sammler, level: Level01) -> void:
-	_findling_teile(sa, level, "Pforte links", [0.35], {"saat": 1011, "eckig": 2.7,
-			"rundung": 0.4, "beulen": 0.26, "unruhe": 0.12, "umriss": 0.08, "moos": 1.1,
-			"moos_oben": 0.9, "ausgetreten": 0.0, "schichten_wechseln": true, "anlauf": 0.06}, 0.0)
+	_findling_teile(sa, level, "Pforte links", [], {"saat": 1011, "eckig": 2.8,
+			"rundung": 0.36, "beulen": 0.34, "unruhe": 0.15, "umriss": 0.12, "moos": 1.0,
+			"moos_oben": 0.9, "ausgetreten": 0.0, "schichten": true, "anlauf": 0.1,
+			"bemoost": Vector2(0.8, 0.55)}, 0.0)
+	_randfarne(sa, level, "Pforte links", 3, 1019)
 	# Hinter der Leitlinie (q < −3,8): Felsmasse bis an die Felsnase.
 	_brocken(sa, Vector3(2.6, 4.2, 5.4), _lage(level, 101.4, -5.4, 0.0, 0.1), 1012, 0.6,
 			{"moos": 0.9, "kuppe": 0.5})
@@ -1227,9 +1306,10 @@ static func _wurzelstock(sa: Sammler, level: Level01, e: Dictionary) -> void:
 	var g: Vector3 = e["groesse"]
 	var h := g * 0.5
 	var boden := -(float(e["oben"]) - h.y)
-	_findling_teile(sa, level, "Pforte rechts", [-0.5], {"saat": 1021, "eckig": 2.9,
-			"rundung": 0.36, "beulen": 0.22, "unruhe": 0.1, "umriss": 0.07, "moos": 1.0,
-			"moos_oben": 0.8, "ausgetreten": 0.0, "schichten_wechseln": true, "anlauf": 0.05}, 0.0)
+	_findling_teile(sa, level, "Pforte rechts", [], {"saat": 1022, "eckig": 2.9,
+			"rundung": 0.36, "beulen": 0.3, "unruhe": 0.14, "umriss": 0.1, "moos": 1.0,
+			"moos_oben": 0.8, "ausgetreten": 0.0, "schichten": true, "anlauf": 0.1,
+			"bemoost": Vector2(0.7, 0.6)}, 0.0)
 	# Der Torbaum in Kastenkoordinaten
 	var stelle := _rahmenstelle("torbaum")
 	var baum := Vector3(4.0, boden - 1.0, 0.0)
@@ -1261,8 +1341,8 @@ static func _wurzelstock(sa: Sammler, level: Level01, e: Dictionary) -> void:
 		for k in punkte.size():
 			var t := float(k) / float(punkte.size() - 1)
 			radien.append(r * lerpf(1.7, 0.35, t) * (1.0 + 0.12 * sin(float(k) * 2.3 + float(i))))
-		Totholzzaun.stueck(st, _glatt(punkte, 4), _glatt_r(radien, 4), {"saat": 1030 + i,
-				"seiten": 9, "ende": "spitz", "moos": 0.5, "buckel": 0.14, "ton": KIEFER_TON,
+		Totholzzaun.stueck(st, _glatt(punkte, 3), _glatt_r(radien, 3), {"saat": 1030 + i,
+				"seiten": 8, "ende": "spitz", "moos": 0.5, "buckel": 0.14, "ton": KIEFER_TON,
 				"ao": Vector2(0.75, 0.6)})
 	# Feine Oberflächenwurzeln auf dem Weg (unter 0,3 m).
 	var rng := PropWerkzeug.zufall(1036)
@@ -1280,44 +1360,63 @@ static func _wurzelstock(sa: Sammler, level: Level01, e: Dictionary) -> void:
 
 
 ## Der Torbaum: eine große Kiefer außen am Rand (q +7, Fuß 1 m unter dem
-## Weg) auf einem Felsfuß. Der Stamm lehnt nach außen, die Krone liegt in
-## drei Etagen flacher Polster über dem Tal. Zwei Wurzelstränge führen
-## vom rechten Fuß des Pfortentors in den Stamm.
+## Weg) auf einem Felsfuß. Bis gut 10 m steigt der Stamm senkrecht, dann
+## neigt sich sein Leittrieb in einem weiten Bogen über die Pforte; die
+## Krone liegt als flacher Schirm in 17–20 m über dem Weg. Aufrecht am Rand
+## stünde sie vom Grat aus (s 24–76) genau in der Sichtlinie zur Krone des
+## Weltenbaums (Plan 7, ±6°; nachgerechnet: jede Stelle rechts des Wegs über
+## 8 m liegt darin) – so steht sie links daneben und überdacht das Tor. Aus
+## der Spielkamera nahe der Pforte liegt sie über dem Bildrand; man sieht
+## den Stamm und seinen Bogen. Zwei Wurzelstränge führen vom rechten Fuß
+## des Pfortentors in den Stamm.
 static func _torbaum(sa: Sammler, level: Level01, stelle: Dictionary) -> void:
 	var s: float = stelle["s"]
 	var q: float = stelle["q"]
 	var fuss: float = stelle["fuss"]
-	var hoehe: float = stelle["hoehe"]
 	var lage := _lage(level, s, q, fuss, 0.0)
 	# Felsfuß: gewölbt, tief unter der Kante, damit er nicht nach Boden
 	# aussieht; der Stamm steht auf seiner Kuppe.
 	_brocken(sa, Vector3(3.0, 5.0, 3.4), lage.translated_local(Vector3(0.35, -5.3, 0.0)),
 			1031, 0.0, {"moos": 0.9, "kuppe": 0.3}, false)
-	var h := hoehe - 1.5
-	var neigung := Vector2(2.2, -0.5)
-	var netz := Riesenstamm.netz({"hoehe": h, "radius": 0.82, "radius_oben": 0.34,
+	var h := 11.5
+	var netz := Riesenstamm.netz({"hoehe": h, "radius": 0.82, "radius_oben": 0.56,
 			"saat": 1032, "brettwurzeln": 6, "wurzel_reichweite": 1.5, "wurzel_hoehe": 1.8,
-			"neigung": neigung, "krumm": 0.25, "drehung": 0.35, "pilze": 1,
-			"efeu": 1, "aeste": 0, "oben": "offen", "rippen": 14})
+			"neigung": Vector2(-0.5, 0.15), "krumm": 0.12, "drehung": 0.35, "pilze": 1,
+			"efeu": 1, "aeste": 0, "oben": "offen", "rippen": 12})
 	_holz(sa, _getoent(netz, KIEFER_TON), lage)
-	var achse := func(y: float) -> Vector3:
-		var t := clampf(y / h, 0.0, 1.0)
-		return Vector3(neigung.x * pow(t, 1.5), y, neigung.y * pow(t, 1.5))
 	var st := Riesenstamm.bauer()
-	# Drei Etagen, außen (+X) weiter hinaus; die inneren erst über 13 m.
+	# Der Bogen: lokal X = quer (+q), also nach innen negativ.
+	var bogen := PackedVector3Array([Vector3(-0.5, h - 1.2, 0.15), Vector3(-1.2, h + 1.3, 0.25),
+			Vector3(-2.7, h + 3.8, 0.2), Vector3(-4.6, h + 5.5, 0.05), Vector3(-6.4, h + 6.6, -0.15),
+			Vector3(-7.9, h + 7.2, -0.25), Vector3(-9.0, h + 7.5, -0.3)])
+	var bogen_r := PackedFloat32Array([0.56, 0.5, 0.44, 0.37, 0.3, 0.22, 0.14])
+	Totholzzaun.stueck(st, _glatt(bogen, 3), _glatt_r(bogen_r, 3), {"saat": 1033,
+			"seiten": 12, "ende": "spitz", "moos": 0.3, "drehung": 0.3, "buckel": 0.08,
+			"ton": KIEFER_TON, "ao": Vector2(1.0, 1.0)})
+	# Der Schirm: Äste nur vom äußeren Bogen (q ≤ 2, h ≥ 17), weit nach vorn
+	# und hinten ausladend – eine breite, flache Krone über dem Tor.
 	var aeste := [
-		[0.6, Vector3(1.0, 0.1, 0.55), 4.0, 2.2], [0.64, Vector3(0.8, 0.05, -0.9), 3.6, 2.0],
-		[0.7, Vector3(-0.35, 0.2, -1.0), 2.6, 1.7], [0.74, Vector3(1.0, 0.15, -0.1), 3.4, 2.1],
-		[0.8, Vector3(0.1, 0.25, 1.0), 2.7, 1.8], [0.86, Vector3(-0.6, 0.35, 0.5), 2.2, 1.6],
-		[0.9, Vector3(0.9, 0.35, -0.6), 2.4, 1.8], [0.96, Vector3(0.3, 0.8, 0.2), 1.6, 1.7],
+		[Vector3(-5.6, h + 6.15, -0.05), Vector3(0.1, 0.25, 1.0), 3.4, 2.3],
+		[Vector3(-6.0, h + 6.35, -0.1), Vector3(-0.05, 0.22, -1.0), 3.6, 2.4],
+		[Vector3(-6.6, h + 6.7, -0.15), Vector3(-0.35, 0.3, 1.0), 3.0, 2.2],
+		[Vector3(-7.0, h + 6.85, -0.2), Vector3(-0.3, 0.2, -1.0), 2.9, 2.2],
+		[Vector3(-8.0, h + 7.2, -0.25), Vector3(-1.0, 0.25, 0.55), 2.4, 2.1],
+		[Vector3(-8.6, h + 7.4, -0.28), Vector3(-1.0, 0.25, -0.5), 2.3, 2.1],
+		[Vector3(-9.0, h + 7.5, -0.3), Vector3(-1.0, 0.35, 0.0), 1.6, 2.0],
+		[Vector3(-7.4, h + 7.0, -0.22), Vector3(-0.2, 1.0, 0.1), 1.2, 1.8],
+		[Vector3(-6.3, h + 6.5, -0.12), Vector3(0.1, 1.0, -0.3), 1.1, 1.6],
 	]
-	_kiefernwipfel(sa, st, lage, achse, h, aeste, 1040)
-	# Trockene Aststummel am unteren Stamm.
+	_kiefernwipfel(sa, st, lage, aeste, 1040)
+	# Ein toter Nebentrieb am Knick und trockene Stummel am unteren Stamm.
+	Totholzzaun.stueck(st, PackedVector3Array([Vector3(-0.3, h - 0.5, 0.1), Vector3(0.4, h + 1.0,
+			-0.1), Vector3(0.9, h + 2.3, -0.3)]), PackedFloat32Array([0.16, 0.11, 0.05]),
+			{"saat": 1069, "seiten": 6, "ende": "splitter", "moos": 0.3,
+			"ton": Totholzzaun.RINDE_TON})
 	for i in 4:
-		var y := h * (0.28 + 0.07 * float(i))
-		var start: Vector3 = achse.call(y)
+		var y := h * (0.35 + 0.12 * float(i))
 		var w := float(i) * 2.1 + 0.4
 		var raus := Vector3(cos(w), 0.15, -sin(w))
+		var start := Vector3(-0.5 * pow(y / h, 1.5), y, 0.0)
 		Totholzzaun.stueck(st, PackedVector3Array([start, start + raus * 0.7,
 				start + raus * 1.3 + Vector3.DOWN * 0.1]), PackedFloat32Array([0.09, 0.06, 0.035]),
 				{"saat": 1070 + i, "seiten": 5, "ende": "splitter", "moos": 0.3,
@@ -1328,7 +1427,7 @@ static func _torbaum(sa: Sammler, level: Level01, stelle: Dictionary) -> void:
 	for k in 2:
 		var dz := -0.35 + 0.7 * float(k)
 		var von := lage.affine_inverse() * _p(level, s + dz, weite - 0.2, 3.1 + 0.3 * float(k))
-		var ziel: Vector3 = achse.call(4.6 + 0.8 * float(k)) + Vector3(-0.6, 0.0, dz * 0.5)
+		var ziel := Vector3(-0.55, 4.6 + 0.8 * float(k), dz * 0.5)
 		var zug := PackedVector3Array([von, von.lerp(ziel, 0.5) + Vector3.DOWN * 0.35, ziel])
 		Totholzzaun.stueck(st, _glatt(zug, 3), _glatt_r(PackedFloat32Array([0.3, 0.24, 0.2]), 3),
 				{"saat": 1050 + k, "seiten": 7, "moos": 0.45, "ton": KIEFER_TON})
@@ -1363,9 +1462,10 @@ static func _findlingsturm(sa: Sammler, level: Level01) -> void:
 	var e := level.begehbar(name)
 	if e.is_empty():
 		return
-	_findling_auf(sa, level, name, _mit_kisten(level, name, {"saat": 1891, "eckig": 2.5,
-			"rundung": 0.24, "beulen": 0.22, "unruhe": 0.12, "umriss": 0.05, "moos": 1.0,
-			"moos_oben": 0.6, "ausgetreten": 0.3, "schichten": true}), 0.0)
+	_findling_teile(sa, level, name, [], {"saat": 1891, "eckig": 2.6, "rundung": 0.24,
+			"beulen": 0.3, "unruhe": 0.14, "umriss": 0.06, "moos": 1.0, "moos_oben": 0.6,
+			"ausgetreten": 0.3, "schichten": true, "anlauf": 0.08,
+			"bemoost": Vector2(0.7, 0.6)}, 0.0)
 	var s: float = e["s"]
 	_brocken(sa, Vector3(2.3, 3.0, 2.5), _lage(level, s + 0.5, 9.1, 0.0, 0.6), 1892, 0.3,
 			{"moos": 1.0})
@@ -1434,8 +1534,9 @@ static func _wurzelknie(sa: Sammler, level: Level01) -> void:
 				Vector3(1.4 + rng.randf_range(0.0, 0.5), boden - 0.05, z0 + ende * rng.randf_range(0.5, 1.1))])
 		Totholzzaun.stueck(st, _glatt(zug2, 2), _glatt_r(PackedFloat32Array([0.14, 0.09, 0.04]), 2),
 				{"saat": 1916 + i, "seiten": 6, "ende": "spitz", "moos": 0.5})
-	_holz(sa, _klemmen(Riesenstamm.fertig(st), h, boden, -1.0), lage)
-	_kranz(sa, _kranz_im_kasten(Vector3(g.x, g.y, g.z + 1.0), boden + 0.02, {"eckig": 2.4}), lage)
+	var knie := _klemmen(Riesenstamm.fertig(st), h, boden, -1.0)
+	_holz(sa, knie, lage)
+	_kranz(sa, _fussring(knie, boden, 0.6), lage)
 	_farn_bei(sa, lage.translated_local(Vector3(-1.3, boden, -1.9)), 1, 1913, 0.62)
 	_farn_bei(sa, lage.translated_local(Vector3(-1.1, boden, 2.0)), 0, 1914, 1.5)
 	# Leuchtpilze im Spalt unter dem Bogen

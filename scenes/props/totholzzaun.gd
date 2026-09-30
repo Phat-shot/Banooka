@@ -172,11 +172,11 @@ static func _riegel(st: SurfaceTool, rng: RandomNumberGenerator, a: Vector3, b: 
 		r: float, seite: Vector3, saat: int, ende: String, ton: Color) -> void:
 	var d := b - a
 	var mitte := a + d * 0.5 + Vector3.DOWN * d.length() * 0.012
-	var punkte := PackedVector3Array([a, a.lerp(mitte, 0.5), mitte, mitte.lerp(b, 0.5), b])
-	var radien := PackedFloat32Array([r, r * 1.02, r, r * 0.97, r * 0.95])
+	var punkte := PackedVector3Array([a, a.lerp(mitte, 0.6), mitte.lerp(b, 0.4), b])
+	var radien := PackedFloat32Array([r, r * 1.02, r * 0.97, r * 0.95])
 	# Die Spaltfläche zeigt mal nach oben, mal zur Seite.
 	var spalt := (Vector3.UP * rng.randf_range(-0.3, 1.0) + seite * rng.randf_range(-1.0, 1.0)).normalized()
-	stueck(st, punkte, radien, {"saat": saat, "seiten": 7, "form": "gespalten",
+	stueck(st, punkte, radien, {"saat": saat, "seiten": 6, "form": "gespalten",
 			"spalt": spalt, "ende": ende, "moos": 0.45, "ao": Vector2(0.85, 0.85), "ton": ton})
 
 
