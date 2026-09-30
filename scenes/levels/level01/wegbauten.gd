@@ -3,47 +3,67 @@ class_name L01Wegbauten
 ## Level 01, Modul „Wegbauten": die Setpieces am Weg (Plan 5A–5D, 8.6, K7).
 ##
 ##   A  Wurzelnest hinter dem Start, Waldtor (s 3) zwischen zwei Stämmen,
-##      Mooslog (s 8) mit Farn an den Enden, Wurzeln im Erdspalt, der
+##      Mooslog (s 8) mit Farn und Leuchtpilzen, Wurzeln im Erdspalt, der
 ##      Enthüllungsrahmen: ein toter Baum (s 28) und ein Findling (s 31)
 ##   B  Totholzgeländer (s 33–50) um die Kanzel mit geborstenem Endpfosten,
 ##      Kanzelplatte mit Drehkiefer, Wurzeln in der Kerbe, Spornfels,
 ##      Hangstamm, Nischenboden und Moosbank, die Torbaum-Pforte (links
-##      ein Fels, rechts ein Fels im Griff der Torbaumwurzeln) samt
-##      Pfortentor und Torbaum
+##      ein Fels, rechts ein Fels im Griff der Torbaumwurzeln), der Torbaum
+##      und das Pfortentor
 ##   D  Riesentor (s 162), Trittsteine der Furt, Findlingsturm, Wurzelknie
 ##
 ## FINDLING-REGEL (Plan E13, 8.6). Was man betreten kann, hat einen Körper
 ## aus `Level01.BEGEHBARES`, und die Optik passt genau darauf: Oberseite =
 ## Kollisionsoberkante, nichts ragt über den Kasten hinaus, was die Figur
-## treffen könnte. Steine baut `Findling`, liegende Stämme `Riesenstamm.
-## liegend` in derselben Lage wie die Kapsel. Wurzeln, die über einen Körper
-## laufen, werden hinterher in seinen Kasten geklemmt (`_klemmen`): oben
-## bündig mit der Oberkante (sie liegen im Moos, statt darauf), zur Wegseite
-## bündig mit der Wand, und wo sie auf den Boden hinauslaufen, flacher als
-## 0,3 m. Kisten stehen auf der ebenen Fläche (`Findling.plateau`): Die
-## Steine unter Kisten haben deshalb eine knappe Kante (`_mit_kisten`).
-## Alles andere – Wurzeln, Äste, Farne, Deko-Felsen – steht so, dass man es
-## nicht erreicht: hinter einer Leitlinie, über dem Abgrund, unter dem Weg
-## oder niedriger als 0,35 m. Farne am Fuß der Steine sind weich; durch sie
-## läuft man hindurch wie durch Gras.
+## treffen könnte. Steine baut `Findling` (ein Block je Körper – in Blöcke
+## zerlegt las sich die Moosbank als Reihe von Fässern), liegende Stämme
+## `Riesenstamm.liegend` in derselben Lage wie die Kapsel. Wurzeln, die über
+## einen Körper laufen, werden hinterher in seinen Kasten geklemmt
+## (`_klemmen`): oben bündig mit der Oberkante (sie liegen im Moos, statt
+## darauf), zur Wegseite bündig mit der Wand, und wo sie auf den Boden
+## hinauslaufen, flacher als 0,3 m. Kisten stehen auf der ebenen Fläche
+## (`Findling.plateau`): Die Steine unter Kisten haben deshalb eine knappe
+## Kante (`_mit_kisten_auf`). Alles andere – Wurzeln, Äste, Farne,
+## Deko-Felsen – steht so, dass man es nicht erreicht: hinter einer
+## Leitlinie, über dem Abgrund, unter dem Weg oder niedriger als 0,35 m.
+## Farne am Fuß und auf den Kanten der Steine sind weich; durch sie läuft
+## man hindurch wie durch Gras.
 ##
-## KAMERA (Plan K1, K2). Nichts davon hat Kollision, der Kamerastrahl (1|8)
-## trifft also nichts außer den Sichtsperren der Tore. Innerhalb |q| ≤ 6
-## steht über dem Weg nichts tiefer als 8,8 m; Kronen am Weg lehnen nach
-## außen. Die Rahmenbäume rechts (toter Baum, Drehkiefer, Torbaum) sind so
-## gestellt, dass sie den Weltenbaum aus den Enthüllungsbildern (s 22–46)
-## nicht verdecken: der tote Baum lehnt über den Abgrund und streckt die
-## Äste nach außen, die Drehkiefer trägt ihre Krone tief und weit draußen.
+## STEINE, DIE NICHT NACH KISTE AUSSEHEN. Ein Findling ist ein gerundeter
+## Kasten mit ebener Oberseite; allein las er sich als Sockel mit Moos-
+## deckel. Dagegen helfen hier: Schichten und tiefe Beulen, Moos, das von
+## oben die Flanken hinabwächst (`_bemoost`, COLOR.a des Steins), kleine
+## Farne auf den Oberkanten (`_randfarne`) und Wurzeln, die über den Stein
+## greifen. Der Verdeckungsring folgt dem wirklichen Fuß des Netzes
+## (`_fussring`): Nach dem Kasten gerechnet lag er an Steinen mit tiefen
+## Beulen bis 0,4 m daneben, und der unverdeckte Streifen dazwischen las sich
+## als helle Scheibe um den Stein.
 ##
-## KOSTEN (Plan 13: 25 Zeichenaufrufe, 10 für Schatten, 30k Dreiecke).
-## `optik()` liefert für jeden Eintrag nur eine leere Marke; die Netze baut
-## der Bauschritt je Stück verschmolzen, je Stoff eines. Stücke: Wurzelnest,
-## A, B vorn (33–66), B hinten (66–104), D. Schatten werfen nur Stein und
-## Borke. Harte Sichtweiten: Farn, Verdeckungskranz, feine Wurzeln und
-## Böden bis `SICHT_NAH`, Stein, Borke und Kronen bis `SICHT_FERN`, die
-## Wurzeltore bis `SICHT_TOR`. Das Totholz des Geländers liegt im Borkennetz
-## (grau nur über die Tönung). Das Wurzelnest sieht die Spielkamera nie –
-## sie blickt immer nach vorn –, es wirft deshalb auch keinen Schatten.
+## KAMERA (Plan K1, K2, Abschnitt 7). Nichts davon hat Kollision, der
+## Kamerastrahl (1|8) trifft also nichts außer den Sichtsperren der Tore.
+## Innerhalb |q| ≤ 6 steht über dem Weg nichts tiefer als 8,8 m. Die
+## Rahmenbäume rechts halten sich aus dem ±6°-Kegel der Sichtlinie zur
+## Krone des Weltenbaums (nachgerechnet von s 16 bis 96): Der tote Baum
+## lehnt über den Abgrund und streckt die Äste nach außen, die Drehkiefer
+## wächst als Kaskade in 3,5–5 m Höhe über die Kante, und der Torbaum – der
+## an seinem Fuß (q 7) jede Krone über 8 m in den Kegel stellte – neigt
+## seinen Leittrieb über die Pforte und trägt seinen Schirm links der
+## Sichtlinie (q ≤ 2, 17–20 m über dem Weg).
+##
+## KOSTEN (Plan 13: 25 Zeichenaufrufe, 10 für Schatten). `optik()` liefert
+## für jeden Eintrag nur eine leere Marke; die Netze baut der Bauschritt je
+## Stück verschmolzen, je Stoff eines. Stücke: Wurzelnest, Waldsaum (A),
+## Hangweg vorn (33–66), Hangweg hinten (66–104, Sichtweite 75 m), Torbaum
+## (mit Pfortentor, Wahrzeichen), Bachwiese (Sichtweite 110 m). Schatten
+## werfen nur Stein und Borke. Harte Sichtweiten: Farn, Verdeckungsring,
+## feine Wurzeln und Zweige bis `SICHT_NAH`, Böden bis 60 m, Stein, Borke
+## und Kronen bis `SICHT_FERN` (je Stück enger), die Wurzeltore bis
+## `SICHT_TOR`. Das Totholz des Geländers liegt im Borkennetz (grau nur über
+## die Tönung). Das Wurzelnest sieht die Spielkamera nie – sie blickt immer
+## nach vorn –, es wirft deshalb auch keinen Schatten. Gemessen (Verfolger,
+## Tiefenvorlauf und Schatten eingerechnet): höchstens 27 Zeichenaufrufe
+## (s 31), sonst 0–25; 45–72k Dreiecke auf dem Grat (s 4–101), 14–34k
+## dahinter.
 
 ## Borkentönung der Kiefern: rötlich (Eigenfarbe ≤ 1).
 const KIEFER_TON := Color(1.0, 0.78, 0.64)
@@ -277,7 +297,10 @@ static func _wurzeltor(sa: Sammler, level: Level01, name: String, saat: int) -> 
 # ================================================================ Bausteine
 
 ## Ein Findling genau auf einen Kasten aus BEGEHBARES, mit Verdeckungsring
-## auf der Bodenhöhe `boden_h` (über der Decke; NAN = ohne Ring).
+## um den Fuß auf der Bodenhöhe `boden_h` (über der Decke; NAN = ohne
+## Ring). Optionen wie `Findling.netz`, dazu "bemoost": Vector2(Stärke, ab
+## welchem Anteil der Höhe) für `_bemoost`. Unter Kisten wird die Kante so
+## knapp, dass jede Kiste ganz auf der ebenen Fläche steht.
 static func _findling_auf(sa: Sammler, level: Level01, name: String, optionen: Dictionary,
 		boden_h: float = 0.0) -> void:
 	var e := level.begehbar(name)
@@ -285,60 +308,19 @@ static func _findling_auf(sa: Sammler, level: Level01, name: String, optionen: D
 		return
 	var groesse: Vector3 = e["groesse"]
 	var lage: Transform3D = e["lage"]
-	var netz := Findling.netz(groesse, optionen)
+	var boden_lokal := boden_h - (float(e.get("oben", 0.0)) - groesse.y * 0.5)
+	var o := optionen.duplicate()
+	o.erase("bemoost")
+	o = _mit_kisten_auf(level, name, lage, groesse, o)
+	var netz := Findling.netz(groesse, o)
+	var moos: Vector2 = optionen.get("bemoost", Vector2.ZERO)
+	if moos.x > 0.0:
+		netz = _bemoost(netz, groesse * 0.5, boden_lokal, moos.x, moos.y,
+				int(optionen.get("saat", 1)))
 	_stein(sa, netz, lage)
 	if not is_nan(boden_h):
-		var oben: float = e.get("oben", 0.0)
-		var boden_lokal := boden_h - (oben - groesse.y * 0.5)
 		var breite := clampf(minf(groesse.x, groesse.z) * 0.3, 0.35, 0.8)
 		_kranz(sa, _fussring(netz, boden_lokal, breite), lage)
-
-
-## Ein Findling aus mehreren Blöcken, die den Kasten eines BEGEHBARES-
-## Eintrags gemeinsam füllen: an den Fugen `fugen` (lokales z, längs) bricht
-## der Fels, dort klaffen Spalten, und jeder Block hat einen anderen Umriss.
-## Ein großer Stein aus einem Stück las sich als gepolsterte Kiste. Alle
-## Blöcke tragen dieselbe Oberkante (die des Kastens); unter Kisten wird die
-## Kante so knapp, dass jede Kiste ganz auf der Fläche steht.
-static func _findling_teile(sa: Sammler, level: Level01, name: String, fugen: Array,
-		optionen: Dictionary, boden_h: float = 0.0) -> void:
-	var e := level.begehbar(name)
-	if e.is_empty():
-		return
-	var groesse: Vector3 = e["groesse"]
-	var lage: Transform3D = e["lage"]
-	var h := groesse * 0.5
-	var grenzen: Array[float] = [h.z]
-	for f: float in fugen:
-		grenzen.append(f)
-	grenzen.append(-h.z)
-	var saat: int = optionen.get("saat", 1)
-	var rng := PropWerkzeug.zufall(saat)
-	for i in grenzen.size() - 1:
-		var z0 := grenzen[i]
-		var z1 := grenzen[i + 1]
-		var g := Vector3(groesse.x, groesse.y, z0 - z1)
-		var teil := lage * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, (z0 + z1) * 0.5))
-		var o := optionen.duplicate()
-		o["saat"] = saat + i * 17
-		o["eckig"] = float(optionen.get("eckig", 3.0)) + rng.randf_range(-0.35, 0.35)
-		o["umriss"] = float(optionen.get("umriss", 0.06)) * rng.randf_range(0.7, 1.4)
-		o["beulen"] = float(optionen.get("beulen", 0.2)) * rng.randf_range(0.8, 1.2)
-		if optionen.get("schichten_wechseln", false):
-			o["schichten"] = i % 2 == 1
-		o.erase("schichten_wechseln")
-		o.erase("bemoost")
-		o = _mit_kisten_auf(level, name, teil, g, o)
-		var netz := Findling.netz(g, o)
-		var moos: Vector2 = optionen.get("bemoost", Vector2.ZERO)
-		if moos.x > 0.0:
-			var boden_lokal := boden_h - (float(e.get("oben", 0.0)) - groesse.y * 0.5)
-			netz = _bemoost(netz, g * 0.5, boden_lokal, moos.x, moos.y, saat + i)
-		_stein(sa, netz, teil)
-		if not is_nan(boden_h):
-			var boden_lokal := boden_h - (float(e.get("oben", 0.0)) - groesse.y * 0.5)
-			var breite := clampf(minf(g.x, g.z) * 0.3, 0.35, 0.8)
-			_kranz(sa, _fussring(netz, boden_lokal, breite), teil)
 
 
 ## Kleine Farne auf der Oberkante eines Kastens, an seinen Rändern: Sie
@@ -383,8 +365,8 @@ static func _randfarne(sa: Sammler, level: Level01, name: String, anzahl: int, s
 ## je Winkel der größte Abstand der Ecken in einem Band um `y`. Nach dem
 ## Kasten gerechnet lag der Ring an Steinen mit tiefen Beulen bis 0,4 m
 ## neben dem Fuß, und zwischen Stein und Ring blieb ein heller Streifen.
-static func _fussring(netz: ArrayMesh, y: float, breite: float, staerke: float = 0.55,
-		mitte: Vector3 = Vector3.ZERO) -> ArrayMesh:
+static func _fussring(netz: ArrayMesh, y: float, breite: float,
+		staerke: float = 0.55) -> ArrayMesh:
 	const N := 36
 	var radien := PackedFloat32Array()
 	radien.resize(N)
@@ -393,7 +375,7 @@ static func _fussring(netz: ArrayMesh, y: float, breite: float, staerke: float =
 		for p in punkte:
 			if absf(p.y - y) > 0.3:
 				continue
-			var d := Vector2(p.x - mitte.x, p.z - mitte.z)
+			var d := Vector2(p.x, p.z)
 			var w := atan2(-d.y, d.x)
 			var k := posmod(int(floor(w / TAU * float(N) + 0.5)), N)
 			radien[k] = maxf(radien[k], d.length())
@@ -402,29 +384,14 @@ static func _fussring(netz: ArrayMesh, y: float, breite: float, staerke: float =
 		for k in N:
 			if radien[k] <= 0.0:
 				radien[k] = maxf(radien[(k + 1) % N], radien[(k + N - 1) % N]) * 0.97
-	var ring := Findling.kranz(radien, y + 0.025, breite, staerke, 0.25)
-	if mitte != Vector3.ZERO and ring != null:
-		var verschoben := ArrayMesh.new()
-		var arr := ring.surface_get_arrays(0)
-		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
-		for i in v.size():
-			v[i] += Vector3(mitte.x, 0.0, mitte.z)
-		arr[Mesh.ARRAY_VERTEX] = v
-		verschoben.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
-		return verschoben
-	return ring
+	return Findling.kranz(radien, y + 0.025, breite, staerke, 0.25)
 
 
 ## Optionen für einen Stein, auf dem Kisten stehen: Die ebene Fläche
 ## (`Findling.plateau`) muss jede Kiste ganz tragen. Rundung und Umriss
 ## werden so weit verkleinert, bis das passt.
-static func _mit_kisten(level: Level01, name: String, optionen: Dictionary) -> Dictionary:
-	var e := level.begehbar(name)
-	return _mit_kisten_auf(level, name, e["lage"], e["groesse"], optionen)
-
-
-## Wie `_mit_kisten` für einen Block `groesse` in der Lage `lage`: zählt nur
-## die Kisten, deren Mitte über diesem Block steht.
+## Gilt für einen Block `groesse` in der Lage `lage` und zählt nur die
+## Kisten, deren Mitte über diesem Block steht.
 static func _mit_kisten_auf(level: Level01, name: String, lage: Transform3D, groesse: Vector3,
 		optionen: Dictionary) -> Dictionary:
 	var noetig := Vector2.ZERO
@@ -1204,7 +1171,7 @@ static func _nische(sa: Sammler, level: Level01) -> void:
 			halb, "Boden")
 	# Ein Block mit Schichten und tiefen Beulen: In Blöcke zerlegt las sich
 	# die Bank als Reihe von Fässern.
-	_findling_teile(sa, level, "Moosbank", [], {"saat": 8702, "eckig": 3.2,
+	_findling_auf(sa, level, "Moosbank", {"saat": 8702, "eckig": 3.2,
 			"rundung": 0.32, "beulen": 0.45, "unruhe": 0.18, "umriss": 0.1, "moos": 1.0,
 			"moos_oben": 1.0, "ausgetreten": 0.1, "schichten": true, "anlauf": 0.12,
 			"bemoost": Vector2(0.85, 0.55)}, 0.0)
@@ -1277,7 +1244,7 @@ static func _nische(sa: Sammler, level: Level01) -> void:
 ## am Rand steht. Darüber das Pfortentor, dessen rechter Fuß in den
 ## Torbaum wächst.
 static func _pforte(sa: Sammler, level: Level01) -> void:
-	_findling_teile(sa, level, "Pforte links", [], {"saat": 1011, "eckig": 2.8,
+	_findling_auf(sa, level, "Pforte links", {"saat": 1011, "eckig": 2.8,
 			"rundung": 0.36, "beulen": 0.34, "unruhe": 0.15, "umriss": 0.12, "moos": 1.0,
 			"moos_oben": 0.9, "ausgetreten": 0.0, "schichten": true, "anlauf": 0.1,
 			"bemoost": Vector2(0.8, 0.55)}, 0.0)
@@ -1313,7 +1280,7 @@ static func _wurzelstock(sa: Sammler, level: Level01, e: Dictionary) -> void:
 	var g: Vector3 = e["groesse"]
 	var h := g * 0.5
 	var boden := -(float(e["oben"]) - h.y)
-	_findling_teile(sa, level, "Pforte rechts", [], {"saat": 1022, "eckig": 2.9,
+	_findling_auf(sa, level, "Pforte rechts", {"saat": 1022, "eckig": 2.9,
 			"rundung": 0.36, "beulen": 0.3, "unruhe": 0.14, "umriss": 0.1, "moos": 1.0,
 			"moos_oben": 0.8, "ausgetreten": 0.0, "schichten": true, "anlauf": 0.1,
 			"bemoost": Vector2(0.7, 0.6)}, 0.0)
@@ -1405,15 +1372,15 @@ static func _torbaum(sa: Sammler, level: Level01, stelle: Dictionary) -> void:
 	# Der Schirm: Äste nur vom äußeren Bogen (q ≤ 2, h ≥ 17), weit nach vorn
 	# und hinten ausladend – eine breite, flache Krone über dem Tor.
 	var aeste := [
-		[Vector3(-5.6, h + 6.15, -0.05), Vector3(0.1, 0.25, 1.0), 3.4, 2.3],
-		[Vector3(-6.0, h + 6.35, -0.1), Vector3(-0.05, 0.22, -1.0), 3.6, 2.4],
-		[Vector3(-6.6, h + 6.7, -0.15), Vector3(-0.35, 0.3, 1.0), 3.0, 2.2],
-		[Vector3(-7.0, h + 6.85, -0.2), Vector3(-0.3, 0.2, -1.0), 2.9, 2.2],
-		[Vector3(-8.0, h + 7.2, -0.25), Vector3(-1.0, 0.25, 0.55), 2.4, 2.1],
-		[Vector3(-8.6, h + 7.4, -0.28), Vector3(-1.0, 0.25, -0.5), 2.3, 2.1],
-		[Vector3(-9.0, h + 7.5, -0.3), Vector3(-1.0, 0.35, 0.0), 1.6, 2.0],
-		[Vector3(-7.4, h + 7.0, -0.22), Vector3(-0.2, 1.0, 0.1), 1.2, 1.8],
-		[Vector3(-6.3, h + 6.5, -0.12), Vector3(0.1, 1.0, -0.3), 1.1, 1.6],
+		[Vector3(-5.6, h + 6.15, -0.05), Vector3(0.1, 0.25, 1.0), 3.6, 2.7],
+		[Vector3(-6.0, h + 6.35, -0.1), Vector3(-0.05, 0.22, -1.0), 3.8, 2.8],
+		[Vector3(-6.6, h + 6.7, -0.15), Vector3(-0.35, 0.3, 1.0), 3.2, 2.6],
+		[Vector3(-7.0, h + 6.85, -0.2), Vector3(-0.3, 0.2, -1.0), 3.1, 2.6],
+		[Vector3(-8.0, h + 7.2, -0.25), Vector3(-1.0, 0.25, 0.55), 2.6, 2.5],
+		[Vector3(-8.6, h + 7.4, -0.28), Vector3(-1.0, 0.25, -0.5), 2.5, 2.5],
+		[Vector3(-9.0, h + 7.5, -0.3), Vector3(-1.0, 0.35, 0.0), 1.8, 2.4],
+		[Vector3(-7.4, h + 7.0, -0.22), Vector3(-0.2, 1.0, 0.1), 1.3, 2.2],
+		[Vector3(-6.3, h + 6.5, -0.12), Vector3(0.1, 1.0, -0.3), 1.2, 2.0],
 	]
 	# Ohne Nebenpolster: Die Krone sieht man nur von Weitem (vom Grat), und
 	# jedes Polster kostet gut 400 Dreiecke, im Tiefenvorlauf doppelt.
@@ -1477,7 +1444,7 @@ static func _findlingsturm(sa: Sammler, level: Level01) -> void:
 	var e := level.begehbar(name)
 	if e.is_empty():
 		return
-	_findling_teile(sa, level, name, [], {"saat": 1891, "eckig": 2.6, "rundung": 0.24,
+	_findling_auf(sa, level, name, {"saat": 1891, "eckig": 2.6, "rundung": 0.24,
 			"beulen": 0.3, "unruhe": 0.14, "umriss": 0.06, "moos": 1.0, "moos_oben": 0.6,
 			"ausgetreten": 0.3, "schichten": true, "anlauf": 0.08,
 			"bemoost": Vector2(0.7, 0.6)}, 0.0)
