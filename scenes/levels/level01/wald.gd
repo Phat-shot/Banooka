@@ -37,7 +37,11 @@ class_name L01Wald
 ##               (`L01Gelaende.wald`), an ihren Rändern Sträucher, dazu graue
 ##               Totholzstämme. Fern: grobe Kronen mit angedeutetem Stamm im
 ##               selben Stoff, je Zelle ein Netz, überall, wo das Gelände
-##               Wald trägt und kein naher Baum steht.
+##               Wald trägt und kein naher Baum steht – aber nur auf dem
+##               gezeichneten Feld und nie als Scheibe vor dem Himmel
+##               (Himmelsprobe `_schwebt`: Kammrückseiten, Westhang und
+##               Feldrand bleiben kahl; gut 160 statt 450 Bäume, der Schritt
+##               dauert headless 0,25 s länger).
 ##   Hecken      rechts der Bachwiese (q 7,4–9,4) und um die Wurzelwiese,
 ##               grün mit blühenden Sträuchern dazwischen.
 ##
@@ -129,6 +133,15 @@ const ZELLE_TAL := 48.0
 const ZELLE_FERN := 64.0
 ## Rasterweite des fernen Walds (m): Kronen von 5 m Radius schließen sich.
 const FERN_RASTER := 10.5
+## Himmelsprobe des fernen Walds (`_schwebt`): So weit zeichnet die
+## Korridorkamera (`far`), dahinter ist Himmel. Augen alle `HIMMEL_SCHRITT`
+## m entlang des Wegs, Proben alle `HIMMEL_TRITT` m auf dem Sehstrahl.
+const KAMERA_FERN := 200.0
+const HIMMEL_SCHRITT := 6.0
+const HIMMEL_TRITT := 3.0
+## Ein Kamm weiter weg als das verdeckt für die Himmelsprobe nichts: Im
+## Tiefennebel (12 → 140 m) ist er kaum heller als der Himmel dahinter.
+const KAMM_WEIT := 100.0
 
 ## Laubfarben (Grundton des Stoffs; getönt wird je Baum über die Farbe).
 const LAUB_HALLE := Color(0.15, 0.33, 0.14)
@@ -185,6 +198,10 @@ const FELD_ZELLE := 4.0
 const FELD := Rect2(-90.0, -330.0, 310.0, 385.0)
 
 static var _kegel: Array[Dictionary] = []
+## Augen der Himmelsprobe (Verfolgerkamera je Station) und ihre waagerechte
+## Blickrichtung.
+static var _himmel_augen := PackedVector3Array()
+static var _himmel_blick := PackedVector3Array()
 static var _netze := {}
 static var _kisten: Array[Vector3] = []
 ## Stämme (Mindestabstand) und Kronen (keine Doppelkronen): Raster über alle
@@ -261,6 +278,8 @@ static func _aufraeumen() -> void:
 	_eimer.clear()
 	_feld_d = PackedFloat32Array()
 	_feld_i = PackedInt32Array()
+	_himmel_augen = PackedVector3Array()
+	_himmel_blick = PackedVector3Array()
 	_wurzel = null
 	_staemme = null
 	_kronen = null
@@ -1657,8 +1676,12 @@ static func _auf_riegel(x: float, z: float) -> bool:
 
 
 ## Der ferne Wald: flache Kronen mit angedeutetem Stamm, je Zelle ein Netz,
-## überall, wo das Gelände Wald trägt und keine nahe Krone steht.
-static func _talwald_fern(_level: Level01) -> void:
+## überall, wo das Gelände Wald trägt und keine nahe Krone steht – nur auf
+## gezeichnetem Gelände (`L01Gelaende.FELD`) und nie so, dass die Krone von
+## einer Station aus vor dem Himmel schwebt (`_schwebt`).
+static func _talwald_fern(level: Level01) -> void:
+	_himmel_anlegen(level)
+	var gelaende: Rect2 = L01Gelaende.FELD.grow(-2.0)
 	var ws := Waldsetzer.new(_wurzel, "Fernwald", ZELLE_FERN)
 	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_FERN, false), "sicht": SICHT_FERN,
 			"verschmelzen": true, "rand": 10.0})
@@ -1703,6 +1726,15 @@ static func _talwald_fern(_level: Level01) -> void:
 				ton = ton * NADEL_TON
 			elif _auf_riegel(px, pz):
 				ton = ton * Color(0.76, 0.82, 0.82)
+			# Erst nach allen Würfen des Zufalls: Die übrigen Bäume stehen
+			# genau dort, wo sie ohne diese Prüfungen stünden.
+			if not gelaende.has_point(Vector2(px, pz)):
+				_zaehle("fern_ohne_boden")
+				continue
+			# Das untere Laub: Die Krone beginnt bei 30 % der Höhe.
+			if _schwebt(Vector3(px, y + netze[k].get_aabb().end.y * groesse * 0.4, pz)):
+				_zaehle("fern_schwebend")
+				continue
 			ws.setze("krone", netze[k], lage, ton)
 			_kronen.dazu(Vector2(px, pz), 3.6 * groesse)
 			_zaehle("fern")
@@ -1710,6 +1742,63 @@ static func _talwald_fern(_level: Level01) -> void:
 	var zz := ws.fertig()
 	_zaehle("fern_knoten", int(zz["knoten"]))
 	_zaehle("fern_dreiecke", int(zz["dreiecke"]))
+
+
+## Die Augen der Himmelsprobe: die Verfolgerkamera alle `HIMMEL_SCHRITT` m
+## mit ihrer waagerechten Blickrichtung (zum Blickpunkt 6 m voraus).
+static func _himmel_anlegen(level: Level01) -> void:
+	_himmel_augen = PackedVector3Array()
+	_himmel_blick = PackedVector3Array()
+	var s := 0.0
+	while s <= Level01.M_ENDE:
+		var auge := _auge(level, s)
+		var blick := level.weg_punkt(s + 6.0) - auge
+		blick.y = 0.0
+		_himmel_augen.append(auge)
+		_himmel_blick.append(blick.normalized())
+		s += HIMMEL_SCHRITT
+
+
+## Schwebt eine ferne Krone? Von einer Station aus liegt ihr unteres Laub
+## (`unten`, Welt) frei im Blick, und dahinter kommt bis zur Sichtweite der
+## Kamera kein Gelände mehr: Dann steht die Krone vor dem Himmel, ihr
+## angedeuteter Stamm verschwindet im Dunst, und sie hängt als Scheibe in
+## der Luft – auf der Rückseite der Randhügel, am Westhang und am Rand des
+## Felds. Dass ein Kamm davor nur den Stamm verdeckt, reicht nicht, und
+## ein Kamm weiter als `KAMM_WEIT` zählt gar nicht: Im Dunst ist er kaum
+## heller als der Himmel, die Krone schwebt trotzdem. Verdeckt ein naher
+## Kamm auch das untere Laub, ragt nur der Wipfel hinter ihm auf; steht
+## dahinter ein Hang, liest sie sich vor ihm als Wald. Beides darf sein.
+static func _schwebt(unten: Vector3) -> bool:
+	for k in _himmel_augen.size():
+		var auge := _himmel_augen[k]
+		var zu := unten - auge
+		var e := zu.length()
+		if e < 40.0 or e > KAMERA_FERN - 2.0:
+			continue
+		# Nur, was diese Kamera ungefähr im Bild hat (±56° waagerecht).
+		if Vector3(zu.x, 0.0, zu.z).normalized().dot(_himmel_blick[k]) < 0.55:
+			continue
+		var dir := zu / e
+		if _gelaende_im_strahl(unten, dir, 2.0, KAMERA_FERN - e):
+			continue
+		if _gelaende_im_strahl(auge, dir, 3.0, minf(e - 2.0, KAMM_WEIT)):
+			continue
+		return true
+	return false
+
+
+## Liegt Gelände über dem Strahl `von` + t · `dir` für t in [ab, bis]?
+## Außerhalb des gezeichneten Felds (`L01Gelaende.FELD`) ist keines.
+static func _gelaende_im_strahl(von: Vector3, dir: Vector3, ab: float, bis: float) -> bool:
+	var feld: Rect2 = L01Gelaende.FELD
+	var t := ab
+	while t < bis:
+		var p := von + dir * t
+		if feld.has_point(Vector2(p.x, p.z)) and L01Gelaende.hoehe(p.x, p.z) > p.y:
+			return true
+		t += HIMMEL_TRITT
+	return false
 
 
 ## Hat der nahe Wald hier bewusst nichts gepflanzt (Hallen-, Hang- und
