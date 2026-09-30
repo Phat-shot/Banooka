@@ -2137,9 +2137,11 @@ static func _bruch_und_endfarne(bahn: Bahn, level: Level01, haelfte: Vector2,
 		orte.append(Vector3(G1.y + 0.5, -4.6, wiese + 0.05))
 		orte.append(Vector3(G1.x - 0.6, e + 1.3, wiese + 0.05))
 	if haelfte.y > 270.0:
-		# In die Ecken, groß: Sie nehmen dem Ende die rechten Winkel.
-		for q: float in [-5.7, 5.8, 1.9]:
-			orte.append(Vector3(Level01.M_ENDE + 0.2, q, 0.03))
+		# Genau auf die Ecken, groß: Sie nehmen dem Ende die rechten Winkel
+		# (weich, man läuft hindurch; die Kisten stehen 6 m davor).
+		for sq: Vector2 in [Vector2(-0.3, -5.6), Vector2(-0.2, 5.7), Vector2(0.25, 1.9),
+				Vector2(-1.6, 5.9)]:
+			orte.append(Vector3(Level01.M_ENDE + sq.x, sq.y, 0.03))
 	var lagen: Array[Transform3D] = []
 	for o in orte:
 		var ra := bahn.rahmen(o.x)

@@ -1810,16 +1810,21 @@ static func _profil_stirn(_i: int, probe: Dictionary, kante: float, grund: float
 	p.punkt(ov * 0.8, kante - lerpf(0.06, 0.035, r),
 			_farbe(lerpf(0.52, 0.72, r), lerpf(0.9, 0.1, r), 0.3 * r, 0.95 * r))
 	p.punkt(ov, kante - lerpf(0.18, 0.12, r), _farbe(0.5, lerpf(0.9, 0.6, r), 0.3 * r, 0.45 * r))
-	p.punkt(ov - 0.06, kante - 0.25, _farbe(0.3, 1.0, 0.1, 0.0))
-	p.punkt(ov - 0.3, kante - 0.33, _farbe(0.18, 1.0, 0.0, 0.0))
-	p.punkt(-0.35, kante - 0.5, _farbe(0.2, 1.0, 0.0, 0.0), 0.0, 0.05, -1.0)
-	p.punkt(-0.45, kante - 1.0, _farbe(0.26, maxf(e, 0.7), 0.1, 0.0), 0.0, 0.15, -1.0)
+	# Flache Kerbe (Fallkerbe, gut 2 m): Man sieht die Wand bis aufs Wasser,
+	# nasser, bemooster Fels statt eines schwarzen Schlitzes.
 	var tief := kante - grund
+	var nass := (1.0 - smoothstep(2.6, 4.0, tief)) if level != null else 0.0
+	p.punkt(ov - 0.06, kante - 0.25, _farbe(lerpf(0.3, 0.42, nass), 1.0, 0.1, 0.0))
+	p.punkt(ov - 0.3, kante - 0.33, _farbe(lerpf(0.18, 0.36, nass), 1.0, 0.0, 0.0))
+	p.punkt(-0.35, kante - 0.5, _farbe(lerpf(0.2, 0.38, nass), 1.0, 0.3 * nass, 0.0), 0.0,
+			0.05, -1.0)
+	p.punkt(-0.45, kante - 1.0, _farbe(lerpf(0.26, 0.42, nass), lerpf(maxf(e, 0.7), 0.3, nass),
+			lerpf(0.1, 0.45, nass), 0.0), 0.0, 0.15, -1.0)
 	for k in 5:
 		var t := float(k) / 4.0
 		var y := kante - lerpf(1.9, tief - 0.3, t)
-		p.punkt(-0.5 + 0.1 * t, y, _farbe(lerpf(0.3, 0.12, t), e, 0.15, 0.0), 0.0,
-				0.3, -1.0, 0.2 * (1.0 - e))
+		p.punkt(-0.5 + 0.1 * t, y, _farbe(lerpf(lerpf(0.3, 0.44, nass), lerpf(0.12, 0.3, nass), t),
+				e, lerpf(0.15, 0.5, nass), 0.0), 0.0, 0.3, -1.0, 0.2 * (1.0 - e))
 	p.punkt(-0.12, grund, _farbe(0.1, 0.7, 0.2, 0.0))
 	p.punkt(halb * 0.6, grund - 0.02, _farbe(0.08, 0.8, 0.2, 0.0))
 	p.punkt(halb + 0.05, grund - 0.05, _farbe(0.08, 0.8, 0.2, 0.0))
