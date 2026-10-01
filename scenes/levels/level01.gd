@@ -438,10 +438,18 @@ const BEGEHBARES := [
 	# Die Trittsteine liegen bündig mit dem Weg (7,2) und damit auf Ebene 1
 	# wie die Decke: Der Kamerastrahl bleibt über Deck +1 und berührt sie
 	# nie, aber der Bodenschatten und alle Bodenstrahlen finden sie.
-	{"name": "Furtstein 1", "form": "zylinder", "s": 175.9, "q": -1.0,
+	#
+	# Lage nach der Sprungprobe (Paket leistung): Wer mit vollem Tempo und
+	# gehaltener Richtung an der Uferkante abspringt, fliegt 4,7 m weit. Bei
+	# 175,9 landete er HINTER dem ersten Stein im Wasser – der Mensch, der
+	# an der Kante springt wie an jeder anderen Lücke, ertrank. Bei 176,5
+	# trägt jeder Absprung von 170,8 bis über die Kante hinaus, und vom
+	# ersten Stein zum zweiten (Abstand 4,2 wie vorher) fast jeder Punkt
+	# des Steins. Lücken jetzt 2,2 / 1,6 / 1,0 m.
+	{"name": "Furtstein 1", "form": "zylinder", "s": 176.5, "q": -1.0,
 			"radius": 1.3, "hoehe": 2.0, "oben_y": 7.2, "ebene": 1,
 			"optik": "wegbauten"},
-	{"name": "Furtstein 2", "form": "zylinder", "s": 180.1, "q": 0.8,
+	{"name": "Furtstein 2", "form": "zylinder", "s": 180.7, "q": 0.8,
 			"radius": 1.3, "hoehe": 2.0, "oben_y": 7.2, "ebene": 1,
 			"optik": "wegbauten"},
 	{"name": "Findlingsturm", "form": "kasten", "s": 189.75, "q": 6.8,
@@ -824,6 +832,20 @@ const SICHTWEITE_KISTE := 80.0
 const SICHTWEITE_FRUCHT := 58.0
 const SICHTWEITE_GEGNER := 90.0
 const SICHTWEITE_RAND := 5.0
+## Dasselbe im Web auf dem Handy (`Effekte.reduziert`, Grenze 450 Aufrufe).
+## Gemessen (Paket leistung, Kostenprobe): Die Kisten waren dort der größte
+## Posten, den das Level selbst trägt – bei s 140 kosteten sie 107
+## Aufrufe, mehr als der ganze Wald (36); das Bild lag bei 466. Mit diesen
+## Weiten 383, bei s 4 432 statt 451. Kisten tauchen damit gut sechs
+## Sekunden Lauf vor der Figur auf, im Dunst, auf einem kleinen Bildschirm.
+const SICHTWEITE_KISTE_WEB := 55.0
+const SICHTWEITE_FRUCHT_WEB := 45.0
+const SICHTWEITE_GEGNER_WEB := 60.0
+
+## Schattenstrecke der Sonne im Web (Plan 13) und auf dem Handy
+## (`Effekte.reduziert`, eine Stufe, siehe `_nach_aufbau`).
+const SCHATTEN_WEB := 60.0
+const SCHATTEN_HANDY := 50.0
 
 
 # =========================================================== Laufzeit
@@ -1115,12 +1137,13 @@ func _objekt_eingetreten(knoten: Node) -> void:
 
 
 func _sichtweite_fuer(knoten: Node) -> float:
+	var web := Effekte.reduziert
 	if knoten is Kiste:
-		return SICHTWEITE_KISTE
+		return SICHTWEITE_KISTE_WEB if web else SICHTWEITE_KISTE
 	if knoten is Frucht:
-		return SICHTWEITE_FRUCHT
+		return SICHTWEITE_FRUCHT_WEB if web else SICHTWEITE_FRUCHT
 	if knoten is Gegner:
-		return SICHTWEITE_GEGNER
+		return SICHTWEITE_GEGNER_WEB if web else SICHTWEITE_GEGNER
 	return 0.0
 
 
@@ -1233,21 +1256,39 @@ func _portale_setzen() -> void:
 	objekte.add_child(ziel)
 
 
-## Im Web zwei Schattenstufen statt vier. Jede Stufe zeichnet alles, was
-## Schatten wirft, noch einmal. Nur wenn die Szene noch vier Stufen trägt:
-## Wer das Licht der Szene selbst umstellt, hat hier das letzte Wort.
+## Im Web höchstens zwei Schattenstufen und Schatten nur bis SCHATTEN_WEB.
+## Jede Stufe zeichnet alles, was Schatten wirft, noch einmal. Aus vier
+## Stufen werden zwei (die erste bis 12 m); hat die Szene schon zwei,
+## bleibt die erste so lang wie dort (17,5 m), nur die zweite endet früher.
+## Eine kürzere Strecke der Szene bleibt.
+##
+## Auf dem Handy (`Effekte.reduziert`) EINE Stufe bis SCHATTEN_HANDY.
+## Gemessen (Paket leistung, Schattenprobe mit Touch-Tasten): Die Sonne
+## kostete dort 70–140 Aufrufe, eine Stufe spart davon 40–60 (s 4: 537 →
+## 481, s 140: 469 → 409); die Strecke selbst kaum etwas (60 → 45 m: 0–11).
+## Die Schärfe am Fuß der Figur leidet auf dem kleinen Schirm kaum, und der
+## Bodenschatten liegt ohnehin darunter.
 func _nach_aufbau() -> void:
 	if debug:
 		_zaehlen()
-	if not OS.has_feature("web"):
+	if not OS.has_feature("web") and not Effekte.reduziert:
 		return
 	var sonne := _sonne()
-	if sonne == null \
-			or sonne.directional_shadow_mode != DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS:
+	if sonne == null:
 		return
-	sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sonne.directional_shadow_max_distance = minf(sonne.directional_shadow_max_distance, 60.0)
-	sonne.directional_shadow_split_1 = 0.2
+	var weite := sonne.directional_shadow_max_distance
+	if Effekte.reduziert:
+		sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		sonne.directional_shadow_max_distance = minf(weite, SCHATTEN_HANDY)
+		return
+	var neu := minf(weite, SCHATTEN_WEB)
+	if sonne.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS:
+		sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sonne.directional_shadow_split_1 = 0.2
+	elif sonne.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS:
+		sonne.directional_shadow_split_1 = clampf(
+				weite * sonne.directional_shadow_split_1 / neu, 0.05, 0.95)
+	sonne.directional_shadow_max_distance = neu
 
 
 ## Die schattenwerfende Sonne der Szene, oder null.
