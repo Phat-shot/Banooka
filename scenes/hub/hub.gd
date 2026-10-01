@@ -567,6 +567,7 @@ func _vorwaermen_und_zeigen() -> void:
 		return
 	iris.queue_free()
 	_bauzeit_merken("Vorwärmen: Rundgang", beginn)
+	_spieler_freigeben()
 	Ladeschirm.fortschritt(1.0, "Fertig")
 	Ladeschirm.verbergen()
 	aufbau_fertig.emit()
@@ -2536,9 +2537,30 @@ func _spieler_setzen() -> void:
 	if spieler.has_method("setze_blickrichtung"):
 		spieler.call("setze_blickrichtung", -deg_to_rad(winkel))
 	GameState.level_starten(spieler.global_position)
+	# Gesperrt bis kurz vor dem Ausblenden (`_spieler_freigeben`), wie im
+	# Level: Sonst läse die Figur unter dem Ladeschirm schon Tastatur und
+	# Touch-Stick (der liest `_input`, an der Fläche des Ladeschirms
+	# vorbei) – wer beim Laden vorwärts hielt, lief während des Rundgangs
+	# ungesehen durch die Halle, bis in ein offenes Tor. Die Schwerkraft
+	# wirkt weiter: Die Figur landet noch unter dem Ladeschirm.
+	var figur := spieler as Spieler
+	if figur != null:
+		figur.gesperrt = true
 	var kamera := get_viewport().get_camera_3d()
 	if kamera != null and kamera.has_method("sofort_ausrichten"):
 		kamera.call("sofort_ausrichten")
+
+
+## Gibt die Figur frei, die `_spieler_setzen` gesperrt hat: kurz vor dem
+## Ausblenden, wie `LevelBasis` die Physik wieder anstellt. Das Aufräumen
+## von InputHub verwirft, was der Touch-Stick während des Ladens gemeldet
+## hat.
+func _spieler_freigeben() -> void:
+	var figur := get_tree().get_first_node_in_group("spieler") as Spieler
+	if figur != null:
+		figur.velocity = Vector3.ZERO
+		figur.gesperrt = false
+	InputHub.zuruecksetzen()
 
 
 ## Blicke für den Rundgang beim Laden (`_vorwaermen_und_zeigen`): die

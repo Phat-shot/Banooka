@@ -1152,10 +1152,16 @@ Umgebung, Licht, Spieler, Kamera und HUD.
   einblendet, wärmt `Effekte.VORWAERM_GRUPPE` vor, die Iris-Blende des
   Tors ein Bildpunkt unter dem Ladeschirm (`_iris_vorwaermen`). Danach die
   Teilchen (`Effekte.vorwaermen`, Lichtsäule und Ring der Ankunft), zwei
-  Bilder, Ausblenden, `aufbau_fertig`. Der Rundgang läuft bei jedem
-  Besuch: Beim zweiten Besuch der Sitzung übersetzte er keinen Shader
-  mehr, ließ man ihn aber weg, kam derselbe Ruckler wieder (Zahlen unter
-  „Ladezeit und Ruckler").
+  Bilder, Ausblenden, `aufbau_fertig`. Die Figur ist dabei gesperrt
+  (`Spieler.gesperrt`, gesetzt in `_spieler_setzen`): Schwerkraft ja, keine
+  Eingabe – Tastatur und Touch-Stick (`_input`) erreichen sie sonst auch
+  unter dem Ladeschirm, und wer beim Laden vorwärts hielt, lief während
+  des Rundgangs ungesehen durch die Halle bis in ein offenes Tor. Frei
+  wird sie erst kurz vor dem Ausblenden (`_spieler_freigeben`: Tempo auf
+  null, `InputHub.zuruecksetzen()`), wie im Level. Der Rundgang läuft
+  bei jedem Besuch: Beim zweiten Besuch der Sitzung übersetzte er keinen
+  Shader mehr, ließ man ihn aber weg, kam derselbe Ruckler wieder (Zahlen
+  unter „Ladezeit und Ruckler").
 - **`aufbau_fertig`** kommt mit dem Ausblenden des Ladeschirms, wie im
   Level; Fotos und Proben warten darauf. `bauzeiten` hält Aufbau und
   Vorwärmen.
