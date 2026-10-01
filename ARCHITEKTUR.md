@@ -1189,7 +1189,10 @@ zeichnen deshalb ungeglättet.
 der Basis, nicht Spalten). Ein abgeschriebener Wert lässt das Licht leicht
 von UNTEN kommen – Level 01 war so nur vom Umgebungslicht beleuchtet. Probe:
 `-licht.global_transform.basis.z` ist die Laufrichtung des Lichts, ihr y
-muss negativ sein.
+muss negativ sein. `python3 werkzeuge/lichtprobe.py` rechnet das für jedes
+`DirectionalLight3D` in jeder Szene nach (Richtung, Höhe, Azimut der Quelle,
+Energie) und endet mit Rückgabe 1, sobald ein schattenwerfendes Licht von
+unten kommt. Lichter, die erst ein Skript baut, sieht es nicht.
 
 Level 02–10, 23–25 und die Werkstatt trugen dieselbe abgeschriebene Sonne,
 `Transform3D(0.6, 0, -0.8, -0.71552, …)`: Licht 32° von unten. Gemeint war
@@ -1199,12 +1202,90 @@ Vorgaberichtung des `Lichtschacht`). Seitdem liegt Sonne auf den Wegen, und
 die Level werfen zum ersten Mal Schatten. Wo der Weg dabei ausbrannte, ist
 die Sonne schwächer: Level 02 (Schnee) 1,9 → 0,9, Level 05 1,6 → 1,3,
 Level 24 (Nacht, Mondlicht) 0,75 → 0,5. In Level 23 dimmt der `Lichtkreis`
-die Sonne ohnehin auf 10 %. Noch von unten (−basis.z, aus den Szenen
-nachgerechnet): Level 11, 14, 16, 17 (Mondlicht), 18, 19, 20, 21, 22 und
-das Testlevel. Level 12 hat keine Sonne; sein Ersatzlicht `Hallenglut`
-kommt ebenfalls von unten – ob als Ofenschein gewollt, steht nirgends.
-Jedes braucht dieselbe Umstellung und einen Blick aufs Bild, ob der Weg
-dann ausbrennt.
+die Sonne ohnehin auf 10 %.
+
+Die übrigen Szenen folgten in Runde 4; seitdem meldet die Lichtprobe kein
+Licht mehr von unten. Azimut = Richtung zur Quelle, 0° = +Z (hinter der
+Kamera, solange der Weg nach −Z läuft), +90° = rechts. Höhe vorher war
+negativ, also unter dem Horizont:
+
+| Szene | Licht | vorher | nachher | Energie |
+|---|---|---|---|---|
+| Level 11 | Sonne | −18°, aus +59° | 32°, aus −55° (links hinten) | 1,0 → 0,7 |
+| Level 12 | Hallenglut | −50°, aus −32° | 55°, aus +20° | 0,5 |
+| Level 14 | Sonne | −38°, aus −39° | 45°, aus +30° | 0,95 → 0,35 |
+| Level 16 | Sonne | −18°, aus −57° | 60°, aus +53° | 1,45 |
+| Level 17 | Mondlicht | −18°, aus −57° | 50°, aus +53° | 0,8 → 0,25, Farbe blauer (0,45/0,62/1) |
+| Level 18 | Sonne | −21°, aus −77° | 60°, aus +65° | 1,8 → 1,1 |
+| Level 19 | Sonne | −14°, aus −101° | 53°, aus +107° (rechts) | 2,2 → 0,6 |
+| Level 20 | Sonne | −34°, aus −47° | 45°, aus +37° | 0,85 |
+| Level 21 | Sonne | −24°, aus −61° | 50°, aus +53° | 0,95 → 0,65 |
+| Level 22 | Sonne | −25°, aus −52° | 37°, aus +46° | 0,9 → 0,55 |
+| Testlevel | Sonne | −32°, aus −71° | 63°, aus +53° | 1,6 |
+
+Der Azimut ist der der transponierten Basis, also der gemeinte. Nur die
+Höhe ist dort angehoben, wo sie zwischen hohen Wänden zu flach war:
+Level 16 (Kanal) hatte transponiert 32°, Level 17 und 21 (Schluchten) 32°
+bzw. 42°; der Weg lag dann großteils im Schatten der Wände.
+
+Level 19 war keine reine Zeilenabschrift – auch transponiert lief das
+Licht nach oben (+0,8). Die Höhe ist dort gespiegelt: Die Quelle steht
+jetzt rechts, und der Weg, der nach links abbiegt, liegt auf 13 % seiner
+Länge im Gegenlicht statt auf 40 % mit der waagerechten Richtung des alten
+Werts (aus den Kontrollpunkten von `_verlauf_anlegen` nachgerechnet).
+
+Die Energien sind am Bild gestimmt, je Level drei Aufnahmen (`foto.sh
+verfolger` bei 40 m, Mitte und rund 80 %, Level 22 `orbit` aus der Höhe
+des Fliegers, das Testlevel `orbit`), mit der Stimmungszone der Stelle.
+Mittlere Helligkeit (`kontaktbogen.py`, Luma 0–255), vorher → nachher:
+Level 11 85/58/96 → 123/92/111, Level 12 67/40/85 → 82/42/84, Level 14
+207/207/210 → 210/209/214, Level 16 22/16/19 → 51/24/21, Level 17
+105/101/99 → 126/111/108, Level 18 119/85/64 → 135/91/90, Level 19
+60/36/57 → 72/48/75, Level 20 73/60/68 → 65/54/64, Level 21 124/44/59 →
+159/67/88, Level 22 192/187/187/201 → 199/198/190/189, Testlevel 42/41/43
+→ 48/52/51. Draw-Calls je Bild zwischen −272 und +175 (die Schattenwerfer
+liegen jetzt über dem Bild statt darunter).
+
+Je Level, was dabei zählte:
+- **Level 11, 18, 21:** Die alten Werte (1,0, 1,8, 0,95) waren für Licht
+  von unten gestimmt, das den Weg nie traf. Von oben mit derselben Energie
+  wurde das Bild bei 40 m deutlich heller (Level 11 85 → 131, Level 18
+  119 → 142, Level 21 105 → 145), und in Level 11 kippten Früchte in der
+  Sonne ins Gelbe; daher weniger Energie.
+- **Level 12, `Hallenglut`:** derselbe Fehler, kein gewollter Ofenschein.
+  Die Basis hat dasselbe Muster wie die abgeschriebenen Sonnen und ergibt
+  transponiert 55° von oben hinter der Kamera. Die Lichtquellen des Levels
+  hängen an den Wänden und ÜBER dem Weg (Rohrbündel, Querrohre, der Ofen in
+  der Wand bei 222 m, kalte Lichtschächte in der Torhalle); unter dem Weg
+  glüht nichts, die Abgründe sind dunkel. `level12.gd` verlangt das
+  Wegblech als hellste Fläche im Bild – Licht von unten trifft es nie, und
+  die „Zeichnung" des Ersatzlichts lag an Decken und Unterseiten. Im Bild:
+  40 m 67 → 82; bei 270 m liegen die Schatten der Deckenträger als Streifen
+  auf dem Hallenboden. Die Torhalle wird dabei wärmer (kühle Pixel 64 % →
+  42 %), bleibt aber überwiegend kühl.
+- **Level 14:** Der Steg liegt im Weiß ganz oben in der Tonkurve. Schon
+  0,2 hob das Holz bei 140 m von 166/154/143 auf 207/191/171 (RGB) und
+  machte das Eis im Rutschsteg weiß (241/243/243 statt 217/230/236); mit
+  0,35 und 0,5 steht es bei 243/243/243, ist also gesättigt. Die
+  Stimmungszone 90–160 m setzt das Umgebungslicht dort fest auf 1,05
+  (`level14.gd`). 0,35 gibt den Stegen Schatten (Deckkraft 0,55);
+  das Eis bleibt vom Holz klar getrennt, liest sich aber weiß statt
+  bläulich. Eine Höhe von 35° statt 45° änderte am Eis nichts und kostete
+  bis zu 88 Draw-Calls mehr.
+- **Level 17 (Nacht):** Von oben wird der Schnee schnell weiß und
+  neutral: Schon mit 0,4 und der alten Lichtfarbe sanken die kühlen Pixel
+  von 91–94 % auf 51–73 %. Mit 0,25 und blauerem Licht sind es 75–90 %,
+  der Schatten von Reiter und Tier liegt auf der Rinne.
+- **Level 19 (Sturm):** Der Blitz setzt die Sonne aufs Siebenfache. Von
+  unten erhellte er den Weg kaum (bei 172 m 36 → 38); mit 0,6 von oben ist
+  er auf dem Weg zu sehen (72/48/75 → 131/74/102 im Dauerblitz, Kopie mit
+  `BLITZ_DAUER` hochgesetzt), ohne weiß auszubrennen. `level19.gd`
+  unverändert.
+- **Level 20:** Die Halle hat ein Dach; die Sonne trifft den Boden nur
+  durch Lücken. Etwas dunkler als vorher, die Wände tragen das Licht.
+- **Level 22:** Wolken und Berge sind Grau in drei Stufen, Farbe tragen
+  nur die Ziele. Mit 0,9 von oben wurden die Wolkenoberseiten fast weiß;
+  0,55 hält das Bild bei der alten Helligkeit.
 
 **Licht in Level 01** (Werte in `Level01.tscn`):
 - Sonne 68° hoch aus Süd-Südost, hinter der Kamera; 0,6, warm, Glanz 0,2,

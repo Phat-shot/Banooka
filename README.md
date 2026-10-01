@@ -158,6 +158,11 @@ ARCHITEKTUR.md, „Bildtakt und Physiktakt"). Muss `ERGEBNIS: SAUBER` melden.
 `PRUEF_LEVEL=08,09 bash werkzeuge/pruefe.sh` grenzt die Geometrieprüfung auf
 einzelne Level ein – der volle Lauf dauert einige Minuten.
 
+`python3 werkzeuge/lichtprobe.py` listet für jedes Richtungslicht in jeder
+Szene Laufrichtung, Höhe und Energie und meldet schattenwerfende Lichter von
+unten (`.tscn` speichert die Basis zeilenweise, siehe ARCHITEKTUR.md,
+„Sonnen prüfen"). Es läuft ohne Godot und steckt nicht in `pruefe.sh`.
+
 Zwei Werkzeuge daneben, die nicht prüfen, sondern **messen** und deshalb
 nicht in `pruefe.sh` stecken:
 
