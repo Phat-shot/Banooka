@@ -21,6 +21,10 @@ extends Node
 ##   BAUZEIT_ZEILEN     wie viele der teuersten Schritte gedruckt werden
 ##                      (Vorgabe 12)
 ##
+## `aufbau` reicht bis `aufbau_fertig`; im Portalraum sind das seit dem
+## Rundgang auch die Bilder bis zum Ausblenden des Ladeschirms (vorher
+## endete die Messung mit `_ready`).
+##
 ## Ausgabe je Runde und Szene:
 ##   BAUZEIT <szene> runde <n>: laden <ms>  instanz <ms>  aufbau <ms>  gesamt <ms>
 ## und darunter die teuersten Schritte.
@@ -71,10 +75,14 @@ func _messe(pfad: String, runde: int, zeilen: int) -> void:
 	var t4 := Time.get_ticks_usec()
 	var summe := 0.0
 	var liste: Array[Dictionary] = []
-	if szene is LevelBasis:
-		liste = (szene as LevelBasis).bauzeiten.duplicate()
-		for e in liste:
-			summe += float(e["ms"])
+	# Level und Portalraum führen `bauzeiten` (der Portalraum: Aufbau und
+	# Vorwärmen, das headless nur aus den Bildern danach besteht).
+	var zeiten: Variant = szene.get("bauzeiten")
+	if zeiten is Array:
+		for e: Variant in zeiten as Array:
+			if e is Dictionary:
+				liste.append(e as Dictionary)
+				summe += float((e as Dictionary)["ms"])
 	print("BAUZEIT %s runde %d: laden %.0f ms  instanz %.0f ms  ready %.0f ms  aufbau %.0f ms (Schritte %.0f, %d Bilder)  gesamt %.0f ms" % [
 			pfad.get_file(), runde, (t1 - t0) / 1000.0, (t2 - t1) / 1000.0,
 			(t3 - t2) / 1000.0, (t4 - t2) / 1000.0, summe, bilder, (t4 - t0) / 1000.0])

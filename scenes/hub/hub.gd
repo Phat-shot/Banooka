@@ -441,10 +441,18 @@ void fragment() {
 """
 
 
-## Rundgang nur für die Bildvorschau (`werkzeuge/foto.sh`): Das Werkzeug
+## Kommt, sobald der Ladeschirm ausblendet: Der Saal steht, die Shader sind
+## vorgewärmt. Wie `LevelBasis.aufbau_fertig` – Werkzeuge (Fotos, Proben)
+## warten darauf, statt Bilder zu zählen.
+signal aufbau_fertig
+
+## Weg nur für die Bildvorschau (`werkzeuge/foto.sh`): Das Werkzeug
 ## setzt den Spieler auf diese Kurve und fotografiert mit der Spielkamera.
 ## Für das Spiel selbst hat die Kurve keine Bedeutung.
 var verlauf: Curve3D
+## Dauer von Aufbau und Vorwärmen in Millisekunden, wie
+## `LevelBasis.bauzeiten`: [{"text": String, "ms": float}].
+var bauzeiten: Array[Dictionary] = []
 
 var _geometrie: Node3D
 var _objekte: Node3D
@@ -490,6 +498,7 @@ class Torseite:
 
 
 func _ready() -> void:
+	var beginn := Time.get_ticks_usec()
 	_geometrie = _gruppe("Geometrie")
 	_objekte = _gruppe("Objekte")
 	_deko = _gruppe("Deko")
@@ -513,35 +522,83 @@ func _ready() -> void:
 	Bildrahmen.einsetzen(self, 0.25, Color(0.03, 0.03, 0.05), 0.03)
 
 	_baue_rundgang()
+	# Dieselbe Schattenregel wie in jedem Level: im Web zwei Stufen bis 60 m,
+	# auf dem Handy eine orthogonale bis 50 m. VOR dem Vorwärmen – die Zahl
+	# der Stufen bestimmt die Fassung jedes Shaders.
+	LevelBasis.schatten_regel(self)
 	_spieler_setzen()
 	_wegweiser_setzen()
 	# Der Portalraum ist der einzige Ort, an dem gespeichert wird.
 	Spielfluss.speichern()
+	_bauzeit_merken("Aufbau", beginn)
 	# Der Portalraum wird über den Ladebildschirm betreten – er steht jetzt.
 	_vorwaermen_und_zeigen()
 
 
-## Teilchen-Shader übersetzen, solange der Ladeschirm noch deckt (wie in
-## `LevelBasis`), und erst danach ausblenden. Ohne das übersetzte der
-## Renderer die Stoffe von Lichtsäule und Ring genau bei der Ankunft, vor
-## den Augen des Spielers.
+## Shader übersetzen, solange der Ladeschirm noch deckt (wie in
+## `LevelBasis`), und erst danach ausblenden.
 ##
-## Nicht gleich in `_ready`: Das erste Bild nach dem Aufbau hat ein Delta
-## so lang wie der Aufbau selbst, das zweite eines so lang wie das erste
-## Zeichnen des Saals. Das Ausblenden (0,45 s) wäre darin schon vorbei,
-## und das Übersetzen fiele ins erste Bild ohne Ladeschirm.
+## Erst der Rundgang (`Rundgang.fahren`, Blicke aus `rundgang_blicke`):
+## Vorher übersetzte der Ladeschirm nur, was vom Startplatz aus zu sehen
+## war; lief man dann zu einem anderen Raum, kam alles Neue mit Rucklern
+## ins Bild. Dann die Teilchen-Shader (`Effekte.vorwaermen`), sonst stockte
+## das Bild bei der Ankunft (Lichtsäule und Ring), und die Iris-Blende, die
+## sich beim Betreten eines Tors schließt.
+##
+## Bei JEDEM Besuch, nicht nur beim ersten der Sitzung. Gemessen mit der
+## Ruckelprobe (zwei Besuche, Handyweg, llvmpipe): Beim zweiten Besuch
+## übersetzte der Rundgang keinen Shader mehr (MESA_GLSL=dump) und war
+## kürzer (5,3 s statt 25,8 s); ließ man ihn aber weg, kam an derselben
+## Stelle im Saal derselbe Ruckler wieder wie beim ersten Besuch ohne
+## Rundgang (347 ms Rechenzeit). Was dort anfällt, hängt am neuen Saal,
+## nicht an den Shadern.
+##
+## Die Teilchen zwei Bilder nach dem Rundgang, dann noch zwei Bilder bis
+## zum Ausblenden (`Rundgang.ausklingen`, wie im Level): Das erste Bild
+## zeichnet das Hauptbild zum ersten Mal, und sein Delta ist so lang wie
+## dieses Zeichnen; das Ausblenden (0,45 s) wäre darin schon vorbei.
 func _vorwaermen_und_zeigen() -> void:
-	for i in 2:
-		await get_tree().process_frame
-	if not is_inside_tree():
+	var beginn := Time.get_ticks_usec()
+	var iris := _iris_vorwaermen()
+	if not await Rundgang.fahren(self, rundgang_blicke(),
+			get_node_or_null("Kamera") as Camera3D, 0.6, 0.98):
 		return
-	Effekte.vorwaermen(self)
-	for i in 2:
-		await get_tree().process_frame
-	if not is_inside_tree():
+	if not await Rundgang.ausklingen(self):
 		return
+	iris.queue_free()
+	_bauzeit_merken("Vorwärmen: Rundgang", beginn)
+	Ladeschirm.fortschritt(1.0, "Fertig")
 	Ladeschirm.verbergen()
+	aufbau_fertig.emit()
 	_nach_dem_einblenden()
+
+
+## Die Iris-Blende (`UiStil.Blende.iris_zu`) einmal zeichnen: ein Bildpunkt
+## unter dem Ladeschirm. Sonst übersetzte der Renderer ihren Shader genau
+## in dem Bild, in dem sich beim Betreten eines Tors der Kreis zu schließen
+## beginnt. Der Shader ist geteilt; nach dem ersten Besuch kostet das nichts
+## mehr.
+func _iris_vorwaermen() -> CanvasLayer:
+	var schicht := CanvasLayer.new()
+	schicht.name = "IrisVorwaermen"
+	schicht.layer = 49
+	var punkt := ColorRect.new()
+	punkt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	punkt.size = Vector2(1.0, 1.0)
+	punkt.color = Color(0.0, 0.0, 0.0, 0.01)
+	var stoff := ShaderMaterial.new()
+	stoff.shader = UiStil.iris_shader()
+	stoff.set_shader_parameter("groesse", Vector2(1.0, 1.0))
+	stoff.set_shader_parameter("mitte", Vector2(0.5, 0.5))
+	stoff.set_shader_parameter("radius", 0.0)
+	punkt.material = stoff
+	schicht.add_child(punkt)
+	add_child(schicht)
+	return schicht
+
+
+func _bauzeit_merken(text: String, beginn: int) -> void:
+	bauzeiten.append({"text": text, "ms": float(Time.get_ticks_usec() - beginn) / 1000.0})
 
 
 ## Pfeil über dem Spieler, der auf das nächste offene Portal zeigt.
@@ -2482,6 +2539,56 @@ func _spieler_setzen() -> void:
 	var kamera := get_viewport().get_camera_3d()
 	if kamera != null and kamera.has_method("sofort_ausrichten"):
 		kamera.call("sofort_ausrichten")
+
+
+## Blicke für den Rundgang beim Laden (`_vorwaermen_und_zeigen`): die
+## Folgekamera, wie sie über der Figur steht, an jedem Platz, den die Figur
+## erreicht. Die Kamera schaut im Portalraum immer gleich nach Norden
+## (fester Versatz), also entscheidet nur der Platz, was ins Bild kommt.
+##   1. der Startplatz – das erste Bild nach dem Ladeschirm,
+##   2. der Hallenbogen auf `START_R`, alle 10°: Mittelstein, Leitlinien,
+##      Torbögen, Fahnen, Rückwände und das Umland dahinter,
+##   3. in jedem offenen Raum die Portalreihe links, mittig und rechts (dort
+##      erwachen die Tore, dort stehen Edelsteine und Bestzeiten); vor
+##      einem versiegelten Raum der Platz vor dem Siegel.
+## Verborgenes (Levelnamen über den Toren) ist dabei nicht im Bild; es
+## nutzt dieselben Stoffe wie die Nummern darunter.
+## Öffentlich für `werkzeuge/rundgangprobe.gd`.
+func rundgang_blicke() -> Array[Transform3D]:
+	var versatz := Vector3(0.0, 6.4, 8.2)
+	var blick_hoehe := 1.5
+	var kamera := get_node_or_null("Kamera") as Camera3D
+	if kamera != null:
+		var v: Variant = kamera.get("versatz")
+		if v is Vector3:
+			versatz = v as Vector3
+		var h: Variant = kamera.get("blick_hoehe")
+		if h is float:
+			blick_hoehe = h as float
+	var plaetze: Array[Vector3] = []
+	var spieler := get_tree().get_first_node_in_group("spieler") as Node3D
+	if spieler != null:
+		plaetze.append(spieler.global_position)
+	# Bis 2,5° vor die Seitenmauern – weiter kommt die Figur nicht.
+	var schritte := 10
+	var rand := SEITE - 2.5
+	for i in schritte + 1:
+		plaetze.append(ort(lerpf(-rand, rand, float(i) / float(schritte)), START_R, 0.9))
+	var tief := PORTAL_R - 3.2
+	var seitlich := PORTAL_ABSTAND * 2.0
+	for i in Spielfluss.RAEUME:
+		var grad := raumwinkel(i)
+		if Spielfluss.raum_offen(i + 1):
+			for quer: float in [-seitlich, 0.0, seitlich]:
+				plaetze.append(stelle(grad, tief, quer, 0.9))
+		else:
+			plaetze.append(ort(grad, TOR_R - 3.0, 0.9))
+	var blicke: Array[Transform3D] = []
+	for p in plaetze:
+		var auge := p + versatz
+		blicke.append(Transform3D(
+				Basis.looking_at(p + Vector3.UP * blick_hoehe - auge, Vector3.UP), auge))
+	return blicke
 
 
 ## Was erst nach dem Ausblenden des Ladebildschirms zu sehen sein soll:

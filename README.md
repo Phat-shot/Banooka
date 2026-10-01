@@ -185,7 +185,16 @@ Handy (Hintergrund: ARCHITEKTUR.md, „Ladezeit und Ruckler"):
 ```bash
 godot --headless --path <Kopie> res://werkzeuge/Bauzeitprobe.tscn   # Bauzeit je Schritt
 RUCKEL_REDUZIERT=1 bash werkzeuge/ruckelprobe.sh                    # Ruckler, Handyweg
+RUCKEL_LEVEL=res://scenes/hub/Hub.tscn RUCKEL_REDUZIERT=1 RUCKEL_BESUCHE=2 \
+    RUCKEL_MASS=cpu bash werkzeuge/ruckelprobe.sh                   # Portalraum, zwei Besuche
+godot --headless --path <Kopie> res://werkzeuge/Rundgangprobe.tscn  # sieht der Rundgang alles?
 ```
+
+`RUCKEL_MASS=cpu` zählt Ruckler nach der Rechenzeit des Prozesses statt
+nach der echten Bildzeit – nötig, sobald nebenher ein zweiter Lauf
+rechnet. Die Ruckelprobe schaltet Mesas Shader-Speicher ab; die
+Rundgangprobe prüft headless, ob jedes sichtbare Objekt in einem Blick
+des Rundgangs liegt.
 
 Die Bauzeitprobe zweimal mit demselben `XDG_DATA_HOME` starten: Der erste
 Lauf füllt den Bauspeicher (wie der erste Start nach der Installation),
@@ -213,6 +222,26 @@ Grafikkarte; die Sekunden sind darum nicht aufs Handy übertragbar, das
 Muster schon: Was vorher beim Laufen anfiel, fällt jetzt unter dem
 Ladeschirm an. Die übrigen Ausreißer liegen in beiden Durchgängen gleich
 (geteilte Kerne).
+
+Portalraum, Handyweg, 640 × 360, Spielstand „mitte", Rechenzeit des
+Hauptfadens, ohne Mesas Shader-Speicher (vorher = b837a09):
+
+| Ruckelprobe Portalraum | vorher | jetzt |
+|---|---|---|
+| 1. Besuch: bis der Ladeschirm ausblendet | 27,3 s | 28,6 s (Rundgang 25,8) |
+| 1. Besuch, Durchgang 1: Ruckler, längstes Bild | 3, 721 ms | 0, 40 ms |
+| 1. Besuch, Durchgang 2 | 0, 45 ms | 0, 42 ms |
+| 2. Besuch: bis der Ladeschirm ausblendet | 4,2 s | 5,3 s (Rundgang 5,3) |
+| 2. Besuch, Durchgang 1 | 1, 342 ms | 0, 49 ms |
+| Draw-Calls nach dem Laden / höchstens auf der Fahrt | 400 / 483 | 360 / 454 |
+
+Am Rechner sind die Orbitbilder (0, 90, 140, 180, 270°) unverändert:
+461 / 519 / 527 / 473 / 430 Draw-Calls vorher wie nachher, im Bild
+weichen nur bewegte Teile ab (Kronen im Wind, Siegelgitter, Wirbel).
+Auf dem Handyweg (`FOTO_REDUZIERT=1`, 0 / 90 / 180 / 270°)
+461 / 519 / 473 / 430 → 460 / 466 / 448 / 414. Der Grafikspeicher steigt
+um einmalig 2 MB, sobald ein Rundgang gelaufen ist (auch mit nur einem
+Blick; über mehrere Besuche bleibt es dabei).
 
 Draw-Calls der App in Level 01 (s 4 / 70 / 176): vorher lief sie auf dem
 Rechnerweg, 457 / 429 / 370 bei 121,5 MB Grafikspeicher; jetzt auf dem
