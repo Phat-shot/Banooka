@@ -14,6 +14,19 @@ signal aufbau_fertig
 
 const KISTE_SZENE := preload("res://scenes/crates/Kiste.tscn")
 
+## Vorwärmen (`_rundgang`): Abstand der Halte entlang des Verlaufs in
+## Metern und die Blickrichtungen je Halt (Gieren gegen den Weg, Grad).
+## Zwei Blicke zu je rund 97° Breite (16:9) decken zusammen 177° ab – mehr,
+## als die Korridorkamera je zur Seite schaut (gemessen bis 38°).
+const RUNDGANG_ABSTAND := 12.0
+const RUNDGANG_BLICKE: Array[float] = [40.0, -40.0]
+## Breite des Rundgang-Viewports in Bildpunkten (Höhe nach dem Seiten-
+## verhältnis des Fensters). Die Shaderfassung hängt nicht an der Größe,
+## die Füllrate schon.
+const RUNDGANG_BREITE := 320
+## Aus nur zum Vergleichen (`werkzeuge/ruckelprobe.gd`, RUCKEL_VORWAERMEN=0).
+static var rundgang_an := true
+
 ## Jede so-und-so-vielte Holzkiste wird im Zeitmodus zur Zeitkiste.
 const ZEITKISTE_ABSTAND := 3
 ## Die Zahlen, die der Reihe nach auf den Zeitkisten stehen.
@@ -48,6 +61,12 @@ var _lebendig: Array = []
 var _stand_plaetze := {}
 var _stand_kisten := 0
 
+## Dauer jedes Bauschritts in Millisekunden, in der Reihenfolge des
+## Aufbaus: [{"text": String, "ms": float}]. Gemessen wird nur die Arbeit
+## des Schritts selbst, nicht das freigegebene Bild danach. Liest
+## `werkzeuge/bauzeitprobe.gd`.
+var bauzeiten: Array[Dictionary] = []
+
 
 func _ready() -> void:
 	geometrie = _gruppe("Geometrie")
@@ -68,6 +87,7 @@ func _ready() -> void:
 	Effekte.staubfarbe = Effekte.STAUBFARBE_VORGABE
 
 	await _aufbauen()
+	var abschluss := Time.get_ticks_usec()
 
 	if verlauf != null:
 		_pfad_knoten = Path3D.new()
@@ -83,15 +103,6 @@ func _ready() -> void:
 	# Spieler beim ersten Bild außerhalb des Sichtfelds.
 	if _kamera != null and _kamera.has_method("sofort_ausrichten"):
 		_kamera.call("sofort_ausrichten")
-	# Teilchen-Shader übersetzen, solange der Ladeschirm noch steht – sonst
-	# stockt das Spiel beim ersten Kistenbruch. Erst jetzt, weil die
-	# Kamera dafür an ihrem Platz stehen muss.
-	Effekte.vorwaermen(self)
-	# Jetzt steht der Boden und die Figur an ihrem Platz: Physik wieder an.
-	if _spieler != null:
-		if _spieler is CharacterBody3D:
-			(_spieler as CharacterBody3D).velocity = Vector3.ZERO
-		_spieler.set_physics_process(true)
 	_portale_verbinden()
 	# VOR dem Zählen und vor dem Bauplan: Die Zeitkisten treten an die
 	# Stelle gewöhnlicher Holzkisten, und beides – der Kistenzähler wie
@@ -100,12 +111,31 @@ func _ready() -> void:
 	_zeitkisten_setzen()
 	_kisten_zaehlen()
 	_bauplan_erfassen()
-	# Zweites Aufräumen: Der Wechsel setzt den Touch-Zustand schon zurück,
-	# aber während des Aufbaus liegt der Daumen oft noch auf dem Schirm.
-	InputHub.zuruecksetzen()
 	GameState.level_zuruecksetzen.connect(_auf_zuruecksetzen)
 	GameState.checkpoint_gesetzt.connect(_stand_sichern)
 	_nach_aufbau()
+	_bauzeit_merken("Abschluss: Kamera, Kisten", abschluss)
+	# Shader übersetzen, solange der Ladeschirm noch steht. Erst nach
+	# `_nach_aufbau()`: Dort stellen Level noch Licht und Schatten um
+	# (Level 01 auf dem Handy eine Schattenstufe), und das ändert, welche
+	# Fassung jedes Shaders gebraucht wird.
+	var vorwaermen := Time.get_ticks_usec()
+	await _rundgang()
+	if not is_inside_tree():
+		return
+	# Teilchen-Shader ebenso – sonst stockt das Spiel beim ersten
+	# Kistenbruch. Nach dem Rundgang, weil die Kamera dafür wieder an
+	# ihrem Platz stehen muss.
+	Effekte.vorwaermen(self)
+	_bauzeit_merken("Vorwärmen: Rundgang", vorwaermen)
+	# Jetzt steht der Boden und die Figur an ihrem Platz: Physik wieder an.
+	if _spieler != null:
+		if _spieler is CharacterBody3D:
+			(_spieler as CharacterBody3D).velocity = Vector3.ZERO
+		_spieler.set_physics_process(true)
+	# Zweites Aufräumen: Der Wechsel setzt den Touch-Zustand schon zurück,
+	# aber während des Aufbaus liegt der Daumen oft noch auf dem Schirm.
+	InputHub.zuruecksetzen()
 	# Ganz zuletzt, wenn wirklich alles steht: Die Uhr darf keine
 	# Ladezeit mitzählen.
 	Zeitlauf.beginnen(Spielfluss.aktuelles_level, _richtzeit())
@@ -119,18 +149,124 @@ func _ready() -> void:
 ## freigegeben – so bleibt der Ladebildschirm während des Aufbaus lebendig
 ## und meldet Fortschritt. Sonst wird einmalig `_baue()` aufgerufen.
 func _aufbauen() -> void:
+	var beginn := Time.get_ticks_usec()
 	var schritte := _bauschritte()
+	_bauzeit_merken("Bauschritte zusammenstellen", beginn)
 	if schritte.is_empty():
+		beginn = Time.get_ticks_usec()
 		_baue()
+		_bauzeit_merken("Aufbau", beginn)
 		return
 	for i in schritte.size():
 		var schritt: Dictionary = schritte[i]
 		Ladeschirm.fortschritt(0.05 + 0.9 * float(i) / float(schritte.size()),
 				String(schritt.get("text", "")))
 		var tun: Callable = schritt["tun"]
+		beginn = Time.get_ticks_usec()
 		tun.call()
+		_bauzeit_merken(String(schritt.get("text", "")), beginn)
 		# Ein Bild freigeben, damit die Anzeige weiterläuft
 		await get_tree().process_frame
+
+
+## Fährt eine eigene Kamera unter dem Ladeschirm den Verlauf ab und zeigt
+## an jedem Halt (alle `RUNDGANG_ABSTAND` m) je ein Bild nach links und
+## rechts vorn.
+##
+## WARUM. Der Compatibility-Renderer (OpenGL ES 3, WebGL 2) übersetzt die
+## Fassung eines Shaders erst, wenn das erste Objekt damit gezeichnet wird
+## – mit Nebel, Schattenstufen, Instanzen, Lichtern, je nachdem, wo es
+## steht. Auf dem Handy kostet jede Fassung Dutzende Millisekunden, und
+## sie fielen genau dann an, wenn beim Laufen oder Wenden etwas Neues ins
+## Bild kam: „es lädt bei jeder Bewegung nach". Gemessen mit der
+## Ruckelprobe (Level 01, Handyweg, llvmpipe): ohne Rundgang 16 Ruckler
+## im ersten Durchgang (bis 2,9 s), im zweiten nur noch einer – es war
+## Arbeit beim ersten Gebrauch, keine in jedem Bild.
+##
+## Gezeichnet werden die echten Objekte an ihren echten Orten, also auch
+## mit den Lichtern und Schatten, die sie im Spiel haben. Die Sichtweiten
+## (`visibility_range`) gelten von jeder Kamera aus; ein Halt alle 12 m
+## bringt jedes Objekt am Weg einmal nah genug heran.
+##
+## In einem EIGENEN, kleinen Viewport in derselben Welt: Übersetzte Shader
+## gelten für alle Viewports, aber die Sichtweiten merken sich je Viewport,
+## was zuletzt zu sehen war (der Rand `visibility_range_end_margin` wirkt
+## als Hysterese). Fuhr die Spielkamera selbst die Runde, standen bei 70 m
+## danach Kronen im Bild, die dort sonst fehlen (gerendert). Der Viewport
+## übernimmt alles, was die Shaderfassung bestimmt (MSAA, 3D-Skalierung,
+## HDR, Schattenatlas für Punktlichter), nur nicht die Größe.
+##
+## Headless (Prüfwerkzeuge) wird nichts gezeichnet – dort entfällt er.
+func _rundgang() -> void:
+	if not rundgang_an or verlauf == null or DisplayServer.get_name() == "headless":
+		return
+	var laenge := verlauf.get_baked_length()
+	if laenge <= 0.0:
+		return
+	var abstand := 8.0
+	var hoehe := 4.2
+	var vorlauf := 4.0
+	var haupt := get_viewport()
+	var buehne := SubViewport.new()
+	buehne.name = "Rundgang"
+	var flaeche := haupt.get_visible_rect().size
+	var seitenverhaeltnis := flaeche.x / maxf(flaeche.y, 1.0)
+	buehne.size = Vector2i(RUNDGANG_BREITE, maxi(16, roundi(RUNDGANG_BREITE / seitenverhaeltnis)))
+	buehne.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	buehne.msaa_3d = haupt.msaa_3d
+	buehne.scaling_3d_mode = haupt.scaling_3d_mode
+	buehne.scaling_3d_scale = haupt.scaling_3d_scale
+	buehne.use_hdr_2d = haupt.use_hdr_2d
+	buehne.use_debanding = haupt.use_debanding
+	buehne.positional_shadow_atlas_size = haupt.positional_shadow_atlas_size
+	buehne.positional_shadow_atlas_16_bits = haupt.positional_shadow_atlas_16_bits
+	for quadrant in 4:
+		buehne.set_positional_shadow_atlas_quadrant_subdiv(quadrant,
+				haupt.get_positional_shadow_atlas_quadrant_subdiv(quadrant))
+	var kamera := Camera3D.new()
+	# Im Bildtakt versetzt, nie bewegt.
+	kamera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	if _kamera != null:
+		kamera.fov = _kamera.fov
+		kamera.near = _kamera.near
+		kamera.far = _kamera.far
+		kamera.cull_mask = _kamera.cull_mask
+		kamera.environment = _kamera.environment
+		kamera.attributes = _kamera.attributes
+		if "abstand" in _kamera:
+			abstand = float(_kamera.get("abstand"))
+		if "hoehe" in _kamera:
+			hoehe = float(_kamera.get("hoehe"))
+		if "blick_vorlauf" in _kamera:
+			vorlauf = float(_kamera.get("blick_vorlauf"))
+	buehne.add_child(kamera)
+	add_child(buehne)
+	kamera.current = true
+	var halte := maxi(1, ceili(laenge / RUNDGANG_ABSTAND) + 1)
+	for i in halte:
+		var s := minf(float(i) * RUNDGANG_ABSTAND, laenge)
+		var auge := LevelWerkzeuge.punkt_frei(verlauf, s - abstand, 0.0, hoehe)
+		var ziel := LevelWerkzeuge.punkt(verlauf, s + vorlauf, 0.0, 1.0)
+		if auge.distance_to(ziel) < 0.5:
+			continue
+		var blick := Basis.looking_at(ziel - auge, Vector3.UP)
+		for gieren in RUNDGANG_BLICKE:
+			kamera.global_transform = Transform3D(
+					Basis(Vector3.UP, deg_to_rad(gieren)) * blick, auge)
+			# `process_frame`, nicht `frame_post_draw`: Das nächste
+			# `process_frame` kommt nach dem Zeichnen dieses Bildes, und
+			# anders als `frame_post_draw` kommt es auch, wenn nicht
+			# gezeichnet wird (Fenster verkleinert) – der Aufbau hinge sonst.
+			await get_tree().process_frame
+			if not is_inside_tree():
+				return
+		Ladeschirm.fortschritt(0.95 + 0.05 * float(i + 1) / float(halte),
+				"Licht und Schatten werden vorbereitet")
+	buehne.queue_free()
+
+
+func _bauzeit_merken(text: String, beginn: int) -> void:
+	bauzeiten.append({"text": text, "ms": float(Time.get_ticks_usec() - beginn) / 1000.0})
 
 
 ## Haken: Hier baut das konkrete Level seinen Inhalt auf.

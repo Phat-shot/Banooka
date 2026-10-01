@@ -163,8 +163,9 @@ const WIRBEL_SHADER: Shader = preload("res://shaders/portal_wirbel.gdshader")
 enum Stoff { ALPHA, ADDITIV, RING, SAEULE }
 
 ## Halbiert Mengen, schaltet Wackeln, Trefferpause, Bildblitz und
-## Blitzlicht ab. Vorbelegt für Browser auf Handys, wo Füllrate knapp ist;
-## später kommt ein Schalter in den Optionen dazu (Einstellungen.gd).
+## Blitzlicht ab. Vorbelegt auf Handys – im Browser wie als App (Android,
+## iOS) –, wo Füllrate knapp ist; später kommt ein Schalter in den Optionen
+## dazu (Einstellungen.gd).
 static var reduziert: bool = _vorbelegung()
 ## Ruhiges Bild: kein Wackeln, keine Trefferpause, kein Bildblitz. Für
 ## alle, denen von einem wackelnden Bild übel wird oder die Blitze meiden
@@ -878,8 +879,12 @@ static func _menge(anzahl: int) -> int:
 	return maxi(1, roundi(float(anzahl) * (0.5 if reduziert else 1.0)))
 
 
+## `mobile` ist die App auf Android und iOS. Früher fragte das nur
+## nach dem Browser: Die APK lief auf dem Rechnerweg – volle Dichten, zwei
+## Schattenstufen, MSAA.
 static func _vorbelegung() -> bool:
-	return OS.has_feature("web_android") or OS.has_feature("web_ios")
+	return OS.has_feature("mobile") or OS.has_feature("web_android") \
+			or OS.has_feature("web_ios")
 
 
 static func _pause_ende() -> void:

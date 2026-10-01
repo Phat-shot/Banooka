@@ -73,6 +73,11 @@ static func rahmen(saat: int = 1) -> ArrayMesh:
 ##   rippe    Mittelrippe als eigener Streifen (true)
 ##   saat     feste Saat
 static func netz(optionen: Dictionary = {}) -> ArrayMesh:
+	return Bauspeicher.netz("farnwerk", [optionen],
+			func() -> ArrayMesh: return _netz_bauen(optionen))
+
+
+static func _netz_bauen(optionen: Dictionary = {}) -> ArrayMesh:
 	var saat: int = optionen.get("saat", 1)
 	var rng := PropWerkzeug.zufall(saat + 7)
 	var laenge: float = optionen.get("laenge", 0.6)

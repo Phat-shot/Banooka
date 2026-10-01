@@ -20,16 +20,43 @@ class_name Materialbibliothek
 ##
 ## Renderer: `gl_compatibility`. Es werden nur Funktionen von
 ## `StandardMaterial3D` benutzt, die dort ankommen.
+##
+## Was aus Bildpunkten gerechnet wird, liegt nach dem ersten Laden auf der
+## Platte (`Bauspeicher`): die Texturmaterialien und Strukturen ganz, die
+## Farbvarianten (Kistenholz, Laub, Metall, Fell) nur mit ihrem Farbbild –
+## Normal-, Rauheits- und Verdeckungskarte teilen sie sich weiter mit
+## ihrer Struktur, statt je Variante eine Kopie mitzuschleppen.
 
 static var _cache: Dictionary = {}
 
 const _B := 1.0 / 255.0   ## Byte -> 0..1
 
 
-static func _hole(schluessel: String, erzeuger: Callable) -> Variant:
+## `platte`: auch im `Bauspeicher` ablegen. Nur für das, was Bildpunkt für
+## Bildpunkt gerechnet wird – ein einfarbiges Material ist schneller neu
+## gebaut als gelesen. Strukturen (Dictionary) bekommen ihren Schlüssel
+## mit, damit `_faerben` die Farbbilder danach benennen kann.
+static func _hole(schluessel: String, erzeuger: Callable, platte: bool = false) -> Variant:
 	if not _cache.has(schluessel):
-		_cache[schluessel] = erzeuger.call()
+		if platte:
+			_cache[schluessel] = Bauspeicher.wert("mb_" + schluessel, func() -> Variant:
+				var neu: Variant = erzeuger.call()
+				if neu is Dictionary:
+					(neu as Dictionary)["schluessel"] = schluessel
+				return neu)
+		else:
+			_cache[schluessel] = erzeuger.call()
 	return _cache[schluessel]
+
+
+## Farbbild einer Variante: vom Speicher, sonst `erzeuger`. Der Schlüssel
+## setzt sich aus der Struktur und den Farben zusammen.
+static func _farbbild(struktur: Dictionary, art: String, farben: Array[Color],
+		erzeuger: Callable) -> ImageTexture:
+	var teile := PackedStringArray([art, String(struktur.get("schluessel", "ohne"))])
+	for farbe in farben:
+		teile.append(farbe.to_html())
+	return Bauspeicher.holen("mb_" + "_".join(teile), erzeuger) as ImageTexture
 
 
 # ------------------------------------------------------------ Rauschquellen
@@ -337,7 +364,7 @@ static func algen() -> StandardMaterial3D:
 ## die Kachel groß (uv1_scale klein): ein fünffach gekacheltes Muster
 ## flimmert, ein einmal überzogenes liest sich als Fläche.
 static func eisfels() -> StandardMaterial3D:
-	return _hole("eisfels", func() -> StandardMaterial3D: return _baue_eisfels())
+	return _hole("eisfels", func() -> StandardMaterial3D: return _baue_eisfels(), true)
 
 
 static func _baue_eisfels() -> StandardMaterial3D:
@@ -410,7 +437,7 @@ static func _baue_eisfels() -> StandardMaterial3D:
 ## dürfen den Wert nur leicht bewegen, sonst wird aus dem Weg ein Muster
 ## und die Kisten darauf verlieren ihre Kontur.
 static func schnee() -> StandardMaterial3D:
-	return _hole("schnee", func() -> StandardMaterial3D: return _baue_schnee())
+	return _hole("schnee", func() -> StandardMaterial3D: return _baue_schnee(), true)
 
 
 static func _baue_schnee() -> StandardMaterial3D:
@@ -463,7 +490,7 @@ static func _baue_schnee() -> StandardMaterial3D:
 ## Festgetretener Firn für Kanten und Plattformen: gröber gekörnt und
 ## etwas dunkler als die Wegdecke, damit sich die Ränder absetzen.
 static func firn() -> StandardMaterial3D:
-	return _hole("firn", func() -> StandardMaterial3D: return _baue_firn())
+	return _hole("firn", func() -> StandardMaterial3D: return _baue_firn(), true)
 
 
 static func _baue_firn() -> StandardMaterial3D:
@@ -514,7 +541,7 @@ static func _baue_firn() -> StandardMaterial3D:
 ## Frostfels für Vorsprünge und Blöcke – kühler als der Waldfels, damit er
 ## im Schnee nicht braun aussieht.
 static func frostfels() -> StandardMaterial3D:
-	return _hole("frostfels", func() -> StandardMaterial3D: return _baue_frostfels())
+	return _hole("frostfels", func() -> StandardMaterial3D: return _baue_frostfels(), true)
 
 
 ## Warmes Gestein für die Schluchtwände im Schnee.
@@ -528,7 +555,7 @@ static func frostfels() -> StandardMaterial3D:
 ## Bewusst flau gehalten: Es ist Kulisse, keine Spielfläche. Die
 ## Zeichnung bleibt grob und ruhig, alle Feinheit gehört an den Weg.
 static func frostgestein() -> StandardMaterial3D:
-	return _hole("frostgestein", func() -> StandardMaterial3D: return _baue_frostgestein())
+	return _hole("frostgestein", func() -> StandardMaterial3D: return _baue_frostgestein(), true)
 
 
 static func _baue_frostgestein() -> StandardMaterial3D:
@@ -542,13 +569,13 @@ static func _baue_frostgestein() -> StandardMaterial3D:
 static func wurzelfels() -> StandardMaterial3D:
 	return _hole("wurzelfels", func() -> StandardMaterial3D:
 		return _baue_bandfels(6305, Farben.SCHLUCHTFELS_WALD,
-				Farben.SCHLUCHTFELS_WALD_HELL, 0.32))
+				Farben.SCHLUCHTFELS_WALD_HELL, 0.32), true)
 
 
 ## Moosnarbe für den Schluchtrand im Wald.
 static func moos() -> StandardMaterial3D:
 	return _hole("moos", func() -> StandardMaterial3D:
-		return _baue_bandfels(6405, Farben.MOOS, Farben.MOOS_HELL, 0.34))
+		return _baue_bandfels(6405, Farben.MOOS, Farben.MOOS_HELL, 0.34), true)
 
 
 ## Gemeinsamer Bau für alle Schluchtwände: waagerechte Gesteinsschichten.
@@ -744,7 +771,7 @@ static func eis() -> StandardMaterial3D:
 		m.metallic = 0.15
 		m.metallic_specular = 0.9
 		m.uv1_scale = Vector3(0.35, 0.35, 0.35)
-		return m)
+		return m, true)
 
 
 # ---------------------------------------------------------------- Umgebung
@@ -761,7 +788,7 @@ static func eis() -> StandardMaterial3D:
 ## Bewusst hell und ockerfarben – das Himmels-Ambiente zieht dunkle Erde
 ## sonst ins Graublaue.
 static func waldweg() -> StandardMaterial3D:
-	return _hole("waldweg", func() -> StandardMaterial3D: return _baue_waldweg())
+	return _hole("waldweg", func() -> StandardMaterial3D: return _baue_waldweg(), true)
 
 
 ## Zur Laufrichtung der Spuren: Die Weg-Meshes tragen keine eigenen UVs,
@@ -954,7 +981,7 @@ static func _baue_waldweg() -> StandardMaterial3D:
 ## Blattwerk über dem Weg, nicht auf die Fläche direkt daneben, wo es mit
 ## den Früchten und Kisten um Aufmerksamkeit streitet.
 static func gras() -> StandardMaterial3D:
-	return _hole("gras", func() -> StandardMaterial3D: return _baue_gras())
+	return _hole("gras", func() -> StandardMaterial3D: return _baue_gras(), true)
 
 
 static func _baue_gras() -> StandardMaterial3D:
@@ -1065,7 +1092,7 @@ static func _baue_gras() -> StandardMaterial3D:
 ## Eine Pfütze ist Schmuck, keine Gefahr: keine Kollision, kein Schaden.
 ## Wer Wasser als Hindernis braucht, nimmt `Wasser.tscn`.
 static func pfuetze() -> StandardMaterial3D:
-	return _hole("pfuetze", func() -> StandardMaterial3D: return _baue_pfuetze())
+	return _hole("pfuetze", func() -> StandardMaterial3D: return _baue_pfuetze(), true)
 
 
 static func _baue_pfuetze() -> StandardMaterial3D:
@@ -1144,7 +1171,7 @@ static func _baue_pfuetze() -> StandardMaterial3D:
 
 ## Waldboden: Erde mit Laubstreu, Moospolstern und offenen Erdflecken.
 static func waldboden() -> StandardMaterial3D:
-	return _hole("waldboden", func() -> StandardMaterial3D: return _baue_waldboden())
+	return _hole("waldboden", func() -> StandardMaterial3D: return _baue_waldboden(), true)
 
 
 static func _baue_waldboden() -> StandardMaterial3D:
@@ -1231,7 +1258,7 @@ static func _baue_waldboden() -> StandardMaterial3D:
 ## Fels: Grau-Braun mit waagerechter Schichtung, Bruchkanten und
 ## Flechtenflecken. Kräftige Normalmap, damit Klippen Tiefe bekommen.
 static func fels() -> StandardMaterial3D:
-	return _hole("fels", func() -> StandardMaterial3D: return _baue_fels())
+	return _hole("fels", func() -> StandardMaterial3D: return _baue_fels(), true)
 
 
 static func _baue_fels() -> StandardMaterial3D:
@@ -1342,7 +1369,7 @@ static func _baue_fels() -> StandardMaterial3D:
 
 ## Baumrinde: senkrechte Furchen mit Rissplatten, deutlich plastisch.
 static func rinde() -> StandardMaterial3D:
-	return _hole("rinde", func() -> StandardMaterial3D: return _baue_rinde())
+	return _hole("rinde", func() -> StandardMaterial3D: return _baue_rinde(), true)
 
 
 static func _baue_rinde() -> StandardMaterial3D:
@@ -1413,7 +1440,7 @@ static func _baue_rinde() -> StandardMaterial3D:
 
 ## Wurzelholz – wie Rinde, aber feiner, dunkler und stärker bemoost.
 static func wurzel() -> StandardMaterial3D:
-	return _hole("wurzel", func() -> StandardMaterial3D: return _baue_wurzel())
+	return _hole("wurzel", func() -> StandardMaterial3D: return _baue_wurzel(), true)
 
 
 static func _baue_wurzel() -> StandardMaterial3D:
@@ -1481,6 +1508,12 @@ static func _baue_wurzel() -> StandardMaterial3D:
 ## Farbvarianten gemeinsam benutzt – so kostet eine weitere Kistenfarbe
 ## nur noch das Einfärben statt eines kompletten Texturaufbaus.
 static func _faerben(struktur: Dictionary, dunkel: Color,
+		hell: Color) -> ImageTexture:
+	return _farbbild(struktur, "farbe", [dunkel, hell], func() -> ImageTexture:
+		return _faerben_rechnen(struktur, dunkel, hell))
+
+
+static func _faerben_rechnen(struktur: Dictionary, dunkel: Color,
 		hell: Color) -> ImageTexture:
 	var k: int = struktur["kante"]
 	var mix: PackedByteArray = struktur["mix"]
@@ -1603,7 +1636,7 @@ static func _laub_struktur() -> Dictionary:
 			"akzent": akzent, "akzent_farbe": Farben.LAUB_GELB,
 			"normal": _normal_aus_hoehe(hoehe, k, 1.2), "normal_skala": 0.55,
 			"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
-		})
+		}, true)
 
 
 ## Kistenholz: sichtbare Bretter mit dunklen Fugen und Maserung, die
@@ -1688,7 +1721,7 @@ static func _holz_struktur() -> Dictionary:
 			"kante": k, "mix": mix, "mult": mult,
 			"normal": _normal_aus_hoehe(hoehe, k, 3.2), "normal_skala": 1.6,
 			"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
-		})
+		}, true)
 
 
 ## Metall: gebürstete Streifen, leichte Rostflecken. Rost ist matt und
@@ -1712,6 +1745,11 @@ static func metall(farbe: Color = Farben.KISTE_EISEN) -> StandardMaterial3D:
 
 ## Wie `_faerben`, blendet zusätzlich die fertigen Rostflecken darüber.
 static func _metall_faerben(struktur: Dictionary, farbe: Color) -> ImageTexture:
+	return _farbbild(struktur, "metall", [farbe], func() -> ImageTexture:
+		return _metall_faerben_rechnen(struktur, farbe))
+
+
+static func _metall_faerben_rechnen(struktur: Dictionary, farbe: Color) -> ImageTexture:
 	var k: int = struktur["kante"]
 	var mix: PackedByteArray = struktur["mix"]
 	var rost: PackedByteArray = struktur["rost"]
@@ -1800,7 +1838,7 @@ static func _metall_struktur() -> Dictionary:
 			"normal": _normal_aus_hoehe(hoehe, k, 1.1), "normal_skala": 0.8,
 			"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
 			"metall": _grautextur(met, k),
-		})
+		}, true)
 
 
 ## Fell des Beuteldachses – feine Haarstruktur mit Strähnen.
@@ -1851,4 +1889,4 @@ static func _fell_struktur() -> Dictionary:
 			"kante": k, "mix": mix, "mult": mult,
 			"normal": _normal_aus_hoehe(hoehe, k, 1.8), "normal_skala": 1.1,
 			"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
-		})
+		}, true)

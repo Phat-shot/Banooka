@@ -621,6 +621,11 @@ static func _efeu_in(st: SurfaceTool, e: Dictionary, profil: PackedVector2Array,
 ## höchstens vier Kugeln und ohne Karten – rund 300 Dreiecke je Ballen. Ein
 ## Netz, ein Zeichenaufruf. Stoff: `stoff_krone(fern)`, ohne Schatten.
 static func krone(ballen: Array, fern: bool) -> ArrayMesh:
+	return Bauspeicher.netz("weltenbaum_krone", [ballen, fern],
+			func() -> ArrayMesh: return _krone_bauen(ballen, fern))
+
+
+static func _krone_bauen(ballen: Array, fern: bool) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var huelle := AABB()

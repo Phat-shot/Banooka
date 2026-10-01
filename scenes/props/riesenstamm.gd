@@ -120,6 +120,11 @@ static func fertig(st: SurfaceTool) -> ArrayMesh:
 ## (PackedFloat32Array mit `FUSS_WINKEL` Werten: Umriss am Boden samt
 ## Wurzeln, für `Findling.kranz()`).
 static func netz(optionen: Dictionary = {}) -> ArrayMesh:
+	return Bauspeicher.netz("riesenstamm", [optionen],
+			func() -> ArrayMesh: return _netz_bauen(optionen))
+
+
+static func _netz_bauen(optionen: Dictionary = {}) -> ArrayMesh:
 	var st := bauer()
 	var info := stamm_in(st, optionen)
 	var ergebnis := fertig(st)
@@ -202,6 +207,11 @@ static func baum(optionen: Dictionary = {}) -> Dictionary:
 ## Die Enden sind gebrochen (Splitter), das Moos obenauf wächst nach
 ## Weltlage im Shader. Optionen: saat, rippen, moos, aeste (Stummel, 1).
 static func liegend(radius: float, laenge: float, optionen: Dictionary = {}) -> ArrayMesh:
+	return Bauspeicher.netz("riesenstamm_liegend", [radius, laenge, optionen],
+			func() -> ArrayMesh: return _liegend_bauen(radius, laenge, optionen))
+
+
+static func _liegend_bauen(radius: float, laenge: float, optionen: Dictionary = {}) -> ArrayMesh:
 	var saat: int = optionen.get("saat", 1)
 	var rng := PropWerkzeug.zufall(saat)
 	var rippen: int = optionen.get("rippen", 9)
