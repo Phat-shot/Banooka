@@ -728,23 +728,37 @@ sendet sie `aufbau_fertig`.
   Boden kein Waldweg ist, tut das in `_boden_bauen()` (Schnee, Bohlen,
   Schlick, Stein, Blech, Sand, Dächer). Der Staub ist unbeleuchtet: In
   dunklen Leveln bleibt seine Farbe dunkel, sonst glimmt er auf.
+- **Schatten im Web und auf dem Handy** (`_schatten_anpassen()`, direkt
+  nach `_nach_aufbau()`): für jedes Level dieselbe Regel an der
+  schattenwerfenden Sonne. Im Web höchstens zwei Stufen bis
+  `SCHATTEN_WEB` (60 m), auf dem Handy (`Effekte.reduziert`) eine
+  orthogonale Stufe bis `SCHATTEN_HANDY` (50 m). Früher stand das nur in
+  Level 01; seit die App den Handyweg nimmt, liefen alle anderen Level dort
+  mit vier Stufen bis 70–90 m. Gemessen (`FOTO_REDUZIERT`, verfolger 40 m):
+  Level 05 341 → 261 Draw-Calls, Level 02 1937 → 1589.
 - **Rundgang unter dem Ladeschirm** (`_rundgang()`): Wenn alles steht –
-  Kamera ausgerichtet, Zeitkisten gesetzt, `_nach_aufbau()` gelaufen (dort
-  stellen Level Licht und Schatten um, und das ändert die Shaderfassungen)
-  –, fährt eine eigene Kamera in einem eigenen kleinen Viewport derselben
+  Kamera ausgerichtet, Zeitkisten gesetzt, `_nach_aufbau()` und
+  `_schatten_anpassen()` gelaufen (dort ändern sich Licht und Schatten,
+  und damit die Shaderfassungen) –, fährt eine eigene Kamera in einem eigenen kleinen Viewport derselben
   Welt den Verlauf ab und zeichnet alle `RUNDGANG_ABSTAND` (12) m je ein
   Bild 40° links und rechts vorn. Eigener Viewport, weil sich die
   Sichtweiten je Viewport merken, was zuletzt zu sehen war (der Rand
   wirkt als Hysterese): Fuhr die Spielkamera selbst, standen bei 70 m
   danach Kronen im Bild, die dort sonst fehlen. Der Viewport übernimmt
   MSAA, 3D-Skalierung, HDR und den Schattenatlas der Punktlichter, also
-  alles, was die Shaderfassung bestimmt. Der
+  alles, was die Shaderfassung bestimmt. Das Hauptbild zeichnet solange
+  kein 3D (`disable_3d`) – es läge ohnehin hinter dem Ladeschirm. Der
   Compatibility-Renderer übersetzt jede Shaderfassung erst beim ersten
   Zeichnen, mit Nebel, Schattenstufen, Instanzen und Lichtern, wie das
   Objekt gerade steht; ohne Rundgang fiel das beim Laufen an, genau wenn
   Neues ins Bild kam (siehe „Ladezeit und Ruckler"). Danach
-  `Effekte.vorwaermen(self)` für die Teilchen (die Kamera steht dann
-  wieder an ihrem Platz), erst dann bekommt die Figur ihre Physik zurück
+  `Effekte.vorwaermen(self)` für die Teilchen und für alles in der Gruppe
+  `Effekte.VORWAERM_GRUPPE` – Netze, die bis zum ersten Gebrauch verborgen
+  sind und die der Rundgang darum nie sieht (Schutzgeist bei Stufe 0,
+  Spin-Ring): je ein winziger Abklatsch vor der Kamera. Dann
+  `_vor_dem_start()`: Dort gibt ein Level frei, was von selbst läuft
+  (Level 06 die Gegnerkarts – sie fuhren während des Rundgangs sonst
+  sekundenlang voraus). Erst danach bekommt die Figur ihre Physik zurück
   und die Uhr des Zeitmodus läuft an. Headless entfällt der Rundgang;
   `LevelBasis.rundgang_an = false` schaltet ihn zum Vergleichen ab.
   Explosion und Lichtsäule des Zielportals wärmen ihre Shader selbst vor.
@@ -1185,8 +1199,12 @@ Vorgaberichtung des `Lichtschacht`). Seitdem liegt Sonne auf den Wegen, und
 die Level werfen zum ersten Mal Schatten. Wo der Weg dabei ausbrannte, ist
 die Sonne schwächer: Level 02 (Schnee) 1,9 → 0,9, Level 05 1,6 → 1,3,
 Level 24 (Nacht, Mondlicht) 0,75 → 0,5. In Level 23 dimmt der `Lichtkreis`
-die Sonne ohnehin auf 10 %. Level 11 und das Testlevel tragen noch eine
-Sonne von unten.
+die Sonne ohnehin auf 10 %. Noch von unten (−basis.z, aus den Szenen
+nachgerechnet): Level 11, 14, 16, 17 (Mondlicht), 18, 19, 20, 21, 22 und
+das Testlevel. Level 12 hat keine Sonne; sein Ersatzlicht `Hallenglut`
+kommt ebenfalls von unten – ob als Ofenschein gewollt, steht nirgends.
+Jedes braucht dieselbe Umstellung und einen Blick aufs Bild, ob der Weg
+dann ausbrennt.
 
 **Licht in Level 01** (Werte in `Level01.tscn`):
 - Sonne 68° hoch aus Süd-Südost, hinter der Kamera; 0,6, warm, Glanz 0,2,

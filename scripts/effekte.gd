@@ -148,6 +148,15 @@ const PAUSE_HOECHSTENS := 0.2
 ## Tempo der Vorwärmteilchen (siehe `vorwaermen`): 0,2 s Lebenszeit
 ## reichen so für ein erstes Bild von 20 s.
 const VORWAERM_ZEITLUPE := 0.01
+## Gruppe für Netze, die selten zu sehen sind und bis dahin verborgen
+## stehen (Schutzgeist bei Stufe 0, Spin-Ring). `vorwaermen()` zeichnet je
+## einen winzigen Abklatsch, damit ihr Shader nicht erst im Spiel übersetzt
+## wird.
+const VORWAERM_GRUPPE := "vorwaermen"
+## So lange stehen die Abklatsche vor der Kamera, in Sekunden. Das Bild
+## nach dem Aufbau ist lang; wie bei den Teilchen soll der Abklatsch es
+## sicher erleben.
+const VORWAERM_DAUER := 0.8
 ## Wegstaub im Wald – die Vorgabe für `staubfarbe`.
 const STAUBFARBE_VORGABE := Farben.WEG_HELL
 ## Platzhalter für „keine Farbe angegeben" (Alpha 0).
@@ -713,6 +722,24 @@ static func vorwaermen(bei: Node) -> void:
 		b.gravity = Vector3.ZERO
 		b.scale_amount_min = 0.01
 		b.scale_amount_max = 0.01
+	# Verborgene Netze (`VORWAERM_GRUPPE`): Was nicht gezeichnet wird, wird
+	# nicht übersetzt – der Rundgang sieht sie also nie.
+	for knoten in bei.get_tree().get_nodes_in_group(VORWAERM_GRUPPE):
+		var vorbild := knoten as MeshInstance3D
+		if vorbild == null or vorbild.mesh == null:
+			continue
+		var abklatsch := MeshInstance3D.new()
+		abklatsch.name = "Vorwaermen"
+		abklatsch.mesh = vorbild.mesh
+		abklatsch.material_override = vorbild.material_override
+		for i in vorbild.get_surface_override_material_count():
+			abklatsch.set_surface_override_material(i, vorbild.get_surface_override_material(i))
+		abklatsch.cast_shadow = vorbild.cast_shadow
+		abklatsch.top_level = true
+		abklatsch.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+		abklatsch.transform = Transform3D(Basis.from_scale(Vector3.ONE * 0.01), ort)
+		bei.add_child(abklatsch)
+		bei.get_tree().create_timer(VORWAERM_DAUER).timeout.connect(abklatsch.queue_free)
 
 
 ## Neues Material für eine Portalscheibe (QuadMesh 2r × 2r). Jedes Portal

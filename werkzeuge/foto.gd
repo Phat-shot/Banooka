@@ -23,7 +23,7 @@ extends Node
 ##   FOTO_HOEHE    nur orbit: Höhe über der Mitte (Vorgabe 14)
 ##   FOTO_ASSETS   0 = mitgelieferte Naturmodelle aus, prozedural bauen
 ##   FOTO_REDUZIERT 1 = wie ein Handy im Browser: `Effekte.reduziert` (halbe
-##                 Mengen, kürzere Sichtweiten, Level 01 mit einer
+##                 Mengen, kürzere Sichtweiten, jedes Level mit einer
 ##                 Schattenstufe bis 50 m), ohne MSAA und mit der
 ##                 Schattenkarte des Web-Exports (`directional_shadow/size.web`,
 ##                 2048 statt 4096). Die Überschreibung `.web` greift nur im

@@ -350,7 +350,12 @@ func _gewonnen(vorher: int) -> void:
 	_halt_ablauf()
 	_puls = 1.0
 	if vorher <= 0:
-		# Aus dem Nichts: Er ploppt an der Schulter der Figur auf.
+		# Aus dem Nichts: Er ploppt an der Schulter der Figur auf. `_ort`
+		# steht noch, wo er zuletzt war (oder am Ursprung, wenn das Level
+		# ohne Schutz begann) – die Funken gehören an die Schulter.
+		if is_instance_valid(_traeger):
+			_ort = Bildtakt.ort(_traeger) + Vector3.UP * _hoehe
+			_traeger_vorher = Bildtakt.ort(_traeger)
 		_neu = true
 		_geist.visible = true
 		_schein.visible = true
@@ -473,6 +478,7 @@ func _baue() -> void:
 	maske.mesh = _maskennetz()
 	maske.material_override = _stoff
 	maske.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	maske.add_to_group(Effekte.VORWAERM_GRUPPE)
 	_geist.add_child(maske)
 
 	_fluegel_stoff = ShaderMaterial.new()
@@ -483,6 +489,7 @@ func _baue() -> void:
 	fluegel.mesh = _fluegelnetz()
 	fluegel.material_override = _fluegel_stoff
 	fluegel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	fluegel.add_to_group(Effekte.VORWAERM_GRUPPE)
 	_geist.add_child(fluegel)
 
 	_schein_stoff = ShaderMaterial.new()
@@ -496,6 +503,7 @@ func _baue() -> void:
 	# Die Fläche wird im Shader zur Kamera gedreht und vergrößert; ohne
 	# erweiterte Hülle fiele sie am Bildrand zu früh aus dem Bild.
 	_schein.extra_cull_margin = 1.5
+	_schein.add_to_group(Effekte.VORWAERM_GRUPPE)
 	add_child(_schein)
 
 
@@ -575,17 +583,23 @@ void fragment() {
 	float r = length(q);
 	float kern = exp(-r * r * 10.0);
 	float hof = exp(-r * r * 3.5) * 0.4;
-	float winkel = atan(q.y, q.x);
-	float strahl = pow(abs(cos(winkel * 3.0 + TIME * 0.6)), 24.0)
-			+ 0.6 * pow(abs(cos(winkel * 2.0 - TIME * 0.9)), 40.0);
-	strahl *= (1.0 - smoothstep(0.1, 0.95, r)) * strahlen;
+	// Strahlen und Funken nur ab Stufe 3 – darunter rechnete jedes
+	// Pixel des Hofs sie aus, um sie mit 0 zu malnehmen. Die Bedingung
+	// hängt an einer Uniform, verzweigt also für alle Pixel gleich.
+	float strahl = 0.0;
 	float funken = 0.0;
-	for (int i = 0; i < 6; i++) {
-		float w = float(i) * 1.0472 + TIME * 0.8;
-		vec2 m = vec2(cos(w), sin(w)) * (0.5 + 0.08 * sin(TIME * 2.0 + float(i)));
-		vec2 d = q - m;
-		float blinken = max(sin(TIME * 5.0 + float(i) * 2.3), 0.0);
-		funken += exp(-dot(d, d) * 700.0) * blinken;
+	if (strahlen > 0.001) {
+		float winkel = atan(q.y, q.x);
+		strahl = pow(abs(cos(winkel * 3.0 + TIME * 0.6)), 24.0)
+				+ 0.6 * pow(abs(cos(winkel * 2.0 - TIME * 0.9)), 40.0);
+		strahl *= (1.0 - smoothstep(0.1, 0.95, r)) * strahlen;
+		for (int i = 0; i < 6; i++) {
+			float w = float(i) * 1.0472 + TIME * 0.8;
+			vec2 m = vec2(cos(w), sin(w)) * (0.5 + 0.08 * sin(TIME * 2.0 + float(i)));
+			vec2 d = q - m;
+			float blinken = max(sin(TIME * 5.0 + float(i) * 2.3), 0.0);
+			funken += exp(-dot(d, d) * 700.0) * blinken;
+		}
 	}
 	float rand = 1.0 - smoothstep(0.8, 1.0, r);
 	ALBEDO = (farbe.rgb * (kern + hof) * staerke + (farbe.rgb + vec3(0.35)) * strahl * 0.5

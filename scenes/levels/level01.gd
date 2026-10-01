@@ -856,10 +856,8 @@ const SICHTWEITE_KISTE_WEB := 55.0
 const SICHTWEITE_FRUCHT_WEB := 45.0
 const SICHTWEITE_GEGNER_WEB := 60.0
 
-## Schattenstrecke der Sonne im Web (Plan 13) und auf dem Handy
-## (`Effekte.reduziert`, eine Stufe, siehe `_nach_aufbau`).
-const SCHATTEN_WEB := 60.0
-const SCHATTEN_HANDY := 50.0
+## Schattenstrecke der Sonne im Web und auf dem Handy: gilt für alle Level,
+## siehe `LevelBasis.SCHATTEN_WEB`/`SCHATTEN_HANDY` und `_schatten_anpassen()`.
 
 
 # =========================================================== Laufzeit
@@ -1270,50 +1268,9 @@ func _portale_setzen() -> void:
 	objekte.add_child(ziel)
 
 
-## Im Web höchstens zwei Schattenstufen und Schatten nur bis SCHATTEN_WEB.
-## Jede Stufe zeichnet alles, was Schatten wirft, noch einmal. Aus vier
-## Stufen werden zwei (die erste bis 12 m); hat die Szene schon zwei,
-## bleibt die erste so lang wie dort (17,5 m), nur die zweite endet früher.
-## Eine kürzere Strecke der Szene bleibt.
-##
-## Auf dem Handy (`Effekte.reduziert`) EINE Stufe bis SCHATTEN_HANDY.
-## Gemessen (Paket leistung, Schattenprobe mit Touch-Tasten): Die Sonne
-## kostete dort 70–140 Aufrufe, eine Stufe spart davon 40–60 (s 4: 537 →
-## 481, s 140: 469 → 409); die Strecke selbst kaum etwas (60 → 45 m: 0–11).
-## Die Schärfe am Fuß der Figur leidet auf dem kleinen Schirm kaum, und der
-## Bodenschatten liegt ohnehin darunter.
 func _nach_aufbau() -> void:
 	if debug:
 		_zaehlen()
-	if not OS.has_feature("web") and not Effekte.reduziert:
-		return
-	var sonne := _sonne()
-	if sonne == null:
-		return
-	var weite := sonne.directional_shadow_max_distance
-	if Effekte.reduziert:
-		sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-		sonne.directional_shadow_max_distance = minf(weite, SCHATTEN_HANDY)
-		return
-	var neu := minf(weite, SCHATTEN_WEB)
-	if sonne.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS:
-		sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-		sonne.directional_shadow_split_1 = 0.2
-	elif sonne.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS:
-		sonne.directional_shadow_split_1 = clampf(
-				weite * sonne.directional_shadow_split_1 / neu, 0.05, 0.95)
-	sonne.directional_shadow_max_distance = neu
-
-
-## Die schattenwerfende Sonne der Szene, oder null.
-func _sonne() -> DirectionalLight3D:
-	var sonne := get_node_or_null("Sonne") as DirectionalLight3D
-	if sonne != null:
-		return sonne
-	for kind in get_children():
-		if kind is DirectionalLight3D and (kind as DirectionalLight3D).shadow_enabled:
-			return kind as DirectionalLight3D
-	return null
 
 
 func _zaehlen() -> void:

@@ -27,6 +27,11 @@ const RUNDGANG_BREITE := 320
 ## Aus nur zum Vergleichen (`werkzeuge/ruckelprobe.gd`, RUCKEL_VORWAERMEN=0).
 static var rundgang_an := true
 
+## Schattenstrecke der Sonne im Web und auf dem Handy (`Effekte.reduziert`),
+## siehe `_schatten_anpassen()`. Eine kürzere Strecke der Szene bleibt.
+const SCHATTEN_WEB := 60.0
+const SCHATTEN_HANDY := 50.0
+
 ## Jede so-und-so-vielte Holzkiste wird im Zeitmodus zur Zeitkiste.
 const ZEITKISTE_ABSTAND := 3
 ## Die Zahlen, die der Reihe nach auf den Zeitkisten stehen.
@@ -114,11 +119,12 @@ func _ready() -> void:
 	GameState.level_zuruecksetzen.connect(_auf_zuruecksetzen)
 	GameState.checkpoint_gesetzt.connect(_stand_sichern)
 	_nach_aufbau()
+	_schatten_anpassen()
 	_bauzeit_merken("Abschluss: Kamera, Kisten", abschluss)
 	# Shader übersetzen, solange der Ladeschirm noch steht. Erst nach
-	# `_nach_aufbau()`: Dort stellen Level noch Licht und Schatten um
-	# (Level 01 auf dem Handy eine Schattenstufe), und das ändert, welche
-	# Fassung jedes Shaders gebraucht wird.
+	# `_nach_aufbau()` und `_schatten_anpassen()`: Dort stellen Level noch
+	# Licht und Schatten um (auf dem Handy eine Schattenstufe), und das
+	# ändert, welche Fassung jedes Shaders gebraucht wird.
 	var vorwaermen := Time.get_ticks_usec()
 	await _rundgang()
 	if not is_inside_tree():
@@ -128,6 +134,10 @@ func _ready() -> void:
 	# ihrem Platz stehen muss.
 	Effekte.vorwaermen(self)
 	_bauzeit_merken("Vorwärmen: Rundgang", vorwaermen)
+	# Wer im Level von selbst läuft (die Karts in Level 06), wartet bis
+	# hier – sonst liefe es während des Rundgangs schon los, während die
+	# Figur noch gesperrt auf der Linie steht.
+	_vor_dem_start()
 	# Jetzt steht der Boden und die Figur an ihrem Platz: Physik wieder an.
 	if _spieler != null:
 		if _spieler is CharacterBody3D:
@@ -242,6 +252,10 @@ func _rundgang() -> void:
 	buehne.add_child(kamera)
 	add_child(buehne)
 	kamera.current = true
+	# Das Hauptbild liegt hinter dem Ladeschirm, zeichnete aber jedes Bild
+	# die volle Szene mit – auf dem Handy die Hälfte der Rundgangszeit.
+	var hauptbild_aus := haupt.disable_3d
+	haupt.disable_3d = true
 	var halte := maxi(1, ceili(laenge / RUNDGANG_ABSTAND) + 1)
 	for i in halte:
 		var s := minf(float(i) * RUNDGANG_ABSTAND, laenge)
@@ -259,9 +273,11 @@ func _rundgang() -> void:
 			# gezeichnet wird (Fenster verkleinert) – der Aufbau hinge sonst.
 			await get_tree().process_frame
 			if not is_inside_tree():
+				haupt.disable_3d = hauptbild_aus
 				return
 		Ladeschirm.fortschritt(0.95 + 0.05 * float(i + 1) / float(halte),
 				"Licht und Schatten werden vorbereitet")
+	haupt.disable_3d = hauptbild_aus
 	buehne.queue_free()
 
 
@@ -283,6 +299,60 @@ func _bauschritte() -> Array:
 
 ## Haken: Wird ganz am Schluss aufgerufen, wenn alles steht.
 func _nach_aufbau() -> void:
+	pass
+
+
+## Im Web höchstens zwei Schattenstufen und Schatten nur bis SCHATTEN_WEB.
+## Jede Stufe zeichnet alles, was Schatten wirft, noch einmal. Aus vier
+## Stufen werden zwei (die erste bis 12 m); hat die Szene schon zwei,
+## bleibt die erste so lang wie dort (17,5 m), nur die zweite endet früher.
+## Eine kürzere Strecke der Szene bleibt.
+##
+## Auf dem Handy (`Effekte.reduziert`) EINE Stufe bis SCHATTEN_HANDY.
+## Gemessen (Paket leistung, Schattenprobe mit Touch-Tasten): Die Sonne
+## kostete dort 70–140 Aufrufe, eine Stufe spart davon 40–60 (s 4: 537 →
+## 481, s 140: 469 → 409); die Strecke selbst kaum etwas (60 → 45 m: 0–11).
+## Die Schärfe am Fuß der Figur leidet auf dem kleinen Schirm kaum, und der
+## Bodenschatten liegt ohnehin darunter.
+##
+## Gemessen in Level 01, gilt aber für jedes Level: Seit die Handy-App den
+## Handyweg nimmt, liefen die übrigen Level dort sonst mit vier Stufen bis
+## 70–90 m.
+func _schatten_anpassen() -> void:
+	if not OS.has_feature("web") and not Effekte.reduziert:
+		return
+	var sonne := _schattensonne()
+	if sonne == null:
+		return
+	var weite := sonne.directional_shadow_max_distance
+	if Effekte.reduziert:
+		sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		sonne.directional_shadow_max_distance = minf(weite, SCHATTEN_HANDY)
+		return
+	var neu := minf(weite, SCHATTEN_WEB)
+	if sonne.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS:
+		sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sonne.directional_shadow_split_1 = 0.2
+	elif sonne.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS:
+		sonne.directional_shadow_split_1 = clampf(
+				weite * sonne.directional_shadow_split_1 / neu, 0.05, 0.95)
+	sonne.directional_shadow_max_distance = neu
+
+
+## Die schattenwerfende Sonne der Szene, oder null.
+func _schattensonne() -> DirectionalLight3D:
+	var sonne := get_node_or_null("Sonne") as DirectionalLight3D
+	if sonne != null and sonne.shadow_enabled:
+		return sonne
+	for kind in get_children():
+		if kind is DirectionalLight3D and (kind as DirectionalLight3D).shadow_enabled:
+			return kind as DirectionalLight3D
+	return null
+
+
+## Haken: Unmittelbar bevor die Figur losdarf, nach dem Rundgang. Hier
+## gibt ein Level frei, was von selbst läuft und bis dahin stehen musste.
+func _vor_dem_start() -> void:
 	pass
 
 

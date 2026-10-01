@@ -326,6 +326,7 @@ func _baue_spin_ring() -> void:
 	# Ausgeblendet ist er wirklich aus – mit Deckkraft 0 kostete er sonst
 	# jedes Bild einen Draw-Call für nichts.
 	_spin_ring.visible = false
+	_spin_ring.add_to_group(Effekte.VORWAERM_GRUPPE)
 	_teile.add_child(_spin_ring)
 
 

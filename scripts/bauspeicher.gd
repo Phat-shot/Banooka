@@ -44,6 +44,14 @@ const ORDNER := "user://bauspeicher"
 const FASSUNGSDATEI := "user://bauspeicher/fassung.txt"
 ## Wo die Skripte liegen, aus denen der Fingerabdruck entsteht.
 const QUELLEN: Array[String] = ["res://scripts", "res://scenes", "res://autoload"]
+## So viele Skripte findet der Fingerabdruck mindestens (heute rund 180).
+## Findet er weniger, kann er Änderungen nicht sehen – etwa wenn eine
+## Plattform res:// nicht auflisten kann. Dann bleibt der Speicher aus:
+## sonst überlebten alte Bilder jedes Update, ohne dass es jemand merkt.
+const MINDESTENS_SKRIPTE := 50
+## Zwischendateien, die älter sind (Sekunden), stammen von einem Spiel,
+## das mitten im Schreiben beendet wurde, und werden weggeräumt.
+const ZWISCHEN_ALTER := 600
 
 static var an := true
 
@@ -100,7 +108,12 @@ static func _vorbereiten() -> bool:
 	_bereit = true
 	if DirAccess.make_dir_recursive_absolute(ORDNER) != OK:
 		return false
-	var fassung := fingerabdruck()
+	var skripte := PackedStringArray()
+	var fassung := fingerabdruck(skripte)
+	if skripte.size() < MINDESTENS_SKRIPTE:
+		push_warning("Bauspeicher aus: nur %d Skripte für den Fingerabdruck gefunden"
+				% skripte.size())
+		return false
 	var alt := ""
 	if FileAccess.file_exists(FASSUNGSDATEI):
 		alt = FileAccess.get_file_as_string(FASSUNGSDATEI).strip_edges()
@@ -115,18 +128,39 @@ static func _vorbereiten() -> bool:
 			return false
 		f.store_line(fassung)
 		f.close()
+	else:
+		_zwischen_aufraeumen()
 	_nutzbar = true
 	return true
 
 
-## md5 über alle Skripte (.gd/.gdc) unter `QUELLEN` und die Engine-Version.
-static func fingerabdruck() -> String:
-	var teile := PackedStringArray()
-	var info := Engine.get_version_info()
-	teile.append(str(info.get("string", "")) + str(info.get("hash", "")))
+## Liegengebliebene Zwischendateien (`*.neu.res`) löschen. Nur alte: Eine
+## junge kann gerade ein zweites Spiel mit demselben user:// schreiben.
+static func _zwischen_aufraeumen() -> void:
+	var ordner := DirAccess.open(ORDNER)
+	if ordner == null:
+		return
+	var jetzt := int(Time.get_unix_time_from_system())
+	for datei in ordner.get_files():
+		if not datei.ends_with(".neu.res"):
+			continue
+		var alter := jetzt - int(FileAccess.get_modified_time(ORDNER.path_join(datei)))
+		if alter > ZWISCHEN_ALTER:
+			ordner.remove(datei)
+
+
+## md5 über alle Skripte (.gd/.gdc) unter `QUELLEN`, die Engine-Version
+## und die Spielversion aus den Projekteinstellungen (zweite Sicherung,
+## falls ein Export die Skripte anders ablegt). `teile` bekommt je Skript
+## einen Eintrag – daran sieht der Aufrufer, ob überhaupt etwas gefunden
+## wurde.
+static func fingerabdruck(teile := PackedStringArray()) -> String:
 	for quelle in QUELLEN:
 		_sammle(quelle, teile)
-	return "".join(teile).md5_text()
+	var info := Engine.get_version_info()
+	var kopf := str(info.get("string", "")) + str(info.get("hash", "")) \
+			+ str(ProjectSettings.get_setting("application/config/version", ""))
+	return (kopf + "".join(teile)).md5_text()
 
 
 static func _sammle(ordner_pfad: String, teile: PackedStringArray) -> void:

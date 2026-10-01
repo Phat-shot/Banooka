@@ -452,8 +452,9 @@ godot --headless --path . --export-debug "Android" build/banooka-debug.apk
 
 Die App läuft auf dem Handyweg wie ein Handy im Browser
 (`Effekte.reduziert`: halbe Dichten, kürzere Sichtweiten, eine
-Schattenstufe in Level 01) und hat eigene Projektwerte (`.mobile`): ohne
-MSAA, 3D in 80 % der Auflösung, Schattenkarte 2048, höchstens 60 Bilder je
+Schattenstufe bis 50 m in jedem Level) und hat eigene Projektwerte
+(`.mobile`): ohne MSAA, 3D in 80 % der Auflösung (im Handy-Browser setzt
+`Einstellungen` dieselben 80 %), Schattenkarte 2048, höchstens 60 Bilder je
 Sekunde. Der erste Start nach der Installation rechnet Texturen und Netze
 und legt sie in `user://bauspeicher` ab (rund 20 MB); jeder weitere liest
 sie nur noch. Das Debug-APK aus dem Arbeitsablauf führt GDScript mit
