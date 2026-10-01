@@ -13,21 +13,31 @@ class_name SpielerModell
 ## Das Modell wird prozedural aus Godot-Primitiven aufgebaut, es werden
 ## keine fremden Asset-Dateien benötigt.
 ##
-## Aufbau (alles hängt unter `_koerper`, damit der Slide-Stauch der
-## Basislogik die ganze Figur flach drückt):
+## Aufbau (alles hängt unter `_koerper`, damit eine Haltung des Rumpfes
+## – Bauchrutschen, Krabbeln – die ganze Figur mitnimmt):
 ##   Teile
-##     Koerper (Rumpf)          – Ursprung auf Hüfthöhe, y = 0.7
-##       Bauch, Kopf (Schnauze, Nase, Augen, Ohren),
-##       Arme (mit Händen), Beine (mit Füßen), Schweif
-##     SpinRing                 – Geschwister, damit ihn der Slide nicht verzerrt
+##     Koerper (Rumpf, Bauch, Halstuch)  – Ursprung auf Hüfthöhe, y = 0.7
+##       Kopf (Schädel, Schnauze, Augen, Brauen, Schopf) mit Lidern, Ohren
+##       Arme (mit Händen), Beine (mit Füßen), Schweif (mit Spitze),
+##       Tuchzipfel
+##     SpinRing                 – Geschwister, damit ihn der Rumpf nicht kippt
+##
+## Jedes starre Glied ist EIN Netz: Die Grundformen eines Glieds (Kugeln,
+## Kapseln, Kegel) werden beim ersten Bau zu einem Netz mit Eckfarben
+## verschmolzen und für alle weiteren Figuren aufgehoben. Die Zeichnung
+## im Fell – heller Bauch, Brille ums Auge, Streifen auf dem Rücken und
+## am Schweif – steckt in den Eckfarben. Alle Glieder teilen einen Stoff
+## (`FELL_CODE`). Vorher waren es rund 50 Einzelteile mit je eigenem
+## Draw-Call (und noch einmal so viele im Schatten), jetzt sind es 15.
 ##
 ## `Teile` selbst trägt das Stauchen und Strecken aus `stoss()`: Sein
 ## Ursprung liegt auf Fußhöhe, die Füße bleiben also am Boden, und es
-## beißt sich weder mit dem Slide-Stauch am Rumpf noch mit dem Halter
+## beißt sich weder mit der Haltung des Rumpfes noch mit dem Halter
 ## einer eigenen Figur noch mit dem Portal, das den Modellknoten schrumpft.
 ##
-## Maße: Füße auf y = 0, Ohrenspitzen bei ca. 1.42 m, Breite ca. 0.75 m –
-## passt damit in die Kollisionskapsel (Radius 0.38 / Höhe 1.3).
+## Maße: Füße auf y = 0, Scheitel bei 1,36 m, Ohrenspitzen bei ca. 1,48 m,
+## Breite ca. 0,75 m – passt damit in die Kollisionskapsel (Radius 0.38 /
+## Höhe 1.3); nur die Ohren ragen wie bisher darüber hinaus.
 ## Das Modell blickt in -Z.
 ##
 ## Wer in den Einstellungen eine eigene glTF-Figur hinterlegt, bekommt
@@ -45,9 +55,15 @@ const SPIN_DREHUNG := 30.0   ## Umdrehungsgeschwindigkeit beim Spin
 # --- Ruhewerte und Ausschläge der Animation ---
 const RUMPF_Y := 0.7         ## Höhe des Rumpf-Ursprungs über dem Boden
 const OHR_RUHE := 0.10       ## Grundneigung der Ohren nach hinten
-const OHR_SPREIZUNG := 0.22  ## Grundneigung der Ohren nach außen
+const OHR_SPREIZUNG := 0.30  ## Grundneigung der Ohren nach außen
+## Die Arme hängen leicht abgespreizt: Der Bauch ist rund, gerade nach
+## unten steckten sie in ihm.
+const ARM_RUHE := 0.30
 const ARM_SPIN := 1.45       ## Arme waagerecht beim Spin
-const ARM_LUFT := 2.90       ## Arme steil nach oben in der Luft
+## Der Schweif schwingt etwas zur Seite: Von hinten – aus der Spielkamera –
+## verdeckt er so nicht den ganzen Rücken samt Halstuchzipfel.
+const SCHWEIF_SEITE := 0.35
+const ARM_LUFT := 2.65       ## Arme schräg nach oben in der Luft
 
 # --- Stauchen und Strecken (`stoss()`) ---
 ## Gedämpfte Feder: Eigenfrequenz rund 15 rad/s, Dämpfungsmaß rund 0,47.
@@ -58,12 +74,32 @@ const STAUCH_BREMSE := 14.0
 ## Weiter lässt sich die Figur nicht verformen. Mehr sieht nach Gummi aus.
 const STAUCH_GRENZE := 0.45
 
-## So schnell drückt sich der Rumpf im Slide flach und richtet sich wieder
-## auf. Früher sprang er in einem Bild auf halbe Höhe; bei 25/s dauert der
-## Übergang rund 0,1 s – schnell genug für einen Slide von 0,42 s.
+## So schnell wechselt der Rumpf in eine liegende Haltung (Slide,
+## Krabbeln) und zurück. Bei 25/s dauert der Übergang rund 0,1 s –
+## schnell genug für einen Slide von 0,42 s.
 const SLIDE_WECHSEL := 25.0
 
 const BLINZ_DAUER := 0.14    ## ein Lidschlag in Sekunden
+
+# --- Farben ---
+## Warmes Orange mit cremefarbenen Flächen und dunkelbrauner Zeichnung,
+## dazu ein türkises Halstuch als Gegenfarbe: Auf dem grünen Waldweg und
+## vor braunen Stämmen soll die Figur auch klein im Bild sofort auffallen.
+const FELL := Color(0.98, 0.62, 0.24)
+const FELL_HELL := Color(1.0, 0.92, 0.74)
+const FELL_DUNKEL := Color(0.50, 0.25, 0.10)
+const PFOTE := Color(0.56, 0.31, 0.15)
+const SOHLE := Color(0.86, 0.66, 0.48)
+const INNENOHR := Color(0.98, 0.66, 0.58)
+const NASE := Color(0.09, 0.06, 0.06)
+const AUGWEISS := Color(0.99, 0.98, 0.95)
+const IRIS := Color(0.30, 0.58, 0.22)
+const TUCH := Color(0.16, 0.74, 0.78)
+
+## Art einer Fläche, steckt im Alpha der Eckfarbe (siehe `FELL_CODE`).
+const ART_FELL := 1.0
+const ART_GLATT := 0.5       ## Augen, Nase, Tuch: glatt und glänzend
+const ART_LICHT := 0.0       ## Glanzpunkt im Auge: leuchtet ein wenig
 
 var _blick := 0.0
 var _spin_alpha := 0.0
@@ -71,10 +107,14 @@ var _lauf_phase := 0.0
 ## Auslenkung der Stauchfeder: > 0 gestaucht, < 0 gestreckt.
 var _stauch := 0.0
 var _stauch_v := 0.0
-## 0 = aufrecht, 1 = flach im Slide – weich nachgeführt.
+## 0 = aufrecht, 1 = liegend (Slide, Krabbeln) – weich nachgeführt.
 var _slide_grad := 0.0
+## Weich nachgeführte Höhe des Rumpfes (Hocke im Sitzen, Strecken am Gitter).
+var _rumpf_hoehe := RUMPF_Y
+## Wie weit die Arme gestreckt sind (1 = normal, am Gitter länger).
+var _streck := 1.0
 
-var _koerper: MeshInstance3D
+var _koerper: Node3D
 var _spin_ring: MeshInstance3D
 var _teile: Node3D
 
@@ -111,10 +151,15 @@ var _ohr_links: Node3D
 var _ohr_rechts: Node3D
 var _arm_links: Node3D
 var _arm_rechts: Node3D
+## Oberarm und Hand je Seite: Am Gitter wird der Oberarm gestreckt und die
+## Hand rückt ans Ende, ohne selbst mitgezogen zu werden.
+var _oberarme: Array[Node3D] = []
+var _haende: Array[Node3D] = []
 var _bein_links: Node3D
 var _bein_rechts: Node3D
 var _schweif: Node3D
 var _schweif_spitze: Node3D
+var _zipfel: Node3D
 
 # --- Zustand der Animation ---
 var _zeit := 0.0             ## Laufende Zeit für Atmen und Zucken
@@ -125,7 +170,7 @@ var _lider: Array[MeshInstance3D] = []
 var _blinz := 0.0            ## Restzeit des laufenden Lidschlags
 var _blinz_pause := 3.0      ## Zeit bis zum nächsten Lidschlag
 var _kneifen := 0.0          ## Restzeit des Zukneifens
-var _lid_zu := 0.0           ## zuletzt gesetzter Schluss der Lider
+var _lid_zu := -1.0          ## zuletzt gesetzter Schluss der Lider
 
 
 func _ready() -> void:
@@ -180,60 +225,72 @@ func _baue_eigenes() -> bool:
 	return true
 
 
-## Baut den kompletten Beuteldachs aus Primitiven auf.
+## Baut den Beuteldachs aus seinen Gliedern auf.
 ##
-## Silhouette: breite Schultern, schmale Hüfte, lange Schnauze, hohe
-## Ohren, buschiger Schweif. Die Zeichnung im Fell (heller Bauch, dunkles
-## Rückenband, geringelter Schweif) gibt der Figur auch aus der Ferne
-## eine erkennbare Kontur.
+## Silhouette: großer runder Kopf mit Wangenbüscheln und hohen Ohren,
+## birnenförmiger Rumpf, kurze kräftige Beine mit großen Füßen und ein
+## buschiger, geringelter Schweif. Von hinten – so sieht man die Figur
+## fast immer – tragen Schweif, Rückenstreifen, Ohren und der Zipfel des
+## Halstuchs die Form.
 func _baue() -> void:
 	_teile = Node3D.new()
 	_teile.name = "Teile"
 	add_child(_teile)
 
-	var fell := Materialbibliothek.fell()
-	var bauchfell := Materialbibliothek.fell(Farben.FELL_BAUCH.lerp(Farben.FRUCHT, 0.22))
-	var dunkelfell := Materialbibliothek.fell(Farben.FELL_DUNKEL)
-	var nasenfarbe := Materialbibliothek.einfarbig(Farben.NASE, 0.35)
-	var augapfel := Materialbibliothek.einfarbig(Color(0.97, 0.97, 0.93), 0.25)
+	_koerper = _glied(_teile, "Koerper", _netz("rumpf", _form_rumpf),
+			Vector3(0.0, RUMPF_Y, 0.0))
 
-	# --- Rumpf: trägt als Wurzel alle übrigen Teile ---
-	_koerper = MeshInstance3D.new()
-	_koerper.name = "Koerper"
-	_koerper.mesh = _kapsel(0.29, 0.86)
-	_koerper.material_override = fell
-	_koerper.position.y = RUMPF_Y
-	_teile.add_child(_koerper)
+	_zipfel = _glied(_koerper, "Tuchzipfel", _netz("zipfel", _form_zipfel),
+			Vector3(0.0, 0.24, 0.19), false)
 
-	# Breiter Brustkorb – macht die Schultern kräftig, die Hüfte bleibt schmal
-	var brust := _netz(_koerper, "Brust", _kugel(0.27), fell, Vector3(0.0, 0.20, -0.02))
-	brust.scale = Vector3(1.28, 0.76, 1.04)
+	_kopf = _glied(_koerper, "Kopf", _netz("kopf", _form_kopf), Vector3(0.0, 0.35, -0.02))
+	for seite: float in [1.0, -1.0]:
+		var auge := Node3D.new()
+		auge.name = "Auge%s" % _kuerzel(seite)
+		auge.transform = _augenlage(seite)
+		_kopf.add_child(auge)
+		var lid := _glied(auge, "Lid", _netz("lid", _form_lid), Vector3.ZERO, false)
+		_lider.append(lid as MeshInstance3D)
+	_lider_setzen(0.0)
 
-	# Dunkle Halskrause – setzt den Kopf von den Schultern ab
-	var kragen := _netz(_koerper, "Kragen", _kugel(0.215), dunkelfell,
-			Vector3(0.0, 0.34, -0.03))
-	kragen.scale = Vector3(1.12, 0.42, 1.10)
-
-	# Heller Bauch, deutlich nach vorn (-Z) gewölbt
-	var bauch := _netz(_koerper, "Bauch", _kugel(0.215), bauchfell,
-			Vector3(0.0, -0.09, -0.165))
-	bauch.scale = Vector3(0.98, 1.18, 0.74)
-
-	# Dunkles Rückenband: drei flach aufliegende Flecken, nach unten schmaler
-	var zeichnung := Materialbibliothek.fell(Farben.FELL_DUNKEL.darkened(0.32))
-	var band: Array = [[0.25, 0.250, 0.125, 1.45], [0.02, 0.272, 0.140, 1.45],
-			[-0.21, 0.262, 0.110, 1.30]]
-	for i in band.size():
-		var fleck := _netz(_koerper, "Rueckenband%d" % i, _kugel(band[i][2]),
-				zeichnung, Vector3(0.0, band[i][0], band[i][1]))
-		fleck.scale = Vector3(band[i][3], 1.0, 0.20)
-
-	_baue_kopf(fell, bauchfell, dunkelfell, nasenfarbe, augapfel)
-	_baue_arme(fell, dunkelfell)
-	_baue_beine(fell, dunkelfell)
-	_baue_schweif(fell, dunkelfell)
+	_ohr_rechts = _baue_ohr(1.0)
+	_ohr_links = _baue_ohr(-1.0)
+	_arm_rechts = _baue_arm(1.0)
+	_arm_links = _baue_arm(-1.0)
+	_bein_rechts = _glied(_koerper, "BeinR", _netz("bein", _form_bein),
+			Vector3(0.14, -0.30, 0.0))
+	_bein_links = _glied(_koerper, "BeinL", _netz("bein", _form_bein),
+			Vector3(-0.14, -0.30, 0.0))
+	_schweif = _glied(_koerper, "Schweif", _netz("schweif", _form_schweif),
+			Vector3(0.0, -0.24, 0.22))
+	_schweif_spitze = _glied(_schweif, "Spitze", _netz("spitze", _form_spitze),
+			Vector3(0.0, 0.09, 0.29))
 
 	_baue_spin_ring()
+
+
+func _baue_ohr(seite: float) -> Node3D:
+	var ohr := _glied(_kopf, "Ohr%s" % _kuerzel(seite), _netz("ohr", _form_ohr),
+			Vector3(0.155 * seite, 0.20, 0.035))
+	ohr.rotation = Vector3(OHR_RUHE, 0.0, -OHR_SPREIZUNG * seite)
+	return ohr
+
+
+func _baue_arm(seite: float) -> Node3D:
+	var gelenk := Node3D.new()
+	gelenk.name = "Arm%s" % _kuerzel(seite)
+	gelenk.position = Vector3(0.255 * seite, 0.15, -0.01)
+	gelenk.rotation.z = ARM_RUHE * seite
+	_koerper.add_child(gelenk)
+	_oberarme.append(_glied(gelenk, "Oberarm", _netz("arm", _form_arm)))
+	var hand := "hand_r" if seite > 0.0 else "hand_l"
+	_haende.append(_glied(gelenk, "Hand", _netz(hand,
+			func(f: Form) -> void: _form_hand(f, seite)), Vector3(0.0, -0.29, 0.0)))
+	return gelenk
+
+
+static func _kuerzel(seite: float) -> String:
+	return "R" if seite > 0.0 else "L"
 
 
 ## Spin-Ring: Geschwister des Rumpfes, damit ihn der Slide-Stauch nicht
@@ -309,214 +366,377 @@ static func _wirbel_shader() -> Shader:
 	return _wirbel
 
 
-## Kopf mit langer Schnauze, Wangen, Augen samt Lidern, Brauen,
-## Stachelfrisur und hohen Ohren.
-func _baue_kopf(fell: Material, bauchfell: Material, dunkelfell: Material,
-		nasenfarbe: Material, augapfel: Material) -> void:
-	_kopf = _gelenk(_koerper, "Kopf", Vector3(0.0, 0.40, -0.03))
+## Der Stoff aller Glieder. Farbe und Art kommen aus der Eckfarbe:
+## rgb ist die Farbe (sRGB), Alpha die Art der Fläche – 1 Fell, 0,5 glatt
+## (Augen, Nase, Tuch), 0 Glanzpunkt.
+##
+## Fell: zwei Lagen Rauschen aus der Lage im Glied (keine Textur, keine
+## UV), längs gestreckt wie Strähnen; Unterseiten etwas dunkler, an der
+## Silhouette ein weicher Saum, wie ihn Fell im Gegenlicht zeigt. Alles
+## ohne Bild- und Tiefentextur, läuft also unter gl_compatibility.
+const FELL_CODE := """
+shader_type spatial;
+render_mode diffuse_lambert_wrap, specular_schlick_ggx;
 
-	var schaedel := _netz(_kopf, "Schaedel", _kugel(0.235), fell)
-	schaedel.scale = Vector3(1.08, 0.99, 1.00)
+varying vec3 lage;
 
-	# Wangen: geben dem Kopf Breite und trennen ihn von der Schnauze
-	for seite in [-1.0, 1.0]:
-		var wange := _netz(_kopf, "Wange%s" % ("R" if seite > 0.0 else "L"),
-				_kugel(0.105), fell, Vector3(0.135 * seite, -0.09, -0.12))
-		wange.scale = Vector3(0.9, 0.82, 1.15)
+float zufall(vec3 p) {
+	p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
+	p *= 17.0;
+	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
 
-	# Lange, flache Schnauze: breiter als hoch, ragt deutlich nach -Z heraus
-	var schnauze := _netz(_kopf, "Schnauze", _kegel(0.135, 0.048, 0.46), fell,
-			Vector3(0.0, -0.06, -0.27))
-	schnauze.rotation.x = -PI * 0.5
-	schnauze.scale = Vector3(1.12, 1.0, 0.72)
+float rauschen(vec3 x) {
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(zufall(i), zufall(i + vec3(1.0, 0.0, 0.0)), f.x),
+			mix(zufall(i + vec3(0.0, 1.0, 0.0)), zufall(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+		mix(mix(zufall(i + vec3(0.0, 0.0, 1.0)), zufall(i + vec3(1.0, 0.0, 1.0)), f.x),
+			mix(zufall(i + vec3(0.0, 1.0, 1.0)), zufall(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
 
-	# Helle Unterseite der Schnauze
-	var kinn := _netz(_kopf, "Kinn", _kugel(0.115), bauchfell,
-			Vector3(0.0, -0.115, -0.26))
-	kinn.scale = Vector3(0.90, 0.50, 1.55)
+void vertex() {
+	lage = VERTEX;
+}
 
-	# Dunkler Mundstrich unter der Nase
-	var mund := _netz(_kopf, "Mund", _kugel(0.05), nasenfarbe,
-			Vector3(0.0, -0.105, -0.395))
-	mund.scale = Vector3(1.45, 0.26, 0.7)
+void fragment() {
+	vec3 farbe = pow(COLOR.rgb, vec3(2.2));
+	float fell = smoothstep(0.7, 0.9, COLOR.a);
+	float licht = 1.0 - smoothstep(0.1, 0.3, COLOR.a);
+	float glatt = (1.0 - fell) * (1.0 - licht);
+	float n = rauschen(lage * vec3(34.0, 12.0, 34.0)) * 0.65 + rauschen(lage * 90.0) * 0.35;
+	farbe *= mix(1.0, 0.84 + 0.28 * n, fell);
+	vec3 welt_n = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz;
+	farbe *= mix(1.0, mix(0.74, 1.04, smoothstep(-0.8, 0.7, welt_n.y)), fell);
+	ALBEDO = farbe;
+	ROUGHNESS = mix(0.2, 0.8, fell);
+	SPECULAR = mix(0.7, 0.3, fell);
+	float saum = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
+	EMISSION = farbe * (saum * 0.35 * fell + glatt * 0.08 + licht * 1.5);
+}
+"""
 
-	var nase := _netz(_kopf, "Nase", _kugel(0.062), nasenfarbe,
-			Vector3(0.0, -0.028, -0.455))
-	nase.scale = Vector3(1.3, 0.88, 0.85)
-
-	# Helle Blesse über Nasenrücken und Stirn – die Dachszeichnung
-	var blesse := _netz(_kopf, "Blesse", _kugel(0.10), bauchfell,
-			Vector3(0.0, 0.005, -0.275))
-	blesse.scale = Vector3(0.44, 0.55, 2.5)
-
-	# Augen: dunkle Maske, Augapfel, große Pupille, Glanzpunkt, Lid und Braue
-	for seite in [-1.0, 1.0]:
-		var kuerzel := "R" if seite > 0.0 else "L"
-		# Dunkle Augenmaske: zieht sich vom Nasenrücken bis zum Ohr
-		var maske := _netz(_kopf, "Maske%s" % kuerzel, _kugel(0.125), dunkelfell,
-				Vector3(0.128 * seite, 0.085, -0.155))
-		maske.scale = Vector3(1.10, 0.92, 0.72)
-		maske.rotation.z = -0.22 * seite
-
-		var auge := _netz(_kopf, "Auge%s" % kuerzel, _kugel(0.080), augapfel,
-				Vector3(0.118 * seite, 0.085, -0.185))
-		auge.scale = Vector3(1.0, 1.12, 1.0)
-		_netz(auge, "Pupille", _kugel(0.043), nasenfarbe, Vector3(0.0, -0.004, -0.050))
-		var glanz := _netz(auge, "Glanz", _kugel(0.018), augapfel,
-				Vector3(-0.020 * seite, 0.028, -0.066))
-		glanz.scale = Vector3(1.0, 1.0, 0.6)
-
-		# Oberlid: zieht die Augen zu und gibt der Figur einen wachen Blick
-		var lid := _netz(auge, "Lid", _kugel(0.086), fell,
-				Vector3(0.0, LID_OFFEN_Y, 0.006))
-		lid.scale = LID_OFFEN
-		_lider.append(lid)
-
-		# Braue: leicht nach außen angehoben
-		var braue := _netz(_kopf, "Braue%s" % kuerzel, _kugel(0.055), dunkelfell,
-				Vector3(0.122 * seite, 0.175, -0.165))
-		braue.scale = Vector3(1.55, 0.42, 0.55)
-		braue.rotation.z = -0.28 * seite
-
-	# Stachelfrisur zwischen den Ohren
-	for i in 3:
-		var strubbel := _netz(_kopf, "Stachel%d" % i, _kegel(0.048, 0.0, 0.17),
-				dunkelfell, Vector3((float(i) - 1.0) * 0.085, 0.205, 0.055))
-		strubbel.rotation.x = 0.85 + absf(float(i) - 1.0) * 0.12
-
-	# Aufgestellte Ohren – Dreiecksprismen auf eigenen Gelenken
-	_ohr_rechts = _baue_ohr(1.0, fell, dunkelfell)
-	_ohr_links = _baue_ohr(-1.0, fell, dunkelfell)
+static var _fell_stoff: ShaderMaterial = null
+## Verschmolzene Netze je Glied, für alle Figuren geteilt und nie verändert.
+static var _netze: Dictionary = {}
 
 
-## Ein Ohr; seite = +1 rechts (+X), -1 links (-X).
-func _baue_ohr(seite: float, fell: Material, dunkelfell: Material) -> Node3D:
-	var gelenk := _gelenk(_kopf, "Ohr%s" % ("R" if seite > 0.0 else "L"),
-			Vector3(0.145 * seite, 0.125, 0.02))
-	gelenk.rotation = Vector3(OHR_RUHE, 0.0, -OHR_SPREIZUNG * seite)
-
-	var muschel := PrismMesh.new()
-	muschel.size = Vector3(0.17, 0.20, 0.075)
-	_netz(gelenk, "Muschel", muschel, fell, Vector3(0.0, 0.105, 0.0))
-
-	var innen := PrismMesh.new()
-	innen.size = Vector3(0.10, 0.125, 0.02)
-	_netz(gelenk, "Innenohr", innen, dunkelfell, Vector3(0.0, 0.09, -0.045))
-	return gelenk
+static func _stoff() -> ShaderMaterial:
+	if _fell_stoff == null:
+		var shader := Shader.new()
+		shader.code = FELL_CODE
+		_fell_stoff = ShaderMaterial.new()
+		_fell_stoff.shader = shader
+	return _fell_stoff
 
 
-## Beide Arme mit dunklen Pfoten.
-func _baue_arme(fell: Material, dunkelfell: Material) -> void:
-	_arm_rechts = _baue_arm(1.0, fell, dunkelfell)
-	_arm_links = _baue_arm(-1.0, fell, dunkelfell)
+## Das Netz eines Glieds; beim ersten Mal von `bau` aus Grundformen
+## zusammengesetzt, danach aus dem Vorrat.
+func _netz(name: String, bau: Callable) -> ArrayMesh:
+	if not _netze.has(name):
+		var form := Form.new()
+		bau.call(form)
+		_netze[name] = form.netz()
+	return _netze[name]
 
 
-func _baue_arm(seite: float, fell: Material, dunkelfell: Material) -> Node3D:
-	var gelenk := _gelenk(_koerper, "Arm%s" % ("R" if seite > 0.0 else "L"),
-			Vector3(0.29 * seite, 0.22, 0.0))
-	var schulter := _netz(gelenk, "Schulter", _kugel(0.105), fell)
-	schulter.scale = Vector3(1.0, 0.95, 1.0)
-	_netz(gelenk, "Oberarm", _kapsel(0.072, 0.30), fell, Vector3(0.0, -0.17, 0.0))
-	var hand := _netz(gelenk, "Hand", _kugel(0.095), dunkelfell, Vector3(0.0, -0.35, 0.0))
-	hand.scale = Vector3(0.9, 1.0, 1.2)
-	return gelenk
-
-
-## Beide Beine mit dunklen Füßen.
-func _baue_beine(fell: Material, dunkelfell: Material) -> void:
-	_bein_rechts = _baue_bein(1.0, fell, dunkelfell)
-	_bein_links = _baue_bein(-1.0, fell, dunkelfell)
-
-
-func _baue_bein(seite: float, fell: Material, dunkelfell: Material) -> Node3D:
-	var gelenk := _gelenk(_koerper, "Bein%s" % ("R" if seite > 0.0 else "L"),
-			Vector3(0.155 * seite, -0.30, 0.0))
-	_netz(gelenk, "Schenkel", _kapsel(0.105, 0.32), fell, Vector3(0.0, -0.14, 0.0))
-
-	var fuss := BoxMesh.new()
-	fuss.size = Vector3(0.19, 0.105, 0.31)
-	_netz(gelenk, "Fuss", fuss, dunkelfell, Vector3(0.0, -0.345, -0.075))
-	# Helle Zehenkappe – trennt den Fuß optisch vom Boden
-	var kappe := _netz(gelenk, "Zehen", _kugel(0.075), fell,
-			Vector3(0.0, -0.345, -0.215))
-	kappe.scale = Vector3(1.2, 0.65, 0.7)
-	return gelenk
-
-
-## Buschiger Schweif aus mehreren Kugeln auf zwei Gelenken, mit Ringen.
-func _baue_schweif(fell: Material, dunkelfell: Material) -> void:
-	_schweif = _gelenk(_koerper, "Schweif", Vector3(0.0, -0.16, 0.22))
-	var wurzel := _netz(_schweif, "Wurzel", _kugel(0.115), fell, Vector3(0.0, 0.03, 0.05))
-	wurzel.scale = Vector3(0.95, 1.0, 1.15)
-
-	# Erster Ring
-	var ring_a := _netz(_schweif, "RingA", _kugel(0.112), dunkelfell,
-			Vector3(0.0, 0.085, 0.09))
-	ring_a.scale = Vector3(1.02, 0.30, 1.02)
-
-	_schweif_spitze = _gelenk(_schweif, "Spitze", Vector3(0.0, 0.12, 0.12))
-	_netz(_schweif_spitze, "Busch", _kugel(0.098), fell, Vector3(0.0, 0.02, 0.03))
-	var ring_b := _netz(_schweif_spitze, "RingB", _kugel(0.095), dunkelfell,
-			Vector3(0.0, 0.055, 0.055))
-	ring_b.scale = Vector3(1.02, 0.30, 1.02)
-	_netz(_schweif_spitze, "Zipfel", _kugel(0.072), dunkelfell, Vector3(0.0, 0.10, 0.10))
-
-
-# ------------------------------------------------------- Bau-Hilfsfunktionen
-
-## Legt ein Drehgelenk (reiner Node3D) unter dem Elternteil an.
-func _gelenk(elternteil: Node3D, bezeichnung: String, pos: Vector3) -> Node3D:
-	var knoten := Node3D.new()
-	knoten.name = bezeichnung
-	knoten.position = pos
-	elternteil.add_child(knoten)
-	return knoten
-
-
-## Hängt ein Mesh mit Material unter den Elternteil.
-func _netz(elternteil: Node3D, bezeichnung: String, netz: Mesh, material: Material,
-		pos := Vector3.ZERO) -> MeshInstance3D:
+## Hängt ein Glied (Netz im Fellstoff) unter den Elternteil.
+func _glied(elternteil: Node3D, bezeichnung: String, netz: Mesh,
+		pos := Vector3.ZERO, schatten := true) -> MeshInstance3D:
 	var teil := MeshInstance3D.new()
 	teil.name = bezeichnung
 	teil.mesh = netz
-	teil.material_override = material
+	teil.material_override = _stoff()
 	teil.position = pos
+	if not schatten:
+		teil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	elternteil.add_child(teil)
 	return teil
 
 
-func _kugel(radius: float) -> SphereMesh:
+## Sammelt Grundformen zu EINEM Netz mit Eckfarben. Ein Maler (optional)
+## bekommt Ort, Normale (beides im Glied) und Grundfarbe jeder Ecke und
+## gibt ihre Farbe zurück – so entsteht die Zeichnung im Fell.
+class Form:
+	var ecken := PackedVector3Array()
+	var normalen := PackedVector3Array()
+	var farben := PackedColorArray()
+	var indizes := PackedInt32Array()
+
+	func teil(netz: PrimitiveMesh, lage: Transform3D, farbe: Color,
+			art: float = ART_FELL, maler: Callable = Callable()) -> void:
+		var daten := netz.get_mesh_arrays()
+		var e: PackedVector3Array = daten[Mesh.ARRAY_VERTEX]
+		var nn: PackedVector3Array = daten[Mesh.ARRAY_NORMAL]
+		var ii: PackedInt32Array = daten[Mesh.ARRAY_INDEX]
+		var nbasis := lage.basis.inverse().transposed()
+		var start := ecken.size()
+		for k in e.size():
+			var p := lage * e[k]
+			var n := (nbasis * nn[k]).normalized()
+			var c := farbe
+			if maler.is_valid():
+				c = maler.call(p, n, farbe)
+			ecken.append(p)
+			normalen.append(n)
+			farben.append(Color(c.r, c.g, c.b, art))
+		for k in ii.size():
+			indizes.append(start + ii[k])
+
+	func netz() -> ArrayMesh:
+		var daten := []
+		daten.resize(Mesh.ARRAY_MAX)
+		daten[Mesh.ARRAY_VERTEX] = ecken
+		daten[Mesh.ARRAY_NORMAL] = normalen
+		daten[Mesh.ARRAY_COLOR] = farben
+		daten[Mesh.ARRAY_INDEX] = indizes
+		var ergebnis := ArrayMesh.new()
+		ergebnis.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, daten)
+		return ergebnis
+
+
+## Verwandlung einer Grundform: erst skaliert, dann gedreht, dann versetzt.
+static func _lage(pos: Vector3, skala := Vector3.ONE, drehung := Vector3.ZERO) -> Transform3D:
+	return Transform3D(Basis.from_euler(drehung) * Basis.from_scale(skala), pos)
+
+
+static func _kugel(radius: float, segmente := 24, ringe := 12) -> SphereMesh:
 	var netz := SphereMesh.new()
 	netz.radius = radius
 	netz.height = radius * 2.0
-	netz.radial_segments = 16
-	netz.rings = 8
+	netz.radial_segments = segmente
+	netz.rings = ringe
 	return netz
 
 
-func _kapsel(radius: float, hoehe: float) -> CapsuleMesh:
+static func _kapsel(radius: float, hoehe: float, segmente := 18) -> CapsuleMesh:
 	var netz := CapsuleMesh.new()
 	netz.radius = radius
 	netz.height = maxf(hoehe, radius * 2.0)
-	netz.radial_segments = 16
+	netz.radial_segments = segmente
 	netz.rings = 6
 	return netz
 
 
 ## Kegelstumpf entlang +Y (unten breit, oben spitz).
-func _kegel(unten: float, oben: float, hoehe: float) -> CylinderMesh:
+static func _kegel(unten: float, oben: float, hoehe: float, segmente := 14) -> CylinderMesh:
 	var netz := CylinderMesh.new()
 	netz.bottom_radius = unten
 	netz.top_radius = oben
 	netz.height = hoehe
-	netz.radial_segments = 14
+	netz.radial_segments = segmente
+	netz.rings = 3
 	return netz
+
+
+# ------------------------------------------------------------- Die Glieder
+
+## Rumpf: birnenförmig aus Bauch und Brust, ein Hals, der in den Kopf
+## übergeht, und das Halstuch mit Knoten. Bemalt mit hellem Bauch und drei
+## Streifen quer über den Rücken.
+func _form_rumpf(f: Form) -> void:
+	f.teil(_kugel(0.29, 48, 36), _lage(Vector3(0.0, -0.10, 0.01), Vector3(0.94, 0.98, 0.9)),
+			FELL, ART_FELL, _male_rumpf.bind(true))
+	f.teil(_kugel(0.235, 40, 24), _lage(Vector3(0.0, 0.13, -0.01), Vector3(1.08, 0.95, 0.92)),
+			FELL, ART_FELL, _male_rumpf.bind(false))
+	f.teil(_kugel(0.15, 20, 10), _lage(Vector3(0.0, 0.29, -0.02)), FELL)
+	# Halstuch: Wulst um den Hals, vorn ein Knoten
+	var tuch := TorusMesh.new()
+	tuch.inner_radius = 0.175
+	tuch.outer_radius = 0.255
+	tuch.rings = 32
+	tuch.ring_segments = 10
+	f.teil(tuch, _lage(Vector3(0.0, 0.245, -0.01), Vector3(1.0, 1.0, 0.94),
+			Vector3(0.12, 0.0, 0.0)), TUCH)
+	f.teil(_kugel(0.042, 14, 8), _lage(Vector3(0.0, 0.215, -0.245), Vector3(1.3, 0.9, 0.8)),
+			TUCH)
+
+
+func _male_rumpf(p: Vector3, n: Vector3, grund: Color, hinten_tiefer: bool) -> Color:
+	var c := grund
+	# Heller Bauch: ein Oval vorn mit weichem Rand
+	var oval := pow(p.x / 0.175, 2.0) + pow((p.y + 0.10) / 0.26, 2.0)
+	var bauch := (1.0 - smoothstep(0.7, 1.05, oval)) * smoothstep(0.05, 0.4, -n.z)
+	c = c.lerp(FELL_HELL, bauch)
+	# Rücken etwas dunkler, zur Mitte hin am meisten: ein weicher Sattel,
+	# der den Rumpf von hinten rund macht. (Streifen quer über den Rücken
+	# zerfransten in den Eckfarben und lasen sich als Kritzelei; die Ringe
+	# trägt jetzt allein der Schweif.)
+	var sattel := smoothstep(0.2, 0.8, n.z) * (1.0 - smoothstep(0.05, 0.2, absf(p.x)))
+	return c.lerp(c.darkened(0.25), sattel * (0.6 if hinten_tiefer else 1.0))
+
+
+## Kopf: Schädel mit heller Brille um die Augen, Wangen mit Büscheln,
+## lange Schnauze mit glänzender Nase und einem Lächeln, große Augen
+## (Weiß, Iris, Pupille, zwei Glanzpunkte), kräftige Brauen und ein Schopf.
+## Die Lider sind eigene Glieder (`_form_lid`), sie blinzeln.
+func _form_kopf(f: Form) -> void:
+	f.teil(_kugel(0.25, 48, 32), _lage(Vector3(0.0, 0.07, 0.0), Vector3(1.08, 0.97, 1.0)),
+			FELL, ART_FELL, _male_schaedel)
+
+	for seite: float in [1.0, -1.0]:
+		# Wangen und Wangenbüschel: geben dem Kopf Breite und Witz
+		f.teil(_kugel(0.1, 20, 10), _lage(Vector3(0.165 * seite, -0.04, -0.07),
+				Vector3(0.95, 0.8, 1.0)), FELL_HELL)
+		f.teil(_kegel(0.06, 0.0, 0.13, 10), _lage(Vector3(0.25 * seite, -0.05, -0.03),
+				Vector3.ONE, Vector3(0.0, 0.0, -1.95 * seite)), FELL_HELL)
+		f.teil(_kegel(0.045, 0.0, 0.10, 10), _lage(Vector3(0.235 * seite, 0.0, 0.02),
+				Vector3.ONE, Vector3(0.0, 0.0, -1.55 * seite)), FELL)
+
+	# Schnauze: hell, mit orangem Nasenrücken
+	f.teil(_kugel(0.13, 32, 20), _lage(Vector3(0.0, -0.045, -0.235), Vector3(0.92, 0.72, 1.45)),
+			FELL_HELL, ART_FELL, _male_schnauze)
+	f.teil(_kugel(0.052, 20, 12), _lage(Vector3(0.0, -0.005, -0.415), Vector3(1.3, 0.85, 0.9)),
+			NASE, ART_GLATT)
+	# Lächeln: eine Kette kleiner Punkte auf der Schnauze, die Winkel oben
+	for i in 15:
+		var s := float(i) / 7.0 - 1.0
+		var x := 0.07 * s
+		var y := -0.098 + 0.024 * s * s
+		var tiefe := 1.0 - pow(x / 0.12, 2.0) - pow((y + 0.045) / 0.094, 2.0)
+		var z := -0.235 - 0.1885 * sqrt(maxf(tiefe, 0.0)) + 0.006
+		f.teil(_kugel(0.011, 8, 4), _lage(Vector3(x, y, z), Vector3(1.4, 1.0, 0.8)), NASE, ART_GLATT)
+
+	for seite: float in [1.0, -1.0]:
+		var auge := _augenlage(seite)
+		f.teil(_kugel(0.07, 24, 16), auge, AUGWEISS, ART_GLATT)
+		var innen := -0.012 * seite
+		f.teil(_kugel(0.046, 20, 10), auge * _lage(Vector3(innen, 0.0, -0.058),
+				Vector3(1.0, 1.0, 0.4)), IRIS, ART_GLATT, _male_iris)
+		f.teil(_kugel(0.026, 16, 8), auge * _lage(Vector3(innen, -0.002, -0.0705),
+				Vector3(1.0, 1.1, 0.35)), NASE, ART_GLATT)
+		f.teil(_kugel(0.012, 10, 6), auge * _lage(Vector3(innen + 0.017, 0.02, -0.078)),
+				Color.WHITE, ART_LICHT)
+		f.teil(_kugel(0.006, 8, 4), auge * _lage(Vector3(innen - 0.012, -0.022, -0.078)),
+				Color.WHITE, ART_LICHT)
+		# Braue: kräftig, innen tiefer – ein entschlossener, frecher Blick
+		f.teil(_kugel(0.05, 16, 8), _lage(Vector3(0.112 * seite, 0.245, -0.175),
+				Vector3(1.7, 0.55, 0.62), Vector3(-0.35, 0.0, 0.26 * seite)), FELL_DUNKEL)
+
+	# Schopf: drei Strähnen, nach hinten gekämmt, mit dunklen Spitzen
+	for i in 3:
+		var seitlich := float(i) - 1.0
+		f.teil(_kegel(0.065, 0.0, 0.17, 10), _lage(Vector3(seitlich * 0.065, 0.28, -0.04),
+				Vector3.ONE, Vector3(1.05 + absf(seitlich) * 0.15, 0.0, -seitlich * 0.5)),
+				FELL, ART_FELL, _male_spitze.bind(0.36))
+
+
+## Lage eines Auges im Kopf: Mitte, nach außen gedreht und gekippt, hoch-
+## oval. Lid und Augapfel teilen sie, damit das Lid genau passt.
+static func _augenlage(seite: float) -> Transform3D:
+	return _lage(Vector3(0.105 * seite, 0.095, -0.2), Vector3(0.92, 1.18, 0.8),
+			Vector3(0.0, -0.22 * seite, -0.10 * seite))
+
+
+func _male_schaedel(p: Vector3, n: Vector3, grund: Color) -> Color:
+	# Helle Brille um beide Augen und die untere Gesichtshälfte; die Stirn
+	# bleibt orange und läuft als Spitze zwischen die Augen.
+	var um_auge := Vector2(absf(p.x) - 0.105, (p.y - 0.095) * 0.85).length()
+	var brille := 1.0 - smoothstep(0.1, 0.13, um_auge)
+	var unten := 1.0 - smoothstep(-0.03, 0.02, p.y)
+	var vorn := smoothstep(0.1, 0.4, -n.z)
+	return grund.lerp(FELL_HELL, maxf(brille, unten) * vorn)
+
+
+func _male_schnauze(p: Vector3, n: Vector3, grund: Color) -> Color:
+	var steg := smoothstep(0.45, 0.8, n.y) * (1.0 - smoothstep(0.035, 0.07, absf(p.x)))
+	return grund.lerp(FELL, steg)
+
+
+func _male_iris(p: Vector3, _n: Vector3, grund: Color) -> Color:
+	# Oben dunkler: Das Lid wirft dort seinen Schatten.
+	return grund.lerp(grund.darkened(0.55), smoothstep(0.08, 0.16, p.y))
+
+
+## Dunkle Spitze ab der Höhe `ab` (im Glied).
+func _male_spitze(p: Vector3, _n: Vector3, grund: Color, ab: float) -> Color:
+	return grund.lerp(FELL_DUNKEL, smoothstep(ab - 0.03, ab + 0.02, p.y))
+
+
+## Lid: eine Fellschale etwas größer als der Augapfel, hell wie die Brille
+## ums Auge, unten mit dunklem Wimpernrand. Offen ist sie flach nach oben geschoben, geschlossen
+## umschließt sie das ganze Auge (`_lider_setzen`).
+func _form_lid(f: Form) -> void:
+	f.teil(_kugel(0.075, 24, 14), Transform3D.IDENTITY, FELL_HELL, ART_FELL,
+			func(p: Vector3, _n: Vector3, grund: Color) -> Color:
+				return grund.lerp(FELL_DUNKEL, 1.0 - smoothstep(-0.07, -0.05, p.y)))
+
+
+## Ohr: rundes Blatt, außen orange mit dunkler Spitze, innen rosa.
+func _form_ohr(f: Form) -> void:
+	f.teil(_kugel(0.095, 20, 14), _lage(Vector3(0.0, 0.11, 0.0), Vector3(0.88, 1.4, 0.36)),
+			FELL, ART_FELL, _male_spitze.bind(0.20))
+	f.teil(_kugel(0.095, 16, 10), _lage(Vector3(0.0, 0.10, -0.02), Vector3(0.55, 1.0, 0.18)),
+			INNENOHR)
+
+
+func _form_arm(f: Form) -> void:
+	f.teil(_kugel(0.08, 16, 10), Transform3D.IDENTITY, FELL)
+	f.teil(_kapsel(0.058, 0.27), _lage(Vector3(0.0, -0.13, 0.0)), FELL)
+
+
+## Hand: Fäustling mit Daumen, dunkel wie die Füße.
+func _form_hand(f: Form, seite: float) -> void:
+	f.teil(_kugel(0.072, 18, 10), _lage(Vector3(0.0, -0.03, 0.0), Vector3(0.85, 1.0, 1.05)), PFOTE)
+	f.teil(_kugel(0.032, 10, 6), _lage(Vector3(-0.05 * seite, -0.005, -0.035)), PFOTE)
+
+
+## Bein: kräftiger Schenkel, kurzer Unterschenkel und ein großer Fuß mit
+## heller Sohle und drei Zehen.
+func _form_bein(f: Form) -> void:
+	f.teil(_kugel(0.11, 20, 12), _lage(Vector3(0.0, -0.06, 0.0), Vector3(0.92, 1.15, 0.98)), FELL)
+	f.teil(_kapsel(0.065, 0.22), _lage(Vector3(0.0, -0.20, 0.0)), FELL)
+	f.teil(_kugel(0.1, 24, 12), _lage(Vector3(0.0, -0.335, -0.07), Vector3(0.95, 0.62, 1.55)),
+			PFOTE, ART_FELL,
+			func(_p: Vector3, n: Vector3, grund: Color) -> Color:
+				return grund.lerp(SOHLE, smoothstep(0.5, 0.8, -n.y)))
+	for i in 3:
+		var x := (float(i) - 1.0) * 0.045
+		f.teil(_kugel(0.033, 10, 6), _lage(Vector3(x, -0.345, -0.205), Vector3(1.0, 0.8, 1.0)),
+				PFOTE.lightened(0.12))
+
+
+## Schweif: vom Hinterteil schräg nach hinten, geringelt.
+func _form_schweif(f: Form) -> void:
+	var ringe := _male_ringe.bind(Vector3(0.0, 0.3, 0.95).normalized(), 0.15)
+	f.teil(_kugel(0.075, 18, 10), _lage(Vector3(0.0, 0.0, 0.03)), FELL, ART_FELL, ringe)
+	f.teil(_kugel(0.1, 24, 16), _lage(Vector3(0.0, 0.04, 0.15), Vector3(1.0, 1.0, 1.55),
+			Vector3(-0.3, 0.0, 0.0)), FELL, ART_FELL, ringe)
+
+
+## Schweifspitze: ein dicker Busch, der nach oben schwingt, dunkles Ende.
+func _form_spitze(f: Form) -> void:
+	var ringe := _male_ringe.bind(Vector3(0.0, 0.95, 0.3).normalized(), 0.55)
+	f.teil(_kugel(0.13, 28, 18), _lage(Vector3(0.0, 0.13, 0.03), Vector3(1.0, 1.45, 1.0),
+			Vector3(0.3, 0.0, 0.0)), FELL, ART_FELL, ringe)
+	f.teil(_kugel(0.085, 18, 10), _lage(Vector3(0.0, 0.31, 0.0), Vector3(1.0, 1.2, 1.0)),
+			FELL_DUNKEL)
+
+
+## Ringe quer zur Achse `achse` im Abstand von 0,15 m.
+func _male_ringe(p: Vector3, _n: Vector3, grund: Color, achse: Vector3, versatz: float) -> Color:
+	var s := fposmod(p.dot(achse) / 0.15 + versatz, 1.0)
+	var ring := smoothstep(0.0, 0.08, s) * (1.0 - smoothstep(0.32, 0.4, s))
+	return grund.lerp(FELL_DUNKEL, ring)
+
+
+## Zipfel des Halstuchs: zwei Dreiecke, die im Nacken herabhängen und beim
+## Laufen nach hinten flattern.
+func _form_zipfel(f: Form) -> void:
+	for seite: float in [1.0, -1.0]:
+		var dreieck := PrismMesh.new()
+		dreieck.size = Vector3(0.13, 0.22, 0.025)
+		f.teil(dreieck, _lage(Vector3(0.04 * seite, -0.1, 0.0), Vector3.ONE,
+				Vector3(0.0, 0.0, PI + 0.3 * seite)), TUCH)
 
 
 # ---------------------------------------------------------- Schnittstelle
 
 ## Überträgt den Bewegungszustand.
 ## tempo: 0..1, luft: in der Luft, slide/spin: Restzeiten in Sekunden.
+## haltung: siehe `Spieler.haltung()` – leer, krabbeln, hangeln…, sitzen,
+## reiten.
 func aktualisiere(delta: float, tempo: float, luft: bool, slide: float,
 		spin: float, haltung: String = "") -> void:
 	_federn(delta)
@@ -541,23 +761,13 @@ func aktualisiere(delta: float, tempo: float, luft: bool, slide: float,
 	if is_instance_valid(_spin_ring):
 		_spin_ring_zeigen(spin > 0.0, delta)
 
-	# Slide: flach drücken – weich, nicht in einem Bild. Der Rumpf wird
-	# jedes Bild aus diesem Grad neu gesetzt; das Atmen in `_animiere()`
-	# multipliziert erst danach darauf und kann sich so nicht aufschaukeln.
-	if is_instance_valid(_koerper):
-		_slide_grad = move_toward(_slide_grad, 1.0 if slide > 0.0 else 0.0,
-				delta * SLIDE_WECHSEL)
-		var flach: float = smoothstep(0.0, 1.0, _slide_grad)
-		_koerper.scale.y = lerpf(1.0, 0.45, flach)
-		_koerper.position.y = lerpf(RUMPF_Y, 0.4, flach)
-
 	# Laufzyklus (wird von abgeleiteten Modellen genutzt)
 	_lauf_phase += delta * tempo * 12.0
 
 	if is_instance_valid(_eigenes):
 		_animiere_eigenes(delta, tempo, luft, slide > 0.0, spin > 0.0, haltung)
 		return
-	_animiere(delta, tempo, luft, slide > 0.0, spin > 0.0)
+	_animiere(delta, tempo, luft, slide > 0.0, spin > 0.0, haltung)
 
 
 func setze_blick(winkel: float) -> void:
@@ -896,7 +1106,13 @@ func _fuehre_clips(tempo: float, luft: bool, slide: bool, spin: bool,
 ## Bewegt alle Gliedmaßen passend zum Bewegungszustand.
 ## Die Zielwinkel werden pro Zustand gesetzt und anschließend weich
 ## angefahren – dadurch federn Ohren und Schweif von selbst nach.
-func _animiere(delta: float, tempo: float, luft: bool, slide: bool, spin: bool) -> void:
+##
+## Drehrichtungen (alle Gelenke hängen am Rumpf): Bein und Arm mit
+## positivem X nach vorn, Arm mit Z nach außen (rechts +, links −), Rumpf
+## mit negativem X nach vorn gebeugt, Kopf mit positivem X nach oben,
+## Schweif und Zipfel mit negativem X nach hinten oben.
+func _animiere(delta: float, tempo: float, luft: bool, slide: bool, spin: bool,
+		haltung: String) -> void:
 	if not is_instance_valid(_koerper):
 		return
 
@@ -904,62 +1120,147 @@ func _animiere(delta: float, tempo: float, luft: bool, slide: bool, spin: bool) 
 	var t := clampf(tempo, 0.0, 1.0)
 	var schwung := sin(_lauf_phase)              # Laufschwingung
 	var nachlauf := sin(_lauf_phase - 1.1)       # verzögerte Schwingung
-	var ruhig := not luft and not slide and t <= 0.05
+	var am_gitter := haltung.begins_with("hangeln")
+	var ruhig := not luft and not slide and t <= 0.05 and haltung.is_empty()
 
 	# --- Zielwerte, Ruhepose als Ausgangspunkt ---
-	var z_bein_r := Vector3.ZERO
-	var z_bein_l := Vector3.ZERO
-	var z_arm_r := Vector3(0.0, 0.0, 0.08)
-	var z_arm_l := Vector3(0.0, 0.0, -0.08)
+	var z_bein_r := Vector3(0.0, 0.0, 0.05)
+	var z_bein_l := Vector3(0.0, 0.0, -0.05)
+	var z_arm_r := Vector3(0.0, 0.0, ARM_RUHE)
+	var z_arm_l := Vector3(0.0, 0.0, -ARM_RUHE)
 	var z_kopf := Vector3.ZERO
 	var z_rumpf := Vector3.ZERO
-	var z_schweif := Vector3(-0.15, 0.0, 0.0)
-	var z_spitze := Vector3(-0.10, 0.0, 0.0)
+	var z_schweif := Vector3(-0.2, SCHWEIF_SEITE, 0.0)
+	var z_spitze := Vector3(-0.15, 0.0, 0.0)
+	var z_zipfel := Vector3(-0.12, 0.0, 0.0)
+	var rumpf_y := RUMPF_Y
+	var streck := 1.0
 	var ohr_neigung := OHR_RUHE
 	var wippen := 0.0
+	var wechsel := 14.0           # wie schnell der Rumpf seine Haltung annimmt
 
 	if slide:
-		# Bauch am Boden: Beine nach hinten gestreckt, Arme nach vorn
-		z_bein_r = Vector3(-1.20, 0.0, 0.10)
-		z_bein_l = Vector3(-1.20, 0.0, -0.10)
-		z_arm_r = Vector3(1.35, 0.0, 0.18)
-		z_arm_l = Vector3(1.35, 0.0, -0.18)
-		z_kopf = Vector3(0.45, 0.0, 0.0)
-		z_rumpf = Vector3(-0.12, 0.0, 0.0)
-		z_schweif = Vector3(-0.50, 0.0, 0.0)
-		z_spitze = Vector3(-0.30, 0.0, 0.0)
-		ohr_neigung = 0.60
+		# Bauchrutscher: flach nach vorn, Kopf hoch, Arme voraus, Beine
+		# gestreckt hinterher. Der Rumpf kippt, statt gestaucht zu werden –
+		# so bleibt der Kopf rund.
+		z_rumpf = Vector3(-1.3, 0.0, 0.0)
+		rumpf_y = 0.30
+		z_kopf = Vector3(1.15, 0.0, 0.0)
+		z_bein_r = Vector3(-0.15, 0.0, 0.16)
+		z_bein_l = Vector3(-0.15, 0.0, -0.16)
+		z_arm_r = Vector3(2.7, 0.0, 0.35)
+		z_arm_l = Vector3(2.7, 0.0, -0.35)
+		z_schweif = Vector3(1.0, 0.0, 0.0)
+		z_spitze = Vector3(0.3, 0.0, 0.0)
+		z_zipfel = Vector3(-1.3, 0.0, 0.0)
+		ohr_neigung = 1.0
+		wechsel = 24.0
+	elif haltung == "krabbeln":
+		# Auf allen vieren: Rumpf weit vorgebeugt, Hände am Boden, Beine
+		# schräg nach hinten. Bleibt unter 0,76 m – so hoch ist die Kapsel.
+		var k := clampf(t * 2.5, 0.0, 1.0)
+		z_rumpf = Vector3(-1.25, 0.0, sin(_lauf_phase * 0.5) * 0.08 * k)
+		rumpf_y = 0.33
+		z_kopf = Vector3(1.0, 0.0, 0.0)
+		z_bein_r = Vector3(0.1 + schwung * 0.3 * k, 0.0, 0.12)
+		z_bein_l = Vector3(0.1 - schwung * 0.3 * k, 0.0, -0.12)
+		z_arm_r = Vector3(1.45 - schwung * 0.35 * k, 0.0, 0.18)
+		z_arm_l = Vector3(1.45 + schwung * 0.35 * k, 0.0, -0.18)
+		z_schweif = Vector3(0.8, nachlauf * 0.3 * k, 0.0)
+		z_spitze = Vector3(0.2, 0.0, 0.0)
+		z_zipfel = Vector3(-0.9, 0.0, 0.0)
+		ohr_neigung = 0.9
+		wechsel = 20.0
+	elif am_gitter:
+		# Am Gitter: Arme senkrecht und gestreckt, die Hände reichen an
+		# die Unterkante (GRIFF_HOEHE 1,55 m); die Arme greifen beim
+		# Hangeln abwechselnd vor. Der Rumpf hängt etwas höher.
+		rumpf_y = RUMPF_Y + 0.12
+		streck = 1.6
+		z_arm_r = Vector3(schwung * 0.35 * t, 0.0, PI - 0.16)
+		z_arm_l = Vector3(-schwung * 0.35 * t, 0.0, -PI + 0.16)
+		z_kopf = Vector3(0.12, 0.0, 0.0)
+		z_rumpf = Vector3(-0.08 * t + sin(_zeit * 1.7) * 0.04, 0.0, nachlauf * 0.05 * t)
+		var pendel := sin(_zeit * 2.1) * 0.08 - nachlauf * 0.3 * t
+		z_bein_r = Vector3(pendel, 0.0, 0.06)
+		z_bein_l = Vector3(-pendel * 0.6, 0.0, -0.06)
+		z_schweif = Vector3(0.5, sin(_zeit * 1.9) * 0.2, 0.0)
+		z_spitze = Vector3(0.25, 0.0, 0.0)
+		ohr_neigung = 0.65
+		if haltung == "hangeln_geduckt":
+			# Beine angezogen: Die Figur wird UNTEN kurz (Kapsel ab 0,54 m).
+			z_bein_r = Vector3(1.7, 0.0, 0.3)
+			z_bein_l = Vector3(1.7, 0.0, -0.3)
+			z_rumpf = Vector3(0.2, 0.0, 0.0)
+			z_schweif = Vector3(-0.3, 0.0, 0.0)
+		elif haltung == "hangeln_spin":
+			# Drehschlag am Gitter: Die Beine werden herumgerissen.
+			z_bein_r = Vector3(0.3, 0.0, 1.1)
+			z_bein_l = Vector3(0.3, 0.0, -1.1)
+	elif haltung == "sitzen":
+		# Im Kart und im Flieger: Beine nach vorn, Hände am Lenker.
+		rumpf_y = 0.55
+		z_rumpf = Vector3(-0.05, 0.0, 0.0)
+		z_bein_r = Vector3(1.35, 0.0, 0.12)
+		z_bein_l = Vector3(1.35, 0.0, -0.12)
+		z_arm_r = Vector3(1.05, 0.0, 0.18)
+		z_arm_l = Vector3(1.05, 0.0, -0.18)
+		z_kopf = Vector3(0.05, 0.0, 0.0)
+		z_schweif = Vector3(0.3, 0.0, 0.0)
+		z_zipfel = Vector3(-0.6 - 0.4 * t + sin(_zeit * 17.0) * 0.12 * t, 0.0, 0.0)
+		ohr_neigung = OHR_RUHE + 0.3 * t
+	elif haltung == "reiten":
+		# Auf der Wildkatze: breitbeinig, vorgebeugt, die Hände im Fell.
+		rumpf_y = 0.42
+		z_rumpf = Vector3(-0.3, 0.0, 0.0)
+		z_bein_r = Vector3(0.35, 0.0, 0.7)
+		z_bein_l = Vector3(0.35, 0.0, -0.7)
+		z_arm_r = Vector3(0.95, 0.0, 0.35)
+		z_arm_l = Vector3(0.95, 0.0, -0.35)
+		z_kopf = Vector3(0.25, 0.0, 0.0)
+		z_schweif = Vector3(0.2, sin(_zeit * 3.0) * 0.2, 0.0)
+		z_zipfel = Vector3(-1.0 + sin(_zeit * 15.0) * 0.15, 0.0, 0.0)
+		ohr_neigung = 0.5
+		wippen = absf(schwung) * 0.04
 	elif luft:
-		# Beine angezogen, Arme nach oben
-		z_bein_r = Vector3(0.85, 0.0, 0.12)
-		z_bein_l = Vector3(0.85, 0.0, -0.12)
-		z_arm_r = Vector3(0.0, 0.0, ARM_LUFT)
-		z_arm_l = Vector3(0.0, 0.0, -ARM_LUFT)
-		z_kopf = Vector3(0.18, 0.0, 0.0)
-		z_schweif = Vector3(-0.40, 0.0, 0.0)
-		z_spitze = Vector3(-0.25, 0.0, 0.0)
-		ohr_neigung = 0.40
+		# Beine angezogen, Arme hoch, Ohren und Tuch fliegen nach hinten
+		z_bein_r = Vector3(0.9, 0.0, 0.15)
+		z_bein_l = Vector3(0.9, 0.0, -0.15)
+		z_arm_r = Vector3(0.2, 0.0, ARM_LUFT)
+		z_arm_l = Vector3(0.2, 0.0, -ARM_LUFT)
+		z_kopf = Vector3(0.15, 0.0, 0.0)
+		z_schweif = Vector3(-0.55, SCHWEIF_SEITE, 0.0)
+		z_spitze = Vector3(-0.3, 0.0, 0.0)
+		z_zipfel = Vector3(-1.2 + sin(_zeit * 16.0) * 0.12, 0.0, 0.0)
+		ohr_neigung = 0.45
 	elif t > 0.05:
-		# Laufen: Beine und Arme gegengleich, Rumpf wippt
-		z_bein_r = Vector3(schwung * 0.80 * t, 0.0, 0.05)
-		z_bein_l = Vector3(-schwung * 0.80 * t, 0.0, -0.05)
-		z_arm_r = Vector3(-schwung * 0.65 * t, 0.0, 0.12)
-		z_arm_l = Vector3(schwung * 0.65 * t, 0.0, -0.12)
-		z_kopf = Vector3(-0.08 * t + nachlauf * 0.06 * t, 0.0, 0.0)
-		z_rumpf = Vector3(-0.14 * t, 0.0, sin(_lauf_phase * 0.5) * 0.07 * t)
-		# Schweif wedelt und läuft dabei hinterher
-		z_schweif = Vector3(-0.30 * t - 0.15, nachlauf * 0.30 * t, 0.0)
-		z_spitze = Vector3(-0.15 * t - 0.10, sin(_lauf_phase - 2.0) * 0.35 * t, 0.0)
-		ohr_neigung = OHR_RUHE + nachlauf * 0.26 * t
-		wippen = absf(schwung) * 0.05 * t
+		# Laufen: Beine und Arme gegengleich, Rumpf wippt und schaukelt
+		z_bein_r = Vector3(schwung * 0.85 * t, 0.0, 0.05)
+		z_bein_l = Vector3(-schwung * 0.85 * t, 0.0, -0.05)
+		z_arm_r = Vector3(-schwung * 0.75 * t, 0.0, ARM_RUHE + 0.05)
+		z_arm_l = Vector3(schwung * 0.75 * t, 0.0, -ARM_RUHE - 0.05)
+		z_kopf = Vector3(0.06 * t + nachlauf * 0.05 * t, 0.0, 0.0)
+		z_rumpf = Vector3(-0.16 * t, 0.0, sin(_lauf_phase * 0.5) * 0.07 * t)
+		# Schweif hoch, wedelt und läuft dabei hinterher
+		z_schweif = Vector3(-0.35 * t - 0.15, SCHWEIF_SEITE + nachlauf * 0.35 * t, 0.0)
+		z_spitze = Vector3(-0.15 * t - 0.10, sin(_lauf_phase - 2.0) * 0.4 * t, 0.0)
+		z_zipfel = Vector3(-0.5 - 0.7 * t + sin(_zeit * 19.0) * 0.12 * t, 0.0,
+				nachlauf * 0.15 * t)
+		ohr_neigung = OHR_RUHE + 0.1 * t + nachlauf * 0.22 * t
+		wippen = absf(schwung) * 0.06 * t
 	else:
-		# Ruhig stehen: nur leichtes Kopfnicken
-		z_kopf = Vector3(sin(_zeit * 1.6) * 0.05, sin(_zeit * 0.7) * 0.10, 0.0)
-		z_schweif = Vector3(-0.15 + sin(_zeit * 1.3) * 0.06, sin(_zeit * 0.9) * 0.12, 0.0)
-		z_spitze = Vector3(-0.10, sin(_zeit * 0.9 - 0.7) * 0.16, 0.0)
+		# Ruhig stehen: Kopfnicken, Schweif und Arme pendeln sacht
+		z_kopf = Vector3(sin(_zeit * 1.6) * 0.05, sin(_zeit * 0.7) * 0.12, 0.0)
+		z_schweif = Vector3(-0.2 + sin(_zeit * 1.3) * 0.06,
+				SCHWEIF_SEITE + sin(_zeit * 0.9) * 0.15, 0.0)
+		z_spitze = Vector3(-0.15, sin(_zeit * 0.9 - 0.7) * 0.2, 0.0)
+		z_arm_r.x = sin(_zeit * 1.1) * 0.05
+		z_arm_l.x = sin(_zeit * 1.1 + 0.6) * 0.05
+		z_zipfel = Vector3(-0.12 + sin(_zeit * 1.4) * 0.05, 0.0, sin(_zeit * 0.9) * 0.06)
 
-	# Spin sticht durch: Arme waagerecht ausgestreckt
-	if spin:
+	# Spin sticht durch: Arme waagerecht ausgestreckt. Am Gitter bleiben
+	# die Hände oben – dort reißt der Drehschlag die Beine herum.
+	if spin and not am_gitter:
 		z_arm_r = Vector3(0.0, 0.0, ARM_SPIN)
 		z_arm_l = Vector3(0.0, 0.0, -ARM_SPIN)
 		ohr_neigung = maxf(ohr_neigung, 0.35)
@@ -972,18 +1273,31 @@ func _animiere(delta: float, tempo: float, luft: bool, slide: bool, spin: bool) 
 	_folge(_kopf, z_kopf, 10.0, delta)
 	_folge(_schweif, z_schweif, 7.0, delta)
 	_folge(_schweif_spitze, z_spitze, 5.5, delta)
-	_folge(_koerper, z_rumpf, 12.0, delta)
+	_folge(_zipfel, z_zipfel, 9.0, delta)
+	_folge(_koerper, z_rumpf, wechsel, delta)
+
+	_rumpf_hoehe = lerpf(_rumpf_hoehe, rumpf_y, clampf(delta * SLIDE_WECHSEL, 0.0, 1.0))
+	_streck_setzen(lerpf(_streck, streck, clampf(delta * 12.0, 0.0, 1.0)))
 
 	_bewege_ohren(ohr_neigung, delta, ruhig)
 	_blinzeln(delta)
 
 	# --- Rumpf: Wippen beim Laufen, Atmen im Stand ---
-	_koerper.position.y += wippen
+	_koerper.position.y = _rumpf_hoehe + wippen
 	_atem = lerpf(_atem, 1.0 if ruhig else 0.0, clampf(delta * 4.0, 0.0, 1.0))
-	var atem := sin(_zeit * 2.2) * 0.03 * _atem
-	_koerper.scale.y *= 1.0 + atem
-	_koerper.scale.x = 1.0 - atem * 0.5
-	_koerper.scale.z = 1.0 - atem * 0.5
+	var atem := sin(_zeit * 2.2) * 0.025 * _atem
+	_koerper.scale = Vector3(1.0 - atem * 0.5, 1.0 + atem, 1.0 - atem * 0.5)
+
+
+## Streckt die Oberarme (am Gitter) und rückt die Hände ans Ende.
+func _streck_setzen(wert: float) -> void:
+	if is_equal_approx(wert, _streck):
+		return
+	_streck = wert
+	for arm in _oberarme:
+		arm.scale.y = wert
+	for hand in _haende:
+		hand.position.y = -0.29 * wert
 
 
 ## Ohren: gemeinsame Neigung plus gelegentliches Zucken im Stand.
@@ -1006,12 +1320,22 @@ func _bewege_ohren(neigung: float, delta: float, ruhig: bool) -> void:
 	_ohr_links.rotation.z = OHR_SPREIZUNG + zucken
 
 
-## Lider: offen wie gebaut, geschlossen eine Fellkugel, die Augapfel,
-## Pupille und Glanzpunkt ganz umschließt – gerade so viel breiter und
-## tiefer, dass die Pupille nicht durchs Lid sticht.
-const LID_OFFEN := Vector3(1.0, 0.66, 1.0)
-const LID_ZU := Vector3(1.06, 1.0, 1.18)
-const LID_OFFEN_Y := 0.050
+## Lider (Lage im Auge, siehe `_augenlage`): offen eine flache Kappe über
+## dem oberen Achtel des Auges, geschlossen eine Schale, die Augapfel,
+## Iris und Glanzpunkte ganz umschließt.
+const LID_OFFEN := Vector3(0.97, 0.3, 0.88)
+const LID_ZU := Vector3(1.05, 1.02, 1.12)
+const LID_OFFEN_Y := 0.074
+
+
+func _lider_setzen(zu: float) -> void:
+	if is_equal_approx(zu, _lid_zu):
+		return
+	_lid_zu = zu
+	for lid in _lider:
+		if is_instance_valid(lid):
+			lid.scale = LID_OFFEN.lerp(LID_ZU, zu)
+			lid.position.y = lerpf(LID_OFFEN_Y, 0.0, zu)
 
 
 ## Blinzeln in unregelmäßigem Takt – eine Figur, die nie blinzelt, wirkt
@@ -1029,13 +1353,7 @@ func _blinzeln(delta: float) -> void:
 	var zu := sin(clampf(_blinz / BLINZ_DAUER, 0.0, 1.0) * PI)
 	if _kneifen > 0.0:
 		zu = 1.0
-	if is_equal_approx(zu, _lid_zu):
-		return
-	_lid_zu = zu
-	for lid in _lider:
-		if is_instance_valid(lid):
-			lid.scale = LID_OFFEN.lerp(LID_ZU, zu)
-			lid.position.y = lerpf(LID_OFFEN_Y, 0.0, zu)
+	_lider_setzen(zu)
 
 
 ## Fährt die Drehung eines Gelenks weich auf den Zielwinkel zu.

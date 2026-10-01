@@ -509,6 +509,42 @@ func kneifen(dauer := 0.3)     # Augen zukneifen (nur Beuteldachs)
 
 `_baue()` erzeugt die Geometrie, `_animiere()` bewegt sie pro Frame.
 
+**Aufbau:** Jedes starre Glied ist EIN Netz. Die Grundformen eines Glieds
+(Kugeln, Kapseln, Kegel, Torus) werden beim ersten Bau über
+`SpielerModell.Form` zu einem `ArrayMesh` mit Eckfarben verschmolzen und
+für alle weiteren Figuren aufgehoben (`_netze`, nie verändert). 15
+Glieder: Rumpf (mit Halstuch), Tuchzipfel, Kopf, zwei Lider, zwei Ohren,
+zwei Oberarme, zwei Hände, zwei Beine, Schweif, Schweifspitze – vorher
+rund 50 Einzelteile mit je eigenem Draw-Call (dazu noch einmal so viele
+im Schatten). Lider und Tuchzipfel werfen keinen Schatten.
+
+**Stoff (`FELL_CODE`):** ein geteiltes `ShaderMaterial` für alle Glieder.
+Die Eckfarbe trägt die Farbe (sRGB, im Shader linearisiert) und im Alpha
+die Art der Fläche: 1 Fell (Strähnenrauschen aus der Lage im Glied,
+Unterseiten dunkler, weicher Saum an der Silhouette), 0,5 glatt (Augen,
+Nase: glänzend), 0 Glanzpunkt (leuchtet). Ohne Textur, ohne Bild- und
+Tiefentextur – läuft unter gl_compatibility. Die Zeichnung (heller Bauch,
+helle Brille ums Auge, Nasenrücken, Ringe am Schweif, dunkle Ohrspitzen)
+malen kleine Maler-Funktionen beim Bau in die Eckfarben.
+
+**Haltungen:** `aktualisiere(…, haltung)` wertet `Spieler.haltung()` auch
+für den Beuteldachs aus, nicht nur für Clips eigener Figuren:
+
+| Zustand | Pose |
+|---|---|
+| Slide | Bauchrutscher: Rumpf kippt nach vorn (statt gestaucht zu werden), Kopf hoch, Arme voraus, bleibt unter 0,76 m |
+| `krabbeln` | auf allen vieren, Hände am Boden, Arme und Beine im Wechsel, unter 0,76 m |
+| `hangeln`… | Arme senkrecht und gestreckt (Oberarm × 1,6, die Hand rückt ans Ende) bis an `GRIFF_HOEHE`; `_geduckt` zieht die Beine über 0,54 m, `_spin` reißt sie herum |
+| `sitzen` | Beine nach vorn, Hände am Lenker (Kart, Flieger) |
+| `reiten` | breitbeinig, vorgebeugt (Wildkatze) |
+
+Drehschlag (Arme waagerecht), Sprung, Lauf und Stand wie bisher; am
+Gitter bleiben die Hände beim Drehschlag oben.
+
+`werkzeuge/figurschau.sh <ziel> [posen,gesicht,ruecken,schutz,lauf]`
+fotografiert Haltungen und Schutz unter dem Licht von Level 01, ohne das
+Level zu bauen (gut eine halbe Minute statt mehrerer).
+
 `stoss()` stößt eine gedämpfte Feder auf dem Knoten `Teile` an. Dessen
 Ursprung liegt auf Fußhöhe, die Füße bleiben also am Boden. Der Wert wird
 gesetzt, nicht addiert. Die Feder beißt sich weder mit dem Slide-Stauch am
@@ -519,6 +555,35 @@ Der Spin-Ring ist ein eigener Shader (zwei Schlieren mit heller
 Vorderkante, ohne Bild- und Tiefentextur); ausgeblendet ist er
 `visible = false` und kostet keinen Draw-Call. Der Beuteldachs blinzelt in
 unregelmäßigem Takt.
+
+## Schutz (`scenes/player/schutzmaske.gd`, `class_name Schutzmaske`)
+
+Jeder `Spieler` hängt sich in `_ready()` einen Schutzgeist an. Es gibt
+immer genau EINEN, gleich wie viele Ladungen `GameState.schutz` zählt;
+die Stufe zeigt sich am Leuchten (`STUFEN`): 1 glimmt, 2 strahlt mit
+großem Hof, 3 bekommt Strahlenkranz und blinkende Funken. Der Hof ist
+eine immer zur Kamera gedrehte Fläche (`SCHEIN_CODE`, additiv) und
+leuchtet auch in Leveln ohne Glow. Drei Draw-Calls (Maske, Flügel, Hof),
+die Flügel schlagen im Vertex-Shader.
+
+| Ereignis | Anzeige |
+|---|---|
+| Gewinn aus 0 | ploppt an der Schulter auf, Funken |
+| Gewinn | Aufblitzen, kurz größer, eine Stufe heller |
+| Verlust (bleibt ≥ 1) | Blitz, Funken, zwei Scherben, Flackern, eine Stufe dunkler |
+| letzte Ladung | Blitz, Ring, sieben Scherben, schrumpft weg |
+| Levelstart | ohne Effekt auf der richtigen Stufe |
+
+Bewegung (`_folgen()`): Platz auf Schulterhöhe NEBEN und etwas HINTER der
+Figur, beides in Kamerasicht (Kamera-Rechts, Blickrichtung waagerecht).
+Er macht 60 % der Figurbewegung sofort mit, den Rest holt eine gedämpfte
+Feder auf (er hängt beim Rennen gut einen halben Meter nach und schießt
+beim Anhalten etwas vor), dazu Wippen und kleine Ausflüge. Läuft die
+Figur quer durchs Bild, wechselt er auf die Seite hinter ihr, im Bogen
+über und hinter die Figur. `_aus_der_sicht()` schiebt ihn aus der
+Sichtlinie Kamera–Figur, ein Strahl im Physiktakt (Ebene 1) hält ihn vor
+Wänden. Bildtakt wie die Kameras: `top_level`, ohne Interpolation, Ort
+über `Bildtakt.ort()`; nach einem Versetzen (Respawn) springt er mit.
 
 ## Bildtakt und Physiktakt (Physikinterpolation)
 
