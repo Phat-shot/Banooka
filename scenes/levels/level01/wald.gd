@@ -242,6 +242,8 @@ const RIESE_FERN_STAMM := Color(0.5, 0.52, 0.58)
 const RIESE_FERN_KRONE := Color(0.8, 0.86, 0.94)
 const RIESE_FERN_NEBELARM := true
 const RIESE_FERN_NEBEL := 0.78
+## Anteil des fernen Talwalds am Nebel der Umgebung.
+const FERN_NEBEL := 0.84
 
 ## Die Hallenwald-Reihen je Seite: Querbereich, Abstand entlang s, Arten
 ## (rechts eigene: tief beastete Kronen bis an die Hallenkante – die Halle
@@ -337,7 +339,7 @@ static func bauschritte(level: Level01) -> Array:
 		{"text": "Ferner Wald", "tun": func() -> void:
 			_gemessen("fern_sammeln", _talwald_fern_sammeln.bind(level))},
 		{"text": "Wald auf den Hügeln", "tun": func() -> void:
-			_gemessen("fern_setzen", _talwald_fern_setzen)},
+			_gemessen("fern_setzen", _talwald_fern_setzen.bind(level))},
 		{"text": "Hecken, Felsen und Totholz", "tun": func() -> void:
 			_gemessen("rest", _schritt_rest.bind(level))
 			if level.debug:
@@ -2365,7 +2367,7 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 ## Boden: ein Waldsaum auf dem Kamm statt einer Scheibe in der Luft. Er
 ## wird dazu etwas kühler (Luftperspektive). Weg fällt nur, wer hinter
 ## einem Kamm als Ballon über ihm hinge und dafür zu tief sinken müsste.
-static func _talwald_fern_setzen() -> void:
+static func _talwald_fern_setzen(level: Level01) -> void:
 	var zellen := {}
 	for i in _fern_kandidaten.size():
 		var p: Vector2 = _fern_kandidaten[i]["p"]
@@ -2376,8 +2378,12 @@ static func _talwald_fern_setzen() -> void:
 		liste.append(i)
 		zellen[kz] = liste
 	var ws := Waldsetzer.new(_wurzel, "Fernwald", ZELLE_FERN_WEB if Effekte.reduziert else ZELLE_FERN)
-	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_FERN, false), "sicht": SICHT_FERN,
-			"verschmelzen": true, "rand": 10.0})
+	# Eigener Nebel zu `FERN_NEBEL` (wie die fernen Riesen, siehe
+	# `L01Weltenbaum.nebelarm`): Im vollen Dunst stand der ferne Wald als
+	# blasse, gleiche Kissen vor den Hügeln; so bleibt er ein mitteldunkles
+	# Kronendach (Plan 7, L3), dunkler als der Hang dahinter.
+	ws.art("krone", {"stoff": L01Weltenbaum.nebelarm(Kronenwolke.stoff(LAUB_FERN, false), level,
+			FERN_NEBEL), "sicht": SICHT_FERN, "verschmelzen": true, "rand": 10.0})
 	var netze: Array[ArrayMesh] = [_fernbaum(0), _fernbaum(1), _fernbaum(2)]
 	for e: Dictionary in _fern_kandidaten:
 		var p: Vector2 = e["p"]

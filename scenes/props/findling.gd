@@ -469,7 +469,7 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 						tief = maxf(tief, 0.0)
 					var q := basis - nrm * tief
 					if fuss_aus > 0.0:
-						q += nrm * fuss_aus * pow(1.0 - smoothstep(-h.y, aus_bis, y), 1.2)
+						q += nrm * fuss_aus * (1.0 - smoothstep(-h.y, aus_bis, y))
 					p = Vector3(q.x, y, q.y)
 					var ueber_boden := y + h.y
 					ao = lerpf(0.6, 1.0, smoothstep(0.0, 0.9, ueber_boden))

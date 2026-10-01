@@ -857,38 +857,38 @@ static func _mooslog(sa: Sammler, level: Level01) -> void:
 ## strahlig aus ihr heraus, ein paar Steine hängen in der Erde.
 static func _wurzelteller(sa: Sammler, level: Level01, s: float, q_ende: float, r: float) -> void:
 	var seite := signf(q_ende)
-	var mitte := _p(level, s, q_ende + seite * 0.25, r)
 	var vor := LevelWerkzeuge.richtung(level.verlauf, s)
 	var quer := vor.cross(Vector3.UP).normalized() * seite
-	# Erdscheibe: ein flacher, rauer Brocken quer zur Stammachse
-	# (rechtshändig: vor × hoch = quer ohne Seitenvorzeichen).
-	var basis := Basis(vor, Vector3.UP, vor.cross(Vector3.UP).normalized())
-	_brocken(sa, Vector3(2.4, 2.3, 0.55), Transform3D(basis, mitte + Vector3.DOWN * 1.05), 822,
-			0.0, {"moos": 0.55, "einzug": 0.0}, false)
+	var mitte := _p(level, s, q_ende + seite * 0.75, r * 1.6)
 	var rng := PropWerkzeug.zufall(823)
-	var st := _wurzeln(sa)
 	var holz := _borke(sa)
-	for i in 11:
-		var w := TAU * (float(i) + rng.randf_range(-0.3, 0.3)) / 11.0
+	# Der Teller: eine flache Knolle zum Weg hin (bis an die Leitlinie), eine
+	# kleinere nach außen – Borke, Erde und Moos im Borkenstoff, unten im
+	# Boden. Als heller Stein las er sich wie ein Grabstein.
+	Weltenbaum.knolle_in(holz, mitte, -quer, 1.25, rng, 0.45)
+	Weltenbaum.knolle_in(holz, mitte + quer * 0.1, quer, 0.95, rng, 0.3)
+	var st := _wurzeln(sa)
+	for i in 14:
+		var w := TAU * (float(i) + rng.randf_range(-0.3, 0.3)) / 14.0
 		var richtung := (vor * cos(w) + Vector3.UP * sin(w)).normalized()
-		if richtung.y < -0.55:
+		if richtung.y < -0.6:
 			continue
-		var start := mitte + richtung * rng.randf_range(0.3, 0.7) + quer * 0.15
-		var lang := rng.randf_range(0.7, 1.5)
+		var start := mitte + richtung * rng.randf_range(0.7, 1.05) - quer * 0.1
+		var lang := rng.randf_range(0.5, 1.3)
 		var zug := PackedVector3Array([start,
-				start + richtung * lang * 0.5 + quer * rng.randf_range(0.1, 0.4),
-				start + richtung * lang + quer * rng.randf_range(0.2, 0.7)
-						+ Vector3.DOWN * rng.randf_range(0.0, 0.3)])
-		var dick := rng.randf_range(0.05, 0.12)
+				start + richtung * lang * 0.5 + quer * rng.randf_range(0.05, 0.3),
+				start + richtung * lang + quer * rng.randf_range(0.15, 0.6)
+						+ Vector3.DOWN * rng.randf_range(0.0, 0.35)])
+		var dick := rng.randf_range(0.05, 0.13)
 		Totholzzaun.stueck(holz if dick > 0.09 else st, zug,
 				PackedFloat32Array([dick, dick * 0.6, dick * 0.25]),
 				{"saat": 824 + i, "seiten": 6, "ende": "spitz", "moos": 0.2})
-	# Steine in der Erde des Tellers
+	# Steine in der Erde des Tellers, zum Weg hin
 	for k in 3:
-		var w := rng.randf_range(0.3, 2.8)
-		var ort := mitte + (vor * cos(w) + Vector3.UP * sin(w) * 0.8) * rng.randf_range(0.4, 0.9) \
-				- quer * 0.05
-		_brocken(sa, Vector3.ONE * rng.randf_range(0.22, 0.38), Transform3D(Basis(), ort), 830 + k,
+		var w := rng.randf_range(0.4, 2.7)
+		var ort := mitte + (vor * cos(w) + Vector3.UP * sin(w) * 0.8) * rng.randf_range(0.35, 0.8) \
+				- quer * 0.55
+		_brocken(sa, Vector3.ONE * rng.randf_range(0.2, 0.32), Transform3D(Basis(), ort), 830 + k,
 				0.1, {}, false)
 
 
@@ -1766,7 +1766,7 @@ static func _bachwiese(level: Level01) -> void:
 	# Rand (Rundung 0,22, Anlauf 0,12), und der Rand der Kollision liegt auf
 	# sichtbarem Fels – mit dem Umriss nach innen (Welle 6) stand die Figur
 	# am Rand neben dem Stein über dem Wasser. Die Flanke läuft von unter der
-	# Kante bis zum Grund 0,5 m aus (an der Wasserlinie gut 0,25 m):
+	# Kante bis zum Grund 0,8 m aus (an der Wasserlinie gut 0,4 m):
 	# gewachsener Fels mit Anlauf statt einer Trommel. Daneben je zwei kleine,
 	# halb versunkene Brocken (Oberkante unter 6,6, außen neben der Spur) –
 	# sie gehören zum Bach, nicht zum Weg.
@@ -1781,8 +1781,19 @@ static func _bachwiese(level: Level01) -> void:
 		_stein(sa, Findling.scheibe(r, float(e["hoehe"]),
 				{"saat": 1750 + name.length() + 7 * i, "wasser_y": wasser, "rundung": 0.22,
 				"umriss": 0.0, "umriss_aussen": 0.13, "beulen": 0.1, "anlauf": 0.1,
-				"fuss_aus": 0.5}), lage)
+				"fuss_aus": 0.8}), lage)
 		_trabanten(sa, level, e, 1760 + 10 * i)
+	# Farnbüsche an den Ufern, außerhalb der Spur (|q| 6,3–8,5) und an der
+	# Uferkante: Sie brechen die Linie der Böschung, aus dem Kanal wird ein
+	# Bach im Wald.
+	var ufer_rng := PropWerkzeug.zufall(1771)
+	for stelle: Vector3 in [Vector3(172.6, -7.2, 1.0), Vector3(172.4, 6.6, 0.9),
+			Vector3(183.5, -6.4, 1.1), Vector3(183.3, 8.1, 0.8)]:
+		_farn_bei(sa, _lage(level, stelle.x, stelle.y, 0.0, ufer_rng.randf() * TAU), 1,
+				1772 + int(stelle.y), stelle.z)
+		_farn_bei(sa, _lage(level, stelle.x + ufer_rng.randf_range(-0.8, 0.8),
+				stelle.y + signf(stelle.y) * 0.9, 0.0, ufer_rng.randf() * TAU), 0,
+				1776 + int(stelle.y), 1.4)
 	_findlingsturm(sa, level)
 	_wurzelknie(sa, level)
 	sa.fertig()
