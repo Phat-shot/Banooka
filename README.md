@@ -55,35 +55,43 @@ Flug 22.
 
 ## Level 01 – Wurzelschlucht
 
-Ein 236 m langer Waldpfad auf einem Grat, in fünf Abschnitten. Der Verlauf
+Der Kammweg zum Weltenbaum: 287 m, in sechs Abschnitten. Der Verlauf
 steckt in einer `Curve3D`; alle Objekte werden relativ dazu platziert, ein
 geänderter Verlauf verschiebt also alles mit. So ist jedes Korridorlevel
-gebaut.
+gebaut. Eine Bildregel trägt das ganze Level: **links** ist zu, dunkel
+und nah, **rechts** offen, hell und weit – vom Hangweg an sieht man das
+Ziel, einen Weltenbaum auf der anderen Talseite.
 
 | Strecke | Abschnitt | Inhalt |
 |---|---|---|
-| 0–42 m | Waldrand | Anlaufstrecke, erste Kisten, Sumpfkröten für den Drehschlag |
-| 42–100 m | Schlucht | Rechtskurve, Bach mit Lücken, Federkiste, Panzerkäfer, TNT-Kette |
-| 100–158 m | Stacheln | Linkskurve, Stachelfelder, Stelzenspinnen, Nitro |
-| 158–208 m | Baumkronen | Anstieg, schmaler Grat, Sprungfeder, Nitro |
-| 208–236 m | Lichtung | Extraleben, Zielportal |
+| 0–33 m | Waldsaum | Hallenwald, Moosstamm als erste Hürde, Erdspalt, Enthüllung des Tals |
+| 33–104 m | Hangweg | Grat 20 m über dem Tal, Kanzel (Checkpoint), Moosbank, Torbaum-Pforte |
+| 104–160 m | Fallklamm | Terrassen am zweistufigen Wasserfall hinab |
+| 160–198 m | Bachwiese | Furt über Trittsteine, zwei Geheimnisse, Wurzelaufgang |
+| 198–273 m | Wurzelwendel | Spirale (R 22 m) um den Stamm des Weltenbaums hinauf |
+| 273–287 m | Kronentor | Wurzelregal unter der Krone, Zielportal bei 283 m |
 
-45 Kisten, 14 Gegner, drei Checkpoints. Wer neben den Pfad fällt, landet
-in der Absturzzone.
+62 Kisten (57 zählen), 9 Gegner, 4 Checkpoints, 5 Geheimnisse. Die Lehrfolge
+liegt in den ersten 105 m: Sumpfkröte bei 18 m (Drehschlag), Panzerkäfer an
+der Felsstufe bei 69,5 m (draufspringen), Stelzenspinne in der engen Pforte
+bei 101,5 m (Slide). Pflichtsprünge sind Einzelsprünge; Doppelsprung,
+Slide-Sprung, Feder- und Sprungfederkiste braucht man nur für die
+Geheimnisse. Wer neben den Weg fällt, landet in einer einseitigen
+Todeszone.
 
-**Wahrzeichen.** Die Schluchtwände sind bewachsen: Blattsaum auf der
-Kante, Ranken über den Simsen, Wurzeln, Farne und große Blätter am
-Wandfuß. An den Abschnittswechseln (42, 100 und 157 m) spannen sich
-Wurzeltore hoch über den Weg. Bei 59,5 m stürzt ein Wasserfall die linke
-Wand hinab in die Bachlücke, über der TNT-Kette liegt ein umgestürzter
-Baumriese von Krone zu Krone, und an vier Stellen bis 158 m fallen
-Lichtschächte schräg über die Wandkante. Über den Baumkronen werden die
-Wände niedrig und der Blick geht auf ein Meer aus Wipfeln unter dem Grat,
-daneben stehen einzelne Baumriesen. Am Ziel rahmt ein Wurzelbogen das
-Portal, links daneben steigt der Weltenbaum aus dem Tal, und bewaldete
-Hügel schließen den Horizont. Jeder Abschnitt hat sein eigenes Licht: die
-Schlucht kühl und dunstig, die Baumkronen hell und golden, die Lichtung
-warm.
+**Bild.** Kein Bordstein und keine Würfelwand mehr: Der Weg ist eine
+ausgetretene Erdspur, die in Rasen übergeht (Shader-Maske, die Halme
+wachsen genau dort, wo der Shader Gras zeigt). Die Kanten sind modellierte
+Profile mit Grasnarbe, Überhang und Wurzeln, die Felswände geschichtet.
+Das Tal ist ein Höhenfeld mit Wald in drei Tiefen; Bach, Furt und
+Wasserfall sind vom Grat und vom Ziel aus lesbar. Die Lichtfolge ergibt
+sich aus dem Kurs: Morgenlicht im Hallenwald, golden und klar am Hang,
+kühl in der Klamm, warm auf der Wiese, Gegenlicht am Ziel.
+
+**Kosten** (Desktop, `schaufenster.sh`): 283–457 Draw-Calls je Station,
+höchstens rund 0,64 Mio. Primitive, VRAM rund 122 MB. Auf Handys (eine
+Schattenstufe bis 50 m, kürzere Sichtweiten) 387–436 Draw-Calls bei
+102,5 MB. Aufbau und Module beschreibt ARCHITEKTUR.md unter „Level 01“.
 
 ### Gegner
 
@@ -183,9 +191,13 @@ SCHAUFENSTER_TEILE=l01 bash werkzeuge/schaufenster.sh /tmp/schau   # nur ein Tei
 - **Teile:**
   - `splash`: Splash, zwei Aufnahmen im Abstand von 70 Bildern
   - `hub`: verfolger 0, 14, 60
-  - `l01`: verfolger 4, 30, 50, 75, 112, 136, 170, 192, 216, 233
-  - `l01seite`: seite 50, 170
-  - `l01nah`: nah 30
+  - `l01`: verfolger 4, 31, 46, 70, 101, 119, 140, 176, 212, 249, 275,5
+  - `l01seite`: seite 60, 186
+  - `l01nah`: nah 53,5
+
+  Die Stationen von Level 01 folgen seit dem Neubau dem neuen Verlauf; die
+  Werte der alten Tabelle unten sind deshalb nicht mehr Stelle für Stelle
+  vergleichbar.
 - **Ausgabe je Seite:**
   - `<teil>/*.png` mit den Aufnahmen
   - `<teil>/werte.tsv` mit den Kosten je Bild

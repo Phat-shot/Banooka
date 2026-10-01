@@ -975,6 +975,29 @@ neuen Schalter bleibt jedes ältere Level unverändert. Einzelheiten stehen in
 | `Stimmungszone`, relativ | `scripts/stimmungszone.gd` | `nebel_faktor`, `licht_faktor`, `farbanteil` – Abschnittsstimmung relativ zur Grundstimmung der Szene |
 | `Baum`, `Kleinzeug`, `Horizont` | `scenes/props/` | `hoechsthoehe`, `eigenbau`, `kronenfuelle`; `eigenbau`; `kronen`, `nur_nah` |
 
+
+### Neu aus dem Neubau von Level 01
+
+Level 01 wurde als „Kammweg zum Weltenbaum“ neu gebaut (Entwurf:
+`doku/level01-neubau.md`). Die folgenden Bauteile sind dabei entstanden und
+für andere Waldlevel gedacht; die Schnittstelle steht jeweils im
+Kopfkommentar.
+
+| Werkzeug | Deckt ab |
+|---|---|
+| `Wegmaske` + `shaders/wegboden.gdshader` | Weg, der sich in Rasen eintritt – kein Bordstein |
+| `Rasensaum`, `Bodenstreu` | Rasen genau dort, wo der Boden Gras zeigt; Klee, Blumen, Kiesel, Pilze |
+| `GelaendeSaum` + `fels_schichten` | Kanten als Profile mit Grasnarbe und Überhang, geschichtete Felswände statt Würfelwänden |
+| `GelaendeFeld` | Tal und Hänge als Höhenfeld ohne Kollision |
+| `Waldsetzer` | Wald in mehreren Tiefen als MultiMesh, mit Sichtweiten und Schattenregeln |
+| `Riesenstamm`, `Kronenwolke`, `Farnwerk` | Bäume und Farne ohne „Blob“-Kronen, auch als Rückfall für CC0-Modelle |
+| `Findling` | begehbare Felsen, deren Optik genau zur Kollision passt |
+| `Weltenbaum` | ein Riese als Wahrzeichen mit begehbarer Wurzelwendel |
+| `Totholzzaun` | Geländer an Aussichtsstellen |
+| `Wasserfall.band` | Wasserfall entlang einer Felskante |
+| Kollisionsebene 5 „Spielergrenze“ | Leitwände, die die Figur halten, ohne die Kamera heranzuziehen |
+| Sprungprobe, Sichtprobe (Opt-in) | nachprüfbare Pflichtsprünge und Kamerasicht je Level |
+
 ### Offen – aus der ersten Fassung
 
 | Werkzeug | Aus | Warum es fehlt auffällt |

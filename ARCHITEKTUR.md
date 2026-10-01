@@ -46,6 +46,7 @@ Stellen hat sich das Spiel trotzdem geändert, jeweils mit Absicht:
 | 2 | 2 | Spieler (`CharacterBody3D`) |
 | 3 | 4 | Gegner-Körper |
 | 4 | 8 | Sichtsperre (`LevelWerkzeuge.SICHTSPERRE`): fragt nur der Kamerastrahl ab – Deko, die den Blick verstellen kann, ohne den Weg zu sperren (Torbögen, Wurzeltore) |
+| 5 | 16 | Spielergrenze (`LevelWerkzeuge.SPIELERGRENZE`): Leitlinien, Randkörper und erhöhtes Begehbares. Die Figur (Maske 1\|16 = 17) stößt daran an, der Kamerastrahl (1\|8) nicht – er startet sechs Meter vor der Figur, und eine einrückende Wand zwischen Blickpunkt und Figur zöge die Kamera sonst vor die Figur. Bisher nur in Level 01 belegt. |
 
 Trigger-Zonen sind `Area3D` mit `collision_layer = 0` und
 `collision_mask = 2` (nur den Spieler beachten).
@@ -668,6 +669,56 @@ Position erst danach gesetzt, springen sie zum Ursprung zurück.
 
 Props werden als Szene instanziiert (`preload(".../Baum.tscn").instantiate()`),
 nicht über `Baum.new()`.
+
+## Level 01 (`scenes/levels/level01.gd`, `class_name Level01`)
+
+Level 01 ist seit dem Neubau anders gebaut als die übrigen Level: Die
+Szenendatei `level01.gd` hält **alle Daten** als Konstanten (Verlauf
+`PUNKTE`, `ABSCHNITTE` mit Welt-Höhe je Abschnitt, Ränder, Bach,
+`BEGEHBARES`, Leitlinien, Todeszonen, Kisten, Gegner, Früchte) und bietet
+Abfragen darauf an (`breite_bei`, `boden_bei`, `rand_bei`, `rand_profil`,
+`ist_luecke`, `weg_von_der_kante`, `pruefprofil`). Die Optik bauen Module
+in `scenes/levels/level01/`, je eine Klasse mit statischen Funktionen und
+dem Parameter `level: Level01`:
+
+| Modul | Aufgabe |
+|---|---|
+| `L01Boden` | Wegdecke ohne Bordstein (`shaders/wegboden.gdshader`), Lückenlippen |
+| `L01Saum` | Kanten und Felswände als modellierte Profile (`GelaendeSaum`, `fels_schichten`) |
+| `L01Gelaende` | Tal als Höhenfeld ohne Kollision (`GelaendeFeld`), `hoehe(x, z)` |
+| `L01Wasser` | Bach, Furt, zweistufiger Wasserfall (`Wasserfall.band`) |
+| `L01Weltenbaum` | der Riese, die Wurzelwendel, Kronentor (`Weltenbaum`) |
+| `L01Wegbauten` | Setpieces am Weg: Wurzelnest, Geländer (`Totholzzaun`), Kanzel, Pforte, Furtsteine |
+| `L01Wald` | Wald in drei Tiefen (`Waldsetzer`) |
+| `L01Rasen` | Rasensaum, Bodenstreu, Rahmenfarne (`Rasensaum`, `Bodenstreu`) |
+| `L01Stimmung` | Licht, Nebel, Lichtschächte, Laub, Vögel (positionsabhängiger Regler statt `Stimmungszone`) |
+
+`bauschritte(level)` liefert `[{"text", "tun": Callable}]`; `level01.gd`
+hängt die Schritte in fester Reihenfolge an. `optik(level, eintrag)` bekommt
+einen Eintrag aus `BEGEHBARES` und liefert die Optik **passgenau zur
+Kollision** – die Kollision baut allein `level01.gd`, die Module bauen
+keine. Fehlt eine Optik, steht ein grauer Platzhalter.
+
+**Wiederverwendbare Bauteile** (Schnittstelle jeweils im Kopfkommentar):
+`Riesenstamm`, `Kronenwolke`, `Findling` (Optik genau auf einem
+Kollisionskasten), `Farnwerk` (Farne ohne Alpha), `Rasensaum`,
+`Bodenstreu`, `Totholzzaun`, `Weltenbaum`, `Wasserfall.band`
+(`scenes/props/`); `Wegmaske` (CPU-Maske = GPU-Maske für Weg und Halme),
+`GelaendeSaum`, `GelaendeFeld`, `Waldsetzer` (`scripts/`); die Shader
+`wegboden`, `fels_schichten`, `gelaende` mit den Includes
+`wald_gemeinsam.gdshaderinc` und `fels_gemeinsam.gdshaderinc`.
+`Fremdmodelle.netz()` verschmilzt CC0-Modelle aus `assets/modelle/natur2/`
+zu MultiMesh-tauglichen Netzen; der Ordner ist derzeit leer, weil die
+Modellquellen im Netz der Bauumgebung gesperrt waren – jedes Bauteil fällt
+dann auf seinen prozeduralen Rückfall zurück.
+
+**Prüfungen nur für Level 01** (Opt-in über `pruefprofil()` bzw.
+`sprungfaelle()`): `level_check.gd` prüft zusätzlich Kamerasicht, Gefälle,
+Todeszonen-Überschneidung, Ränder und Nähte; `werkzeuge/Sprungprobe.tscn`
+(in `pruefe.sh` Stufe 4) prüft, ob jeder Pflichtsprung trägt;
+`werkzeuge/Wegmaskenprobe.tscn` vergleicht CPU- und GPU-Wegmaske.
+
+Den Bauplan mit allen Maßen hält `doku/level01-neubau.md` fest.
 
 ## Levelbau (`scripts/level_werkzeuge.gd`, `class_name LevelWerkzeuge`)
 
