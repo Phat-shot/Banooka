@@ -124,3 +124,33 @@ func _lenken(delta: float) -> void:
 	if _taumel > 0.0:
 		return
 	super._lenken(delta)
+
+
+# ------------------------------------------------------------ Bodeneffekte
+
+## Die Flucht geht zu Fuß: Bodenfleck, Laufstaub und das Auftauchen nach
+## dem Tod gehören dazu wie bei der Figur im Korridor. Der Reiter schaltet
+## sie ab, weil unter ihm die Katze läuft.
+func _mit_bodeneffekten() -> bool:
+	return true
+
+
+## Der Reiter ersetzt `_process` der Basis ganz – und mit ihm den Takt der
+## Bodeneffekte. Hier kommt er zurück.
+func _process(delta: float) -> void:
+	super._process(delta)
+	_bodeneffekte_takten()
+
+
+## Wie in der Basis, nur mit dem Bodenbegriff der Schiene: Ohne
+## `move_and_slide` bleibt `is_on_floor()` immer falsch – am Boden ist,
+## wer nicht springt. Slide und Krabbeln gibt es auf der Flucht nicht,
+## der Slidestaub bleibt also aus. Liest nur, schreibt nichts zurück.
+func _bodeneffekte_takten() -> void:
+	if _bodenschatten == null:
+		return
+	if is_instance_valid(_modell):
+		_bodenschatten.staerke = clampf(_modell.scale.y, 0.0, 1.0)
+	var laeuft := verlauf != null and not _in_luft and not gesperrt \
+			and not _fertig and tempo > 0.75
+	_laufstaub = _staub_schalten(_laufstaub, laeuft, false)
