@@ -224,7 +224,11 @@ func _rundgang() -> void:
 		for gieren in RUNDGANG_BLICKE:
 			kamera.global_transform = Transform3D(
 					Basis(Vector3.UP, deg_to_rad(gieren)) * blick, auge)
-			await RenderingServer.frame_post_draw
+			# `process_frame`, nicht `frame_post_draw`: Das nächste
+			# `process_frame` kommt nach dem Zeichnen dieses Bildes, und
+			# anders als `frame_post_draw` kommt es auch, wenn nicht
+			# gezeichnet wird (Fenster verkleinert) – der Aufbau hinge sonst.
+			await get_tree().process_frame
 			if not is_inside_tree():
 				return
 		Ladeschirm.fortschritt(0.95 + 0.05 * float(i + 1) / float(halte),

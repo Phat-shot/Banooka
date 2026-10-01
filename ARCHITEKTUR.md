@@ -559,7 +559,8 @@ das Modell der `Kiste`, `Explosion`, Wassertropfen, alle `Effekte`,
 Baumkrone, Kleinzeug im Wind, Vogelkreisel, `Levelportal` und `Portal`,
 Turbospur des Reiters, Propeller des Fliegers, die Eistore in Level 17,
 das Fremdmodell der Gegner (seine Clips und alles an Knochen laufen im
-Bildtakt) und die Kamera des Startbildschirms.
+Bildtakt), die Kamera des Startbildschirms und die des Rundgangs beim
+Laden (`LevelBasis._rundgang`).
 
 **Folgen im Bildtakt:** Wer einem Physikkörper im Bildtakt folgt (Kameras,
 Bodenfleck, Masken, Wegweiser, Lichtkreis), liest dessen gezeichneten Ort
@@ -657,9 +658,23 @@ sendet sie `aufbau_fertig`.
   Boden kein Waldweg ist, tut das in `_boden_bauen()` (Schnee, Bohlen,
   Schlick, Stein, Blech, Sand, Dächer). Der Staub ist unbeleuchtet: In
   dunklen Leveln bleibt seine Farbe dunkel, sonst glimmt er auf.
-- **Nach dem Ausrichten der Kamera** ruft sie `Effekte.vorwaermen(self)`,
-  solange der Ladeschirm noch steht. Explosion und Lichtsäule des
-  Zielportals wärmen ihre Shader selbst vor.
+- **Rundgang unter dem Ladeschirm** (`_rundgang()`): Wenn alles steht –
+  Kamera ausgerichtet, Zeitkisten gesetzt, `_nach_aufbau()` gelaufen (dort
+  stellen Level Licht und Schatten um, und das ändert die Shaderfassungen)
+  –, fährt eine eigene Kamera den Verlauf ab und zeichnet alle
+  `RUNDGANG_ABSTAND` (12) m je ein Bild 40° links und rechts vorn. Der
+  Compatibility-Renderer übersetzt jede Shaderfassung erst beim ersten
+  Zeichnen, mit Nebel, Schattenstufen, Instanzen und Lichtern, wie das
+  Objekt gerade steht; ohne Rundgang fiel das beim Laufen an, genau wenn
+  Neues ins Bild kam (siehe „Ladezeit und Ruckler"). Danach
+  `Effekte.vorwaermen(self)` für die Teilchen (die Kamera steht dann
+  wieder an ihrem Platz), erst dann bekommt die Figur ihre Physik zurück
+  und die Uhr des Zeitmodus läuft an. Headless entfällt der Rundgang;
+  `LevelBasis.rundgang_an = false` schaltet ihn zum Vergleichen ab.
+  Explosion und Lichtsäule des Zielportals wärmen ihre Shader selbst vor.
+- **Bauzeiten:** `bauzeiten` hält die Dauer jedes Bauschritts, des
+  Abschlusses und des Rundgangs (`[{"text", "ms"}]`), gelesen von
+  `werkzeuge/bauzeitprobe.gd`.
 - Das Wackeln beim Bauchplatscher und den Bildblitz beim Tod löst die
   Figur selbst aus; Level müssen dafür nichts verbinden.
 
@@ -669,6 +684,66 @@ Position erst danach gesetzt, springen sie zum Ursprung zurück.
 
 Props werden als Szene instanziiert (`preload(".../Baum.tscn").instantiate()`),
 nicht über `Baum.new()`.
+
+## Ladezeit und Ruckler (`scripts/bauspeicher.gd`, Rundgang)
+
+Gebaut für die Meldung vom Pixel 8 (APK): „Level lädt lange, und bei
+Bewegung scheint es vor- und nachzuladen; hat man eine Richtung
+eingeschlagen, passt es erstmal." Beides ist gemessen, nicht vermutet.
+
+**Messwerkzeuge** (Aufruf im Kopf der Dateien, Werte in README.md):
+- `werkzeuge/bauzeitprobe.gd` – headless; lädt Level 01 und den
+  Portalraum und druckt Laden, Instanziieren und jeden Bauschritt
+  (`LevelBasis.bauzeiten`). Zweimal mit demselben `XDG_DATA_HOME`
+  gestartet, zeigt der zweite Lauf den Stand mit gefülltem Bauspeicher.
+- `werkzeuge/ruckelprobe.gd` / `ruckelprobe.sh` – unter Xvfb; fährt
+  dieselbe Zickzackfahrt zweimal und meldet jedes Bild, das deutlich über
+  dem Median liegt. Ruckler nur im ersten Durchgang sind Arbeit beim ersten
+  Gebrauch, Ruckler in beiden Arbeit in jedem Bild.
+
+**Ruckler.** Ohne Vorwärmen gab es im ersten Durchgang 16 Ruckler (bis
+2,9 s unter llvmpipe), im zweiten einen: Es war das Übersetzen von
+Shaderfassungen, sobald etwas Neues ins Bild kam – genau das „Nachladen
+bei Bewegung". Kein Skript baut beim Laufen etwas neu auf. Abhilfe ist
+der Rundgang in `LevelBasis` (siehe „Level"); danach ein Ruckler im ersten
+Durchgang, keiner im zweiten, und das erste Bild nach dem Ladeschirm
+sank von 14 s auf 0,2 s.
+
+**Ladezeit.** Die Zeit verteilt sich über gut 50 Bauschritte; den größten
+Einzelposten trugen die Bildpunktschleifen der Texturen (Waldweg allein
+0,6 s), danach die Netze von Kronen und Stämmen. Beides liegt nach dem
+ersten Laden im **Bauspeicher**:
+
+```gdscript
+Bauspeicher.holen(schluessel, erzeuger) -> Resource     # Image, Textur, Material …
+Bauspeicher.wert(schluessel, erzeuger) -> Variant       # Dictionary usw., als Metadaten
+Bauspeicher.netz(art, argumente: Array, erzeuger) -> ArrayMesh
+```
+
+- Ordner `user://bauspeicher`, je Eintrag eine komprimierte `.res`.
+  Geschrieben wird erst in eine Zwischendatei, dann umbenannt; was sich
+  nicht lesen lässt, wird neu gerechnet.
+- **Fassung:** md5 über alle Skripte unter `res://scripts`,
+  `res://scenes`, `res://autoload` (wie sie im Paket liegen, im Export die
+  `.gdc`) und die Engine-Version. Ändert sich daran etwas, wird der ganze
+  Ordner beim ersten Zugriff geleert. Darum muss niemand eine
+  Versionsnummer pflegen – aber der **Schlüssel** muss alles nennen, was
+  sich zur Laufzeit ändern kann (Farben, Größen, `Effekte.reduziert`).
+  `Bauspeicher.netz` bildet ihn aus `var_to_str(argumente)`; Argumente mit
+  Objekten werden nie gespeichert.
+- Darin liegen: die Texturmaterialien und Strukturen der
+  `Materialbibliothek` (`_hole(…, platte = true)`), die Farbbilder der
+  Varianten (Normal-, Rauheits- und Verdeckungskarte bleiben mit der
+  Struktur geteilt), Weltrauschen und Rasentextur der `Wegmaske`, das
+  Blattbild der `Kronenwolke`, der Wurzelvorhang des Weltenbaums und die
+  Netze von `Kronenwolke.netz`, `Riesenstamm.netz`/`liegend`,
+  `Farnwerk.netz`, `Findling.netz`/`brocken` und `Weltenbaum.krone`. Für
+  Level 01 und den Portalraum rund 400 Dateien, 20 MB.
+- **Nicht** hinein gehört, was schneller gebaut als gelesen ist
+  (einfarbige Materialien, kleine Netze) und was Godot selbst nachlädt
+  (`NoiseTexture2D` speichert nur ihre Einstellungen).
+- `Bauspeicher.an = false` schaltet ihn ab (Vergleich). Die Prüfwerkzeuge
+  laufen mit leerem `user://` und rechnen also alles.
 
 ## Level 01 (`scenes/levels/level01.gd`, `class_name Level01`)
 
@@ -935,7 +1010,7 @@ Umgebung, Licht, Spieler, Kamera und HUD.
 - **`Effekte.staubfarbe` überlebt den Szenenwechsel.** `LevelBasis` setzt sie deshalb vor jedem Aufbau auf `Effekte.STAUBFARBE_VORGABE` (Waldweg); ein Level mit eigenem Boden setzt sie beim Bauen.
 - **`Effekte.ruhig`** (Einstellung „Bildschirmwackeln" aus) schaltet Wackeln, Trefferpause und Bildblitz ab. Auch das HUD blitzt dann nicht: kein roter Schleier beim Tod, kein roter Rand beim Schutzbruch.
 - **Vorwärmen:** Die Teilchen von `vorwaermen()` laufen in Zeitlupe (`VORWAERM_ZEITLUPE`). Das erste Bild nach einem Aufbau ist lang, und mit gewöhnlichem Tempo verglühten sie darin, ehe sie gezeichnet wurden.
-- **`Effekte.reduziert`** halbiert die Mengen und schaltet Wackeln, Trefferpause, Bildblitz und Blitzlicht ab. Vorbelegt ist es nur in Handy-Browsern.
+- **`Effekte.reduziert`** halbiert die Mengen und schaltet Wackeln, Trefferpause, Bildblitz und Blitzlicht ab. Vorbelegt ist es auf Handys: im Browser (`web_android`, `web_ios`) und als App (`mobile`). Früher fragte es nur nach dem Browser; die APK lief auf dem Rechnerweg (volle Dichten, zwei Schattenstufen, MSAA).
 - **Trefferpause:** `Engine.time_scale` wird für höchstens 0,2 s auf 0,05 gesetzt. Im Headless-Betrieb ist sie aus, damit die Messungen der Prüfwerkzeuge stimmen. Für den Zeitmodus ist sie fair, weil die Uhr mit dem verlangsamten Delta zählt.
 - **Bildblitz** liegt auf CanvasLayer-Ebene 0, also unter dem HUD (Ebene 10, siehe HUD).
 
@@ -994,10 +1069,17 @@ die Interpolation war aus. Begründungen stehen deshalb vor allem hier; die
 jeder Änderung nachsehen, was wirklich gilt:
 `ProjectSettings.get_setting("physics/common/physics_interpolation")`.
 
-| `rendering/…` | Rechner | Browser (`.web`) | Warum |
-|---|---|---|---|
-| `anti_aliasing/quality/msaa_3d` | 1 (2x) | 1 (2x), Handy 0 | Glättet Stacheln, Kisten- und Wandkanten. Kostet rund 14 MB Grafikspeicher bei 720p, gut 30 MB bei 1080p, keine Draw-Calls. Handys im Browser (`Effekte.reduziert`) schaltet `Einstellungen._ready()` zur Laufzeit ab – dort zählt die Füllrate. |
-| `lights_and_shadows/directional_shadow/size` | 4096 | 2048 | 16 statt 64 MB. Level 01 sieht in der Nahansicht fast gleich aus. |
+| Einstellung | Rechner | Browser (`.web`) | Handy-App (`.mobile`) | Warum |
+|---|---|---|---|---|
+| `rendering/anti_aliasing/quality/msaa_3d` | 1 (2x) | 1 (2x), Handy 0 | 0 | Glättet Stacheln, Kisten- und Wandkanten. Kostet rund 14 MB Grafikspeicher bei 720p, gut 30 MB bei 1080p, keine Draw-Calls. Handys im Browser (`Effekte.reduziert`) schaltet `Einstellungen._ready()` zur Laufzeit ab – dort zählt die Füllrate; die App hat es schon in der Projektdatei aus. |
+| `rendering/lights_and_shadows/directional_shadow/size` | 4096 | 2048 | 2048 | 16 statt 64 MB. Level 01 sieht in der Nahansicht fast gleich aus. |
+| `rendering/scaling_3d/scale` | 1,0 | 1,0 | 0,8 | Ein Pixel 8 zeichnet sonst 2400 × 1080 Bildpunkte, mit Gras, Farnen und Nebel – das ist die Füllrate, an der Handys hängen. 0,8 spart gut ein Drittel der Bildpunkte; HUD und Menüs bleiben scharf (2D). Gerendert nachgeprüft: Der Compatibility-Renderer skaliert bilinear. |
+| `rendering/textures/default_filters/anisotropic_filtering_level` | 2 (4x) | 2 (4x) | 1 (2x) | Schräg gesehene Böden (Weg, Hänge) holen weniger Texel; auf dem kleinen Schirm nicht zu sehen. |
+| `application/run/max_fps` | 0 | 0 | 60 | Bei 120 Hz wechseln sonst 8- und 17-ms-Bilder, sobald ein Bild länger braucht; dazu wird das Gerät warm und drosselt. |
+
+Die Überschreibungen `.mobile` gelten nur in der App. Am Rechner stellen
+`FOTO_REDUZIERT=1` (`foto.gd`, Handy im Browser) und `RUCKEL_REDUZIERT=1`
+(`ruckelprobe.gd`, App samt 3D-Skalierung) den Handyweg nach.
 
 **Kein FXAA.** `screen_space_aa` gibt es unter gl_compatibility nicht: Godot
 4.7.2 meldet „Screen-space AA is only available when using the Forward+ or

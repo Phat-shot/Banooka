@@ -14,8 +14,9 @@ extends Node
 ##
 ## Umgebungsvariablen:
 ##   RUCKEL_LEVEL      Szene (Vorgabe Level 01)
-##   RUCKEL_REDUZIERT  1 = Handyweg wie auf Android/iOS: `Effekte.reduziert`,
-##                     kein MSAA, Schattenkarte 2048
+##   RUCKEL_REDUZIERT  1 = Handyweg wie die App auf Android/iOS:
+##                     `Effekte.reduziert`, kein MSAA, Schattenkarte 2048, 3D in
+##                     der Auflösung von `rendering/scaling_3d/scale.mobile`
 ##   RUCKEL_DURCHGAENGE  Vorgabe 2
 ##   RUCKEL_VORWAERMEN 0 = ohne den Rundgang des Levels (`LevelBasis._rundgang`),
 ##                     zum Vergleich
@@ -62,7 +63,10 @@ func _ready() -> void:
 	if reduziert:
 		Effekte.reduziert = true
 		get_tree().root.msaa_3d = Viewport.MSAA_DISABLED
-		RenderingServer.directional_shadow_atlas_set_size(2048, true)
+		RenderingServer.directional_shadow_atlas_set_size(int(ProjectSettings.get_setting(
+				"rendering/lights_and_shadows/directional_shadow/size.mobile", 2048)), true)
+		get_tree().root.scaling_3d_scale = float(ProjectSettings.get_setting(
+				"rendering/scaling_3d/scale.mobile", 1.0))
 	var pfad := OS.get_environment("RUCKEL_LEVEL")
 	if pfad.is_empty():
 		pfad = "res://scenes/levels/Level01.tscn"
@@ -84,6 +88,10 @@ func _ready() -> void:
 		bilder += 1
 		await get_tree().process_frame
 	print("Aufbau fertig nach %d ms, %d Bilder" % [Time.get_ticks_msec() - t0, bilder])
+	if _szene is LevelBasis:
+		for e: Dictionary in (_szene as LevelBasis).bauzeiten:
+			if String(e["text"]).begins_with("Vorwärmen"):
+				print("  %s: %.0f ms" % [String(e["text"]), float(e["ms"])])
 	# Die Bilder nach dem Aufbau zählen mit: Was der Ladeschirm nicht
 	# verdeckt, sieht der Spieler.
 	_spieler = get_tree().get_first_node_in_group("spieler") as Node3D

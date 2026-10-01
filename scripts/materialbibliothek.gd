@@ -311,7 +311,7 @@ static func moorboden() -> StandardMaterial3D:
 		m.normal_texture = normalmap(7201, 0.075, 1.8)
 		m.normal_scale = 0.9
 		m.roughness = 0.72
-		return m, true)
+		return m)
 
 
 ## Verwittertes Stegholz mit langer Maserung. Die gestreckte UV-Skala legt
@@ -326,7 +326,7 @@ static func bohlen() -> StandardMaterial3D:
 		m.normal_scale = 0.8
 		m.uv1_scale = Vector3(0.45, 2.4, 0.45)
 		m.roughness = 0.88
-		return m, true)
+		return m)
 
 
 ## Algenteppich für Uferkanten und schwimmende Inseln.
@@ -338,7 +338,7 @@ static func algen() -> StandardMaterial3D:
 		m.normal_texture = normalmap(7203, 0.16, 1.2)
 		m.normal_scale = 0.6
 		m.roughness = 0.65
-		return m, true)
+		return m)
 
 
 # ---------------------------------------------------------------- Winter
