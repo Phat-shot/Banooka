@@ -1923,19 +1923,20 @@ static func _furt(st: Stuecke, level: Level01) -> void:
 			q += 0.4
 		var g := _querwand(st, level, linie, vorwaerts, _profil_furt.bind(kante, ende), name,
 				17310 + ende)
-		_furt_steine(st, name, g, ende, rng)
+		# Frei bleibt der Anlauf auf den Trittstein dieses Ufers.
+		var stein := level.begehbar("Furtstein %d" % (ende + 1))
+		_furt_steine(st, name, g, ende, rng, float(stein.get("q", 0.0)))
 
 
 ## Steingruppen am Ufer der Furt (je 2–4, einer größer), auf Böschung und
 ## Terrasse, halb versenkt, zur Böschung gekippt; nicht im Anlauf auf die
 ## Trittsteine und nicht in einer Reihe.
-static func _furt_steine(st: Stuecke, name: String, g: Dictionary, ende: int,
-		rng: RandomNumberGenerator) -> void:
+static func _furt_steine(st: Stuecke, name: String, g: Dictionary, _ende: int,
+		rng: RandomNumberGenerator, frei_q: float) -> void:
 	var reihen: Array[PackedVector3Array] = g["reihen"]
 	var boden: PackedFloat32Array = g["boden"]
 	var norm := GelaendeSaum.normalen(g)
 	var n := reihen.size()
-	var frei_q := -1.0 if ende == 0 else 0.8
 	var gruppen := 0
 	var i := rng.randi_range(2, 6)
 	while i < n - 2 and gruppen < 7:

@@ -14,8 +14,9 @@ class_name L01Boden
 ## Naht; `kronenlicht_bei()` rechnet dasselbe auf der CPU.
 ##
 ## LÜCKENLIPPEN. An jeder Lippe von Erdspalt, Kerbe, Fallkerbe, Furt, G1 und
-## G2 liegen vier bis sechs helle, gewölbte Kalksteine in der Spur (auf der
-## Wurzel: helles Bruchholz), an beiden Ecken außerhalb der Spur sitzen
+## G2 liegen zwei, drei Gruppen heller, gewölbter Kalksteine in der Spur, je
+## ein großer mit ein, zwei kleinen (auf der Wurzel: helles Bruchholz), an
+## beiden Ecken außerhalb der Spur sitzen
 ## warme Leuchtpilzgruppen. Je Lücke EIN Netz mit EINEM Stoff, ohne Schatten,
 ## sichtbar bis 60 m – so zeichnet der Boden samt Marken an jeder Stelle
 ## höchstens sechs Aufrufe: zwei Decken und höchstens vier Lippen in
@@ -70,6 +71,17 @@ static func stoff(level: Level01, abschnitt: Dictionary) -> Material:
 		var weg := Materialbibliothek.waldweg()
 		m.set_shader_parameter("boden_farbe", weg.albedo_texture)
 		m.set_shader_parameter("boden_normal", weg.normal_texture)
+	# Lücken für die krümeligen Lippen (siehe Shader): erdig, außer auf der
+	# Wurzel (G1, G2), dort nur ein dunkles Band.
+	var luecken := PackedVector3Array()
+	for l: Dictionary in Level01.LUECKEN:
+		var holz := String(level.abschnitt_bei(float(l["von"]) - 0.01).get("stoff", "")) \
+				== "wurzelruecken"
+		luecken.append(Vector3(float(l["von"]), float(l["bis"]), 0.0 if holz else 1.0))
+	var anzahl := mini(luecken.size(), 8)
+	luecken.resize(8)
+	m.set_shader_parameter("luecken", luecken)
+	m.set_shader_parameter("luecken_anzahl", anzahl)
 	var stellen := kronen_stellen(level)
 	var feld := stellen.duplicate()
 	feld.resize(24)
@@ -194,34 +206,46 @@ static func _lippe(st: SurfaceTool, level: Level01, eintrag: Dictionary, s_lippe
 	var y := LevelWerkzeuge.eintrag_hoehe(level.verlauf, eintrag, s_lippe)
 	var rahmen := {"level": level, "s": s_lippe, "innen": innen, "y": y, "mitte": mitte}
 	# Die Steine liegen in der Spur und ein Stück darüber hinaus: dort, wo
-	# man abspringt und landet. Ungleich groß, ungleich weit auseinander,
-	# nicht alle an der Kante – in Reih und Glied an die Lippe gelegt,
-	# lasen sie sich als Bordstein.
+	# man abspringt und landet – in zwei, drei GRUPPEN, je ein großer Stein
+	# mit ein, zwei kleinen daneben, ungleich weit von der Kante. Gleichmäßig
+	# quer über die Spur verteilt (Welle 6: vier bis sechs Steine in
+	# gleichen Abständen) lasen sie sich als Bordstein, auch mit Zufall in
+	# Größe und Abstand.
 	var spur := Wegmaske.pendel(s_lippe) * halb
 	var spur_halb := 0.66 * halb
 	var links := maxf(spur - spur_halb, -halb + 0.45)
 	var rechts := minf(spur + spur_halb, halb - 0.45)
-	var anzahl := rng.randi_range(4, 6)
-	var gewichte: Array[float] = []
-	var summe := 0.0
-	for k in anzahl + 1:
-		gewichte.append(rng.randf_range(0.6, 1.6))
-		summe += gewichte[-1]
-	var q_lauf := links
-	for k in anzahl:
-		var feld := (rechts - links) * gewichte[k] / summe
-		var naechstes := (rechts - links) * gewichte[k + 1] / summe
-		q_lauf += feld
-		# Nie breiter als der Abstand zu den Nachbarn: überlappende Platten
-		# flimmerten gegeneinander.
-		var breite_q := clampf(minf(feld, naechstes) * rng.randf_range(0.55, 0.8), 0.25, 0.95)
-		var q := q_lauf + rng.randf_range(-0.03, 0.03)
-		var tiefe := rng.randf_range(0.3, 0.72)
-		var zurueck := 0.0 if rng.randf() < 0.6 else rng.randf_range(0.12, 0.5)
-		if holz:
-			_splitter(st, rahmen, q, breite_q, tiefe, zurueck, rng)
-		else:
-			_stein(st, rahmen, q, breite_q, tiefe, zurueck, rng)
+	var gruppen := rng.randi_range(2, 3)
+	var belegt: Array[Vector3] = []   # (a, q, Radius) der gelegten Steine
+	for g in gruppen:
+		var q_g := lerpf(links, rechts, (float(g) + rng.randf_range(0.25, 0.75)) / float(gruppen))
+		var a_g := 0.0 if rng.randf() < 0.65 else rng.randf_range(0.1, 0.45)
+		var zahl := rng.randi_range(1, 3)
+		for k in zahl:
+			var gross := k == 0
+			var breite_q := rng.randf_range(0.5, 0.85) if gross else rng.randf_range(0.22, 0.4)
+			var tiefe := breite_q * rng.randf_range(0.75, 1.15)
+			var q := q_g
+			var zurueck := a_g
+			if not gross:
+				var seite := -1.0 if rng.randf() < 0.5 else 1.0
+				q = q_g + seite * rng.randf_range(0.35, 0.6)
+				zurueck = a_g + rng.randf_range(0.0, 0.5)
+			q = clampf(q, -halb + 0.4, halb - 0.4)
+			var r_hier := maxf(breite_q, tiefe) * 0.5
+			var mitte_a := VOR + zurueck + tiefe * 0.5
+			var frei := true
+			for b_ in belegt:
+				if Vector2(b_.x - mitte_a, b_.y - q).length() < b_.z + r_hier + 0.04:
+					frei = false
+					break
+			if not frei:
+				continue
+			belegt.append(Vector3(mitte_a, q, r_hier))
+			if holz:
+				_splitter(st, rahmen, q, breite_q, tiefe, zurueck, rng)
+			else:
+				_stein(st, rahmen, q, breite_q, tiefe, zurueck, rng)
 	# Leuchtpilze an beiden Ecken, außerhalb der Spur im Rasen.
 	for seite: float in [-1.0, 1.0]:
 		var q_ecke := seite * (halb - rng.randf_range(0.35, 0.8))
@@ -252,7 +276,8 @@ static func _stein(st: SurfaceTool, rahmen: Dictionary, q: float, breite_q: floa
 	# Heller Kalk, aber kein Weiß: In der Sonne überstrahlte er sonst.
 	# LINEAR (der Lippenstoff nimmt ALBEDO = COLOR.rgb): Als sRGB-Wert
 	# gewählt (0,72/0,68/0,58) lagen die Steine als weiße Münzen in der Spur.
-	var grund := Color(0.40, 0.37, 0.30).lerp(Color(0.34, 0.34, 0.28), rng.randf())
+	# Welle 6: 0,40/0,37/0,30 las sich im Schatten der Kante dunkelgrau.
+	var grund := Color(0.46, 0.43, 0.35).lerp(Color(0.40, 0.39, 0.32), rng.randf())
 	grund *= rng.randf_range(0.9, 1.05)
 	const N := 10
 	var ra := tiefe * 0.5

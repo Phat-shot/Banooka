@@ -55,6 +55,12 @@ const FARBE_KRONE := Color(0.19, 0.4, 0.15)
 ## Kronenwolke stand sie dort als blasser Scherenschnitt, heller als die
 ## Hügel; jetzt ×0,7 und mit dunklem Unterband (`stoff_krone`).
 const FARBE_KRONE_FERN := Color(0.06, 0.126, 0.063)
+## Borkenkachel längs der Wurzelstränge (`rohr`, `zug`) je Meter, zum
+## Vergleich rundum `Riesenstamm.KACHEL_U` (1,4). Die Rinde der Bibliothek
+## trägt ihre Furchen schon 5:1 gestreckt; mit 0,56 (KACHEL_V · 1,6) kam
+## die UV noch 2,5:1 dazu, und Wurzelfleisch und Wulst liefen als lange
+## Schlieren um den Stamm (Welle 6). Jetzt höchstens 1,4:1.
+const LAENGS_KACHEL := 1.0
 ## Borke der Fernfassung (Stamm, Kehle): kühl und dunkel.
 const FARBE_STAMM_FERN := Color(0.14, 0.15, 0.17)
 
@@ -714,7 +720,7 @@ static func rohr(punkte: PackedVector3Array, radien: PackedFloat32Array,
 			var r := rad * (1.0 - beulen * (0.5 + 0.5 * rauschen.get_noise_3dv(p0)))
 			zeile.append(mitte + richtung * r)
 			uv.append(Vector2(float(j) / float(seiten) * float(n_u),
-					bogen * Riesenstamm.KACHEL_V * 1.6 * mass))
+					bogen * LAENGS_KACHEL * mass))
 		(g["p"] as Array).append(zeile)
 		(g["uv"] as Array).append(uv)
 		(g["mitten"] as PackedVector3Array).append(mitte)
@@ -751,7 +757,7 @@ static func zug(schnitte: Array[PackedVector3Array], laengs: PackedFloat32Array,
 				lauf += p.distance_to(schnitt[(j - 1) % schnitt.size()])
 			zeile.append(p)
 			var u := lauf / eigen * float(n_u) if ringsum else lauf * Riesenstamm.KACHEL_U * mass
-			uv.append(Vector2(u, laengs[i] * Riesenstamm.KACHEL_V * 1.6 * mass))
+			uv.append(Vector2(u, laengs[i] * LAENGS_KACHEL * mass))
 		(g["p"] as Array).append(zeile)
 		(g["uv"] as Array).append(uv)
 	return g
@@ -1270,6 +1276,12 @@ static func dreieck(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, aussen:
 static var _torstoff: ShaderMaterial = null
 static var _torshader: Shader = null
 
+## Weltkachel der Stammborke (rundum, hoch) je Meter: Mit der Vorgabe für
+## dicke Stämme (0,2; 0,1) kam zur 5:1-Furche der Rinde noch 2:1 dazu – die
+## Stammwand neben der Wendel lief in langen Schlieren (Welle 6). Jetzt
+## 1,25:1, und Moosstreifen (`streifen`) laufen von den Rippen hinab.
+const STAMM_KACHEL := Vector2(0.2, 0.16)
+
 ## Borke des Stamms in Weltprojektion (senkrechte Furchen, keine Nähte
 ## zwischen Stamm, Brettwurzeln und Ästen). `fern`: dunkler und kühler, mit
 ## Moosstreifen – eine Silhouette, die sich vom Dunst abhebt. Die Vorgabe
@@ -1278,8 +1290,10 @@ static var _torshader: Shader = null
 static func stoff_stamm(fern: bool = false) -> ShaderMaterial:
 	if fern:
 		return Riesenstamm.borkenstoff({"welt": true, "radius": 12.0, "fern": true,
-				"farbe": FARBE_STAMM_FERN, "moos_farbe": Color(0.22, 0.27, 0.29)})
-	return Riesenstamm.borkenstoff({"welt": true, "radius": 12.0})
+				"farbe": FARBE_STAMM_FERN, "moos_farbe": Color(0.22, 0.27, 0.29),
+				"welt_kachel": STAMM_KACHEL})
+	return Riesenstamm.borkenstoff({"welt": true, "radius": 12.0, "welt_kachel": STAMM_KACHEL,
+			"streifen": 0.35})
 
 
 ## Borke der Wurzeln über UV: Die Furchen laufen den Strängen entlang, nicht

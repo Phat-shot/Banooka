@@ -63,7 +63,11 @@ const SCHICHT_NEIGUNG := 0.07
 ## Ellipse), umriss (Anteil, um den der Grundriss unregelmäßig nach innen
 ## springt), umriss_aussen (Anteil, um den er höchstens nach außen springt),
 ## moos (0..1), moos_oben (Moos auf der Oberseite, 0..1), ausgetreten (0..1),
-## wasser_y (lokale Höhe einer Wasserlinie: darunter nass und dunkel).
+## wasser_y (lokale Höhe einer Wasserlinie: darunter nass und dunkel),
+## fuss_aus (Meter, um die der Fuß nach außen ausläuft: voll am Boden, bis
+## unter die gerundete Kante – ohne Wasserlinie bis 40 % der Höhe – auf
+## null; so steht ein Trittstein mit Anlauf wie gewachsener Fels im Bach
+## statt wie eine Trommel. Die Oberkante bleibt, wo sie ist; Vorgabe 0).
 static func netz(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
 	var o := _vorgaben_netz(groesse.abs() * 0.5)
 	o.merge(optionen, true)
@@ -309,6 +313,11 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 	var umriss_aussen: float = o.get("umriss_aussen", 0.0)
 	var moos_oben: float = o.get("moos_oben", 1.0)
 	var wasser_y: float = o.get("wasser_y", -INF)
+	var fuss_aus: float = o.get("fuss_aus", 0.0)
+	var aus_bis: float = -h.y + 0.8 * h.y
+	if wasser_y > -INF:
+		# Über dem Wasser sichtbar: Die Flanke läuft bis unter die Kante aus.
+		aus_bis = maxf(h.y - rr - 0.15, wasser_y + 0.3)
 	var rng := PropWerkzeug.zufall(saat + 101)
 	var rauschen := FastNoiseLite.new()
 	rauschen.seed = saat
@@ -428,7 +437,7 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 			match art:
 				0:
 					var y: float = z["y"]
-					var weite := basis + nrm * (basis.length() * fuss_weite * float(z["p"]))
+					var weite := basis + nrm * (basis.length() * fuss_weite * float(z["p"]) + fuss_aus)
 					p = Vector3(weite.x, y, weite.y)
 					ao = 0.32
 					m = 0.6
@@ -459,6 +468,8 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 					else:
 						tief = maxf(tief, 0.0)
 					var q := basis - nrm * tief
+					if fuss_aus > 0.0:
+						q += nrm * fuss_aus * pow(1.0 - smoothstep(-h.y, aus_bis, y), 1.2)
 					p = Vector3(q.x, y, q.y)
 					var ueber_boden := y + h.y
 					ao = lerpf(0.6, 1.0, smoothstep(0.0, 0.9, ueber_boden))

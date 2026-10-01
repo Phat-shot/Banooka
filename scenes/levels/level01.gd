@@ -1332,10 +1332,6 @@ func pruefprofil() -> Dictionary:
 ## Gegenseite: Die Kapsel der Figur (r 0,38) steht dort noch auf der Kante.
 const LANDUNG_SPIEL := 0.45
 
-## Namen der Pflichtlücken für die Sprungprobe, nach ihrem Anfang.
-const LUECKEN_NAMEN := {25.0: "Erdspalt", 56.0: "Kerbe", 118.0: "Fallkerbe", 210.5: "G1",
-		243.0: "G2"}
-
 ## Die Pflichtsprünge für `werkzeuge/sprungprobe.gd` (Plan P14, 6.2). Aus
 ## den Daten abgeleitet: Rückt eine Lücke oder ein Trittstein, folgt die
 ## Probe mit. Je Fall: wo die Figur anläuft, wo die Absprungkante liegt
@@ -1343,7 +1339,7 @@ const LUECKEN_NAMEN := {25.0: "Erdspalt", 56.0: "Kerbe", 118.0: "Fallkerbe", 210
 ## Absprungstellen zurückreicht (siehe Kopf der Probe).
 ##
 ## * Mooslog (Hürde): Kante = die Figur steht mit der Kapsel davor.
-## * Jede Lücke im Weg außer der Furt: auf der Mitte, G2 zusätzlich außen
+## * Jede Lücke aus LUECKEN außer der Furt: auf der Mitte, G2 zusätzlich außen
 ##   auf der langen Bahn der Wendel (q +2,4).
 ## * Furt: Ufer → Stein 1, Stein 1 → Stein 2, Stein 2 → Ufer, je auf der
 ##   Bahn des Steins und auf der Wegmitte; dazu die Diagonale von Mitte zu
@@ -1356,12 +1352,12 @@ func sprungfaelle() -> Array[Dictionary]:
 		var vor_dem_stamm := float(stamm["s"]) - float(stamm["radius"]) - 0.45
 		faelle.append({"name": "Mooslog", "start": Vector2(vor_dem_stamm - 4.0, 0.0),
 				"kante": vor_dem_stamm, "von": vor_dem_stamm - 2.0})
-	for i in range(1, ABSCHNITTE.size()):
-		var kante: float = (ABSCHNITTE[i - 1] as Dictionary)["bis"]
-		var weiter: float = (ABSCHNITTE[i] as Dictionary)["von"]
-		if weiter - kante < 0.5 or not LUECKEN_NAMEN.has(kante):
+	for luecke: Dictionary in LUECKEN:
+		var name: String = luecke["name"]
+		if name == "Furt":
 			continue
-		var name: String = LUECKEN_NAMEN[kante]
+		var kante: float = luecke["von"]
+		var weiter: float = luecke["bis"]
 		var bahnen: Array[float] = [0.0]
 		if name == "G2":
 			bahnen.append(2.4)

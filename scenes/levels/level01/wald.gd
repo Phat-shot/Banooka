@@ -229,16 +229,19 @@ const NADEL_TON := Color(0.6, 0.72, 0.76)
 ## Tönung des Totholzes: grau, ausgeblichen.
 const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
 ## Die schlichte Fassung der Riesen (nur vom Grat aus zu sehen, 100–160 m
-## vor dem Fuß des Weltenbaums): Stamm und Krone etwas dunkler und kühler
-## als die nahe, im vollen Dunst wie der Talwald um sie. Verglichen (s 46):
-## Mit dem halben Nebel des Weltenbaums (`RIESE_FERN_NEBELARM`) und
-## dunkler Tönung verschmolzen ihre Stämme mit seinem – ein Gewirr dunkler
-## Säulen vor dem Stamm, ihre Kronen grüne Schirme vor seiner Krone. Im
-## vollen Dunst treten sie zurück, und der Riese steht als dunkle Masse
-## dahinter: der Größenvergleich statt eines Hains aus Schirmkiefern.
-const RIESE_FERN_STAMM := Color(0.8, 0.8, 0.84)
-const RIESE_FERN_KRONE := Color(0.85, 0.9, 0.96)
-const RIESE_FERN_NEBELARM := false
+## vor dem Fuß des Weltenbaums): Stamm und Krone kühler als die nahe, mit
+## eigenem Nebel zu `RIESE_FERN_NEBEL` (der Weltenbaum: 0,5). Verglichen
+## (s 46): Mit dem halben Nebel des Weltenbaums und dunkler Tönung
+## verschmolzen ihre Stämme mit seinem – ein Gewirr dunkler Säulen vor dem
+## Stamm. Im vollen Dunst (Welle 5) standen sie dagegen als weiße Säulen
+## mit blassen Schirmen vor ihm, Lollis aus Pappe, und der Riese dahinter
+## las sich selbst wie ein Gespenst (Welle 6). Dazwischen: Stämme
+## mittelgrau-blau, heller als sein Stamm, dunkler als der Dunst; die
+## Kronen rund (Haufen statt Schirm), wie die Kuppel seiner Fernkrone.
+const RIESE_FERN_STAMM := Color(0.5, 0.52, 0.58)
+const RIESE_FERN_KRONE := Color(0.8, 0.86, 0.94)
+const RIESE_FERN_NEBELARM := true
+const RIESE_FERN_NEBEL := 0.78
 
 ## Die Hallenwald-Reihen je Seite: Querbereich, Abstand entlang s, Arten
 ## (rechts eigene: tief beastete Kronen bis an die Hallenkante – die Halle
@@ -1850,8 +1853,8 @@ static func _riesen(level: Level01) -> void:
 	var borke_fern: Material = _borke()
 	var laub_fern: Material = laub
 	if RIESE_FERN_NEBELARM:
-		borke_fern = L01Weltenbaum.nebelarm(borke_fern, level)
-		laub_fern = L01Weltenbaum.nebelarm(laub_fern, level)
+		borke_fern = L01Weltenbaum.nebelarm(borke_fern, level, RIESE_FERN_NEBEL)
+		laub_fern = L01Weltenbaum.nebelarm(laub_fern, level, RIESE_FERN_NEBEL)
 	ws.art("stamm_fern", {"stoff": borke_fern,
 			"sicht_von": RIESE_NAH, "sicht": SICHT_RIESEN, "verschmelzen": true})
 	ws.art("krone_fern", {"stoff": laub_fern, "sicht_von": RIESE_NAH,
@@ -1910,7 +1913,7 @@ static func _riesen(level: Level01) -> void:
 					{"kranz": "kranz", "drehung": w,
 					"fussweite": float(dreh["weite"]), "zugabe": float(e["zugabe"]),
 					"ohne_stammtest": geneigt > 0.0, "ohne_krone": true}):
-				var fern := _riese_fern("riese%d_%d" % [i, roundi(v.x * 100.0)], b)
+				var fern := _riese_fern("riese%d_%d" % [i, roundi(v.x * 100.0)], b, true)
 				# Die schlichte Fassung sieht man nur vom Grat (100–160 m), etwas
 				# dunkler und kühler getönt (`RIESE_FERN_STAMM`).
 				ws.setze("stamm_fern", fern["stamm"] as ArrayMesh, lage, RIESE_FERN_STAMM)
@@ -1951,14 +1954,17 @@ static func _riesen(level: Level01) -> void:
 ## Schlichte Fassung eines Riesen (oder Rahmenbaums): der Schattenstamm
 ## (acht Seiten, gleiche Achse) und eine Krone aus fünf groben Ballen über
 ## derselben Hülle wie die volle – der Umriss springt beim Wechsel nicht.
-static func _riese_fern(schluessel: String, b: Dictionary) -> Dictionary:
-	var name := schluessel + "_fern"
+static func _riese_fern(schluessel: String, b: Dictionary, rund: bool = false) -> Dictionary:
+	var name := schluessel + ("_fern_rund" if rund else "_fern")
 	if _netze.has(name):
 		return _netze[name]
 	var huelle: AABB = b["huelle"]
 	var kr := maxf(huelle.size.x, huelle.size.z) * 0.36
-	var krone := _indiziert(Kronenwolke.netz({"radius": kr, "hoehe": huelle.size.y * 0.72,
-			"variante": 1, "ballen": 5, "karten": 24, "mitte": huelle.get_center(),
+	# `rund` (Riesen): Haufen statt Schirm – flache Schirme lasen sich aus
+	# 150 m als Scheiben auf Stielen.
+	var krone := _indiziert(Kronenwolke.netz({"radius": kr,
+			"hoehe": huelle.size.y * (0.8 if rund else 0.72), "variante": 0 if rund else 1,
+			"ballen": 6 if rund else 5, "karten": 24, "mitte": huelle.get_center(),
 			"saat": huelle.size.x as int + 17}))
 	var f := {"stamm": b["schatten"], "krone": krone}
 	_netze[name] = f
@@ -2274,6 +2280,20 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 	hain.seed = 9102
 	hain.frequency = 1.0 / HAIN_WEITE
 	hain.fractal_octaves = 2
+	# Wellen im Kronendach (Welle 6: „gleiche Kissen, ein Dach in einer
+	# Höhe"): Ein grobes Rauschen hebt und senkt die Bäume in Zügen von gut
+	# 30 m (0,7–1,5), jeder einzelne streut darum (0,82–1,18) – zusammen
+	# 0,57–1,77. Hohe Kronen stehen so vor niedrigen, und zwischen ihnen
+	# liegt das dunkle Unterdach statt eines gleichmäßigen Teppichs.
+	var welle := FastNoiseLite.new()
+	welle.seed = 9103
+	welle.frequency = 1.0 / 34.0
+	welle.fractal_octaves = 2
+	# Nadelbäume in Trupps von drei bis sechs statt jeder fünfte überall:
+	# ein eigenes Rauschen, wo es hoch ist, stehen fast nur Nadelbäume.
+	var nadelfeld := FastNoiseLite.new()
+	nadelfeld.seed = 9104
+	nadelfeld.frequency = 1.0 / 20.0
 	var anteil := 0.6 if Effekte.reduziert else 1.0
 	var raster := FERN_RASTER
 	var x := FELD.position.x + 4.0
@@ -2296,10 +2316,13 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 			if d < NAH_WEIT + 6.0 and not _nah_leer(px, pz):
 				continue
 			var y := L01Gelaende.hoehe(px, pz)
-			var nadel := rng.randf() < 0.2
+			var trupp := nadelfeld.get_noise_2d(px, pz)
+			var nadel := rng.randf() < (0.8 if trupp > 0.32 else 0.04)
 			# Schirmkronen selten: Flach lesen sie sich im Dunst als Scheiben.
-			var k := 2 if nadel else (1 if rng.randf() < 0.25 else 0)
-			var groesse := lerpf(0.72, 1.45, pow(rng.randf(), 1.7)) * (1.08 if y > 16.0 else 1.0)
+			var k := 2 if nadel else (1 if rng.randf() < 0.18 else 0)
+			var zug := clampf(0.5 + 0.85 * welle.get_noise_2d(px, pz), 0.0, 1.0)
+			var groesse := lerpf(0.7, 1.5, zug) * rng.randf_range(0.82, 1.18) \
+					* (1.08 if y > 16.0 else 1.0)
 			var groesse_y := groesse * lerpf(0.76, 1.14, _streu(Vector2(px, pz), 13))
 			var dreh := rng.randf() * TAU
 			var lage := _lage(Vector3(px, y, pz), dreh,
@@ -2309,7 +2332,11 @@ static func _talwald_fern_sammeln(level: Level01) -> void:
 				continue
 			if not _kegel_frei(huelle):
 				continue
-			var ton := _hainton(hain, px, pz) * _ton(rng, Vector2(0.86, 1.0), 0.04)
+			# Kleine Bäume stehen im Schatten der großen: dunkler, damit das
+			# Unterdach zwischen den hohen Kronen als Tiefe liest.
+			var unterdach := lerpf(0.7, 1.0, smoothstep(0.75, 1.25, groesse))
+			var ton := _hainton(hain, px, pz) * _ton(rng, Vector2(0.8, 1.0), 0.05)
+			ton = Color(ton.r * unterdach, ton.g * unterdach, ton.b * unterdach, ton.a)
 			if nadel:
 				ton = ton * NADEL_TON
 			elif _auf_riegel(px, pz):

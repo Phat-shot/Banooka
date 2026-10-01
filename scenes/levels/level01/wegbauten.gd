@@ -1676,22 +1676,58 @@ static func _bachwiese(level: Level01) -> void:
 	sa.fern = 110.0
 	_wurzeltor(sa, level, "Riesentor", 1621)
 	# Trittsteine der Furt: Oberseite genau auf der Walze, nass unter der
-	# Wasserlinie (Wasser y 6,0). Stärker gerundete Oberkante, unruhigerer
-	# Umriss und Flanken mit Anlauf: Mit senkrechten Flanken lasen sie sich
-	# als angeschnittene Torten. Die ebene Oberseite bleibt gut 0,6 m im
-	# Halbmesser (Radius 1,3), die Kollision ist die Walze.
-	for name: String in ["Furtstein 1", "Furtstein 2"]:
+	# Wasserlinie (Wasser y 6,0). Der Umriss springt nur NACH AUSSEN (bis
+	# 13 %): Die ebene Oberseite reicht damit überall bis gut 1,1 m an den
+	# Rand (Rundung 0,22, Anlauf 0,12), und der Rand der Kollision liegt auf
+	# sichtbarem Fels – mit dem Umriss nach innen (Welle 6) stand die Figur
+	# am Rand neben dem Stein über dem Wasser. Die Flanke läuft von unter der
+	# Kante bis zum Grund 0,5 m aus (an der Wasserlinie gut 0,25 m):
+	# gewachsener Fels mit Anlauf statt einer Trommel. Daneben je zwei kleine,
+	# halb versunkene Brocken (Oberkante unter 6,6, außen neben der Spur) –
+	# sie gehören zum Bach, nicht zum Weg.
+	for i in 2:
+		var name := "Furtstein %d" % (i + 1)
 		var e := level.begehbar(name)
 		if e.is_empty():
 			continue
 		var lage: Transform3D = e["lage"]
+		var r := float(e["radius"])
 		var wasser := 6.0 - lage.origin.y
-		_stein(sa, Findling.scheibe(float(e["radius"]), float(e["hoehe"]),
-				{"saat": 1750 + name.length(), "wasser_y": wasser, "rundung": 0.24,
-				"umriss": 0.2, "beulen": 0.12, "anlauf": 0.1}), lage)
+		_stein(sa, Findling.scheibe(r, float(e["hoehe"]),
+				{"saat": 1750 + name.length() + 7 * i, "wasser_y": wasser, "rundung": 0.22,
+				"umriss": 0.0, "umriss_aussen": 0.13, "beulen": 0.1, "anlauf": 0.1,
+				"fuss_aus": 0.5}), lage)
+		_trabanten(sa, level, e, 1760 + 10 * i)
 	_findlingsturm(sa, level)
 	_wurzelknie(sa, level)
 	sa.fertig()
+
+
+## Zwei kleine Brocken neben einem Trittstein, außen (weg von der Wegmitte)
+## und quer zur Laufrichtung: halb versunken, Oberkante 0,1–0,5 m über dem
+## Wasser (6,0) – klar tiefer als der Stein (7,2), also kein Tritt. Sie
+## liegen außerhalb der Bahnen, auf denen man springt (|q| ≥ 2,1).
+static func _trabanten(sa: Sammler, level: Level01, e: Dictionary, saat: int) -> void:
+	var s: float = e["s"]
+	var q: float = e["q"]
+	var r: float = e["radius"]
+	var aussen := signf(q) if q != 0.0 else 1.0
+	var rng := PropWerkzeug.zufall(saat)
+	var stellen := [Vector2(s - r * 0.35, q + aussen * (r + 0.55)),
+			Vector2(s + r * 0.55, q + aussen * (r + 0.95))]
+	for k in stellen.size():
+		var st: Vector2 = stellen[k]
+		var groesse := Vector3(rng.randf_range(0.7, 1.1), rng.randf_range(0.8, 1.1),
+				rng.randf_range(0.8, 1.3))
+		var fuss := level.weg_punkt(st.x, st.y)
+		# Oberkante 6,1–6,5: Der Brocken steht im Bachbett, der größte Teil
+		# unter Wasser.
+		var oben := rng.randf_range(6.1, 6.5)
+		fuss.y = oben - groesse.y
+		var dreh := Basis(Vector3.UP, rng.randf() * TAU) \
+				* Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
+		_brocken(sa, groesse, Transform3D(dreh, fuss), saat + k, 0.0,
+				{"wasser_y": 6.0 - (fuss.y + groesse.y * 0.5), "moos": 0.8}, false)
 
 
 ## Der Findlingsturm (S2): ein hoher Stein bündig außen an der Kante, dahinter

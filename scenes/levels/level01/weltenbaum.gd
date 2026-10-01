@@ -275,9 +275,11 @@ static func nebel_stoffe() -> Array[ShaderMaterial]:
 
 
 ## Schreibt Farbe, Strecke, Kurve und Dichte des Nebels der Umgebung in
-## einen Stoff mit eigenem Nebel (Dichte mal `NEBEL_ANTEIL`). Die Farbe
-## geht linear in den Shader, wie der Renderer sein Nebellicht rechnet.
+## einen Stoff mit eigenem Nebel (Dichte mal `NEBEL_ANTEIL`, oder mal dem
+## Anteil, den der Stoff als Meta "nebel_anteil" trägt – `nebelarm`). Die
+## Farbe geht linear in den Shader, wie der Renderer sein Nebellicht rechnet.
 static func nebel_setzen(stoff: ShaderMaterial, umgebung: Environment) -> void:
+	var anteil := float(stoff.get_meta("nebel_anteil", NEBEL_ANTEIL))
 	var c := umgebung.fog_light_color.srgb_to_linear()
 	var e := umgebung.fog_light_energy
 	stoff.set_shader_parameter("nebel_farbe", Vector3(c.r, c.g, c.b) * e)
@@ -285,7 +287,7 @@ static func nebel_setzen(stoff: ShaderMaterial, umgebung: Environment) -> void:
 	stoff.set_shader_parameter("nebel_bis", umgebung.fog_depth_end)
 	stoff.set_shader_parameter("nebel_kurve", umgebung.fog_depth_curve)
 	stoff.set_shader_parameter("nebel_dichte",
-			umgebung.fog_density * NEBEL_ANTEIL if umgebung.fog_enabled else 0.0)
+			umgebung.fog_density * anteil if umgebung.fog_enabled else 0.0)
 
 
 ## Achse des Stamms in Weltkoordinaten (y = 0).
@@ -407,8 +409,19 @@ static func _baum_bauen(level: Level01) -> void:
 		zwilling["radius"] = float(b["radius"]) * 0.9
 		zwilling["hoehe"] = float(b["radius"]) * 0.55
 		grob.append(zwilling)
-	_knoten(baum, "Krone", Weltenbaum.krone(grob, true),
-			_nebelarm(Weltenbaum.stoff_krone(true), level), false)
+	var laub_fern := _nebelarm(Weltenbaum.stoff_krone(true), level)
+	var krone := _knoten(baum, "Krone", Weltenbaum.krone(grob, true), laub_fern, false)
+	krone.visibility_range_end = NAH_BIS
+	krone.visibility_range_end_margin = RAND
+	# Aus der Ferne (Grat, Fallklamm: 110–190 m) EINE Kuppel statt der
+	# flachen Schirmballen: Die lasen sich vom Grat aus als gestapelte
+	# Scheiben, eine Pagode aus dunklen Tellern (Welle 6). Gleicher Stoff,
+	# gleiche Hülle; aus der Nähe (Wiese, Wendel) bleibt der Schirm, den man
+	# von unten sieht.
+	var kuppel := _knoten(baum, "KroneFern", Weltenbaum.krone(_fernkuppel(grob), true),
+			laub_fern, false)
+	kuppel.visibility_range_begin = NAH_BIS
+	kuppel.visibility_range_begin_margin = RAND
 	var krone_nah := _knoten(baum, "KroneNah", Weltenbaum.krone(fein, false),
 			_nebelarm(Weltenbaum.stoff_krone(false), level), false)
 	krone_nah.visibility_range_end = KRONE_NAH_BIS
@@ -417,17 +430,18 @@ static func _baum_bauen(level: Level01) -> void:
 
 
 ## Für andere Module (die fernen Riesen der Bachwiese, `L01Wald`): wie
-## `_nebelarm`. Nur nach `bauschritte` dieses Moduls aufrufen – der Aufbau
-## des Baums leert die Liste für den Regler.
-static func nebelarm(stoff: Material, level: Level01) -> Material:
-	return _nebelarm(stoff, level)
+## `_nebelarm`, auf Wunsch mit eigenem Anteil am Nebel. Nur nach
+## `bauschritte` dieses Moduls aufrufen – der Aufbau des Baums leert die
+## Liste für den Regler.
+static func nebelarm(stoff: Material, level: Level01, anteil: float = NEBEL_ANTEIL) -> Material:
+	return _nebelarm(stoff, level, anteil)
 
 
 ## Eine Abschrift von `stoff` mit eigenem Nebel (siehe `NEBEL_ANTEIL`),
 ## eingestellt auf die Umgebung des Levels und für den Regler vermerkt. Der
 ## Shader entsteht einmal je Quellshader; ohne passende Stelle im Code
 ## bleibt der Stoff, wie er ist.
-static func _nebelarm(stoff: Material, level: Level01) -> Material:
+static func _nebelarm(stoff: Material, level: Level01, anteil: float = NEBEL_ANTEIL) -> Material:
 	var alt := stoff as ShaderMaterial
 	if alt == null or alt.shader == null:
 		return stoff
@@ -443,6 +457,8 @@ static func _nebelarm(stoff: Material, level: Level01) -> Material:
 		_nebel_shader[alt.shader] = shader
 	var neu := alt.duplicate() as ShaderMaterial
 	neu.shader = shader
+	if not is_equal_approx(anteil, NEBEL_ANTEIL):
+		neu.set_meta("nebel_anteil", anteil)
 	var welt := level.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if welt != null and welt.environment != null:
 		nebel_setzen(neu, welt.environment)
@@ -641,6 +657,23 @@ static func _kronenballen(info: Dictionary) -> Array:
 	ballen.append({"mitte": Vector3(-1.0, 40.5, 1.0), "radius": 29.0, "hoehe": 11.0,
 			"variante": 1, "saat": 41, "ballen": 4, "grob": true})
 	return ballen
+
+
+## Die Ballen der Fernkrone: dieselben Stellen wie die groben Ballen, aber
+## rund und hoch (Haufenwolke statt Schirm), dazu eine große Kuppel über der
+## Mitte, die die Ballen zu EINEM Umriss verbindet – Unterseite auf gut 40,
+## Scheitel bei 70 wie die Krone (Plan 3: Oberseite 72).
+static func _fernkuppel(grob: Array) -> Array:
+	var neu: Array = []
+	for b: Dictionary in grob:
+		var k := b.duplicate()
+		var r := float(b["radius"])
+		k["variante"] = 0
+		k["hoehe"] = minf(float(b.get("hoehe", r * 0.9)) * 1.45, r * 1.15)
+		neu.append(k)
+	neu.append({"mitte": Vector3(0.0, 55.0, 0.0), "radius": 27.0, "hoehe": 28.0, "variante": 0,
+			"saat": 43, "ballen": 6, "grob": true})
+	return neu
 
 
 ## Liegt ein Punkt (Achsraum) im Sektor der feinen Krone, Norden bis
@@ -1855,6 +1888,39 @@ static func _brueche(ziel: Dictionary, bahn: Bahn, level: Level01,
 		# als rote, ebene Tafel mit Jahresringen im Bild (ein Viertel davon).
 		Weltenbaum.bruch_in(_st_bei(ziel, s), welt, ra.v * stelle.y, rng,
 				{"splitter": 1.0, "flach_ueber": ra.o.y - 0.3, "zerfetzt": 1.0, "scherben": 8})
+		_splitterkrone(_st_bei(ziel, s), ra, stelle.y, e, rng)
+
+
+## Splitterkrone an der Lippe eines Wurzelbruchs: Faserspäne, die über die
+## Kante hinaus in die Lücke stehen und sich aufbiegen (0,2–0,55 m hoch) –
+## nur im äußeren Viertel der Breite (|q| ≥ 2,9), wo niemand abspringt oder
+## landet; die Mitte bleibt die glatte Sprunglippe. Ohne sie lief die Kante
+## als Lineal über die Wurzel, der Bruch eine rechteckige Kerbe (Welle 6).
+## `richtung` +1: Die Lücke liegt in +s.
+static func _splitterkrone(st: SurfaceTool, ra: Rahmen, richtung: float, kante: float,
+		rng: RandomNumberGenerator) -> void:
+	var art := Vector2(Riesenstamm.EIGEN, 0.0)
+	var vor := ra.v * richtung
+	for seite: float in [-1.0, 1.0]:
+		var q := seite * rng.randf_range(2.9, 3.2)
+		while absf(q) < kante - 0.3:
+			var breite := rng.randf_range(0.1, 0.22)
+			var hoch := rng.randf_range(0.2, 0.55) * smoothstep(2.8, 3.6, absf(q))
+			var raus := rng.randf_range(0.15, 0.45)
+			var fuss := ra.p(q, -0.06) - vor * 0.05
+			var a := fuss - ra.r * breite * 0.5
+			var b := fuss + ra.r * breite * 0.5
+			var spitze := fuss + vor * raus + Vector3.UP * hoch \
+					+ ra.r * rng.randf_range(-0.08, 0.08)
+			var hinten := fuss - vor * rng.randf_range(0.08, 0.16) + Vector3.UP * hoch * 0.25
+			var hell := Weltenbaum.HOLZ * rng.randf_range(1.0, 1.35)
+			var dunkel := Weltenbaum.BRUCH_BORKE * 1.6
+			Weltenbaum.dreieck(st, a, b, spitze, vor, hell * 0.8, hell * 0.8, hell, art)
+			Weltenbaum.dreieck(st, b, a, hinten, -vor + Vector3.UP, dunkel, dunkel, dunkel * 1.2,
+					art)
+			Weltenbaum.dreieck(st, a, hinten, spitze, -ra.r * seite, dunkel, dunkel, hell, art)
+			Weltenbaum.dreieck(st, hinten, b, spitze, ra.r * seite, dunkel, dunkel, hell, art)
+			q += seite * rng.randf_range(0.14, 0.3)
 
 
 # ---------------------------------------------------------------- Oberwurzel

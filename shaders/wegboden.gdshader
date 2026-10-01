@@ -17,13 +17,15 @@
 //                  das ungleich weit in die Decke frisst; längs laufende
 //                  Borkenrippen an den Rändern mit Moos in den Furchen
 //                  (früher eigene Leisten aus Geometrie, die auf der Decke
-//                  flimmerten), Querrisse alle 1,5–4 m, dunkle Knoten; am
-//                  Anfang steigt er ausgefranst aus der Erde des Waldwegs
+//                  flimmerten), Querrillen alle 1,5–4 m mit hellem Rand,
+//                  dunkle Knoten; die Borke in Metern längs der Spur (in
+//                  zwei Lagen, die zweite gedreht und größer); am Anfang
+//                  steigt er ausgefranst aus der Erde des Waldwegs
 //
 // Texturzugriffe je Bildpunkt: Weltrauschen, Rasen, dazu Erde +
-// Erdnormalen (Waldweg) bzw. Borke, das treibende Kronenlicht nur, wo ein
-// Kronendach ist, auf den ersten Metern der Wurzel auch Erde (Wurzelrücken)
-// – höchstens fünf. Kein SCREEN_TEXTURE, kein DEPTH_TEXTURE
+// Erdnormalen (Waldweg) bzw. zwei Lagen Borke, das treibende Kronenlicht
+// nur, wo ein Kronendach ist – höchstens fünf; auf den ersten drei Metern
+// der Wurzel kommt die Erde dazu (sechs). Kein SCREEN_TEXTURE, kein DEPTH_TEXTURE
 // (gl_compatibility). Knoten und Risse sind reine Rechnung.
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
@@ -39,10 +41,18 @@ uniform sampler2D flanke : source_color, filter_linear_mipmap_anisotropic, repea
 uniform bool wurzelruecken = false;
 // Erde: Wiederholungen je Meter in Welt-XZ (wie der Waldweg der Bibliothek).
 uniform float boden_kachel = 0.37;
-// Borke: (quer, längs) je Meter entlang der Spur. Längs nur 1,6-mal so
-// gestreckt wie quer: Mit (0,24; 0,065) lief eine Kachel 15 m längs und
-// 4 m quer, und die Borke las sich als Planken oder Bewegungsunschärfe.
-uniform vec2 borke_kachel = vec2(0.22, 0.14);
+// Borke: (quer, längs) je Meter entlang der Spur, in Metern (Strecke und
+// Querabstand) – also ohne UV-Streckung. Die Rinde der Bibliothek hat ihre
+// Furchen schon 5:1 gestreckt (für Stämme); längs dichter gekachelt, bleibt
+// davon auf dem Weg knapp 3:1: Furchen gut 10 cm breit und 30 cm lang wie
+// grobe Eichenborke. Mit (0,22; 0,14) lief eine Kachel 4,5 m quer und 7 m
+// längs, die Furchen 8:1 – Wellpappe oder Planken (Welle 6).
+uniform vec2 borke_kachel = vec2(0.5, 0.9);
+// Zweite Lage der Borke: um 35° gedreht und 2,7-mal so groß, nach einem
+// groben Weltrauschen eingeblendet. Sie bricht die Wiederholung der
+// Kachel und den Zug der Streifen – die Faser biegt sich um Knoten.
+uniform float borke_dreh = 0.61;
+uniform float borke_gross = 0.37;
 uniform vec4 erde_ton : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 borke_ton : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 // Moos auf dem Wurzelrücken: der Rasen des Waldwegs, gelber und ruhiger.
@@ -59,6 +69,15 @@ uniform float erde_bis = -1000000.0;
 uniform vec2 kronen_stellen[24];
 uniform int kronen_anzahl = 0;
 uniform float kronen_fest = 0.0;
+// Lücken als (von, bis, erdig) entlang der Strecke. An ihren Lippen zieht
+// sich die helle Spur mit krümeligem, unruhigem Rand zurück (erdig = 1:
+// 4–40 cm, die Grasnarbe des Saums liegt dort 6 mm tiefer und zeigt den
+// Abbruch), auf der Wurzel (erdig = 0) dunkelt nur ein ausgefranstes Band.
+// Die Kollision bleibt die gerade Kante; nichts ragt über sie hinaus. Mit
+// geradem Ende der Decke lag die Lippe wie mit dem Lineal gezogen, die
+// Ecken rechtwinklig (Welle 6). `luecken_anzahl` 0: ohne.
+uniform vec3 luecken[8];
+uniform int luecken_anzahl = 0;
 
 varying vec3 v_welt;
 varying float v_kronen;
@@ -176,6 +195,33 @@ void fragment() {
 	vec3 dpx = dFdx(VERTEX);
 	vec3 dpy = dFdy(VERTEX);
 
+	// Abbruchkanten: Abstand (m entlang s) zur nächsten Lippe einer Lücke.
+	float lippe_d = 10.0;
+	float lippe_erdig = 0.0;
+	for (int i = 0; i < 8; i++) {
+		if (i >= luecken_anzahl) {
+			break;
+		}
+		vec3 l = luecken[i];
+		float d = s < l.x ? l.x - s : (s > l.y ? s - l.y : 0.0);
+		if (d < lippe_d) {
+			lippe_d = d;
+			lippe_erdig = l.z;
+		}
+	}
+	float lippe_band = 0.0;
+	if (lippe_d < 0.7) {
+		// Ohne Ableitungen (Stufe 0): Der Zweig nimmt nicht jeder Block.
+		float n1 = textureLod(wald_rauschen, xz * 0.55, 0.0).r;
+		float n2 = textureLod(wald_rauschen, xz * 2.1 + vec2(0.37, 0.11), 0.0).g;
+		float rueck = (0.04 + 0.3 * n1 + 0.06 * n2) * lippe_erdig;
+		if (lippe_d < rueck) {
+			discard;
+		}
+		lippe_band = 1.0 - smoothstep(rueck, rueck + 0.14 + 0.12 * n2 + 0.1 * (1.0 - lippe_erdig),
+				lippe_d);
+	}
+
 	vec3 farbe;
 	float rauh;
 	if (!wurzelruecken) {
@@ -195,7 +241,12 @@ void fragment() {
 		// Borke längs der Spur: quer in Metern (halbe Breite 4 m), längs
 		// die Strecke. So laufen die Rippen mit dem Weg, auch in der Wendel.
 		vec2 buv = vec2(qm * borke_kachel.x, sl * borke_kachel.y);
-		vec3 borke = texture(boden_farbe, buv).rgb;
+		vec2 qs = vec2(qm, sl);
+		vec2 gedreht = vec2(cos(borke_dreh) * qs.x - sin(borke_dreh) * qs.y,
+				sin(borke_dreh) * qs.x + cos(borke_dreh) * qs.y);
+		vec2 buv2 = gedreht * borke_kachel * borke_gross + vec2(0.31, 0.57);
+		vec3 borke = mix(texture(boden_farbe, buv).rgb, texture(boden_farbe, buv2).rgb,
+				0.15 + 0.45 * smoothstep(0.3, 0.7, w.g));
 		float h = dot(borke, vec3(0.333));
 		// Abgetreten: Furchen flacher, Farbe heller und blasser, aber warm –
 		// grau las sich die Borke als gebürstetes Blech.
@@ -213,19 +264,24 @@ void fragment() {
 		rippe = mix(rippe, 0.5, smoothstep(0.25, 0.6, rippen_fw)) * rippen_zone;
 		float rippen_furche = rippen_zone * (1.0 - smoothstep(0.2, 0.45, rippe));
 
-		// Querrisse alle 1,5–4 m: dunkle Linien mit Moos, nicht über die
-		// ganze Breite.
+		// Querrisse alle 1,5–4 m: RILLEN, 8–15 cm breit, dunkelbraun mit
+		// Moos im Grund und einem hellen, abgetretenen Rand von gut 5 cm –
+		// nicht über die ganze Breite. Als schwarze Haarlinien lasen sie sich
+		// wie Striche mit dem Stift (Welle 6). Gerechnet in Metern quer zur
+		// Rille (eine Periode der Rissfolge sind 2,86 m).
 		float riss_lauf = sl * 0.35 + w.b * 1.7;
 		float riss_t = fract(riss_lauf);
-		float riss_fw = fwidth(riss_lauf);
+		float riss_fw = fwidth(riss_lauf) * 2.86;
 		float riss_id = floor(riss_lauf + 0.5);
-		// Breite je Riss und quer schwankend (10–30 cm), mit weichem Rand.
-		float riss_breite = (0.08 + 0.1 * fract(riss_id * 0.618))
-				* (0.7 + 0.5 * sin(qm * 1.9 + riss_id));
-		float riss_abstand = min(riss_t, 1.0 - riss_t) * 2.0;
-		float riss = 1.0 - smoothstep(riss_breite * 0.35, riss_breite + riss_fw * 1.5, riss_abstand);
-		riss *= smoothstep(-0.25, 0.35, sin(qm * 0.85 + riss_id * 2.37))
-				* (1.0 - smoothstep(0.35, 0.7, riss_fw));
+		float riss_m = min(riss_t, 1.0 - riss_t) * 2.86;
+		float riss_halb = (0.04 + 0.035 * fract(riss_id * 0.618))
+				* (0.8 + 0.35 * sin(qm * 1.9 + riss_id));
+		float riss_lauf_quer = smoothstep(-0.25, 0.35, sin(qm * 0.85 + riss_id * 2.37));
+		float riss = (1.0 - smoothstep(riss_halb * 0.55, riss_halb + riss_fw, riss_m))
+				* riss_lauf_quer * (1.0 - smoothstep(0.08, 0.2, riss_fw));
+		float riss_rand = smoothstep(riss_halb * 0.6, riss_halb + 0.01, riss_m)
+				* (1.0 - smoothstep(riss_halb + 0.03, riss_halb + 0.07 + riss_fw, riss_m))
+				* riss_lauf_quer * (1.0 - smoothstep(0.08, 0.2, riss_fw));
 
 		// Knoten: dunkle Kerne mit hellerem Wulst, auf der Spur halb
 		// abgetreten.
@@ -233,8 +289,10 @@ void fragment() {
 		float knoten_kern = kn.x * mix(0.6, 1.0, smoothstep(0.1, 0.4, spur));
 		kern *= 1.0 + 0.16 * kn.y;
 		kern = mix(kern, vec3(0.1, 0.066, 0.04) * borke_ton.rgb, knoten_kern * 0.78);
-		// Im Riss dunkles Moos, kein Strich mit dem Stift.
-		kern = mix(kern, vec3(0.035, 0.05, 0.018), riss * 0.8);
+		// In der Rille dunkle Borke mit Moos im Grund, am Rand hell
+		// abgetreten.
+		kern *= 1.0 + 0.16 * riss_rand;
+		kern = mix(kern, kern * vec3(0.32, 0.3, 0.24) + vec3(0.012, 0.022, 0.006), riss * 0.85);
 		kern *= 1.0 - 0.28 * rippen_furche;
 
 		// Moos kriecht von den Flanken in die Furchen der Rippen, in die
@@ -269,7 +327,7 @@ void fragment() {
 		// Relief aus den Bildschirmableitungen der Borkenhelligkeit (wie
 		// `Riesenstamm.borkenstoff` in Weltfassung): kein Tangentenraum nötig.
 		// Dazu die Rippen, die Risse (tief) und die Knoten (erhaben).
-		float relief_h = (h + rippe * 0.55 - riss * 0.6 + kn.x * 0.35 + kn.y * 0.25)
+		float relief_h = (h + rippe * 0.55 - riss * 0.7 + riss_rand * 0.2 + kn.x * 0.35 + kn.y * 0.25)
 				* (1.0 - anteil * 0.7) * (1.0 - erdig);
 		float dhx = dFdx(relief_h);
 		float dhy = dFdy(relief_h);
@@ -281,8 +339,9 @@ void fragment() {
 		rauh = mix(0.72, 0.9, anteil);
 	}
 
-	// Verdeckung zum Rand: Mitte 1,0, Rand 0,78 (`Wegmaske.verdeckung`).
-	float ao = mix(1.0, 0.78, smoothstep(0.3, 1.0, rand));
+	// Verdeckung zum Rand: Mitte 1,0, Rand 0,78 (`Wegmaske.verdeckung`); an
+	// der Lippe krümelig dunkler (festgetretene, abgebrochene Erde).
+	float ao = mix(1.0, 0.78, smoothstep(0.3, 1.0, rand)) * (1.0 - 0.38 * lippe_band);
 	ALBEDO = farbe * ao * kronen_faktor(licht, v_kronen, m);
 	ROUGHNESS = rauh;
 	SPECULAR = 0.3;
