@@ -69,6 +69,11 @@ const SCHICHT_NEIGUNG := 0.07
 ## null; so steht ein Trittstein mit Anlauf wie gewachsener Fels im Bach
 ## statt wie eine Trommel. Die Oberkante bleibt, wo sie ist; Vorgabe 0).
 static func netz(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
+	return Bauspeicher.netz("findling", [groesse, optionen],
+			func() -> ArrayMesh: return _netz_bauen(groesse, optionen))
+
+
+static func _netz_bauen(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
 	var o := _vorgaben_netz(groesse.abs() * 0.5)
 	o.merge(optionen, true)
 	return _koerper(groesse.abs() * 0.5, o)
@@ -145,6 +150,11 @@ static func _vorgaben_scheibe(h: Vector3) -> Dictionary:
 ## Deko-Fels ungefähr in der Größe `groesse`: gewölbt, stärker verbeult, auch
 ## nach außen. Nicht zum Draufstehen gedacht und ohne Passform.
 static func brocken(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
+	return Bauspeicher.netz("findling_brocken", [groesse, optionen],
+			func() -> ArrayMesh: return _brocken_bauen(groesse, optionen))
+
+
+static func _brocken_bauen(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
 	var h := groesse.abs() * 0.5
 	var klein := minf(h.x, h.z)
 	var o := {

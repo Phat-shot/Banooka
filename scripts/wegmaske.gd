@@ -109,6 +109,19 @@ static func einrichten(stoff: ShaderMaterial) -> void:
 static func _sicherstellen() -> void:
 	if _bild != null:
 		return
+	# Vom `Bauspeicher`, sonst gerechnet (gut 0,1 s). Die CPU-Abfragen
+	# lesen `_daten`, die GPU bekommt eine Kopie mit Mipmaps – beide aus
+	# demselben Bild, so bleiben CPU- und GPU-Maske gleich.
+	_bild = Bauspeicher.holen("wegmaske_welt_%d_%d" % [KANTE, SAAT],
+			func() -> Image: return _welt_rechnen()) as Image
+	_daten = _bild.get_data()
+	var gpu := _bild.duplicate() as Image
+	gpu.generate_mipmaps()
+	_textur = ImageTexture.create_from_image(gpu)
+
+
+## Das Weltrauschen, Bildpunkt für Bildpunkt (RGBA8, ohne Mipmaps).
+static func _welt_rechnen() -> Image:
 	var n := KANTE * KANTE
 	# R: die Maske. Vier Oktaven, Grundform um 11 m, die feinste um 1,5 m:
 	# Die Spur schwingt weit aus und franst an der Kante trotzdem aus.
@@ -138,16 +151,14 @@ static func _sicherstellen() -> void:
 	var trocken_r := _rauschen(SAAT + 2, 0.075, 2, 6.0)
 	# A: Kronenlicht, Flecken um 3 m.
 	var krone := _rauschen(SAAT + 3, 0.09, 2, 4.0)
-	_daten.resize(n * 4)
+	var daten := PackedByteArray()
+	daten.resize(n * 4)
 	for i in n:
-		_daten[i * 4] = maske[i]
-		_daten[i * 4 + 1] = makro_r[i]
-		_daten[i * 4 + 2] = trocken_r[i]
-		_daten[i * 4 + 3] = krone[i]
-	_bild = Image.create_from_data(KANTE, KANTE, false, Image.FORMAT_RGBA8, _daten)
-	var gpu := _bild.duplicate() as Image
-	gpu.generate_mipmaps()
-	_textur = ImageTexture.create_from_image(gpu)
+		daten[i * 4] = maske[i]
+		daten[i * 4 + 1] = makro_r[i]
+		daten[i * 4 + 2] = trocken_r[i]
+		daten[i * 4 + 3] = krone[i]
+	return Image.create_from_data(KANTE, KANTE, false, Image.FORMAT_RGBA8, daten)
 
 
 ## Ein kachelbares Rauschfeld, ein Byte je Bildpunkt, auf 0..255 gestreckt.
@@ -325,6 +336,18 @@ static func rasen_mittel() -> Color:
 static func rasen_textur() -> ImageTexture:
 	if _rasen != null:
 		return _rasen
+	# Vom `Bauspeicher`, sonst gerechnet (gut 0,1 s): Bild mit Mipmaps und
+	# die mittlere Farbe, die die CPU-Seite braucht.
+	var paket: Dictionary = Bauspeicher.wert("wegmaske_rasen_%d_%d" % [RASEN_KANTE, SAAT],
+			func() -> Dictionary: return _rasen_rechnen())
+	_rasen_mittel = paket["mittel"]
+	_rasen = ImageTexture.create_from_image(paket["bild"] as Image)
+	return _rasen
+
+
+## Die Rasentextur, Bildpunkt für Bildpunkt: {"bild": Image (mit
+## Mipmaps), "mittel": Color (linear)}.
+static func _rasen_rechnen() -> Dictionary:
 	const K := RASEN_KANTE
 	# 256 Bildpunkte auf 2,4 m: Büschel um 12 cm, Halme ein bis zwei
 	# Bildpunkte breit. Die Kontraste bleiben leise – aus sechs Metern
@@ -388,11 +411,9 @@ static func rasen_textur() -> ImageTexture:
 		daten[i * 4 + 3] = int(clampf(h, 0.0, 1.0) * 255.0)
 		summe += Vector3(c.r, c.g, c.b)
 	summe /= float(K * K)
-	_rasen_mittel = Color(summe.x, summe.y, summe.z).srgb_to_linear()
 	var bild_ := Image.create_from_data(K, K, false, Image.FORMAT_RGBA8, daten)
 	bild_.generate_mipmaps()
-	_rasen = ImageTexture.create_from_image(bild_)
-	return _rasen
+	return {"bild": bild_, "mittel": Color(summe.x, summe.y, summe.z).srgb_to_linear()}
 
 
 static func _rauschen_k(saat: int, frequenz: float, oktaven: int, kante: int) -> PackedByteArray:

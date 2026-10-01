@@ -70,6 +70,11 @@ const BIEGUNG := 0.5
 ##   wind         Windgewicht 0..1 (1)
 ##   saat         feste Saat (1)
 static func netz(optionen: Dictionary = {}) -> ArrayMesh:
+	return Bauspeicher.netz("kronenwolke", [optionen],
+			func() -> ArrayMesh: return _netz_bauen(optionen))
+
+
+static func _netz_bauen(optionen: Dictionary = {}) -> ArrayMesh:
 	var saat: int = optionen.get("saat", 1)
 	var rng := PropWerkzeug.zufall(saat)
 	var variante: int = optionen.get("variante", 0)
@@ -486,6 +491,15 @@ static func stoff(farbe: Color = Farben.LAUB, nah: bool = true) -> ShaderMateria
 static func blatttextur() -> ImageTexture:
 	if _blatt != null:
 		return _blatt
+	# Vom `Bauspeicher`, sonst gerechnet (rund 75 ms).
+	var bild := Bauspeicher.holen("kronenwolke_blatt",
+			func() -> Image: return _blattbild()) as Image
+	_blatt = ImageTexture.create_from_image(bild)
+	return _blatt
+
+
+## Das Blattbild samt angehobenen Mipmaps, Bildpunkt für Bildpunkt.
+static func _blattbild() -> Image:
 	const K := 256
 	var grund := Image.create_empty(K, K, false, Image.FORMAT_RGBA8)
 	grund.fill(Color8(150, 150, 150, 0))
@@ -548,8 +562,7 @@ static func blatttextur() -> ImageTexture:
 	var bild := Image.create_from_data(K, K, false, Image.FORMAT_RGBA8, daten)
 	bild.generate_mipmaps()
 	_deckung_halten(bild)
-	_blatt = ImageTexture.create_from_image(bild)
-	return _blatt
+	return bild
 
 
 ## Hebt Alpha in den Mipmaps so weit an, dass bei der Schwelle 0,5 so viel

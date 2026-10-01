@@ -1665,6 +1665,11 @@ static func _vorhangstoff() -> ShaderMaterial:
 ## Moospolster. Graubraun hinter den Wurzeln (Alpha 0), damit die Mipmaps
 ## nicht dunkel ausfransen; in den kleineren Stufen hält Alpha die Deckung.
 static func _vorhangbild() -> ImageTexture:
+	return Bauspeicher.holen("weltenbaum_vorhang",
+			func() -> ImageTexture: return _vorhangbild_rechnen()) as ImageTexture
+
+
+static func _vorhangbild_rechnen() -> ImageTexture:
 	const K := 256
 	const HALB := 128
 	var bild := Image.create_empty(K, K, false, Image.FORMAT_RGBA8)
