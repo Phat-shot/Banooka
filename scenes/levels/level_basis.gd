@@ -20,6 +20,10 @@ const KISTE_SZENE := preload("res://scenes/crates/Kiste.tscn")
 ## als die Korridorkamera je zur Seite schaut (gemessen bis 38°).
 const RUNDGANG_ABSTAND := 12.0
 const RUNDGANG_BLICKE: Array[float] = [40.0, -40.0]
+## Breite des Rundgang-Viewports in Bildpunkten (Höhe nach dem Seiten-
+## verhältnis des Fensters). Die Shaderfassung hängt nicht an der Größe,
+## die Füllrate schon.
+const RUNDGANG_BREITE := 320
 ## Aus nur zum Vergleichen (`werkzeuge/ruckelprobe.gd`, RUCKEL_VORWAERMEN=0).
 static var rundgang_an := true
 
@@ -184,6 +188,14 @@ func _aufbauen() -> void:
 ## (`visibility_range`) gelten von jeder Kamera aus; ein Halt alle 12 m
 ## bringt jedes Objekt am Weg einmal nah genug heran.
 ##
+## In einem EIGENEN, kleinen Viewport in derselben Welt: Übersetzte Shader
+## gelten für alle Viewports, aber die Sichtweiten merken sich je Viewport,
+## was zuletzt zu sehen war (der Rand `visibility_range_end_margin` wirkt
+## als Hysterese). Fuhr die Spielkamera selbst die Runde, standen am Start
+## danach Kronen, die man von dort aus sonst nicht sieht. Der Viewport
+## übernimmt alles, was die Shaderfassung bestimmt (MSAA, 3D-Skalierung,
+## HDR, Schattenatlas für Punktlichter), nur nicht die Größe.
+##
 ## Headless (Prüfwerkzeuge) wird nichts gezeichnet – dort entfällt er.
 func _rundgang() -> void:
 	if not rundgang_an or verlauf == null or DisplayServer.get_name() == "headless":
@@ -194,8 +206,24 @@ func _rundgang() -> void:
 	var abstand := 8.0
 	var hoehe := 4.2
 	var vorlauf := 4.0
+	var haupt := get_viewport()
+	var buehne := SubViewport.new()
+	buehne.name = "Rundgang"
+	var flaeche := haupt.get_visible_rect().size
+	var seitenverhaeltnis := flaeche.x / maxf(flaeche.y, 1.0)
+	buehne.size = Vector2i(RUNDGANG_BREITE, maxi(16, roundi(RUNDGANG_BREITE / seitenverhaeltnis)))
+	buehne.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	buehne.msaa_3d = haupt.msaa_3d
+	buehne.scaling_3d_mode = haupt.scaling_3d_mode
+	buehne.scaling_3d_scale = haupt.scaling_3d_scale
+	buehne.use_hdr_2d = haupt.use_hdr_2d
+	buehne.use_debanding = haupt.use_debanding
+	buehne.positional_shadow_atlas_size = haupt.positional_shadow_atlas_size
+	buehne.positional_shadow_atlas_16_bits = haupt.positional_shadow_atlas_16_bits
+	for quadrant in 4:
+		buehne.set_positional_shadow_atlas_quadrant_subdiv(quadrant,
+				haupt.get_positional_shadow_atlas_quadrant_subdiv(quadrant))
 	var kamera := Camera3D.new()
-	kamera.name = "Rundgang"
 	# Im Bildtakt versetzt, nie bewegt.
 	kamera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if _kamera != null:
@@ -211,8 +239,9 @@ func _rundgang() -> void:
 			hoehe = float(_kamera.get("hoehe"))
 		if "blick_vorlauf" in _kamera:
 			vorlauf = float(_kamera.get("blick_vorlauf"))
-	add_child(kamera)
-	kamera.make_current()
+	buehne.add_child(kamera)
+	add_child(buehne)
+	kamera.current = true
 	var halte := maxi(1, ceili(laenge / RUNDGANG_ABSTAND) + 1)
 	for i in halte:
 		var s := minf(float(i) * RUNDGANG_ABSTAND, laenge)
@@ -233,9 +262,7 @@ func _rundgang() -> void:
 				return
 		Ladeschirm.fortschritt(0.95 + 0.05 * float(i + 1) / float(halte),
 				"Licht und Schatten werden vorbereitet")
-	if _kamera != null:
-		_kamera.make_current()
-	kamera.queue_free()
+	buehne.queue_free()
 
 
 func _bauzeit_merken(text: String, beginn: int) -> void:

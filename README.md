@@ -177,6 +177,23 @@ als Schwierigkeitsurteil.
 `Zeittafel` druckt für jedes Level die Richtzeit des Zeitmodus samt ihrer
 Herkunft.
 
+### Ladezeit und Ruckler (`werkzeuge/bauzeitprobe.gd`, `ruckelprobe.sh`)
+
+Zwei Messwerkzeuge für die Klage „lädt lange, ruckelt beim Laufen" vom
+Handy (Hintergrund: ARCHITEKTUR.md, „Ladezeit und Ruckler"):
+
+```bash
+godot --headless --path <Kopie> res://werkzeuge/Bauzeitprobe.tscn   # Bauzeit je Schritt
+RUCKEL_REDUZIERT=1 bash werkzeuge/ruckelprobe.sh                    # Ruckler, Handyweg
+```
+
+Die Bauzeitprobe zweimal mit demselben `XDG_DATA_HOME` starten: Der erste
+Lauf füllt den Bauspeicher (wie der erste Start nach der Installation),
+der zweite liest ihn. Die Ruckelprobe fährt dieselbe Zickzackfahrt
+zweimal; Ruckler nur im ersten Durchgang sind Arbeit beim ersten Gebrauch.
+
+MESSWERTE
+
 ### Bildvergleich und Kostenmessung (`werkzeuge/schaufenster.sh`, `foto.sh`, `kontaktbogen.py`)
 
 Jede sichtbare Änderung wird an Bild UND Preis gemessen. Der Preis zählt, weil das Spiel im Browser und auf Mobilgeräten läuft (WebGL2, Compatibility-Renderer). Das Werkzeug dafür ist ein fester Bildersatz, das „Schaufenster“: Splash, Hub und Level 01, immer aus denselben Blickwinkeln.
@@ -407,6 +424,16 @@ Lokal geht der Export genauso, sobald die Android-Templates über
 ```bash
 godot --headless --path . --export-debug "Android" build/banooka-debug.apk
 ```
+
+Die App läuft auf dem Handyweg wie ein Handy im Browser
+(`Effekte.reduziert`: halbe Dichten, kürzere Sichtweiten, eine
+Schattenstufe in Level 01) und hat eigene Projektwerte (`.mobile`): ohne
+MSAA, 3D in 80 % der Auflösung, Schattenkarte 2048, höchstens 60 Bilder je
+Sekunde. Der erste Start nach der Installation rechnet Texturen und Netze
+und legt sie in `user://bauspeicher` ab (rund 20 MB); jeder weitere liest
+sie nur noch. Das Debug-APK aus dem Arbeitsablauf führt GDScript mit
+zusätzlichen Prüfungen aus; zum Beurteilen der Leistung taugt das
+Release-APK eines Tags besser (nicht am Gerät gemessen).
 
 ## Steuerung
 
