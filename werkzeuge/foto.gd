@@ -24,10 +24,13 @@ extends Node
 ##   FOTO_ASSETS   0 = mitgelieferte Naturmodelle aus, prozedural bauen
 ##   FOTO_REDUZIERT 1 = wie ein Handy im Browser: `Effekte.reduziert` (halbe
 ##                 Mengen, kürzere Sichtweiten, Level 01 mit einer
-##                 Schattenstufe bis 50 m) und ohne MSAA – zum Messen des
-##                 Web-Budgets. Die Schattenkarte bleibt 4096 groß (`.web`
-##                 gilt nur im Export); die Zählwerte ändert das nicht, nur
-##                 den VRAM.
+##                 Schattenstufe bis 50 m), ohne MSAA und mit der
+##                 Schattenkarte des Web-Exports (`directional_shadow/size.web`,
+##                 2048 statt 4096). Die Überschreibung `.web` greift nur im
+##                 Export; ohne sie wurde die eine Schattenstufe hier mit
+##                 doppelter Auflösung beurteilt und der VRAM zu hoch
+##                 gezählt. Zum Messen des Web-Budgets und zum Ansehen der
+##                 Schatten, wie ein Handy sie zeigt.
 ##   FOTO_TOUCH    1 = Touch-Tasten zeigen wie auf dem Handy. Zusammen mit
 ##                 FOTO_REDUZIERT das ganze Bild eines Handys im Browser –
 ##                 die Tasten kosten allein rund 70 Draw-Calls.
@@ -51,9 +54,13 @@ extends Node
 ##           Renderer sie nicht (seine Schatten-Zählung bleibt immer 0),
 ##           deshalb fehlt eine eigene Spalte. Gemessen an Level 01: ohne
 ##           Sonnenschatten 1286 statt 2026 Draw-Calls bei 4 m, 480 statt
-##           1027 bei 170 m – die Schatten kosten dort also gut ein Drittel
-##           bis die Hälfte. Die Sonne läuft mit vier Schattenstufen; ein
-##           Objekt mit `cast_shadow` aus spart bis zu vier Draw-Calls.
+##           1027 bei 170 m (altes Level 01 mit vier Schattenstufen) – die
+##           Schatten kosten also gut ein Drittel bis die Hälfte. Jede
+##           Schattenstufe zeichnet jeden Schattenwerfer darin noch einmal;
+##           ein Objekt mit `cast_shadow` aus spart je Stufe einen Draw-Call.
+##           Level 01 läuft am Rechner mit zwei Stufen bis 70 m, im Web am
+##           Rechner mit zwei bis 60 m und auf dem Handy (FOTO_REDUZIERT)
+##           mit einer bis 50 m (`Level01._nach_aufbau`).
 ## obj/prim  gezeichnete Objekte und Primitive (Dreiecke), ebenfalls gesamt
 ## vram      belegter Grafikspeicher, knoten = Knoten im Baum
 ## Das sind Zählwerte, keine Zeiten: Sie stimmen unter llvmpipe (Xvfb)
@@ -80,6 +87,14 @@ func _ready() -> void:
 	if OS.get_environment("FOTO_REDUZIERT") == "1":
 		Effekte.reduziert = true
 		get_tree().root.msaa_3d = Viewport.MSAA_DISABLED
+		# Die Schattenkarte des Web-Exports: Die Überschreibung `.web` gilt
+		# nur dort, hier bliebe sie 4096 groß – und die eine Schattenstufe
+		# des Handys sähe doppelt so scharf aus, wie sie ist.
+		var karte := int(ProjectSettings.get_setting(
+				"rendering/lights_and_shadows/directional_shadow/size.web", 2048))
+		var halb := bool(ProjectSettings.get_setting(
+				"rendering/lights_and_shadows/directional_shadow/16_bits", true))
+		RenderingServer.directional_shadow_atlas_set_size(karte, halb)
 	# FOTO_ZEITMODUS=1 zeigt das Level so, wie es im Zeitlauf aussieht:
 	# mit Zeitkisten und laufender Uhr. Muss VOR dem Aufbau stehen – der
 	# Umbau der Kisten passiert einmalig beim Laden des Levels.

@@ -69,7 +69,7 @@ done
 # Wasserplattformen (tragen sie den Spieler wirklich mit?), das Hangeln und
 # die Deckungsflecken (hält der Schwarm wirklich ab, oder leuchtet der
 # Fleck nur?). Eine Regel, die keine Prüfung hat, ist eine Behauptung.
-echo "--- 4/4 Krabbeln, Böden, Hangeln, Deckung, Dunkelheit, Zeitmodus, Glätte, Wegmaske ---"
+echo "--- 4/4 Krabbeln, Böden, Hangeln, Deckung, Dunkelheit, Zeitmodus, Glätte, Sprünge, Wegmaske ---"
 KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
@@ -106,6 +106,30 @@ GLATT="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Glattpro
 	--fixed-fps 144 2>&1 | grep -Ev "$RAUSCHEN")"
 echo "$GLATT" | grep -E "^---|Zittern|ZITTERT|STUFT|Versetzen|Knoten:|Abweichungen"
 
+# Sprünge (Plan P14): Trägt jeder Pflichtsprung den Menschen, der einfach
+# durchläuft – auch vom Rand aus? Opt-in wie die Proben in Stufe 3: nur
+# Level, deren Skript `sprungfaelle()` anbietet (heute Level 01); die Fälle
+# kommen aus den Daten des Levels. `--fixed-fps 60` macht die echte Figur
+# schneller als Echtzeit und jeden Lauf gleich. FEHLER, wenn der Absprung
+# an einer Kante nicht trägt oder ein Absprungfenster unter 1,25 m liegt.
+SPRUNG=""
+for NR in ${NUMMERN//,/ }; do
+	SKRIPT="$ZIEL/scenes/levels/level${NR}.gd"
+	[ -f "$SKRIPT" ] && grep -q "^func sprungfaelle" "$SKRIPT" || continue
+	TEIL="$(timeout 600 "$GODOT" --headless --fixed-fps 60 --path "$ZIEL" \
+		res://werkzeuge/Sprungprobe.tscn -- "res://scenes/levels/Level${NR}.tscn" 2>&1 \
+		| grep -Ev "$RAUSCHEN")"
+	SPRUNG="$SPRUNG
+$TEIL"
+	echo "$TEIL" | grep -E "Fenster|FEHLER|SCRIPT ERROR|=== Sprungprobe"
+	# Ohne Schlusszeile ist die Probe abgebrochen (Zeitlimit, Absturz).
+	if ! echo "$TEIL" | grep -qE "=== Sprungprobe: [0-9]+ Fälle"; then
+		SPRUNG="$SPRUNG
+FEHLER Sprungprobe Level${NR} ohne Schlusszeile"
+		echo "FEHLER Sprungprobe Level${NR} ohne Schlusszeile"
+	fi
+done
+
 # Wegmaske (Level 01): Rechnen CPU und GPU dieselbe Maske? Die Konstanten
 # prüft Stufe 3; hier wird die Maske wirklich gezeichnet und ausgelesen –
 # das geht nur mit einem Renderer, also über xvfb-run wie foto.sh. Ohne
@@ -129,6 +153,7 @@ if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$ZEIT" | grep -qE "NEIN" \
 		|| echo "$GLATT" | grep -qE "RUCKELT|ZITTERT|STUFT|FLIEGT|SCRIPT ERROR" \
 		|| echo "$MASKE" | grep -qE "ABWEICHUNG|SCRIPT ERROR|ABBRUCH" \
+		|| echo "$SPRUNG" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| ! echo "$GLATT" | grep -qE "=== 0 Abweichungen"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1

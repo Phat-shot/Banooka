@@ -439,18 +439,27 @@ const BEGEHBARES := [
 	# wie die Decke: Der Kamerastrahl bleibt über Deck +1 und berührt sie
 	# nie, aber der Bodenschatten und alle Bodenstrahlen finden sie.
 	#
-	# Lage nach der Sprungprobe (Paket leistung): Wer mit vollem Tempo und
-	# gehaltener Richtung an der Uferkante abspringt, fliegt 4,7 m weit. Bei
-	# 175,9 landete er HINTER dem ersten Stein im Wasser – der Mensch, der
-	# an der Kante springt wie an jeder anderen Lücke, ertrank. Bei 176,5
-	# trägt jeder Absprung von 170,8 bis über die Kante hinaus, und vom
-	# ersten Stein zum zweiten (Abstand 4,2 wie vorher) fast jeder Punkt
-	# des Steins. Lücken jetzt 2,2 / 1,6 / 1,0 m.
-	{"name": "Furtstein 1", "form": "zylinder", "s": 176.5, "q": -1.0,
-			"radius": 1.3, "hoehe": 2.0, "oben_y": 7.2, "ebene": 1,
+	# Lage nach der Sprungprobe (`werkzeuge/sprungprobe.gd`, `sprungfaelle`):
+	# Ein Sprung mit vollem Tempo trägt 4,6–4,7 m weit, auf 10 m Wasser
+	# sind das zwei Hüpfer, nicht drei. Wer durchläuft, springt an der
+	# Uferkante ab (landet bei 177,7–177,9), springt vom ersten Stein gleich
+	# weiter und landet bei 182,4–183,2 – auf dem zweiten Stein oder schon am
+	# Ufer. Deshalb:
+	# * Stein 1 reicht auf jeder Bahn um die Wegmitte (q −0,6 … +0,6) bis
+	#   mindestens 177,9 (Kantensprung trägt, auch auf q 0).
+	# * Stein 2 reicht dort bis mindestens 182,5: Die Lücke zum Ufer bleibt
+	#   unter 0,54 m, und so schmal steht die Kapsel der Figur (r 0,38) auf
+	#   beiden Rändern. In Welle 6 war sie 1,0 m breit, und jeder Absprung
+	#   von den letzten 0,25 m des ersten Steins fiel hinein.
+	# * Die Steine liegen nur 0,5 m neben der Mitte: Wer der Spur folgt,
+	#   trifft beide auf ihrer breiten Seite; die Diagonale von Mitte zu
+	#   Mitte trägt ebenso.
+	# Lücken auf der Mitte 2,6 / 1,5 / 0,1 m: zwei Hüpfer, dann ein Schritt.
+	{"name": "Furtstein 1", "form": "zylinder", "s": 177.0, "q": -0.5,
+			"radius": 1.5, "hoehe": 2.0, "oben_y": 7.2, "ebene": 1,
 			"optik": "wegbauten"},
-	{"name": "Furtstein 2", "form": "zylinder", "s": 180.7, "q": 0.8,
-			"radius": 1.3, "hoehe": 2.0, "oben_y": 7.2, "ebene": 1,
+	{"name": "Furtstein 2", "form": "zylinder", "s": 181.4, "q": 0.5,
+			"radius": 1.6, "hoehe": 2.0, "oben_y": 7.2, "ebene": 1,
 			"optik": "wegbauten"},
 	{"name": "Findlingsturm", "form": "kasten", "s": 189.75, "q": 6.8,
 			"groesse": Vector3(1.6, 4.0, 2.5), "oben": 3.0, "ebene": 16,
@@ -1317,6 +1326,94 @@ func _zaehlen() -> void:
 func pruefprofil() -> Dictionary:
 	return {"sicht": true, "gefaelle": true, "todeszonen": true, "wegmaske": true,
 			"naht": true}
+
+
+## Eine Landung zählt in der Sprungprobe ab so weit vor dem Rand der
+## Gegenseite: Die Kapsel der Figur (r 0,38) steht dort noch auf der Kante.
+const LANDUNG_SPIEL := 0.45
+
+## Namen der Pflichtlücken für die Sprungprobe, nach ihrem Anfang.
+const LUECKEN_NAMEN := {25.0: "Erdspalt", 56.0: "Kerbe", 118.0: "Fallkerbe", 210.5: "G1",
+		243.0: "G2"}
+
+## Die Pflichtsprünge für `werkzeuge/sprungprobe.gd` (Plan P14, 6.2). Aus
+## den Daten abgeleitet: Rückt eine Lücke oder ein Trittstein, folgt die
+## Probe mit. Je Fall: wo die Figur anläuft, wo die Absprungkante liegt
+## (der Absprung dort MUSS tragen) und wie weit die Reihe der
+## Absprungstellen zurückreicht (siehe Kopf der Probe).
+##
+## * Mooslog (Hürde): Kante = die Figur steht mit der Kapsel davor.
+## * Jede Lücke im Weg außer der Furt: auf der Mitte, G2 zusätzlich außen
+##   auf der langen Bahn der Wendel (q +2,4).
+## * Furt: Ufer → Stein 1, Stein 1 → Stein 2, Stein 2 → Ufer, je auf der
+##   Bahn des Steins und auf der Wegmitte; dazu die Diagonale von Mitte zu
+##   Mitte der Steine. Die Kante eines Steins ist sein Rand auf der Bahn –
+##   genau der Absprung, der in Welle 6 in die Lücke vor dem Ufer fiel.
+func sprungfaelle() -> Array[Dictionary]:
+	var faelle: Array[Dictionary] = []
+	var stamm := begehbar("Mooslog")
+	if not stamm.is_empty():
+		var vor_dem_stamm := float(stamm["s"]) - float(stamm["radius"]) - 0.45
+		faelle.append({"name": "Mooslog", "start": Vector2(vor_dem_stamm - 4.0, 0.0),
+				"kante": vor_dem_stamm, "von": vor_dem_stamm - 2.0})
+	for i in range(1, ABSCHNITTE.size()):
+		var kante: float = (ABSCHNITTE[i - 1] as Dictionary)["bis"]
+		var weiter: float = (ABSCHNITTE[i] as Dictionary)["von"]
+		if weiter - kante < 0.5 or not LUECKEN_NAMEN.has(kante):
+			continue
+		var name: String = LUECKEN_NAMEN[kante]
+		var bahnen: Array[float] = [0.0]
+		if name == "G2":
+			bahnen.append(2.4)
+		for q in bahnen:
+			faelle.append({"name": name + (" q %+.1f" % q if q != 0.0 else ""),
+					"start": Vector2(kante - 4.0, q), "kante": kante, "von": kante - 2.0,
+					"landung": weiter - LANDUNG_SPIEL})
+	var eins := begehbar("Furtstein 1")
+	var zwei := begehbar("Furtstein 2")
+	if eins.is_empty() or zwei.is_empty():
+		return faelle
+	var s1: float = eins["s"]
+	var s2: float = zwei["s"]
+	# Das Ufer vor der Furt: das Ende des Abschnitts vor dem ersten Stein.
+	var ufer := _kante_vor(s1)
+	var q1: float = eins["q"]
+	var q2: float = zwei["q"]
+	for q: float in [q1, 0.0]:
+		var bahn := " Bahn" if q != 0.0 else " Mitte"
+		faelle.append({"name": "Furt Ufer>1" + bahn, "start": Vector2(ufer - 6.0, q),
+				"kante": ufer, "von": ufer - 2.5,
+				"landung": _steinrand(eins, q, -1.0) - LANDUNG_SPIEL})
+	for q: float in [q1, 0.0, q2]:
+		var bahn := " Bahn 1" if q == q1 else (" Mitte" if q == 0.0 else " Bahn 2")
+		var nah := _steinrand(eins, q, -1.0) + 0.3
+		faelle.append({"name": "Furt 1>2" + bahn, "start": Vector2(nah, q),
+				"kante": snappedf(_steinrand(eins, q, 1.0), 0.01), "von": nah,
+				"landung": _steinrand(zwei, q, -1.0) - LANDUNG_SPIEL})
+	for q: float in [q2, 0.0]:
+		var bahn := " Bahn" if q != 0.0 else " Mitte"
+		var nah := _steinrand(zwei, q, -1.0) + 0.3
+		faelle.append({"name": "Furt 2>Ufer" + bahn, "start": Vector2(nah, q),
+				"kante": snappedf(_steinrand(zwei, q, 1.0), 0.01), "von": nah,
+				"landung": _kante_nach(s2) - LANDUNG_SPIEL})
+	# Diagonale durch beide Mitten: Die Figur kommt am vorderen Rand von
+	# Stein 1 an und läuft schräg auf die Mitte von Stein 2 zu. Kante ist
+	# der Rand von Stein 1 auf dieser Linie (gerechnet in s/q, die Kurve ist
+	# dort weit).
+	var richtung := Vector2(s2 - s1, q2 - q1).normalized()
+	var r1: float = eins["radius"]
+	var anfang := Vector2(s1, q1) - richtung * (r1 - 0.3)
+	faelle.append({"name": "Furt 1>2 Diagonale", "start": anfang, "ziel": Vector2(s2, q2),
+			"kante": snappedf(s1 + richtung.x * r1, 0.01), "von": anfang.x,
+			"landung": s2 - richtung.x * float(zwei["radius"]) - LANDUNG_SPIEL})
+	return faelle
+
+
+## Rand eines Trittsteins auf der Bahn `q`: vorn (`seite` −1) oder hinten (+1).
+func _steinrand(stein: Dictionary, q: float, seite: float) -> float:
+	var r: float = stein["radius"]
+	var d := q - float(stein["q"])
+	return float(stein["s"]) + seite * sqrt(maxf(r * r - d * d, 0.0))
 
 
 ## Nähte des Geländes an den FLACH-Kanten (für `pruefprofil` "naht").
