@@ -1120,6 +1120,43 @@ td.num {
     </tbody>
   </table></div>
 
+  <h3 class="tabellentitel">Neu aus der Verschönerung von Level 01</h3>
+  <p>Diese Bauteile stammen aus keinem Vorbild, sondern aus der Überarbeitung der Wurzelschlucht. Sie stehen hier, damit neue Level sie finden; einsetzbar sind sie in jeder Schlucht. Die neuen Netze werfen keinen Schatten, und ohne die neuen Schalter bleibt jedes ältere Level unverändert. Einzelheiten stehen in <code>ARCHITEKTUR.md</code> (&bdquo;Levelbau&ldquo; und &bdquo;Props&ldquo;).</p>
+  <div class="tabellenhuelle"><table>
+    <thead><tr><th>Werkzeug</th><th>Datei</th><th>Kurz</th></tr></thead>
+    <tbody>
+      <tr><td class="quelle">Schluchtsaum.bauen</td><td class="quelle">scenes/props/schluchtsaum.gd</td><td>Bewuchs an der Schluchtwand: Blattsaum, Ranken über die Simse, Wurzeln, Farne, Großblätter am Wandfuß; braucht <code>schluchtwand</code> mit <code>kronen_merken</code></td></tr>
+      <tr><td class="quelle">Schluchtsaum.wurzeltor</td><td class="quelle">scenes/props/schluchtsaum.gd</td><td>Wurzelbogen von Wand zu Wand, Scheitel über Doppelsprung und Kamera; Sichtsperre wie <code>torbogen</code></td></tr>
+      <tr><td class="quelle">Schluchtsaum.baumstamm</td><td class="quelle">scenes/props/schluchtsaum.gd</td><td>umgestürzter Stamm von Krone zu Krone, Ranken nie unter einer gesetzten Höhe</td></tr>
+      <tr><td class="quelle">Schluchtsaum.blaetterdach</td><td class="quelle">scenes/props/schluchtsaum.gd</td><td>viele Baumkronen in zwei Netzen (Kronen, Stämme) — Wald, auf den man von oben schaut</td></tr>
+      <tr><td class="quelle">Wasserfall.an_schluchtwand</td><td class="quelle">scenes/props/wasserfall.gd</td><td>Wasserfall, der der Wandform folgt; unbeleuchteter Shader ohne Bild- oder Tiefenpuffer</td></tr>
+      <tr><td class="quelle">Lichtschacht</td><td class="quelle">scenes/props/lichtschacht.gd</td><td>gemalte Sonnenstrahlen (MultiMesh, additiv, zur Kamera gedreht); <code>decke</code> blendet sie über der Wandkrone aus</td></tr>
+      <tr><td class="quelle">schluchtwand-Optionen</td><td class="quelle">scripts/level_werkzeuge.gd</td><td><code>welt_projektion</code>, <code>welt_kachel</code>, <code>helligkeit</code> (auch je Abschnitt), <code>kronen_merken</code></td></tr>
+      <tr><td class="quelle">Stimmungszone, relativ</td><td class="quelle">scripts/stimmungszone.gd</td><td><code>nebel_faktor</code>, <code>licht_faktor</code>, <code>farbanteil</code> — Abschnittsstimmung relativ zur Grundstimmung der Szene</td></tr>
+      <tr><td class="quelle">Baum, Kleinzeug, Horizont</td><td class="quelle">scenes/props/</td><td><code>hoechsthoehe</code>, <code>eigenbau</code>, <code>kronenfuelle</code>; <code>eigenbau</code>; <code>kronen</code>, <code>nur_nah</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="tabellentitel">Neu aus dem Neubau von Level 01</h3>
+  <p>Level 01 wurde als &bdquo;Kammweg zum Weltenbaum&ldquo; neu gebaut (Entwurf: <code>doku/level01-neubau.md</code>). Die folgenden Bauteile sind dabei entstanden und für andere Waldlevel gedacht; die Schnittstelle steht jeweils im Kopfkommentar.</p>
+  <div class="tabellenhuelle"><table>
+    <thead><tr><th>Werkzeug</th><th>Deckt ab</th></tr></thead>
+    <tbody>
+      <tr><td class="quelle">Wegmaske + shaders/wegboden.gdshader</td><td>Weg, der sich in Rasen eintritt — kein Bordstein</td></tr>
+      <tr><td class="quelle">Rasensaum, Bodenstreu</td><td>Rasen genau dort, wo der Boden Gras zeigt; Klee, Blumen, Kiesel, Pilze</td></tr>
+      <tr><td class="quelle">GelaendeSaum + fels_schichten</td><td>Kanten als Profile mit Grasnarbe und Überhang, geschichtete Felswände statt Würfelwänden</td></tr>
+      <tr><td class="quelle">GelaendeFeld</td><td>Tal und Hänge als Höhenfeld ohne Kollision</td></tr>
+      <tr><td class="quelle">Waldsetzer</td><td>Wald in mehreren Tiefen als MultiMesh, mit Sichtweiten und Schattenregeln</td></tr>
+      <tr><td class="quelle">Riesenstamm, Kronenwolke, Farnwerk</td><td>Bäume und Farne ohne &bdquo;Blob&ldquo;-Kronen, auch als Rückfall für CC0-Modelle</td></tr>
+      <tr><td class="quelle">Findling</td><td>begehbare Felsen, deren Optik genau zur Kollision passt</td></tr>
+      <tr><td class="quelle">Weltenbaum</td><td>ein Riese als Wahrzeichen mit begehbarer Wurzelwendel</td></tr>
+      <tr><td class="quelle">Totholzzaun</td><td>Geländer an Aussichtsstellen</td></tr>
+      <tr><td class="quelle">Wasserfall.band</td><td>Wasserfall entlang einer Felskante</td></tr>
+      <tr><td class="quelle">Kollisionsebene 5 &bdquo;Spielergrenze&ldquo;</td><td>Leitwände, die die Figur halten, ohne die Kamera heranzuziehen</td></tr>
+      <tr><td class="quelle">Sprungprobe, Sichtprobe (Opt-in)</td><td>nachprüfbare Pflichtsprünge und Kamerasicht je Level</td></tr>
+    </tbody>
+  </table></div>
+
   <h3 class="tabellentitel">Offen — aus der ersten Fassung</h3>
   <div class="tabellenhuelle"><table>
     <thead><tr><th>Werkzeug</th><th>Aus</th><th>Warum das Fehlen auffällt</th></tr></thead>
@@ -1159,7 +1196,7 @@ td.num {
   <div class="raum-kopf">
     <span class="zahl">Nachgemessen</span>
     <h2>Vorbild gegen unser Level</h2>
-    <p>Gemessen über alle Bildschirmfotos je Vorbild und über je sieben gerenderte Stellen je eigenem Level. Reproduzierbar mit <code>werkzeuge/foto.sh</code>. Markiert ist, wo unser Wert die Absicht des Vorbilds verfehlt.</p>
+    <p>Gemessen über alle Bildschirmfotos je Vorbild und über je sieben gerenderte Stellen je eigenem Level; die Aufnahmen macht <code>werkzeuge/foto.sh</code>. Die Farbwerte rechnet heute <code>werkzeuge/kontaktbogen.py</code> nach einer im Dateikopf festgelegten Definition: <em>hell</em> ist die mittlere Luma (0–255), <em>warm</em> und <em>kühl</em> sind der Anteil aller Pixel, die kräftig sind (Sättigung ≥&nbsp;25&nbsp;%, Helligkeit ≥&nbsp;15&nbsp;%) und deren Farbton zwischen 330° und 60° bzw. 180° und 260° liegt. Ob die Tabelle unten genau so gerechnet wurde, lässt sich nicht mehr belegen. Neue Messungen sind deshalb untereinander vergleichbar, mit diesen Zahlen nur der Richtung nach. Markiert ist, wo unser Wert die Absicht des Vorbilds verfehlt.</p>
   </div>
   <div class="tabellenhuelle"><table>
     <thead><tr><th></th><th>Vorbild</th><th>warm</th><th>kühl</th><th>hell</th><th>unser Level</th><th>warm</th><th>kühl</th><th>hell</th></tr></thead>

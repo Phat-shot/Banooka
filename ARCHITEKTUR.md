@@ -114,7 +114,12 @@ halten das Bild nicht an.
 Bodenfleck, Lauf- und Slidestaub und das Auftauchen bekommt nur die Figur
 zu Fuß (`_mit_bodeneffekten()`). Reiter, Rennfahrer und Flieger werden
 getragen und führen ihr Modell selbst; eine Unterklasse, die wieder läuft,
-überschreibt die Methode.
+überschreibt die Methode. So der `Fluechtling` (Level 05): Er klebt wie der
+Reiter auf der Kurve, und der Reiter ersetzt `_process` samt Takt der
+Bodeneffekte. Der Flüchtling holt den Takt zurück und überschreibt
+`_bodeneffekte_takten()` mit dem Bodenbegriff der Schiene – am Boden ist,
+wer nicht springt (`is_on_floor()` bleibt ohne `move_and_slide` immer
+falsch). Slidestaub gibt es auf der Flucht nicht.
 
 ### Bodenschatten (`scripts/bodenschatten.gd`, `class_name Bodenschatten`)
 
@@ -707,6 +712,10 @@ Kollisionskasten), `Farnwerk` (Farne ohne Alpha), `Rasensaum`,
 `GelaendeSaum`, `GelaendeFeld`, `Waldsetzer` (`scripts/`); die Shader
 `wegboden`, `fels_schichten`, `gelaende` mit den Includes
 `wald_gemeinsam.gdshaderinc` und `fels_gemeinsam.gdshaderinc`.
+Die Werkstatt zeigt sie einzeln (Station 20–29, `werkstatt.gd`), jedes so
+aufgerufen, wie sein Kopfkommentar es beschreibt; der Weltenbaum steht dort
+im Maßstab 1:8, `GelaendeFeld` und `Wegmaske` nur mittelbar (die Halme
+lesen die Maske, das Höhenfeld fehlt).
 `Fremdmodelle.netz()` verschmilzt CC0-Modelle aus `assets/modelle/natur2/`
 zu MultiMesh-tauglichen Netzen; der Ordner ist derzeit leer, weil die
 Modellquellen im Netz der Bauumgebung gesperrt waren – jedes Bauteil fällt
@@ -1006,10 +1015,20 @@ zeichnen deshalb ungeglättet.
 
 **Sonnen prüfen.** `.tscn` speichert eine `Transform3D` zeilenweise (Zeilen
 der Basis, nicht Spalten). Ein abgeschriebener Wert lässt das Licht leicht
-von UNTEN kommen – Level 01 war so nur vom Umgebungslicht beleuchtet, und
-mehrere andere Level tragen dieselbe Sonne noch. Probe:
+von UNTEN kommen – Level 01 war so nur vom Umgebungslicht beleuchtet. Probe:
 `-licht.global_transform.basis.z` ist die Laufrichtung des Lichts, ihr y
 muss negativ sein.
+
+Level 02–10, 23–25 und die Werkstatt trugen dieselbe abgeschriebene Sonne,
+`Transform3D(0.6, 0, -0.8, -0.71552, …)`: Licht 32° von unten. Gemeint war
+die Basis spaltenweise; transponiert steht die Sonne 63° hoch von rechts
+hinter der Kamera (Lichtrichtung −0,36/−0,89/−0,27 – genau die
+Vorgaberichtung des `Lichtschacht`). Seitdem liegt Sonne auf den Wegen, und
+die Level werfen zum ersten Mal Schatten. Wo der Weg dabei ausbrannte, ist
+die Sonne schwächer: Level 02 (Schnee) 1,9 → 0,9, Level 05 1,6 → 1,3,
+Level 24 (Nacht, Mondlicht) 0,75 → 0,5. In Level 23 dimmt der `Lichtkreis`
+die Sonne ohnehin auf 10 %. Level 11 und das Testlevel tragen noch eine
+Sonne von unten.
 
 **Licht in Level 01** (Werte in `Level01.tscn`):
 - Sonne 68° hoch aus Süd-Südost, hinter der Kamera; 0,6, warm, Glanz 0,2,
