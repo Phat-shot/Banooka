@@ -513,7 +513,8 @@ shaders/                   wasser, himmel, portal_wirbel, gegner_glanz,
                            bildrahmen (.gdshader)
 werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Spieltest-Bot,
                            Glattprobe (Ruckeln im Bildtakt), Bild- und
-                           Messwerkzeuge, Webserver
+                           Messwerkzeuge (figurschau.sh: Figur und Schutz
+                           aus der Nähe), Webserver
 assets/schrift/            LilitaOne-Regular.ttf (Anzeigeschrift, SIL OFL 1.1)
                            samt Lizenztext OFL.txt
 assets/CREDITS.md          Quellen und Lizenzen
