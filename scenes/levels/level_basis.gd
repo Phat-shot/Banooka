@@ -14,18 +14,13 @@ signal aufbau_fertig
 
 const KISTE_SZENE := preload("res://scenes/crates/Kiste.tscn")
 
-## Vorwärmen (`_rundgang`): Abstand der Halte entlang des Verlaufs in
-## Metern und die Blickrichtungen je Halt (Gieren gegen den Weg, Grad).
-## Zwei Blicke zu je rund 97° Breite (16:9) decken zusammen 177° ab – mehr,
-## als die Korridorkamera je zur Seite schaut (gemessen bis 38°).
+## Vorwärmen (`_rundgang`, `Rundgang`): Abstand der Halte entlang des
+## Verlaufs in Metern und die Blickrichtungen je Halt (Gieren gegen den
+## Weg, Grad). Zwei Blicke zu je rund 97° Breite (16:9) decken zusammen
+## 177° ab – mehr, als die Korridorkamera je zur Seite schaut (gemessen
+## bis 38°).
 const RUNDGANG_ABSTAND := 12.0
 const RUNDGANG_BLICKE: Array[float] = [40.0, -40.0]
-## Breite des Rundgang-Viewports in Bildpunkten (Höhe nach dem Seiten-
-## verhältnis des Fensters). Die Shaderfassung hängt nicht an der Größe,
-## die Füllrate schon.
-const RUNDGANG_BREITE := 320
-## Aus nur zum Vergleichen (`werkzeuge/ruckelprobe.gd`, RUCKEL_VORWAERMEN=0).
-static var rundgang_an := true
 
 ## Schattenstrecke der Sonne im Web und auf dem Handy (`Effekte.reduziert`),
 ## siehe `_schatten_anpassen()`. Eine kürzere Strecke der Szene bleibt.
@@ -130,9 +125,10 @@ func _ready() -> void:
 	if not is_inside_tree():
 		return
 	# Teilchen-Shader ebenso – sonst stockt das Spiel beim ersten
-	# Kistenbruch. Nach dem Rundgang, weil die Kamera dafür wieder an
-	# ihrem Platz stehen muss.
-	Effekte.vorwaermen(self)
+	# Kistenbruch –, mit je zwei Bildern davor und danach, damit das erste
+	# Zeichnen des Hauptbilds noch unter den Ladeschirm fällt.
+	if not await Rundgang.ausklingen(self):
+		return
 	_bauzeit_merken("Vorwärmen: Rundgang", vorwaermen)
 	# Wer im Level von selbst läuft (die Karts in Level 06), wartet bis
 	# hier – sonst liefe es während des Rundgangs schon los, während die
@@ -181,104 +177,38 @@ func _aufbauen() -> void:
 
 ## Fährt eine eigene Kamera unter dem Ladeschirm den Verlauf ab und zeigt
 ## an jedem Halt (alle `RUNDGANG_ABSTAND` m) je ein Bild nach links und
-## rechts vorn.
-##
-## WARUM. Der Compatibility-Renderer (OpenGL ES 3, WebGL 2) übersetzt die
-## Fassung eines Shaders erst, wenn das erste Objekt damit gezeichnet wird
-## – mit Nebel, Schattenstufen, Instanzen, Lichtern, je nachdem, wo es
-## steht. Auf dem Handy kostet jede Fassung Dutzende Millisekunden, und
-## sie fielen genau dann an, wenn beim Laufen oder Wenden etwas Neues ins
-## Bild kam: „es lädt bei jeder Bewegung nach". Gemessen mit der
-## Ruckelprobe (Level 01, Handyweg, llvmpipe): ohne Rundgang 16 Ruckler
-## im ersten Durchgang (bis 2,9 s), im zweiten nur noch einer – es war
-## Arbeit beim ersten Gebrauch, keine in jedem Bild.
-##
-## Gezeichnet werden die echten Objekte an ihren echten Orten, also auch
-## mit den Lichtern und Schatten, die sie im Spiel haben. Die Sichtweiten
+## rechts vorn – dazu dasselbe auf jedem Nebenweg aus `_rundgang_pfade()`.
+## Warum und wie: `Rundgang` (scripts/rundgang.gd). Die Sichtweiten
 ## (`visibility_range`) gelten von jeder Kamera aus; ein Halt alle 12 m
 ## bringt jedes Objekt am Weg einmal nah genug heran.
-##
-## In einem EIGENEN, kleinen Viewport in derselben Welt: Übersetzte Shader
-## gelten für alle Viewports, aber die Sichtweiten merken sich je Viewport,
-## was zuletzt zu sehen war (der Rand `visibility_range_end_margin` wirkt
-## als Hysterese). Fuhr die Spielkamera selbst die Runde, standen bei 70 m
-## danach Kronen im Bild, die dort sonst fehlen (gerendert). Der Viewport
-## übernimmt alles, was die Shaderfassung bestimmt (MSAA, 3D-Skalierung,
-## HDR, Schattenatlas für Punktlichter), nur nicht die Größe.
-##
-## Headless (Prüfwerkzeuge) wird nichts gezeichnet – dort entfällt er.
 func _rundgang() -> void:
-	if not rundgang_an or verlauf == null or DisplayServer.get_name() == "headless":
+	if Rundgang.entfaellt() or verlauf == null:
 		return
-	var laenge := verlauf.get_baked_length()
-	if laenge <= 0.0:
-		return
+	await Rundgang.fahren(self, rundgang_blicke(), _kamera)
+
+
+## Die Blicke des Rundgangs (siehe `_rundgang`), in der Reihenfolge, in der
+## sie gezeigt werden: erst der Verlauf, dann jeder Nebenweg. Die Kamera
+## steht wie die Spielkamera hinter und über dem Halt; Abstand, Höhe und
+## Vorlauf kommen von ihr (`KorridorKamera`), sonst die Vorgaben.
+## Öffentlich für `werkzeuge/rundgangprobe.gd`.
+func rundgang_blicke() -> Array[Transform3D]:
 	var abstand := 8.0
 	var hoehe := 4.2
 	var vorlauf := 4.0
-	var haupt := get_viewport()
-	var buehne := SubViewport.new()
-	buehne.name = "Rundgang"
-	var flaeche := haupt.get_visible_rect().size
-	var seitenverhaeltnis := flaeche.x / maxf(flaeche.y, 1.0)
-	buehne.size = Vector2i(RUNDGANG_BREITE, maxi(16, roundi(RUNDGANG_BREITE / seitenverhaeltnis)))
-	buehne.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	buehne.msaa_3d = haupt.msaa_3d
-	buehne.scaling_3d_mode = haupt.scaling_3d_mode
-	buehne.scaling_3d_scale = haupt.scaling_3d_scale
-	buehne.use_hdr_2d = haupt.use_hdr_2d
-	buehne.use_debanding = haupt.use_debanding
-	buehne.positional_shadow_atlas_size = haupt.positional_shadow_atlas_size
-	buehne.positional_shadow_atlas_16_bits = haupt.positional_shadow_atlas_16_bits
-	for quadrant in 4:
-		buehne.set_positional_shadow_atlas_quadrant_subdiv(quadrant,
-				haupt.get_positional_shadow_atlas_quadrant_subdiv(quadrant))
-	var kamera := Camera3D.new()
-	# Im Bildtakt versetzt, nie bewegt.
-	kamera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	if _kamera != null:
-		kamera.fov = _kamera.fov
-		kamera.near = _kamera.near
-		kamera.far = _kamera.far
-		kamera.cull_mask = _kamera.cull_mask
-		kamera.environment = _kamera.environment
-		kamera.attributes = _kamera.attributes
 		if "abstand" in _kamera:
 			abstand = float(_kamera.get("abstand"))
 		if "hoehe" in _kamera:
 			hoehe = float(_kamera.get("hoehe"))
 		if "blick_vorlauf" in _kamera:
 			vorlauf = float(_kamera.get("blick_vorlauf"))
-	buehne.add_child(kamera)
-	add_child(buehne)
-	kamera.current = true
-	# Das Hauptbild liegt hinter dem Ladeschirm, zeichnete aber jedes Bild
-	# die volle Szene mit – auf dem Handy die Hälfte der Rundgangszeit.
-	var hauptbild_aus := haupt.disable_3d
-	haupt.disable_3d = true
-	var halte := maxi(1, ceili(laenge / RUNDGANG_ABSTAND) + 1)
-	for i in halte:
-		var s := minf(float(i) * RUNDGANG_ABSTAND, laenge)
-		var auge := LevelWerkzeuge.punkt_frei(verlauf, s - abstand, 0.0, hoehe)
-		var ziel := LevelWerkzeuge.punkt(verlauf, s + vorlauf, 0.0, 1.0)
-		if auge.distance_to(ziel) < 0.5:
-			continue
-		var blick := Basis.looking_at(ziel - auge, Vector3.UP)
-		for gieren in RUNDGANG_BLICKE:
-			kamera.global_transform = Transform3D(
-					Basis(Vector3.UP, deg_to_rad(gieren)) * blick, auge)
-			# `process_frame`, nicht `frame_post_draw`: Das nächste
-			# `process_frame` kommt nach dem Zeichnen dieses Bildes, und
-			# anders als `frame_post_draw` kommt es auch, wenn nicht
-			# gezeichnet wird (Fenster verkleinert) – der Aufbau hinge sonst.
-			await get_tree().process_frame
-			if not is_inside_tree():
-				haupt.disable_3d = hauptbild_aus
-				return
-		Ladeschirm.fortschritt(0.95 + 0.05 * float(i + 1) / float(halte),
-				"Licht und Schatten werden vorbereitet")
-	haupt.disable_3d = hauptbild_aus
-	buehne.queue_free()
+	var blicke := Rundgang.blicke_entlang(verlauf, abstand, hoehe, vorlauf,
+			RUNDGANG_ABSTAND, RUNDGANG_BLICKE)
+	for pfad in _rundgang_pfade():
+		blicke.append_array(Rundgang.blicke_entlang(pfad, abstand, hoehe, vorlauf,
+				RUNDGANG_ABSTAND, RUNDGANG_BLICKE))
+	return blicke
 
 
 func _bauzeit_merken(text: String, beginn: int) -> void:
@@ -317,11 +247,17 @@ func _nach_aufbau() -> void:
 ##
 ## Gemessen in Level 01, gilt aber für jedes Level: Seit die Handy-App den
 ## Handyweg nimmt, liefen die übrigen Level dort sonst mit vier Stufen bis
-## 70–90 m.
+## 70–90 m. Der Portalraum nimmt dieselbe Regel (`schatten_regel`).
 func _schatten_anpassen() -> void:
+	schatten_regel(self)
+
+
+## Die Regel aus `_schatten_anpassen()` für die schattenwerfende Sonne
+## unter `szene` – statisch, damit der Portalraum (kein Level) sie teilt.
+static func schatten_regel(szene: Node) -> void:
 	if not OS.has_feature("web") and not Effekte.reduziert:
 		return
-	var sonne := _schattensonne()
+	var sonne := schattensonne(szene)
 	if sonne == null:
 		return
 	var weite := sonne.directional_shadow_max_distance
@@ -339,12 +275,13 @@ func _schatten_anpassen() -> void:
 	sonne.directional_shadow_max_distance = neu
 
 
-## Die schattenwerfende Sonne der Szene, oder null.
-func _schattensonne() -> DirectionalLight3D:
-	var sonne := get_node_or_null("Sonne") as DirectionalLight3D
+## Die schattenwerfende Sonne unter `szene` (Knoten „Sonne" oder das erste
+## Richtungslicht mit Schatten), oder null.
+static func schattensonne(szene: Node) -> DirectionalLight3D:
+	var sonne := szene.get_node_or_null("Sonne") as DirectionalLight3D
 	if sonne != null and sonne.shadow_enabled:
 		return sonne
-	for kind in get_children():
+	for kind in szene.get_children():
 		if kind is DirectionalLight3D and (kind as DirectionalLight3D).shadow_enabled:
 			return kind as DirectionalLight3D
 	return null
@@ -354,6 +291,14 @@ func _schattensonne() -> DirectionalLight3D:
 ## gibt ein Level frei, was von selbst läuft und bis dahin stehen musste.
 func _vor_dem_start() -> void:
 	pass
+
+
+## Haken: Nebenwege, die der Rundgang zusätzlich zum Verlauf abfährt –
+## eigene Kurven, die der Verlauf nicht berührt (ein Seitenarm, ein
+## abzweigender Gang). Was nur neben dem Verlauf liegt, auch erhöht, sieht
+## der Rundgang schon von dort aus; dafür braucht es keinen Nebenweg.
+func _rundgang_pfade() -> Array[Curve3D]:
+	return []
 
 
 ## Haken: Richtzeit des Levels für den Zeitmodus, in Sekunden.

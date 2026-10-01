@@ -149,7 +149,8 @@ const PAUSE_HOECHSTENS := 0.2
 ## reichen so für ein erstes Bild von 20 s.
 const VORWAERM_ZEITLUPE := 0.01
 ## Gruppe für Netze, die selten zu sehen sind und bis dahin verborgen
-## stehen (Schutzgeist bei Stufe 0, Spin-Ring). `vorwaermen()` zeichnet je
+## stehen (Schutzgeist bei Stufe 0, Spin-Ring, der Wegweiser im
+## Portalraum, der erst nach dem Laden einblendet). `vorwaermen()` zeichnet je
 ## einen winzigen Abklatsch, damit ihr Shader nicht erst im Spiel übersetzt
 ## wird.
 const VORWAERM_GRUPPE := "vorwaermen"

@@ -630,7 +630,7 @@ Baumkrone, Kleinzeug im Wind, Vogelkreisel, `Levelportal` und `Portal`,
 Turbospur des Reiters, Propeller des Fliegers, die Eistore in Level 17,
 das Fremdmodell der Gegner (seine Clips und alles an Knochen laufen im
 Bildtakt), die Kamera des Startbildschirms und die des Rundgangs beim
-Laden (`LevelBasis._rundgang`).
+Laden (`Rundgang`, in Level und Portalraum).
 
 **Folgen im Bildtakt:** Wer einem Physikkörper im Bildtakt folgt (Kameras,
 Bodenfleck, Masken, Wegweiser, Lichtkreis), liest dessen gezeichneten Ort
@@ -730,18 +730,29 @@ sendet sie `aufbau_fertig`.
   dunklen Leveln bleibt seine Farbe dunkel, sonst glimmt er auf.
 - **Schatten im Web und auf dem Handy** (`_schatten_anpassen()`, direkt
   nach `_nach_aufbau()`): für jedes Level dieselbe Regel an der
-  schattenwerfenden Sonne. Im Web höchstens zwei Stufen bis
+  schattenwerfenden Sonne – statisch als `LevelBasis.schatten_regel(szene)`,
+  die auch der Portalraum aufruft. Im Web höchstens zwei Stufen bis
   `SCHATTEN_WEB` (60 m), auf dem Handy (`Effekte.reduziert`) eine
   orthogonale Stufe bis `SCHATTEN_HANDY` (50 m). Früher stand das nur in
   Level 01; seit die App den Handyweg nimmt, liefen alle anderen Level dort
   mit vier Stufen bis 70–90 m. Gemessen (`FOTO_REDUZIERT`, verfolger 40 m):
   Level 05 341 → 261 Draw-Calls, Level 02 1937 → 1589.
-- **Rundgang unter dem Ladeschirm** (`_rundgang()`): Wenn alles steht –
+- **Rundgang unter dem Ladeschirm** (`_rundgang()`, Ablauf in
+  `scripts/rundgang.gd`, `class_name Rundgang`): Wenn alles steht –
   Kamera ausgerichtet, Zeitkisten gesetzt, `_nach_aufbau()` und
   `_schatten_anpassen()` gelaufen (dort ändern sich Licht und Schatten,
-  und damit die Shaderfassungen) –, fährt eine eigene Kamera in einem eigenen kleinen Viewport derselben
-  Welt den Verlauf ab und zeichnet alle `RUNDGANG_ABSTAND` (12) m je ein
-  Bild 40° links und rechts vorn. Eigener Viewport, weil sich die
+  und damit die Shaderfassungen) –, zeigt eine eigene Kamera in einem
+  eigenen kleinen Viewport derselben Welt eine Liste von Blicken, je Blick
+  ein Bild (`Rundgang.fahren(bei, blicke, vorbild, von, bis)`). Das Level
+  baut die Blicke aus dem Verlauf (`rundgang_blicke()`,
+  `Rundgang.blicke_entlang`): alle `RUNDGANG_ABSTAND` (12) m je ein Bild
+  40° links und rechts vorn, die Kamera wie die Korridorkamera dahinter
+  und darüber; dasselbe auf jedem Nebenweg aus dem Haken
+  `_rundgang_pfade() -> Array[Curve3D]` (Vorgabe leer – eine eigene Kurve,
+  die der Verlauf nicht berührt; was nur seitlich oder erhöht neben dem
+  Verlauf liegt, sieht er schon von dort, geprüft mit
+  `werkzeuge/rundgangprobe.gd`). Der Portalraum nutzt denselben Ablauf
+  mit eigenen Blicken. Eigener Viewport, weil sich die
   Sichtweiten je Viewport merken, was zuletzt zu sehen war (der Rand
   wirkt als Hysterese): Fuhr die Spielkamera selbst, standen bei 70 m
   danach Kronen im Bild, die dort sonst fehlen. Der Viewport übernimmt
@@ -752,15 +763,20 @@ sendet sie `aufbau_fertig`.
   Zeichnen, mit Nebel, Schattenstufen, Instanzen und Lichtern, wie das
   Objekt gerade steht; ohne Rundgang fiel das beim Laufen an, genau wenn
   Neues ins Bild kam (siehe „Ladezeit und Ruckler"). Danach
-  `Effekte.vorwaermen(self)` für die Teilchen und für alles in der Gruppe
-  `Effekte.VORWAERM_GRUPPE` – Netze, die bis zum ersten Gebrauch verborgen
-  sind und die der Rundgang darum nie sieht (Schutzgeist bei Stufe 0,
-  Spin-Ring): je ein winziger Abklatsch vor der Kamera. Dann
+  `Rundgang.ausklingen(self)`: zwei Bilder, in denen das Hauptbild wieder
+  zeichnet, dann `Effekte.vorwaermen(self)` für die Teilchen und für
+  alles in der Gruppe `Effekte.VORWAERM_GRUPPE` – Netze, die bis zum
+  ersten Gebrauch verborgen sind und die der Rundgang darum nie sieht
+  (Schutzgeist bei Stufe 0, Spin-Ring, der Wegweiser im Portalraum): je
+  ein winziger Abklatsch vor der Kamera –, dann noch zwei Bilder. Vorher
+  blendete der Ladeschirm gleich nach `Effekte.vorwaermen` aus, und die
+  beiden ersten Bilder darunter kosteten in Level 01 1,6 und 1,1 s
+  Rechenzeit (Handyweg, llvmpipe), jetzt höchstens 81 ms. Dann
   `_vor_dem_start()`: Dort gibt ein Level frei, was von selbst läuft
   (Level 06 die Gegnerkarts – sie fuhren während des Rundgangs sonst
   sekundenlang voraus). Erst danach bekommt die Figur ihre Physik zurück
   und die Uhr des Zeitmodus läuft an. Headless entfällt der Rundgang;
-  `LevelBasis.rundgang_an = false` schaltet ihn zum Vergleichen ab.
+  `Rundgang.an = false` schaltet ihn zum Vergleichen ab.
   Explosion und Lichtsäule des Zielportals wärmen ihre Shader selbst vor.
 - **Bauzeiten:** `bauzeiten` hält die Dauer jedes Bauschritts, des
   Abschlusses und des Rundgangs (`[{"text", "ms"}]`), gelesen von
@@ -784,12 +800,37 @@ eingeschlagen, passt es erstmal." Beides ist gemessen, nicht vermutet.
 **Messwerkzeuge** (Aufruf im Kopf der Dateien, Werte in README.md):
 - `werkzeuge/bauzeitprobe.gd` – headless; lädt Level 01 und den
   Portalraum und druckt Laden, Instanziieren und jeden Bauschritt
-  (`LevelBasis.bauzeiten`). Zweimal mit demselben `XDG_DATA_HOME`
-  gestartet, zeigt der zweite Lauf den Stand mit gefülltem Bauspeicher.
+  (`bauzeiten` von Level und Portalraum). Zweimal mit demselben
+  `XDG_DATA_HOME` gestartet, zeigt der zweite Lauf den Stand mit
+  gefülltem Bauspeicher.
 - `werkzeuge/ruckelprobe.gd` / `ruckelprobe.sh` – unter Xvfb; fährt
   dieselbe Zickzackfahrt zweimal und meldet jedes Bild, das deutlich über
   dem Median liegt. Ruckler nur im ersten Durchgang sind Arbeit beim ersten
-  Gebrauch, Ruckler in beiden Arbeit in jedem Bild.
+  Gebrauch, Ruckler in beiden Arbeit in jedem Bild. Im Portalraum
+  (`RUCKEL_LEVEL=res://scenes/hub/Hub.tscn`) dreht sich die Figur erst auf
+  der Stelle und läuft dann den Hallenbogen ab, in jeden offenen Raum an
+  allen fünf Toren entlang, vor jedem versiegelten bis ans Siegel; der
+  Spielstand „mitte" (`RUCKEL_STAND`) stellt jede Art Tor einmal hin.
+  `RUCKEL_BESUCHE=2` baut die Szene zweimal nacheinander (der Portalraum
+  wird nach jedem Level neu betreten). Gezählt wird neben der echten
+  Bildzeit die Rechenzeit des Prozesses aus /proc (`RUCKEL_MASS=cpu`):
+  Auf dem geteilten Rechner lief oft ein zweiter Godot mit, und die
+  echten Bildzeiten zeigten dann in beiden Durchgängen Dutzende Ausreißer
+  (71 und 2 in einem Lauf, 57 und 44 in einem anderen); die Rechenzeit
+  des Hauptfadens nicht. Mesas eigener Shader-Speicher in `~/.cache` ist
+  dabei aus (`MESA_SHADER_CACHE_DISABLE`), sonst übersetzte ein zweiter
+  Lauf kaum noch etwas – wie ein erster Start nach der Installation.
+- `werkzeuge/rundgangprobe.gd` – headless, ohne Zeichnen: Liegt jedes
+  sichtbare Objekt einer Szene in wenigstens einem Blick ihres Rundgangs
+  (`rundgang_blicke()`), auf einer gezeichneten Ebene und innerhalb seiner
+  Sichtweite? Sichtkegel im Seitenverhältnis 16:9 der Projekteinstellung
+  (headless ist das Fenster quadratisch, ein schmalerer Kegel meldete
+  Dutzende Kisten als ungesehen). Portalraum 346 von 346, Level 21 1148
+  von 1148, Level 01 745 von 748 (zwei leere Farn-Sammelnetze und eine
+  Krone, die von jedem Halt gut 200 m weit weg liegt – hinter der
+  Fernebene der Kamera). Die Gabelung in Level 21 ist darum kein Nebenweg
+  für `_rundgang_pfade()`: Galerie und unterer Weg liegen neben demselben
+  Verlauf und sind von dort aus ganz im Bild.
 
 **Ruckler.** Ohne Vorwärmen gab es im ersten Durchgang 16 Ruckler (bis
 2,9 s unter llvmpipe), im zweiten einen: Es war das Übersetzen von
@@ -803,6 +844,24 @@ unter llvmpipe 16,5 s, fast nur Übersetzen, das vorher beim Spielen
 anfiel. Gerendert nachgeprüft: Am Rechner sieht Level 01 bei 4, 70 und
 176 m gleich aus (mittlere Abweichung 0,5 bei gleicher Spielzeit,
 innerhalb des Rauschens bewegter Gegner).
+
+**Ruckler im Portalraum.** Der Portalraum wärmte nur die Teilchen vor;
+was vom Startplatz aus nicht zu sehen war, übersetzte der Renderer erst
+beim Hinlaufen. Gemessen mit der Ruckelprobe (Handyweg, 640 × 360,
+Stand „mitte", Rechenzeit des Hauptfadens; vorher = b837a09): im ersten
+Durchgang 3 Ruckler bis 721 ms (in einem zweiten Lauf 14 bis 649 ms),
+im zweiten keiner. Seit dem Rundgang (siehe „Portalraum") keiner mehr
+im ersten Durchgang, das längste Bild 40 ms. Beim zweiten Besuch kam
+vorher an derselben Stelle wieder ein Ruckler (342 ms), jetzt keiner.
+Der Ladeschirm steht dafür länger: unter llvmpipe 28,6 s statt 27,3 s
+beim ersten Besuch – das Übersetzen fiel vorher zum großen Teil schon in
+die ersten Bilder unter dem Ladeschirm – und 5,3 s statt 4,2 s beim
+zweiten. Am Rechner zeigen die Orbitbilder 0–270° dieselben Draw-Calls
+wie vorher; auf dem Handyweg sparen die Schatten (eine Stufe) bis 53
+(Orbit 90: 519 → 466, auf der Fahrt höchstens 483 → 454). Der Rundgang
+belegt einmalig 2 MB Grafikspeicher mehr (86,1 → 88,2 MB im Orbitbild,
+auch mit nur einem Blick, und auch mit halb so breitem Viewport); über
+drei Besuche hintereinander blieb es bei 63,1 MB.
 
 **Ladezeit.** Die Zeit verteilt sich über gut 50 Bauschritte; den größten
 Einzelposten trugen die Bildpunktschleifen der Texturen (Waldweg allein
@@ -1075,9 +1134,37 @@ Umgebung, Licht, Spieler, Kamera und HUD.
   Die Raumböden beginnen erst hinter dem letzten Pflasterband.
 - **Raumnamen** über den Toren auf 5,2 m: Höher lagen sie über dem oberen
   Bildrand der Portalraum-Kamera und waren nur im Sprung zu sehen.
-- **Ankunft:** Vor dem Ausblenden des Ladeschirms wärmt der Portalraum
-  die Teilchen-Shader vor (`Effekte.vorwaermen`, zwei Bilder nach dem
-  Aufbau), damit Lichtsäule und Ring der Ankunft nicht stocken.
+- **Laden und Vorwärmen** (`_vorwaermen_und_zeigen`): Der Saal entsteht
+  in `_ready()` in einem Zug; danach dieselbe Schattenregel wie in jedem
+  Level (`LevelBasis.schatten_regel`: im Web zwei Stufen bis 60 m, auf
+  dem Handy eine orthogonale bis 50 m – am Rechner bleibt alles, wie es
+  war). Unter dem Ladeschirm folgt der Rundgang (`Rundgang`, siehe
+  „Level") mit den Blicken aus `rundgang_blicke()`: die Folgekamera, wie
+  sie über der Figur stünde – am Startplatz (zuerst; das erste Bild nach
+  dem Ladeschirm), alle 10° auf dem Hallenbogen, in jedem offenen Raum
+  links, mittig und rechts an der Portalreihe, vor jedem versiegelten am
+  Siegel. Die Kamera schaut im Portalraum immer gleich nach Norden, also
+  entscheidet nur der Platz, was ins Bild kommt; 19 Blicke bei einem neuen
+  Spiel, 23 bei drei offenen Räumen, 27 bei allen. `werkzeuge/rundgangprobe.gd`
+  prüft, dass jedes sichtbare Objekt in einem Blick liegt (346 von 346,
+  Stand „mitte"); verborgen bleiben nur die Levelnamen über den Toren, und
+  die nutzen dieselben Stoffe wie die Nummern. Den Wegweiser, der erst
+  einblendet, wärmt `Effekte.VORWAERM_GRUPPE` vor, die Iris-Blende des
+  Tors ein Bildpunkt unter dem Ladeschirm (`_iris_vorwaermen`). Danach die
+  Teilchen (`Effekte.vorwaermen`, Lichtsäule und Ring der Ankunft), zwei
+  Bilder, Ausblenden, `aufbau_fertig`. Die Figur ist dabei gesperrt
+  (`Spieler.gesperrt`, gesetzt in `_spieler_setzen`): Schwerkraft ja, keine
+  Eingabe – Tastatur und Touch-Stick (`_input`) erreichen sie sonst auch
+  unter dem Ladeschirm, und wer beim Laden vorwärts hielt, lief während
+  des Rundgangs ungesehen durch die Halle bis in ein offenes Tor. Frei
+  wird sie erst kurz vor dem Ausblenden (`_spieler_freigeben`: Tempo auf
+  null, `InputHub.zuruecksetzen()`), wie im Level. Der Rundgang läuft
+  bei jedem Besuch: Beim zweiten Besuch der Sitzung übersetzte er keinen
+  Shader mehr, ließ man ihn aber weg, kam derselbe Ruckler wieder (Zahlen
+  unter „Ladezeit und Ruckler").
+- **`aufbau_fertig`** kommt mit dem Ausblenden des Ladeschirms, wie im
+  Level; Fotos und Proben warten darauf. `bauzeiten` hält Aufbau und
+  Vorwärmen.
 - **Torpfeiler:** Steht einer zwischen Kamera und Figur, löst er sich samt
   Kragstein, Kappe, Fahne, Halter und Flamme in ein Pixelraster auf
   (Distance-Fade-Dither; die Sammel-Shader bekommen die Werte je Torseite
