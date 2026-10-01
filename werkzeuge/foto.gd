@@ -22,6 +22,15 @@ extends Node
 ##   FOTO_RADIUS   nur orbit: Abstand zur Mitte (Vorgabe 26)
 ##   FOTO_HOEHE    nur orbit: Höhe über der Mitte (Vorgabe 14)
 ##   FOTO_ASSETS   0 = mitgelieferte Naturmodelle aus, prozedural bauen
+##   FOTO_REDUZIERT 1 = wie ein Handy im Browser: `Effekte.reduziert` (halbe
+##                 Mengen, kürzere Sichtweiten, Level 01 mit einer
+##                 Schattenstufe bis 50 m) und ohne MSAA – zum Messen des
+##                 Web-Budgets. Die Schattenkarte bleibt 4096 groß (`.web`
+##                 gilt nur im Export); die Zählwerte ändert das nicht, nur
+##                 den VRAM.
+##   FOTO_TOUCH    1 = Touch-Tasten zeigen wie auf dem Handy. Zusammen mit
+##                 FOTO_REDUZIERT das ganze Bild eines Handys im Browser –
+##                 die Tasten kosten allein rund 70 Draw-Calls.
 ##   FOTO_ZEITMODUS 1 = Zeitmodus an (Zeitkisten im Level, Uhr im HUD)
 ##   FOTO_STATUS   1 = Statustafel aufgeklappt zeigen
 ##   FOTO_SEITLICH seitlicher Versatz der Figur vom Wegmittelpunkt in Metern
@@ -64,6 +73,13 @@ func _ready() -> void:
 	# Zum Vergleichen: FOTO_ASSETS=0 zeigt die prozeduralen Props.
 	if OS.get_environment("FOTO_ASSETS") == "0":
 		Einstellungen.fremde_modelle = false
+	# FOTO_REDUZIERT=1 misst das Web-Budget (Handy im Browser). VOR dem
+	# Aufbau: Dichten, Sichtweiten und Schatten richten sich beim Bauen
+	# danach. MSAA schaltet sonst `Einstellungen._ready()` ab – das lief
+	# schon, bevor dieser Knoten entstand.
+	if OS.get_environment("FOTO_REDUZIERT") == "1":
+		Effekte.reduziert = true
+		get_tree().root.msaa_3d = Viewport.MSAA_DISABLED
 	# FOTO_ZEITMODUS=1 zeigt das Level so, wie es im Zeitlauf aussieht:
 	# mit Zeitkisten und laufender Uhr. Muss VOR dem Aufbau stehen – der
 	# Umbau der Kisten passiert einmalig beim Laden des Levels.
@@ -101,6 +117,14 @@ func _ready() -> void:
 			print("HINWEIS: Aufbau meldete sich nicht, es wird trotzdem fotografiert")
 	for f in 5:
 		await get_tree().process_frame
+
+	if OS.get_environment("FOTO_TOUCH") == "1":
+		var touch := _szene.find_child("TouchControls", true, false)
+		if touch == null:
+			print("HINWEIS: keine Touch-Tasten gefunden")
+		else:
+			touch.set("erzwingen", true)
+			touch.call("_sichtbarkeit_pruefen")
 
 	# Statustafel aufklappen, um sie im Bild zu prüfen. Sie hält den Baum
 	# an – deshalb erst nach dem Aufbau und mit PROCESS_MODE_ALWAYS am
