@@ -392,8 +392,13 @@ const BEGEHBARES := [
 			"innen": [Vector2(-7.5, -5.9), Vector2(0.2, -5.9)],
 			"aussen": [Vector2(-7.5, 5.9), Vector2(0.2, 5.9)],
 			"oben": 0.0, "hoehe": 2.0, "ebene": 1, "optik": "wegbauten"},
+	# Das Mooslog reicht von Leitlinie zu Leitlinie (±5,6): Die Hürde ist
+	# Pflicht (Plan 6.2). Mit 8,8 m blieb an jedem Ende eine Gasse von 1,2 m,
+	# durch die man um den Stamm herumlief – und wo der Stamm endete, sah
+	# man ein Rohr mit flachen Deckeln (Welle 6). Jetzt liegen Wurzelteller
+	# und Bruch hinter den Leitlinien.
 	{"name": "Mooslog", "form": "kapsel", "s": 8.0, "q": 0.0, "radius": 0.4,
-			"laenge": 8.8, "oben": 0.8, "ebene": 16, "optik": "wegbauten"},
+			"laenge": 11.2, "oben": 0.8, "ebene": 16, "optik": "wegbauten"},
 	# --- B ---
 	{"name": "Kanzel", "form": "kasten", "s": 44.0, "q": 7.125,
 			"groesse": Vector3(4.75, 3.0, 8.0), "oben": 0.0, "ebene": 1,

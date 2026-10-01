@@ -799,6 +799,9 @@ static func _waldsaum(b: Bau) -> void:
 	for g: float in [25.0, 27.5]:
 		_lippe_quer(b, g, 1.0 if g < 26.0 else -1.0, -5.0, 5.0)
 	_rahmenfarne(b, -1.0, 4.0, 32.0, 6.5, 8.0)
+	# Rechts im Hallenwald (bis zur Öffnung bei s 24) ebenfalls: Ohne lag die
+	# rechte untere Ecke als leerer Rasen im Bild (Welle 6).
+	_rahmenfarne(b, 1.0, 4.0, 22.0, 6.4, 8.0)
 
 
 ## B (33–104): Hangweg. Rechts bis an die Lippe, links bis zum Fuß der

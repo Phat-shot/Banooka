@@ -782,8 +782,13 @@ static func _waldtor(sa: Sammler, level: Level01) -> void:
 	_wurzeltor(sa, level, "Waldtor", 303)
 
 
-## Das Mooslog bei s 8: der Stamm genau in der Kapsel, die Enden im Farn,
-## ein paar Leuchtpilze am Fuß der Flanke zur Kamera.
+## Das Mooslog bei s 8: ein umgestürzter Baum, der Stamm genau in der
+## Kapsel (von Leitlinie zu Leitlinie). Links reißt der Wurzelteller aus dem
+## Boden (Erde, Steine, abgerissene Wurzeln), rechts ist der Stamm
+## abgebrochen: lange Faserspäne. Beides liegt hinter der Leitlinie (|q| ≥
+## 5,6), an beiden Enden Farn und Pilze. Ein paar Leuchtpilze am Fuß der
+## Flanke zur Kamera. Als Rohr mit zwei flachen Deckeln las es sich als
+## Balken (Welle 6).
 static func _mooslog(sa: Sammler, level: Level01) -> void:
 	var e := level.begehbar("Mooslog")
 	if e.is_empty():
@@ -799,6 +804,7 @@ static func _mooslog(sa: Sammler, level: Level01) -> void:
 	sa.dazu("Mooslog", Riesenstamm.borkenstoff({"moos_oben": 0.12, "moos_nord": 0.2}), true,
 			SICHT_FERN, _log_nachbessern(netz, r, l), liegt)
 	var s: float = e["s"]
+	var halb := l * 0.5
 	# Aststummel an den äußeren Dritteln, waagerecht nach vorn und hinten
 	# und nicht höher als die Kapsel: Man springt darüber hinweg, ohne an
 	# etwas hängen zu bleiben, das keine Kollision hat.
@@ -815,23 +821,97 @@ static func _mooslog(sa: Sammler, level: Level01) -> void:
 				start + raus * (r * 0.8 + laenge)]), PackedFloat32Array([0.11, 0.09, 0.07]),
 				{"saat": 816 + k, "seiten": 6, "ende": "bruch", "moos": 0.5})
 	_holz(sa, Riesenstamm.fertig(stummel), Transform3D.IDENTITY)
-	# Außen an der Wegkante (K7: über 0,9 m erst ab |q| 5,05): Die Wedel
-	# reichen über die Enden des Stamms.
+	_wurzelteller(sa, level, s, -halb, r)
+	_stammbruch(sa, level, s, halb, r)
+	# Farn und Pilze an beiden Enden, außen hinter der Leitlinie (K7: über
+	# 0,9 m erst ab |q| 5,05); innen reichen die Wedel über das Stammende.
 	for seite: float in [-1.0, 1.0]:
-		var q := seite * 5.25
-		_farn_bei(sa, _lage(level, s + 0.3, q, 0.0, seite * 0.6), 0, 810 + int(seite), 2.2)
-		_farn_bei(sa, _lage(level, s - 0.9, q + seite * 0.5, 0.0, 1.3), 0, 812 + int(seite), 1.6)
-		_farn_bei(sa, _lage(level, s + 1.2, seite * 4.7, 0.0, 2.1), 0, 814 + int(seite), 1.2)
-	# Leuchtpilze am Fuß der Flanke zur Kamera, unter 0,35 m.
+		_farn_bei(sa, _lage(level, s + 0.9, seite * 5.9, 0.0, seite * 0.6), 0, 810 + int(seite), 2.0)
+		_farn_bei(sa, _lage(level, s - 1.1, seite * 6.3, 0.0, 1.3), 1, 812 + int(seite), 0.9)
+		_farn_bei(sa, _lage(level, s + 1.2, seite * 4.9, 0.0, 2.1), 0, 814 + int(seite), 1.1)
 	var rng := PropWerkzeug.zufall(820)
 	var pilze := Riesenstamm.bauer()
+	# Leuchtpilze am Fuß der Flanke zur Kamera, unter 0,35 m.
 	for i in 3:
 		var q := rng.randf_range(-3.5, 3.5)
 		var ort := _p(level, s - r * 0.95, q, 0.05)
 		for k in rng.randi_range(2, 4):
 			Riesenstamm.leuchtpilz_in(pilze, ort + Vector3(rng.randf_range(-0.2, 0.2), 0.0,
 					rng.randf_range(-0.05, 0.05)), rng.randf_range(0.035, 0.06), rng)
+	# Pilzgruppen an den Enden: am Boden und auf dem Stamm.
+	for seite: float in [-1.0, 1.0]:
+		for k in 2:
+			var ort := _p(level, s + rng.randf_range(-0.9, 0.9),
+					seite * rng.randf_range(5.0, 5.5), 0.02)
+			if k == 1:
+				ort = _p(level, s + rng.randf_range(-0.1, 0.1), seite * (halb - 0.9), r * 1.85)
+			for n in rng.randi_range(3, 5):
+				Riesenstamm.leuchtpilz_in(pilze, ort + Vector3(rng.randf_range(-0.22, 0.22), 0.0,
+						rng.randf_range(-0.22, 0.22)), rng.randf_range(0.04, 0.075), rng)
 	_holz(sa, Riesenstamm.fertig(pilze), Transform3D.IDENTITY)
+
+
+## Der Wurzelteller am linken Ende des Mooslogs (`q_ende`, Mitte des Stamms
+## auf Höhe `r`): eine aufgestellte, unruhige Scheibe aus Erde und Wurzeln
+## (Ø gut 2,6 m), unten im Boden, hinter der Leitlinie. Die Wurzeln reißen
+## strahlig aus ihr heraus, ein paar Steine hängen in der Erde.
+static func _wurzelteller(sa: Sammler, level: Level01, s: float, q_ende: float, r: float) -> void:
+	var seite := signf(q_ende)
+	var mitte := _p(level, s, q_ende + seite * 0.25, r)
+	var vor := LevelWerkzeuge.richtung(level.verlauf, s)
+	var quer := vor.cross(Vector3.UP).normalized() * seite
+	# Erdscheibe: ein flacher, rauer Brocken quer zur Stammachse
+	# (rechtshändig: vor × hoch = quer ohne Seitenvorzeichen).
+	var basis := Basis(vor, Vector3.UP, vor.cross(Vector3.UP).normalized())
+	_brocken(sa, Vector3(2.4, 2.3, 0.55), Transform3D(basis, mitte + Vector3.DOWN * 1.05), 822,
+			0.0, {"moos": 0.55, "einzug": 0.0}, false)
+	var rng := PropWerkzeug.zufall(823)
+	var st := _wurzeln(sa)
+	var holz := _borke(sa)
+	for i in 11:
+		var w := TAU * (float(i) + rng.randf_range(-0.3, 0.3)) / 11.0
+		var richtung := (vor * cos(w) + Vector3.UP * sin(w)).normalized()
+		if richtung.y < -0.55:
+			continue
+		var start := mitte + richtung * rng.randf_range(0.3, 0.7) + quer * 0.15
+		var lang := rng.randf_range(0.7, 1.5)
+		var zug := PackedVector3Array([start,
+				start + richtung * lang * 0.5 + quer * rng.randf_range(0.1, 0.4),
+				start + richtung * lang + quer * rng.randf_range(0.2, 0.7)
+						+ Vector3.DOWN * rng.randf_range(0.0, 0.3)])
+		var dick := rng.randf_range(0.05, 0.12)
+		Totholzzaun.stueck(holz if dick > 0.09 else st, zug,
+				PackedFloat32Array([dick, dick * 0.6, dick * 0.25]),
+				{"saat": 824 + i, "seiten": 6, "ende": "spitz", "moos": 0.2})
+	# Steine in der Erde des Tellers
+	for k in 3:
+		var w := rng.randf_range(0.3, 2.8)
+		var ort := mitte + (vor * cos(w) + Vector3.UP * sin(w) * 0.8) * rng.randf_range(0.4, 0.9) \
+				- quer * 0.05
+		_brocken(sa, Vector3.ONE * rng.randf_range(0.22, 0.38), Transform3D(Basis(), ort), 830 + k,
+				0.1, {}, false)
+
+
+## Das rechte Ende des Mooslogs: abgebrochen, ein Kranz langer Faserspäne
+## (0,3–0,8 m) aus dem Rand, hell im Bruch, nach außen hinter die Leitlinie.
+static func _stammbruch(sa: Sammler, level: Level01, s: float, q_ende: float, r: float) -> void:
+	var seite := signf(q_ende)
+	var vor := LevelWerkzeuge.richtung(level.verlauf, s)
+	var quer := vor.cross(Vector3.UP).normalized() * seite
+	var achse := _p(level, s, q_ende - seite * 0.2, r)
+	var rng := PropWerkzeug.zufall(840)
+	var holz := _borke(sa)
+	for i in 9:
+		var w := TAU * float(i) / 9.0 + rng.randf_range(-0.2, 0.2)
+		var rund := (vor * cos(w) + Vector3.UP * sin(w))
+		var start := achse + rund * r * rng.randf_range(0.55, 0.85)
+		var lang := rng.randf_range(0.3, 0.8)
+		var spitze := start + quer * lang + rund * rng.randf_range(0.0, 0.15) \
+				+ Vector3.DOWN * rng.randf_range(0.0, 0.1)
+		Totholzzaun.stueck(holz, PackedVector3Array([start, start.lerp(spitze, 0.5), spitze]),
+				PackedFloat32Array([0.07, 0.045, 0.012]),
+				{"saat": 841 + i, "seiten": 5, "ende": "spitz", "moos": 0.0,
+				"ton": Color(1.0, 0.92, 0.8)})
 
 
 ## Das Mooslog nachgebessert, damit es sich nicht als Balken mit grünem
@@ -1448,8 +1528,12 @@ static func _pforte(sa: Sammler, level: Level01) -> void:
 			{"moos": 1.0})
 	_brocken(sa, Vector3(1.7, 1.6, 1.9), _lage(level, 104.7, -5.0, 0.0, 2.1), 1014, 0.3,
 			{"moos": 1.0})
-	_farn_bei(sa, _lage(level, 98.8, -4.1, 0.0, 1.0), 0, 1015, 1.8)
-	_farn_bei(sa, _lage(level, 103.9, -4.0, 0.0, 2.0), 0, 1016, 1.5)
+	# Die Farne der Pforte stehen hinter dem Felsen (q ≤ −5): Bei q −4,1 und
+	# 1,8-facher Größe reichten ihre Wedel quer über die Öffnung und lagen
+	# auf dem Handy (ohne MSAA) als grün gepunktete Striche über Figur und
+	# Spinne – im wichtigsten Lehrbild, dem Slide (Welle 6).
+	_farn_bei(sa, _lage(level, 98.6, -5.3, 0.0, 1.0), 0, 1015, 1.3)
+	_farn_bei(sa, _lage(level, 104.1, -5.1, 0.0, 2.0), 0, 1016, 1.2)
 	var links := level.begehbar("Pforte links")
 	if not links.is_empty():
 		_wurzelstock(sa, level, links)
@@ -1457,7 +1541,8 @@ static func _pforte(sa: Sammler, level: Level01) -> void:
 			"rundung": 0.36, "beulen": 0.34, "unruhe": 0.15, "umriss": 0.12, "moos": 1.0,
 			"moos_oben": 0.9, "ausgetreten": 0.0, "schichten": true, "anlauf": 0.1,
 			"bemoost": Vector2(0.8, 0.55)}, 0.0)
-	_randfarne(sa, level, "Pforte rechts", 3, 1019)
+	# Keine Randfarne auf dem rechten Felsen: Von seiner Innenkante hingen
+	# die Wedel in die Öffnung. Nur ein Farn an der Außenkante (unten).
 	var rechts := level.begehbar("Pforte rechts")
 	if not rechts.is_empty():
 		# Farn obenauf an der Außenkante, wo man nicht hinkommt, ohne

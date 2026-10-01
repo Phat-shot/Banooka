@@ -112,6 +112,10 @@ void vertex() {
 // +8 %, eine leise Makrowelle gegen die Kachel.
 vec3 erde_aufbereiten(vec3 erde, float spur, vec4 w) {
 	float luma = dot(erde, vec3(0.3, 0.59, 0.11));
+	// Die hellen Kiesel der Erdtextur halb so stark: Gleichmäßig weiß
+	// getupft las sich die Spur wie bedruckt (Welle 6).
+	erde *= mix(1.0, 0.8, smoothstep(0.5, 0.8, luma));
+	luma = dot(erde, vec3(0.3, 0.59, 0.11));
 	erde = mix(erde, vec3(luma), 0.16) * erde_ton.rgb;
 	erde *= 1.0 + 0.08 * (1.0 - smoothstep(0.0, 0.36, spur));
 	return erde * mix(0.95, 1.04, w.g);
@@ -227,6 +231,13 @@ void fragment() {
 	if (!wurzelruecken) {
 		vec3 erde = erde_aufbereiten(texture(boden_farbe, euv).rgb, spur, w);
 		vec3 erde_n = texture(boden_normal, euv).rgb;
+		// Zwei schwache Laufspuren, gut 0,6 m auseinander (die halbe Breite
+		// ist 3,75–6 m, gerechnet mit 4,5), mit Unterbrechungen: Die Spur ist
+		// ausgetreten, nicht gemalt.
+		float spur_m = spur * 4.5;
+		float bahnen = (1.0 - smoothstep(0.06, 0.16, abs(spur_m - 0.32)))
+				* smoothstep(0.3, 0.6, w.g + (w.b - 0.5) * 0.6) * (1.0 - m);
+		erde *= 1.0 - 0.08 * bahnen;
 		farbe = mix(erde * mix(1.0, 0.7, band), rasen, m_bild);
 		NORMAL_MAP = mix(erde_n, vec3(0.5, 0.5, 1.0), m_bild * 0.85);
 		NORMAL_MAP_DEPTH = 1.0;

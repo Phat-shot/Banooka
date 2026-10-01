@@ -886,16 +886,19 @@ static func _hallenbaum(art: String) -> Dictionary:
 					"variante": 1, "krone_radius": 5.2, "krone_hoehe": 5.0, "rippen": 8,
 					"ballen": 3, "brettwurzeln": 4,
 					"neigung": Vector2(2.4, 0.0), "pilze": 1, "saat": 1104}, true)
+		# Ast- und mittlere Bäume mit kurzen Brettwurzeln (1,1–1,4 m): Ohne
+		# standen sie wie Pfosten im Rasen (Welle 6).
 		"ast":
 			return _baum("ast", {"krone_frei": true, "hoehe": 12.5, "radius": 0.55,
 					"radius_oben": 0.3, "variante": 1, "krone_radius": 5.2, "krone_hoehe": 4.6,
 					"neigung": Vector2(3.6, 0.0), "krumm": 0.4, "drehung": 0.9, "pilze": 1,
-					"rippen": 10, "saat": 1107}, true)
+					"rippen": 10, "brettwurzeln": 4, "wurzel_reichweite": 1.2,
+					"saat": 1107}, true)
 		"ast_rund":
 			return _baum("ast_rund", {"krone_frei": true, "hoehe": 13.5, "radius": 0.5,
 					"radius_oben": 0.28, "variante": 0, "krone_radius": 4.6, "krone_hoehe": 6.4,
 					"neigung": Vector2(3.0, 0.0), "krumm": 0.5, "drehung": 0.7, "rippen": 10,
-					"efeu": 1, "saat": 1110}, true)
+					"efeu": 1, "brettwurzeln": 3, "wurzel_reichweite": 1.1, "saat": 1110}, true)
 		"hoch":
 			return _baum("hoch", {"krone_frei": true, "hoehe": 18.0, "radius": 0.45,
 					"variante": 0, "krone_radius": 4.4, "krone_hoehe": 6.5, "rippen": 8,
@@ -904,7 +907,7 @@ static func _hallenbaum(art: String) -> Dictionary:
 		"mittel":
 			return _baum("mittel", {"krone_frei": true, "hoehe": 16.0, "radius": 0.62,
 					"variante": 0, "krone_radius": 4.8, "krone_hoehe": 6.4, "rippen": 11,
-					"efeu": 1, "saat": 1102}, true)
+					"efeu": 1, "brettwurzeln": 4, "wurzel_reichweite": 1.4, "saat": 1102}, true)
 		"duenn":
 			return _baum("duenn", {"krone_frei": true, "hoehe": 16.5, "radius": 0.32,
 					"variante": 2, "krone_radius": 2.8, "krone_hoehe": 7.0, "rippen": 8,
@@ -1380,8 +1383,10 @@ static func _hallenwald(level: Level01) -> void:
 							{"kranz": "kranz" if mit_kranz else "", "drehung": dreh}):
 						_staemme.dazu(Vector2(fuss.x, fuss.z), abstand * 0.5)
 						_zaehle("halle")
-						if reihe < 1 and rng.randf() < 0.7:
-							_farne_um(ws, farne, fuss, 0.5 + quer * 0.5, rng.randi_range(1, 3), rng)
+						# Farn an gut der Hälfte der Stammfüße der vorderen Reihen
+						# (Welle 6: „Säulen auf Rasen, kein Leben am Boden").
+						if reihe < 2 and rng.randf() < (0.75 if reihe == 0 else 0.6):
+							_farne_um(ws, farne, fuss, 0.5 + quer * 0.5, rng.randi_range(2, 4), rng)
 						break
 
 	# Das Dach über dem Weg: die Kronen der ersten Reihe reichen bis q ±3;
@@ -1554,7 +1559,7 @@ static func _farne_um(ws: Waldsetzer, farne: Array[ArrayMesh], fuss: Vector3, r:
 		if not _kistenfrei(Vector3(x, 0.0, zz), 1.5):
 			continue
 		var y := L01Gelaende.hoehe(x, zz)
-		var gross := rng.randf() < 0.12
+		var gross := rng.randf() < 0.3
 		var netz := farne[2] if gross else farne[rng.randi_range(0, 1)]
 		var skala := rng.randf_range(0.7, 1.0) if gross else rng.randf_range(0.9, 1.5)
 		var lage := Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * skala),

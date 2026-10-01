@@ -1240,6 +1240,13 @@ static func _regal_buckel(s: float, rauschen: FastNoiseLite) -> float:
 ## Punkt `k` der Regallippe an der Stelle s (siehe `LIPPE`): der Innenrand
 ## des Moospolsters nach Rauschen 0,3–0,65 m auf der Decke, die Außenseite
 ## um den Buckel hinaus (zum Bauch hin auslaufend).
+##
+## ZUNGE (Welle 6: „ein rechteckiges Brett mit geradem Ende"): Unter der
+## Lippe wölbt sich der Leib in der Mitte des Regals bis 0,95 m weiter
+## hinaus als an seinen Enden (`_regal_zunge`) – von oben liest sich der
+## Umriss als Zunge, die breit aus dem Stamm kommt und rund ausläuft. Die
+## ebene Oberseite (Punkte 1–3) folgt dem Buckel nur zu einem Drittel und
+## bleibt so bei der Kollision: Was flach und begehbar aussieht, trägt.
 static func _lippe_punkt(k: int, s: float, rauschen: FastNoiseLite) -> Vector2:
 	var p: Vector2 = LIPPE[k]
 	if k == 0:
@@ -1247,7 +1254,18 @@ static func _lippe_punkt(k: int, s: float, rauschen: FastNoiseLite) -> Vector2:
 	var anteil := 1.0
 	if k > 9:
 		anteil = [0.7, 0.4, 0.15, 0.0, 0.0][k - 10]
-	return p + Vector2(_regal_buckel(s, rauschen) * anteil, 0.0)
+	var buckel := _regal_buckel(s, rauschen)
+	if k <= 3:
+		return p + Vector2(buckel * 0.35, 0.0)
+	var zunge: float = [0.55, 0.85, 1.0, 1.0, 1.0, 1.0, 0.85, 0.6, 0.3][k - 4] if k <= 12 else 0.0
+	return p + Vector2(buckel * anteil + _regal_zunge(s) * zunge, 0.0)
+
+
+## Wie weit der Leib des Regals unter der Lippe zusätzlich hinausreicht
+## (0 an den Enden, 0,95 m in der Mitte): die Zunge.
+static func _regal_zunge(s: float) -> float:
+	var t := clampf((s - 273.5) / (ENDE - 273.5), 0.0, 1.0)
+	return 0.95 * pow(sin(PI * t), 0.7)
 
 
 ## Knorren im Profil: Vector3(s, Höhe, halbe Länge), fest gewürfelt.
@@ -1892,8 +1910,8 @@ static func _brueche(ziel: Dictionary, bahn: Bahn, level: Level01,
 
 
 ## Splitterkrone an der Lippe eines Wurzelbruchs: Faserspäne, die über die
-## Kante hinaus in die Lücke stehen und sich aufbiegen (0,2–0,55 m hoch) –
-## nur im äußeren Viertel der Breite (|q| ≥ 2,9), wo niemand abspringt oder
+## Kante hinaus in die Lücke stehen und sich aufbiegen (0,3–0,8 m hoch) –
+## nur im äußeren Drittel der Breite (|q| ≥ 2,6), wo niemand abspringt oder
 ## landet; die Mitte bleibt die glatte Sprunglippe. Ohne sie lief die Kante
 ## als Lineal über die Wurzel, der Bruch eine rechteckige Kerbe (Welle 6).
 ## `richtung` +1: Die Lücke liegt in +s.
@@ -1902,11 +1920,11 @@ static func _splitterkrone(st: SurfaceTool, ra: Rahmen, richtung: float, kante: 
 	var art := Vector2(Riesenstamm.EIGEN, 0.0)
 	var vor := ra.v * richtung
 	for seite: float in [-1.0, 1.0]:
-		var q := seite * rng.randf_range(2.9, 3.2)
-		while absf(q) < kante - 0.3:
-			var breite := rng.randf_range(0.1, 0.22)
-			var hoch := rng.randf_range(0.2, 0.55) * smoothstep(2.8, 3.6, absf(q))
-			var raus := rng.randf_range(0.15, 0.45)
+		var q := seite * rng.randf_range(2.6, 2.9)
+		while absf(q) < kante - 0.2:
+			var breite := rng.randf_range(0.12, 0.26)
+			var hoch := rng.randf_range(0.3, 0.8) * smoothstep(2.4, 3.4, absf(q))
+			var raus := rng.randf_range(0.2, 0.55)
 			var fuss := ra.p(q, -0.06) - vor * 0.05
 			var a := fuss - ra.r * breite * 0.5
 			var b := fuss + ra.r * breite * 0.5
