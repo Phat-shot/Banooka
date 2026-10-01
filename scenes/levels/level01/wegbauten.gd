@@ -1783,17 +1783,18 @@ static func _bachwiese(level: Level01) -> void:
 				"umriss": 0.0, "umriss_aussen": 0.13, "beulen": 0.1, "anlauf": 0.1,
 				"fuss_aus": 0.8}), lage)
 		_trabanten(sa, level, e, 1760 + 10 * i)
-	# Farnbüsche an den Ufern, außerhalb der Spur (|q| 6,3–8,5) und an der
-	# Uferkante: Sie brechen die Linie der Böschung, aus dem Kanal wird ein
-	# Bach im Wald.
+	# Farnbüsche am fernen Ufer, außerhalb der Spur (|q| 6,6–8,2): Sie
+	# brechen die Linie der Böschung, aus dem Kanal wird ein Bach im Wald.
+	# Am nahen Ufer keine – dort lagen die Wedel in der Spielkamera vor den
+	# Trittsteinen (K8); die Rahmenfarne der Wiese rahmen diese Ecken.
 	var ufer_rng := PropWerkzeug.zufall(1771)
-	for stelle: Vector3 in [Vector3(172.6, -7.2, 1.0), Vector3(172.4, 6.6, 0.9),
-			Vector3(183.5, -6.4, 1.1), Vector3(183.3, 8.1, 0.8)]:
-		_farn_bei(sa, _lage(level, stelle.x, stelle.y, 0.0, ufer_rng.randf() * TAU), 1,
-				1772 + int(stelle.y), stelle.z)
-		_farn_bei(sa, _lage(level, stelle.x + ufer_rng.randf_range(-0.8, 0.8),
-				stelle.y + signf(stelle.y) * 0.9, 0.0, ufer_rng.randf() * TAU), 0,
-				1776 + int(stelle.y), 1.4)
+	for stelle: Vector4 in [Vector4(183.6, -6.6, 0.85, 1.0), Vector4(183.4, 8.2, 0.7, 1.0)]:
+		_farn_bei(sa, _lage(level, stelle.x, stelle.y, 0.0, ufer_rng.randf() * TAU),
+				int(stelle.w), 1772 + int(stelle.y), stelle.z)
+		if stelle.w > 0.5:
+			_farn_bei(sa, _lage(level, stelle.x + ufer_rng.randf_range(0.3, 0.9),
+					stelle.y + signf(stelle.y) * 0.9, 0.0, ufer_rng.randf() * TAU), 0,
+					1776 + int(stelle.y), 1.3)
 	_findlingsturm(sa, level)
 	_wurzelknie(sa, level)
 	sa.fertig()
