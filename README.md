@@ -192,7 +192,32 @@ Lauf füllt den Bauspeicher (wie der erste Start nach der Installation),
 der zweite liest ihn. Die Ruckelprobe fährt dieselbe Zickzackfahrt
 zweimal; Ruckler nur im ersten Durchgang sind Arbeit beim ersten Gebrauch.
 
-MESSWERTE
+Gemessen beim Umbau für das Handy (Rechner mit 4 geteilten Kernen,
+llvmpipe; vorher = 22f205b, Werte schwanken um gut 10 %):
+
+| Bauzeit headless | vorher | erster Start | jeder weitere |
+|---|---|---|---|
+| Level 01, Rechnerweg | 11,5 s (Skripte laden 2,2 · Bauschritte 8,7) | 11,2 s | 7,7 s (2,1 · 5,0) |
+| Level 01, Handyweg | 11,2 s (2,0 · 8,7) | 12,2 s | 6,8 s (2,2 · 4,2) |
+| Portalraum | 1,0 s (Aufbau 0,59) | 1,0 s | 0,57 s (Aufbau 0,11) |
+
+| Ruckelprobe, Handyweg, 640 × 360 (vorher ohne 3D-Skalierung) | vorher | jetzt |
+|---|---|---|
+| erstes Bild nach dem Ladeschirm | 14,0 s | 0,16 s |
+| Durchgang 1: längstes Bild, Bilder über 600 ms | 2,9 s, 7 | 0,43 s, 0 |
+| Durchgang 2: längstes Bild | 0,44 s | 0,53 s |
+| Rundgang beim Laden | – | 16,5 s (fast nur Übersetzen) |
+
+Unter llvmpipe ist das Übersetzen der Shader viel teurer als auf einer
+Grafikkarte; die Sekunden sind darum nicht aufs Handy übertragbar, das
+Muster schon: Was vorher beim Laufen anfiel, fällt jetzt unter dem
+Ladeschirm an. Die übrigen Ausreißer liegen in beiden Durchgängen gleich
+(geteilte Kerne).
+
+Draw-Calls der App in Level 01 (s 4 / 70 / 176): vorher lief sie auf dem
+Rechnerweg, 457 / 429 / 370 bei 121,5 MB Grafikspeicher; jetzt auf dem
+Handyweg 369 / 336 / 319 bei 102,4 MB (`FOTO_REDUZIERT=1`, ohne die
+3D-Skalierung, die keine Draw-Calls spart).
 
 ### Bildvergleich und Kostenmessung (`werkzeuge/schaufenster.sh`, `foto.sh`, `kontaktbogen.py`)
 

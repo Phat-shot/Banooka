@@ -191,8 +191,8 @@ func _aufbauen() -> void:
 ## In einem EIGENEN, kleinen Viewport in derselben Welt: Übersetzte Shader
 ## gelten für alle Viewports, aber die Sichtweiten merken sich je Viewport,
 ## was zuletzt zu sehen war (der Rand `visibility_range_end_margin` wirkt
-## als Hysterese). Fuhr die Spielkamera selbst die Runde, standen am Start
-## danach Kronen, die man von dort aus sonst nicht sieht. Der Viewport
+## als Hysterese). Fuhr die Spielkamera selbst die Runde, standen bei 70 m
+## danach Kronen im Bild, die dort sonst fehlen (gerendert). Der Viewport
 ## übernimmt alles, was die Shaderfassung bestimmt (MSAA, 3D-Skalierung,
 ## HDR, Schattenatlas für Punktlichter), nur nicht die Größe.
 ##

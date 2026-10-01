@@ -661,8 +661,14 @@ sendet sie `aufbau_fertig`.
 - **Rundgang unter dem Ladeschirm** (`_rundgang()`): Wenn alles steht –
   Kamera ausgerichtet, Zeitkisten gesetzt, `_nach_aufbau()` gelaufen (dort
   stellen Level Licht und Schatten um, und das ändert die Shaderfassungen)
-  –, fährt eine eigene Kamera den Verlauf ab und zeichnet alle
-  `RUNDGANG_ABSTAND` (12) m je ein Bild 40° links und rechts vorn. Der
+  –, fährt eine eigene Kamera in einem eigenen kleinen Viewport derselben
+  Welt den Verlauf ab und zeichnet alle `RUNDGANG_ABSTAND` (12) m je ein
+  Bild 40° links und rechts vorn. Eigener Viewport, weil sich die
+  Sichtweiten je Viewport merken, was zuletzt zu sehen war (der Rand
+  wirkt als Hysterese): Fuhr die Spielkamera selbst, standen bei 70 m
+  danach Kronen im Bild, die dort sonst fehlen. Der Viewport übernimmt
+  MSAA, 3D-Skalierung, HDR und den Schattenatlas der Punktlichter, also
+  alles, was die Shaderfassung bestimmt. Der
   Compatibility-Renderer übersetzt jede Shaderfassung erst beim ersten
   Zeichnen, mit Nebel, Schattenstufen, Instanzen und Lichtern, wie das
   Objekt gerade steht; ohne Rundgang fiel das beim Laufen an, genau wenn
@@ -705,9 +711,14 @@ eingeschlagen, passt es erstmal." Beides ist gemessen, nicht vermutet.
 2,9 s unter llvmpipe), im zweiten einen: Es war das Übersetzen von
 Shaderfassungen, sobald etwas Neues ins Bild kam – genau das „Nachladen
 bei Bewegung". Kein Skript baut beim Laufen etwas neu auf. Abhilfe ist
-der Rundgang in `LevelBasis` (siehe „Level"); danach ein Ruckler im ersten
-Durchgang, keiner im zweiten, und das erste Bild nach dem Ladeschirm
-sank von 14 s auf 0,2 s.
+der Rundgang in `LevelBasis` (siehe „Level"): Danach war das längste Bild
+im ersten Durchgang 0,43 s statt 2,9 s – so lang wie die Ausreißer im
+zweiten, die von den geteilten Kernen kommen –, und das erste Bild nach
+dem Ladeschirm sank von 14 s auf 0,16 s. Der Rundgang selbst dauerte
+unter llvmpipe 16,5 s, fast nur Übersetzen, das vorher beim Spielen
+anfiel. Gerendert nachgeprüft: Am Rechner sieht Level 01 bei 4, 70 und
+176 m gleich aus (mittlere Abweichung 0,5 bei gleicher Spielzeit,
+innerhalb des Rauschens bewegter Gegner).
 
 **Ladezeit.** Die Zeit verteilt sich über gut 50 Bauschritte; den größten
 Einzelposten trugen die Bildpunktschleifen der Texturen (Waldweg allein
