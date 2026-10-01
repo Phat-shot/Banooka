@@ -152,6 +152,12 @@ func _ablauf() -> void:
 		if not await _warte_szene("Hub", 40.0):
 			_fehler.append("Level %02d: Portalraum kam nicht" % nummer)
 			break
+		# Der Portalraum wärmt seine Shader unter dem Ladeschirm vor und hält
+		# die Figur so lange fest. Erst danach lenken – sonst verschluckt die
+		# Sperre die Eingaben und frisst die Zeitgrenzen der Wege auf.
+		if not await _warte_aufbau(90.0):
+			_fehler.append("Level %02d: Portalraum wurde nicht fertig" % nummer)
+			break
 		await _warte(1.5)
 		if nummer == _levelliste()[0]:
 			await _bild("portalraum")
@@ -165,6 +171,7 @@ func _ablauf() -> void:
 
 	# Abschlussbild im Portalraum
 	if await _warte_szene("Hub", 40.0):
+		await _warte_aufbau(90.0)
 		await _warte(2.0)
 		await _bild("portalraum_am_ende")
 	_ende()
