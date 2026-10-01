@@ -3,7 +3,7 @@
 > **Stand:** Das ist der Entwurf, nach dem Level 01 neu gebaut wurde. In der
 > Umsetzung haben sich einzelne Maße verschoben – etwa die Furtsteine
 > (177,0 und 181,4 m), der Moosstamm als Pflichthürde über die ganze
-> Wegbreite und das gemessene Budget (283–457 Draw-Calls am Desktop,
+> Wegbreite und das gemessene Budget (285–474 Draw-Calls am Desktop,
 > 387–436 auf Handys). Maßgeblich sind die Daten in
 > `scenes/levels/level01.gd` und die Kopfkommentare der Module.
 

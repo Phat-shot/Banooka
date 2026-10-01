@@ -88,8 +88,8 @@ Wasserfall sind vom Grat und vom Ziel aus lesbar. Die Lichtfolge ergibt
 sich aus dem Kurs: Morgenlicht im Hallenwald, golden und klar am Hang,
 kühl in der Klamm, warm auf der Wiese, Gegenlicht am Ziel.
 
-**Kosten** (Desktop, `schaufenster.sh`): 283–457 Draw-Calls je Station,
-höchstens rund 0,64 Mio. Primitive, VRAM rund 122 MB. Auf Handys (eine
+**Kosten** (Desktop, `schaufenster.sh`): 285–474 Draw-Calls je Station,
+höchstens rund 0,64 Mio. Primitive, VRAM 121,5 MB. Auf Handys (eine
 Schattenstufe bis 50 m, kürzere Sichtweiten) 387–436 Draw-Calls bei
 102,5 MB. Aufbau und Module beschreibt ARCHITEKTUR.md unter „Level 01“.
 
