@@ -61,7 +61,9 @@ static func holen(schluessel: String, erzeuger: Callable) -> Resource:
 			return geladen
 	var neu: Resource = erzeuger.call()
 	if neu != null:
-		var zwischen := pfad.get_basename() + ".neu.res"
+		# Je Prozess eine eigene Zwischendatei: Zwei Spiele (oder Prüfwerk-
+		# zeuge) mit demselben user:// schreiben sich so nicht hinein.
+		var zwischen := "%s.%d.neu.res" % [pfad.get_basename(), OS.get_process_id()]
 		if ResourceSaver.save(neu, zwischen, ResourceSaver.FLAG_COMPRESS) == OK:
 			DirAccess.rename_absolute(zwischen, pfad)
 	return neu
