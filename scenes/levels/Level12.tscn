@@ -58,9 +58,9 @@ script = ExtResource("1_level")
 environment = SubResource("Umgebung")
 
 [node name="Hallenglut" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.94, 0, -0.341, -0.279, 0.574, -0.77, 0.196, 0.819, 0.54, 0, 30, 0)
-light_color = Color(1, 0.62, 0.33, 1)
-light_energy = 0.5
+transform = Transform3D(0.93999, -0.27932, 0.19595, 0, 0.57429, 0.81865, -0.3412, -0.76952, 0.53983, 0, 30, 0)
+light_color = Color(0.85, 0.88, 1, 1)
+light_energy = 0.3
 light_specular = 0.15
 shadow_enabled = true
 shadow_bias = 0.05

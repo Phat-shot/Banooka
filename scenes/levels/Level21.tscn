@@ -48,9 +48,9 @@ start_strecke = 15.0
 environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.6, 0, -0.8, -0.53664, 0.74314, -0.40248, 0.59451, 0.66913, 0.44588, 0, 30, 0)
+transform = Transform3D(0.6, -0.61283, 0.51423, 0, 0.64279, 0.76604, -0.8, -0.45963, 0.38567, 0, 30, 0)
 light_color = Color(1, 0.898, 0.741, 1)
-light_energy = 0.95
+light_energy = 0.65
 light_specular = 0.3
 shadow_enabled = true
 shadow_bias = 0.04
