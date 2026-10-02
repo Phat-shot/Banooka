@@ -3,7 +3,10 @@ class_name L01Wald
 ## Level 01, Modul „Wald": der Wald in drei Tiefen (Plan Abschnitte 5, 7, 9,
 ## 11, 13). Gesetzt mit `Waldsetzer` (scripts/waldsetzer.gd), gebaut aus
 ## den prozeduralen Helden (`Riesenstamm`, `Kronenwolke`, `Farnwerk`,
-## `Findling`) und, wo es sie gibt, aus Fremdmodellen (Felsen, M8).
+## `Findling`) und, wo es sie gibt, aus Fremdmodellen (natur2): Talbäume
+## (M3), hintere Hangbäume (M1) und Totholz (M17) über `Fremdmodelle.baum`
+## im Format und Stoff der prozeduralen Bäume (`_modellbaum`), Felsen (M8)
+## und Waldboden der Haine (M8, M16, `_bodenstueck`) über `Fremdmodelle.netz`.
 ##
 ## WAS HIER WÄCHST
 ##   Hallenwald  A (s −16 … 32): drei Stammreihen je Seite (|q| 7–10, 12–16,
@@ -149,6 +152,9 @@ const SICHT_FERN := 210.0
 const SICHT_FARN := 42.0
 const SICHT_FELS := 110.0
 const SICHT_HECKE := 60.0
+## Waldboden der Haine (M8, M16): Sichtweite bis zur Zellmitte, Zellgröße.
+const SICHT_BODEN := 70.0
+const ZELLE_BODEN := 96.0
 const SICHT_KRANZ := 60.0
 ## Die Riesen stehen als eine Zelle um s 170: vom Grat ab gut s 40 zu sehen,
 ## bis `RIESE_NAH` in der vollen Fassung.
@@ -212,6 +218,21 @@ const HAIN_RASTER := 18.0
 const HAIN_SCHRITT := 7.0
 const TAL_ABSTAND := 2.3
 const LICHTUNG := Vector4(178.0, 194.0, 16.0, 40.0)
+
+## Modellbäume des nahen Talwalds (M3, `_modellbaum`): Höhe und
+## Kronenansatz je Rückfallform (0 rund, 1 breit, 2 Nadel, 3 groß), wie die
+## prozeduralen Talbäume; ihre Fernfassung (dieselbe Silhouette, ausgedünnt,
+## mit wenigen großen Blattkarten) mit so vielen Dreiecken wie die fernen
+## Rückfallformen. Der ferne Talwald selbst bleibt prozedural: Aus 100 m
+## lasen sich die kantigen Modellkronen als Platten, als weiche Kugeln an
+## ihrer Stelle als Pilze auf Stielen – die gestaffelten Ballen der
+## Rückfallform tragen dort das Kronendach.
+## Hangwald hinten (M1): Rückfallart -> (Höhe, Kronenansatz) des Modellbaums.
+const HANG_MODELL := {"hang_rund": Vector2(15.0, 0.3), "hang_breit": Vector2(13.5, 0.34),
+		"schlicht_c": Vector2(17.0, 0.18)}
+const TAL_HOEHEN := [12.0, 11.0, 14.0, 15.0]
+const TAL_UNTEN := [0.36, 0.4, 0.14, 0.34]
+const FERN_MODELL_DREIECKE := 360
 
 ## Laubfarben (Grundton des Stoffs; getönt wird je Baum über die Farbe).
 const LAUB_HALLE := Color(0.15, 0.33, 0.14)
@@ -310,6 +331,11 @@ static var _hoehen_mass := Vector2i.ZERO
 ## Ferne Bäume zwischen den zwei Schritten des fernen Walds.
 static var _fern_kandidaten: Array[Dictionary] = []
 static var _netze := {}
+## Modelle für den Waldboden der Haine und ihre Arten im Setzer
+## (`_bodenstueck`), nur während `_talwald_nah`.
+static var _boden_modelle: Array[Dictionary] = []
+static var _boden_arten: Array = []
+static var _boden_orte: Array[Vector2] = []
 static var _kisten: Array[Vector3] = []
 ## Stämme (Mindestabstand) und Kronen (keine Doppelkronen): Raster über alle
 ## Schritte.
@@ -401,6 +427,9 @@ static func _vorbereiten(level: Level01) -> void:
 ## Verlauf.
 static func _aufraeumen() -> void:
 	_netze.clear()
+	_boden_modelle.clear()
+	_boden_arten.clear()
+	_boden_orte.clear()
 	_eimer.clear()
 	_feld_d = PackedFloat32Array()
 	_feld_i = PackedInt32Array()
@@ -950,11 +979,16 @@ static func _hallenbaum(art: String) -> Dictionary:
 					"unten": 0.18, "karten": 30, "saat": 1108}, true)
 
 
-## Talbäume (M3, Rückfall), mittlere Fassung: 0 rund, 1 breit, 2 Nadelbaum,
-## 3 groß und rund. Die Kronen setzen bei gut einem Drittel der Höhe an
-## ("unten"); der Nadelbaum trägt gestufte Kegel fast bis zum Boden (aus
-## vier Ballen auf 14 m war ein Schneemann geworden).
-static func _talbaum(k: int) -> Dictionary:
+## Talbäume (M3), mittlere Fassung: 0 rund, 1 breit, 2 Nadelbaum, 3 groß
+## und rund. Gibt es Modelle für M3 (natur2), ist es ein Modellbaum in der
+## Höhe des Rückfalls; `wahl` (0..1, nach dem Ort gestreut) wählt unter den
+## Modellen. Sonst der Rückfall: Die Kronen setzen bei gut einem Drittel
+## der Höhe an ("unten"); der Nadelbaum trägt gestufte Kegel fast bis zum
+## Boden (aus vier Ballen auf 14 m war ein Schneemann geworden).
+static func _talbaum(k: int, wahl: float = 0.0) -> Dictionary:
+	var modell := _modellbaum("M3", k % 4 == 2, wahl, TAL_HOEHEN[k % 4], TAL_UNTEN[k % 4])
+	if not modell.is_empty():
+		return modell
 	match k % 4:
 		0:
 			return _baum("tal0", {"mittel": true, "hoehe": 12.0, "radius": 0.34, "variante": 0,
@@ -972,6 +1006,44 @@ static func _talbaum(k: int) -> Dictionary:
 			return _baum("tal3", {"mittel": true, "hoehe": 15.0, "radius": 0.42, "variante": 0,
 					"krone_radius": 6.0, "krone_hoehe": 11.0, "ballen": 4, "unten": 0.34,
 					"saat": 2104})
+
+
+## Ein Modellbaum der Rolle `rolle` (`Fremdmodelle.baum`) im Format von
+## `_baum` – leer, wenn die Rolle keine Modelle hat. `nadel` wählt unter den
+## Nadelbäumen (Name mit „Pine"), sonst unter den übrigen; `wahl` (0..1)
+## das Modell. Stamm im Riesenstamm-Format für die Weltborke
+## (`_borke_welt`), Krone im Kronenwolke-Format, dazu die Fernfassung
+## gleicher Silhouette ("fern_netz").
+static func _modellbaum(rolle: String, nadel: bool, wahl: float, hoehe: float,
+		unten: float) -> Dictionary:
+	var namen := PackedStringArray()
+	for n in Fremdmodelle.rolle(rolle):
+		if n.contains("Pine") == nadel:
+			namen.append(n)
+	if namen.is_empty():
+		return {}
+	var name := namen[clampi(int(wahl * float(namen.size())), 0, namen.size() - 1)]
+	var schluessel := "modell|%s|%.1f|%.2f" % [name, hoehe, unten]
+	if _netze.has(schluessel):
+		return _netze[schluessel]
+	var m := Fremdmodelle.baum(name, {"hoehe": hoehe, "unten": unten,
+			"fern_dreiecke": FERN_MODELL_DREIECKE})
+	if m.is_empty():
+		return {}
+	var b := {"stamm": m["stamm"], "krone": m["krone"], "huelle": m["huelle"],
+			"hoehe": float(m["hoehe"]), "radius": float(m["radius"]),
+			"fuss_radien": PackedFloat32Array(), "kranz": null, "schatten": m["stamm"],
+			"variante": 2 if nadel else 0, "neigung": Vector2.ZERO, "fern_netz": m["fern"],
+			"krone_unten": float(m["krone_unten"]), "krone_oben": float(m["krone_oben"]),
+			"modell": name}
+	_netze[schluessel] = b
+	return b
+
+
+## Borke in Weltprojektion für Zellen mit Modellstämmen: Die Modelle tragen
+## keine UV für das Rindenmuster und keine Tangenten.
+static func _borke_welt() -> Material:
+	return Riesenstamm.borkenstoff({"welt": true, "radius": 0.4})
 
 
 ## Ferne Bäume: grobe Krone ohne Karten (fünf Ballen, gut 0,3k
@@ -1254,7 +1326,8 @@ static func _pflanze(ws: Waldsetzer, b: Dictionary, lage: Transform3D, stamm_art
 	if not fern_art.is_empty():
 		var v: int = b.get("variante", 0)
 		var k := 2 if v == 2 else (1 if v == 1 else 0)
-		var netz := _fernbaum(k)
+		# Modellbäume bringen ihre eigene Fernfassung mit (gleiche Silhouette).
+		var netz: ArrayMesh = b["fern_netz"] if b.has("fern_netz") else _fernbaum(k)
 		var hoch := float(b.get("hoehe", 12.0)) * bild.basis.y.length()
 		var f := hoch / netz.get_aabb().end.y
 		var breit := bild.basis.x.length() / maxf(bild.basis.y.length(), 0.001)
@@ -1660,6 +1733,13 @@ static func _hangwald(level: Level01) -> void:
 			"verschmelzen": true, "karten": true})
 	ws.art("fern", {"stoff": Kronenwolke.stoff(LAUB_HALLE, false), "sicht_von": SICHT_HANG,
 			"sicht": SICHT_FERN, "verschmelzen": true, "rand": 8.0})
+	# Modellbäume (M1) in den hinteren Reihen: Stämme in Weltborke (eigene
+	# Zeichnung), Kronen und Fernfassung im Stoff der übrigen.
+	var modelle := not Fremdmodelle.rolle("M1").is_empty()
+	if modelle:
+		ws.art("m_stamm", {"stoff": _borke_welt(), "sicht": SICHT_HANG, "verschmelzen": true})
+		ws.art("m_stamm_schatten", {"stoff": _borke_welt(), "schatten": "nur",
+				"sicht": SICHT_HANG, "verschmelzen": true})
 	var unterholz := _indiziert(Kronenwolke.netz({"radius": 1.7, "hoehe": 2.4, "variante": 1,
 			"karten": 18, "ballen": 3, "saat": 5301}))
 	var quer := L01Saum.querschnitte_links(level)
@@ -1723,6 +1803,14 @@ static func _hangwald(level: Level01) -> void:
 				versuche = ["ast" if rng.randf() < 0.5 else "ast_rund", "dach"]
 			for versuch_art in versuche:
 				var b := _hallenbaum(versuch_art)
+				# Hinten statt der tief beasteten Rückfallbäume ein Modellbaum
+				# gleicher Höhe (Nadelbaum statt Nadelbaum), nach dem Ort gewählt.
+				var modell := {}
+				if modelle and not vorn and HANG_MODELL.has(versuch_art):
+					modell = _modellbaum("M1", versuch_art == "schlicht_c",
+							_streu(Vector2(fuss.x, fuss.z), 31),
+							float((HANG_MODELL[versuch_art] as Vector2).x),
+							float((HANG_MODELL[versuch_art] as Vector2).y))
 				var zum_weg := _rechts_bei(level, ss)
 				var dreh := rng.randf() * TAU
 				if versuch_art == "dach" or versuch_art.begins_with("ast"):
@@ -1736,8 +1824,18 @@ static func _hangwald(level: Level01) -> void:
 				var ton_krone := _ton(rng, Vector2(0.8, 1.0))
 				if rng.randf() < 0.2 and not versuch_art.begins_with("ast"):
 					ton_krone = ton_krone * NADEL_TON
-				if _pflanze(ws, b, lage, "stamm", "krone", _ton(rng, Vector2(0.78, 0.96), 0.03),
-						ton_krone, {"fern": "fern"}):
+				var ton_stamm := _ton(rng, Vector2(0.78, 0.96), 0.03)
+				# Passt der Modellbaum nicht (seine Krone ist anders geformt),
+				# steht im selben Wurf der Rückfall – die Würfelfolge und damit
+				# der übrige Wald bleiben, wie sie ohne Modelle wären.
+				var gepflanzt := not modell.is_empty() and _pflanze(ws, modell, lage, "m_stamm",
+						"krone", ton_stamm, ton_krone, {"fern": "fern"})
+				if gepflanzt:
+					_zaehle("hang_modell")
+				else:
+					gepflanzt = _pflanze(ws, b, lage, "stamm", "krone", ton_stamm, ton_krone,
+							{"fern": "fern"})
+				if gepflanzt:
 					_staemme.dazu(Vector2(fuss.x, fuss.z), 2.4)
 					_zaehle("hang")
 					if versuch_art.begins_with("ast"):
@@ -2021,19 +2119,43 @@ static func _talwald_nah(level: Level01) -> void:
 			print("Wald: Fernbaum %d: %.1f–%.1f, breit %.1f × %.1f" % [k, box.position.y, box.end.y,
 					box.size.x, box.size.z])
 	var ws := Waldsetzer.new(_wurzel, "Talwald", ZELLE_TAL)
-	ws.art("stamm", {"stoff": _borke(), "sicht": SICHT_TAL, "verschmelzen": true})
+	# Mit Modellbäumen (M3) Borke in Weltprojektion – für ihre Stämme und das
+	# Totholz, das mit ihnen eine Zeichnung teilt.
+	var modelle := not Fremdmodelle.rolle("M3").is_empty()
+	ws.art("stamm", {"stoff": _borke_welt() if modelle else _borke(), "sicht": SICHT_TAL,
+			"verschmelzen": true})
 	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_TAL), "sicht": SICHT_TAL,
 			"verschmelzen": true, "karten": true})
+	# Waldboden der Haine (M8, M16): bemooste Felsen, Stümpfe und Stämme an
+	# den Füßen der Bäume (`_bodenstueck`) – als MultiMesh je Modell, ohne
+	# Schatten (klein), grob gezellt, kurze Sicht.
+	_boden_modelle.clear()
+	_boden_arten.clear()
+	_boden_orte.clear()
+	if modelle:
+		_boden_modelle.append_array(Fremdmodelle.rolle_netze("M8", {}, 20.0))
+		_boden_modelle.append_array(Fremdmodelle.rolle_netze("M16", {}, 20.0))
+		for k in _boden_modelle.size():
+			_boden_arten.append(ws.fremd("boden%d" % k, _boden_modelle[k],
+					{"sicht": SICHT_BODEN, "schatten": false, "zelle": ZELLE_BODEN}))
 	# Hinter `SICHT_TAL` dieselben Bäume in der Fernfassung.
 	ws.art("fern", {"stoff": Kronenwolke.stoff(LAUB_TAL, false), "sicht_von": SICHT_TAL,
 			"sicht": SICHT_FERN, "verschmelzen": true, "rand": 8.0})
 	var rng := PropWerkzeug.zufall(8101)
-	var tot: Array[ArrayMesh] = [
-		Riesenstamm.netz({"hoehe": 11.0, "radius": 0.42, "oben": "bruch", "aeste": 3,
-				"ast_start": 0.45, "ast_laenge": 3.0, "moos": 0.35, "saat": 8201}),
-		Riesenstamm.netz({"hoehe": 8.0, "radius": 0.5, "oben": "bruch", "aeste": 2,
-				"ast_start": 0.5, "ast_laenge": 2.4, "moos": 0.4, "brettwurzeln": 4,
-				"saat": 8202})]
+	var tot: Array[ArrayMesh] = []
+	# Totholz (M17): mit natur2 die kahlen Modellbäume – knorrige Äste statt
+	# Stümpfen mit Aststummeln –, sonst der Rückfall.
+	for k in Fremdmodelle.rolle("M17").size():
+		var m := Fremdmodelle.baum(Fremdmodelle.rolle("M17")[k],
+				{"hoehe": 10.0 - 2.0 * float(k % 2), "moos": 0.45})
+		if not m.is_empty():
+			tot.append(m["stamm"])
+	if tot.is_empty() or not modelle:
+		tot = [Riesenstamm.netz({"hoehe": 11.0, "radius": 0.42, "oben": "bruch", "aeste": 3,
+					"ast_start": 0.45, "ast_laenge": 3.0, "moos": 0.35, "saat": 8201}),
+			Riesenstamm.netz({"hoehe": 8.0, "radius": 0.5, "oben": "bruch", "aeste": 2,
+					"ast_start": 0.5, "ast_laenge": 2.4, "moos": 0.4, "brettwurzeln": 4,
+					"saat": 8202})]
 	var rand_busch := _indiziert(Kronenwolke.netz({"radius": 1.9, "hoehe": 2.6, "variante": 1,
 			"karten": 18, "ballen": 3, "saat": 8301}))
 	var hain := FastNoiseLite.new()
@@ -2083,6 +2205,11 @@ static func _talwald_nah(level: Level01) -> void:
 		x += HAIN_SCHRITT
 	_zaehle("tal_haine", mitten.size())
 	_totholz_tal(ws, tot, rng)
+	for ort in _boden_orte:
+		_bodenstueck(level, ws, ort)
+	_boden_orte.clear()
+	_boden_modelle.clear()
+	_boden_arten.clear()
 	var zz := ws.fertig()
 	_zaehle("tal_knoten", int(zz["knoten"]))
 	_zaehle("tal_dreiecke", int(zz["dreiecke"]))
@@ -2117,7 +2244,7 @@ static func _hain(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator, mi
 			if not nadel:
 				var auswahl: Array[int] = [0, 3, 0, 3, 1]
 				k = auswahl[rng.randi_range(0, auswahl.size() - 1)]
-			var b := _talbaum(k)
+			var b := _talbaum(k, _streu(p, 23))
 			# Wenige große, viele kleine: der erste groß, die übrigen schief
 			# verteilt zwischen 0,6 und 1,2.
 			var groesse := rng.randf_range(1.15, 1.5) if n == 0 \
@@ -2152,6 +2279,11 @@ static func _hain(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator, mi
 			_staemme.dazu(p, TAL_ABSTAND * 0.6)
 			_zaehle("tal")
 			gesetzt = true
+			# Am Fuß des großen Baums und an gut jedem vierten weiteren ein
+			# Felsen, Stumpf oder Moosstamm – gesetzt erst, wenn alle Haine
+			# stehen (`_bodenstueck`): Sie sollen keinem Baum den Platz nehmen.
+			if not _boden_modelle.is_empty() and (n == 0 or _streu(p, 37) < 0.28):
+				_boden_orte.append(p)
 			# Unterholz dicht am Stamm: Unter den Kronen soll kein heller Rasen
 			# liegen, und der Stamm verschwindet im Laub.
 			if rng.randf() < 0.55:
@@ -2169,6 +2301,40 @@ static func _hain(level: Level01, ws: Waldsetzer, rng: RandomNumberGenerator, mi
 		var ort := mitte + Vector2(cos(wb), sin(wb)) * (weite + rng.randf_range(1.5, 3.5))
 		if _tal_platz(level, ort, false):
 			_randbusch(ws, busch, Vector3(ort.x, L01Gelaende.hoehe(ort.x, ort.y), ort.y), rng)
+
+
+## Ein Stück Waldboden (Modell aus `_boden_modelle`) neben dem Baum bei
+## `p`: 1,8–3,2 m vom Stamm, nie auf dem Weg, an Kisten oder an einem
+## anderen Stamm. Felsen 0,7–1,3 m groß und ein Zehntel eingesunken,
+## Stümpfe und Stämme 1,4–2,3 m. Alles nach dem Ort gestreut (`_streu`),
+## damit der Wald selbst bleibt, wie er war; im Web nur jedes zweite.
+static func _bodenstueck(level: Level01, ws: Waldsetzer, p: Vector2) -> void:
+	if Effekte.reduziert and _streu(p, 61) < 0.5:
+		return
+	var w := _streu(p, 41) * TAU
+	var ort := p + Vector2(cos(w), sin(w)) * lerpf(1.8, 3.2, _streu(p, 43))
+	if not _tal_platz(level, ort, false) or not _staemme.frei(ort, 0.9):
+		return
+	var i := _naechste(ort.x, ort.y)
+	if i >= 0 and absf(_quer(i, ort.x, ort.y)) < _bahn_halb[i] + 2.5:
+		return
+	var y := L01Gelaende.hoehe(ort.x, ort.y)
+	if not _kistenfrei(Vector3(ort.x, y, ort.y), 2.0):
+		return
+	var k := clampi(int(_streu(p, 47) * float(_boden_modelle.size())), 0,
+			_boden_modelle.size() - 1)
+	var modell: Dictionary = _boden_modelle[k]
+	var fels := String(modell.get("name", "")).contains("Rock")
+	var gross := lerpf(0.3, 0.55, _streu(p, 53)) if fels else lerpf(0.6, 0.95, _streu(p, 53))
+	var huelle: AABB = modell["huelle"]
+	var lage := Transform3D(Basis(Vector3.UP, _streu(p, 59) * TAU).scaled(Vector3.ONE * gross),
+			Vector3(ort.x, y - huelle.size.y * gross * (0.1 if fels else 0.04), ort.y))
+	var namen: Array[String] = []
+	namen.assign(_boden_arten[k])
+	ws.setze_fremd(namen, modell, lage, _ton(PropWerkzeug.zufall(int(_streu(p, 67) * 9999.0)),
+			Vector2(0.82, 1.0), 0.04))
+	_staemme.dazu(ort, 0.9)
+	_zaehle("waldboden")
 
 
 ## Darf der nahe Talwald bei `p` (Welt-XZ) pflanzen? Nah am Weg (3 m bis

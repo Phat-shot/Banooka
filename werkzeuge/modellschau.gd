@@ -17,8 +17,11 @@ extends Node3D
 ## Licht von Level 01. Gezeigt werden alle natur2-Modelle und alles, was die
 ## Rollen M1–M18 heute bekommen (ohne natur2: die Kenney-Rückfälle), dazu
 ## ein selbstgebautes Prüfmodell für den Weg über texturierte, unbeleuchtete
-## und ausgeschnittene Materialien. Drei Bilder: Übersicht, Streuung (als
-## MultiMesh, aus der Spielkamera) und Nahaufnahme der harten Flächen.
+## und ausgeschnittene Materialien.
+## Dazu die Modellbäume der Rollen M1–M3 und M17 so, wie `Fremdmodelle.baum()`
+## sie für den Wald liefert (Höhe, Fuß, Kronenformat, Dreiecke). Drei Bilder:
+## Übersicht, Streuung (als MultiMesh, aus der Spielkamera) und Nahaufnahme
+## der harten Flächen.
 ## Headless werden nur die Prüfungen gerechnet („=== N Abweichungen").
 ##   MODELLSCHAU_NETZ=1 MODELLSCHAU_BILD=/tmp/netz.png godot --path . res://werkzeuge/Modellschau.tscn
 
@@ -185,6 +188,7 @@ func _netzschau() -> void:
 	var zeit := Time.get_ticks_msec()
 
 	_pruefmodell_testen()
+	_baeume_pruefen()
 	var reihen := _netz_reihen()
 	var anzahl := 0
 	for reihe in reihen:
@@ -362,6 +366,76 @@ func _beleuchtet(stoff: Material) -> bool:
 	if shader != null and shader.shader != null:
 		return not shader.shader.code.contains("unshaded")
 	return false
+
+
+# ------------------------------------------------------------ Modellbäume
+
+## Obergrenzen für `Fremdmodelle.baum()` (Bäume des Waldes in 12 m Höhe):
+## Stamm, Krone samt Blattkarten, Fernfassung.
+const BAUM_STAMM_MAX := 1300
+const BAUM_KRONE_MAX := 3000
+const BAUM_FERN_MAX := 700
+
+
+## Prüft jeden Modellbaum der Rollen M1–M3 und M17 so, wie Level 01 und der
+## Portalraum ihn bekommen (`Fremdmodelle.baum`): Höhe, Fuß im Boden, Laub
+## im Format der `Kronenwolke` (Höhe in UV2, Blattkarten), Dreiecke.
+func _baeume_pruefen() -> void:
+	var gezeigt := {}
+	for kennung: String in ["M1", "M2", "M3", "M17"]:
+		for name in Fremdmodelle.rolle(kennung):
+			if gezeigt.has(name):
+				continue
+			gezeigt[name] = true
+			var b := Fremdmodelle.baum(name, {"hoehe": 12.0, "unten": 0.36})
+			var mangel := PackedStringArray()
+			if b.is_empty():
+				print("  FEHLT: Baum %s (%s)" % [name, kennung])
+				_abweichungen += 1
+				continue
+			var stamm: ArrayMesh = b["stamm"]
+			var krone: ArrayMesh = b["krone"]
+			var fern: ArrayMesh = b["fern"]
+			var s_box := stamm.get_aabb()
+			if absf(float(b["hoehe"]) - 12.0) > 0.12:
+				mangel.append("Höhe %.2f statt 12" % float(b["hoehe"]))
+			if absf(s_box.position.y + Fremdmodelle.BAUM_VERSENKT) > 0.05:
+				mangel.append("Fuß bei %.2f statt %.2f" % [s_box.position.y,
+						-Fremdmodelle.BAUM_VERSENKT])
+			var dr_stamm := _dreiecke(stamm)
+			var dr_krone := _dreiecke(krone) if krone != null else 0
+			var dr_fern := _dreiecke(fern)
+			if dr_stamm > BAUM_STAMM_MAX:
+				mangel.append("Stamm %d Dreiecke" % dr_stamm)
+			if dr_krone > BAUM_KRONE_MAX:
+				mangel.append("Krone %d Dreiecke" % dr_krone)
+			if dr_fern > BAUM_FERN_MAX:
+				mangel.append("Fernfassung %d Dreiecke" % dr_fern)
+			var karten := 0
+			if kennung != "M17":
+				if krone == null:
+					mangel.append("ohne Krone")
+				else:
+					var uv2: PackedVector2Array = krone.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV2]
+					for u in uv2:
+						if u.x >= 1.0:
+							karten += 1
+					karten /= 4
+					if karten == 0:
+						mangel.append("Krone ohne Blattkarten")
+			print("  %-4s Baum %-24s Stamm %4d, Krone %4d (%d Karten), fern %3d Dr.  Krone ab %.1f m%s" % [
+				kennung, name, dr_stamm, dr_krone, karten, dr_fern, float(b["krone_unten"]),
+				"" if mangel.is_empty() else "  FEHLER: " + ", ".join(mangel)])
+			if not mangel.is_empty():
+				_abweichungen += 1
+
+
+func _dreiecke(netz: ArrayMesh) -> int:
+	var summe := 0
+	for f in netz.get_surface_count():
+		var n := netz.surface_get_array_index_len(f)
+		summe += (n if n > 0 else netz.surface_get_array_len(f)) / 3
+	return summe
 
 
 # ------------------------------------------------------------ Prüfmodell

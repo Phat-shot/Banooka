@@ -941,9 +941,35 @@ aufgerufen, wie sein Kopfkommentar es beschreibt; der Weltenbaum steht dort
 im Maßstab 1:8, `GelaendeFeld` und `Wegmaske` nur mittelbar (die Halme
 lesen die Maske, das Höhenfeld fehlt).
 `Fremdmodelle.netz()` verschmilzt CC0-Modelle aus `assets/modelle/natur2/`
-zu MultiMesh-tauglichen Netzen; der Ordner ist derzeit leer, weil die
-Modellquellen im Netz der Bauumgebung gesperrt waren – jedes Bauteil fällt
-dann auf seinen prozeduralen Rückfall zurück.
+zu MultiMesh-tauglichen Netzen (Felsen, Stümpfe, Moosstämme),
+`Fremdmodelle.baum()` macht aus einem Modellbaum Netze im Format der
+prozeduralen Bäume (siehe unten „Modellbäume"). Welche Rolle welches
+Modell trägt, steht in `Fremdmodelle.ROLLEN`; fehlt eine Datei oder ist
+`Einstellungen.fremde_modelle` aus, fällt jedes Bauteil auf seinen
+prozeduralen Rückfall zurück.
+
+**Modellbäume** (`Fremdmodelle.baum(name, {hoehe, unten, …})`, Quaternius
+Ultimate Nature Pack in `natur2/unp/`). Aus der Datei kommt nur die Form,
+der Rest aus dem Wald, damit Modell- und prozedurale Bäume dieselbe
+Zeichnung teilen:
+
+| Netz | Format | Stoff |
+|---|---|---|
+| `stamm` | wie `Riesenstamm` (COLOR: Verdeckung, Alpha Moos; UV2: Art, Nordmoos), Normalen geglättet, auf 1200 Dreiecke ausgedünnt, Fuß 1 m in den Boden | `Riesenstamm.borkenstoff({"welt": true})` – Weltprojektion, die Modelle haben keine brauchbaren UV und keine Tangenten |
+| `krone` | wie `Kronenwolke` (COLOR: Verdeckung, Alpha Wind; UV2.y Höhe in der Krone), Normalen zur Kronenmitte gebogen, nach unten gestreckt bis `unten` · Höhe (höchstens 1,6-fach), 30–160 eigene Blattkarten | `Kronenwolke.stoff()` |
+| `fern` | Krone ohne Karten und Stamm dunkel im Kronenformat, ausgedünnt auf 360 Dreiecke, dazu 24 große Karten | `Kronenwolke.stoff(farbe, false)` |
+
+Alle drei liegen im `Bauspeicher` (`fremdbaum_*`, Schlüssel: Pfad und
+Optionen). Level 01 setzt sie über `L01Wald._modellbaum` im nahen
+Talwald (M3, Höhe und Kronenansatz der Rückfallformen), in den hinteren
+Reihen des Hangwalds (M1, eigene Stammart „m_stamm" mit Schatten) und
+als Totholz im Tal (M17); der Talwald zeichnet seine Stämme dann ganz in
+Weltborke. Der ferne Talwald bleibt prozedural: Aus 100 m lasen sich die
+kantigen Modellkronen als schwebende Platten. Am Fuß der Hainbäume liegen
+Felsen, Stümpfe und Moosstämme (M8, M16, `_bodenstueck`) – gesetzt, wenn
+alle Haine stehen, nach dem Ort gestreut (`_streu`), damit die Würfelfolge
+des Walds unverändert bleibt; ohne Schatten, MultiMesh je Modell, Zellen
+zu 96 m, Sicht 70 m, im Web jedes zweite.
 
 **Prüfungen nur für Level 01** (Opt-in über `pruefprofil()` bzw.
 `sprungfaelle()`): `level_check.gd` prüft zusätzlich Kamerasicht, Gefälle,
@@ -1113,6 +1139,18 @@ Umgebung, Licht, Spieler, Kamera und HUD.
   Wandpfeiler), weil hinter der Nordmauer nie eine Kamera steht. Süd- und
   Seitenmauern bleiben einseitige Flächen ohne Deckfläche: Die Kamera steht
   oft außerhalb, und eine Deckfläche läge als Balken quer im Bild.
+- **Waldsaum und Raumbäume** (`_umland_modellwald`, `_raumbaum`): Hinter
+  der Nordmauer stehen in zwei Reihen Modellbäume aus natur2
+  (`Fremdmodelle.baum`, wie in Level 01), Art und Laubfarbe nach dem Raum
+  davor (Wurzelwald Laub, Nebelsümpfe Moos und Totholz, Steinfeste Nadeln
+  im Frost, Rost und Ranken Dschungel, Sand und Neon kahl); die Laub- und
+  Nadelbäume in Wurzelwald und Rost und Ranken sind dieselben Modelle mit
+  schmalen Kronen. Alle zusammen sind EIN `Waldsetzer` mit je einem Netz
+  für Stämme und Kronen hinter der Mauer (ohne Schatten) und in den Räumen
+  (Stamm mit Schatten, die Krone wirft den ihrer Fernfassung). Ein Raumbaum
+  behält die Kollision des Kenney-Baums, den `Baum` dort setzte (Zylinder,
+  Radius 0,055 · Höhe · Stärke, 60 % der Höhe). Ohne Modelle baut alles wie
+  vorher (`Baum`).
 - **Tore** (`levelportal.gd`, `class_name Levelportal`): `nummer`,
   `eigene_pfeiler`, `akzent` und `wirbel` vor `add_child()` setzen. Der
   grüne Ring heißt „offen", der Wirbel darin (`Effekte.wirbelstoff`) trägt

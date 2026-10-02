@@ -334,6 +334,34 @@ const NETZ_FARBEN := {
 	"colorYellow": Color(0.93, 0.70, 0.24),
 	"colorPurple": Color(0.52, 0.40, 0.80),
 	"colorTan": Color(0.80, 0.56, 0.34),
+	# Ultimate Nature Pack (`unp/`): einfarbige Materialien mit schlichten
+	# Namen. Das Grün der Datei ist graustichig, der Fels blaugrau – auf den
+	# Waldboden und die Borke von Level 01 gelegt, damit Modell und
+	# prozeduraler Wald dieselbe Familie bleiben.
+	"Green": Color(0.21, 0.42, 0.15),
+	"DarkGreen": Color(0.15, 0.31, 0.12),
+	"Leaves": Color(0.24, 0.44, 0.16),
+	"Wood": Color(0.36, 0.27, 0.19),
+	"LightWood": Farben.RINDE_HELL,
+	"Rock": Color(0.55, 0.52, 0.46),
+	"White": Color(0.78, 0.76, 0.70),
+	"Black": Color(0.20, 0.18, 0.16),
+	"Berry": Color(0.70, 0.18, 0.20),
+	"Cyan": Color(0.36, 0.52, 0.86),
+	"Yellow": Color(0.93, 0.74, 0.28),
+	"Pink": Color(0.86, 0.48, 0.66),
+	"Mushroom_Top": Color(0.62, 0.38, 0.22),
+	"Mushroom_Bottom": Color(0.86, 0.80, 0.68),
+}
+
+## Materialklasse nach dem genauen Namen, vor den Stichwörtern (`_WOERTER`):
+## Das Ultimate Nature Pack nennt Materialien nach ihrer Farbe. Birkenrinde
+## heißt dort „White", und nach der Farbe allein wäre sie Fels; Beeren und
+## Blüten („Berry", „Cyan" …) wären Borke. Die Option `klassen` in `netz()`
+## überschreibt das je Modell.
+const _NAMEN_KLASSE := {
+	"White": "borke", "Black": "borke", "LightWood": "holz",
+	"Berry": "bluete", "Cyan": "bluete", "Yellow": "bluete", "Pink": "bluete",
 }
 
 ## Die Rollen aus dem Levelplan (Level 01, Abschnitt 9) und welche Modelle
@@ -358,7 +386,8 @@ const ROLLEN := {
 			"megakit/CommonTree_4", "megakit/CommonTree_5", "megakit/Pine_1",
 			"megakit/Pine_2", "megakit/Pine_3"],
 		"ersatz": ["unp/CommonTree_1", "unp/CommonTree_2", "unp/CommonTree_3",
-			"unp/PineTree_1", "unp/PineTree_2", "unp/PineTree_3"],
+			"unp/CommonTree_4", "unp/CommonTree_5", "unp/PineTree_1", "unp/PineTree_2",
+			"unp/PineTree_3", "unp/PineTree_5"],
 		"kenney": [],
 		"optionen": {"wind": 0.08}},
 	"M2": {"name": "Rahmenbäume", "hoehe": 12.0,
@@ -368,8 +397,8 @@ const ROLLEN := {
 	"M3": {"name": "Talwald nah", "hoehe": 9.0,
 		"primaer": ["megakit/CommonTree_1", "megakit/CommonTree_2", "megakit/CommonTree_3",
 			"megakit/CommonTree_4", "megakit/CommonTree_5"],
-		"ersatz": ["unp/CommonTree_1", "unp/CommonTree_2", "unp/BirchTree_1",
-			"unp/BirchTree_2"],
+		"ersatz": ["unp/CommonTree_1", "unp/CommonTree_2", "unp/CommonTree_5",
+			"unp/PineTree_1", "unp/PineTree_3"],
 		"kenney": [],
 		"optionen": {}},
 	"M7": {"name": "Konsolenpilze", "hoehe": 0.4,
@@ -379,7 +408,7 @@ const ROLLEN := {
 	# Vorgabe lag auf jedem Stein eine flache, zu helle grüne Decke.
 	"M8": {"name": "Felsen, Findlinge (Deko)", "groesse": 2.4,
 		"primaer": ["megakit/Rock_Medium_1", "megakit/Rock_Medium_2", "megakit/Rock_Medium_3"],
-		"ersatz": [],
+		"ersatz": ["unp/Rock_Moss_2", "unp/Rock_Moss_5", "unp/Rock_Moss_6"],
 		"kenney": ["rock_largeA", "rock_largeB", "rock_largeC"],
 		"optionen": {"moos": 0.3, "moos_ton": Color(0.9, 0.8, 1.0), "fuss_dunkel": 0.5,
 			"formen": 2, "max_dreiecke": 700}},
@@ -420,13 +449,18 @@ const ROLLEN := {
 		"ersatz": ["stump_old", "stump_round"],
 		"kenney": ["log_large"],
 		"kenney_ab": 40.0, "rueckfall": "Riesenstamm.liegend / Riesenstamm.stumpf",
-		"optionen": {"moos": 0.5, "formen": 2, "zerklueftung": 0.025, "woelbung": 0.0,
+		# Das Ultimate Nature Pack ist schon rund; nachgeformt (unten) werden
+		# nur Kenneys Achteckstämme. Sein Grün liegt als Moos auf dem Holz.
+		"optionen": {"moos": 0.5, "klassen": {"Green": "moos", "DarkGreen": "moos"}},
+		"optionen_kenney": {"formen": 2, "zerklueftung": 0.025, "woelbung": 0.0,
 			"runden": 1.0, "max_dreiecke": 600}},
 	"M17": {"name": "Totholz", "hoehe": 8.0,
-		"primaer": ["megakit/DeadTree_1", "megakit/DeadTree_2"], "ersatz": [], "kenney": [],
+		"primaer": ["megakit/DeadTree_1", "megakit/DeadTree_2"],
+		"ersatz": ["unp/CommonTree_Dead_1", "unp/CommonTree_Dead_2"], "kenney": [],
 		"optionen": {"moos": 0.3}},
 	"M18": {"name": "Pilze", "hoehe": 0.3,
-		"primaer": ["megakit/Mushroom_Common"], "ersatz": [],
+		"primaer": ["megakit/Mushroom_Common"],
+		"ersatz": [],
 		"kenney": ["mushroom_red", "mushroom_redGroup", "mushroom_tan", "mushroom_tanGroup"],
 		"optionen": {}},
 }
@@ -508,8 +542,16 @@ static func rolle_netze(kennung: String, dazu: Dictionary = {},
 		abstand: float = INF) -> Array[Dictionary]:
 	var netze: Array[Dictionary] = []
 	var optionen := rolle_optionen(kennung, dazu)
+	var eintrag: Dictionary = ROLLEN.get(kennung, {})
+	var kenney: Array = eintrag.get("kenney", [])
 	for n in rolle(kennung, abstand):
-		var fertig := netz(n, optionen)
+		var o := optionen
+		# Eigene Vorgaben für die Kenney-Stufe ("optionen_kenney"): etwa das
+		# Nachformen, das nur Kenneys kantige Stämme brauchen.
+		if kenney.has(n) or (eintrag.get("ersatz", []) as Array).has(n) and not n.contains("/"):
+			o = optionen.duplicate()
+			o.merge(eintrag.get("optionen_kenney", {}), true)
+		var fertig := netz(n, o)
 		if not fertig.is_empty():
 			netze.append(fertig)
 	return netze
@@ -538,7 +580,10 @@ static func rolle_netze(kennung: String, dazu: Dictionary = {},
 ##   toenung      Color, auf alle Scheitelfarben multipliziert
 ##   laub_toenung / hart_toenung   nur auf Laub bzw. harte Flächen
 ##   farben       {Materialname: Color} statt der Palette
-##   moos         0–1 Moosmenge auf harten Flächen (Vorgabe je Stoff)
+##   klassen      {Materialname: Klasse} statt der Stichwörter ("fels",
+##                "borke", "holz", "moos", "laub", "bluete", "pilz") – etwa
+##                das Grün auf einem Stumpf als Moos statt als Laub
+##   moos       0–1 Moosmenge auf harten Flächen (Vorgabe je Stoff)
 ##   moos_ton, fuss_dunkel   an `moosdecke()` weitergereicht (harte Flächen)
 ##   glaetten     0–1 Normalen der harten Flächen glätten (Vorgabe je Stoff)
 ##   formen       0–3 harte Flächen so oft vierteln und nachformen: Rauschen
@@ -839,6 +884,563 @@ static func laubstoff(optionen: Dictionary = {}) -> ShaderMaterial:
 	return stoff
 
 
+# ================================================================ baum()
+#
+# Bäume brauchen mehr als `netz()`: Sie sollen im Wald von Level 01 neben
+# den prozeduralen Bäumen stehen, in DERSELBEN Zeichnung (je Zelle ein Netz
+# für Stämme, eins für Kronen) und im selben Stoff. Aus dem Modell kommt
+# nur die Form – die Silhouette mit Ästen und gegliederter Krone, die den
+# Kugelkronen fehlt. Licht, Laub, Blattkarten, Moos und Nebel kommen aus
+# dem Spiel.
+
+## Fuß und Stammansatz: so viele Meter wird die unterste Stammkante in den
+## Boden verlängert (wie `Riesenstamm.VERSENKT`) – am Hang schwebt sonst die
+## Talseite.
+const BAUM_VERSENKT := 1.0
+## Fernfassung: Farbe des Stamms im Kronenstoff (wie `L01Wald._fernbaum`).
+const BAUM_FERN_STAMM := Color(0.3, 0.26, 0.21, 0.0)
+
+static var _baeume := {}
+
+
+## Ein Modellbaum (Rollen M1–M3, M17) im Format der prozeduralen Bäume:
+##   stamm        `Riesenstamm`-Format (COLOR: Verdeckung, Alpha Moos;
+##                UV2: Art, Nordmoos) für `Riesenstamm.borkenstoff({"welt":
+##                true})` – Weltprojektion, also ohne UV und Tangenten aus der
+##                Datei. Der Fuß reicht `BAUM_VERSENKT` in den Boden.
+##   krone        `Kronenwolke`-Format (COLOR: Verdeckung und Tönung, Alpha
+##                Windgewicht; UV2: Höhe in der Krone; Blattkarten mit UV2.x
+##                ≥ 1) für `Kronenwolke.stoff()`. Die Normalen sind zur
+##                Kronenmitte gebogen wie dort; die Karten fransen den Umriss
+##                aus. Leer (null) bei kahlen Bäumen.
+##   fern         Fernfassung im Kronenstoff (Krone ohne Karten, Stamm dunkel,
+##                wie `L01Wald._fernbaum`), ausgedünnt auf `fern_dreiecke`
+##   huelle       AABB der Krone (mit Karten), ohne Krone die des Stamms
+##   hoehe, radius (Stamm in Brusthöhe), krone_unten, krone_oben, dreiecke
+## Der Stammfuß liegt im Ursprung (waagerecht nach der Stammmitte am Boden
+## gemittelt), +Y hinauf.
+##
+## Optionen (alle freiwillig):
+##   hoehe          Höhe in m (Vorgabe: die der Datei)
+##   unten          die Krone beginnt höchstens auf diesem Anteil der Höhe:
+##                  tiefer ansetzende Kronen werden nach unten gestreckt
+##                  (höchstens um `streck_max`, Vorgabe 1,6) – Laub statt Lolli
+##   karten         Zahl der Blattkarten (Vorgabe nach der Kronengröße wie bei
+##                  `Kronenwolke`, halb so dicht – die Krone hat schon Form)
+##   wind           Windgewicht 0..1 (1)
+##   fern_dreiecke  Ziel der Fernfassung (360)
+##   moos           Moosanteil am Stammfuß 0..1 (0,35)
+##   klassen        wie bei `netz()`
+##   saat           Zufall für Tönung und Karten
+## Leer, wenn das Modell fehlt oder `aktiv()` aus ist. Zwischengespeichert,
+## auch im `Bauspeicher` – nie verändern.
+static func baum(bezeichnung: String, optionen: Dictionary = {}) -> Dictionary:
+	if not aktiv():
+		return {}
+	var pfad := _pfad(bezeichnung)
+	if not ResourceLoader.exists(pfad):
+		return {}
+	var schluessel := "%s|%s" % [pfad, var_to_str(optionen)]
+	if _baeume.has(schluessel):
+		return _baeume[schluessel]
+	# Die drei Netze entstehen in einem Zug; der Bauspeicher fragt je Netz.
+	var roh := {}
+	var bauen := func(teil: String) -> ArrayMesh:
+		if roh.is_empty():
+			roh.merge(_baum_bauen(pfad, optionen, bezeichnung))
+		return roh.get(teil) as ArrayMesh
+	var argumente := [pfad, optionen]
+	var stamm := Bauspeicher.netz("fremdbaum_stamm", argumente,
+			func() -> ArrayMesh: return bauen.call("stamm") as ArrayMesh)
+	var fern := Bauspeicher.netz("fremdbaum_fern", argumente,
+			func() -> ArrayMesh: return bauen.call("fern") as ArrayMesh)
+	var krone: ArrayMesh = null
+	if _hat_laub(pfad, optionen):
+		krone = Bauspeicher.netz("fremdbaum_krone", argumente,
+				func() -> ArrayMesh: return bauen.call("krone") as ArrayMesh)
+	var fertig := {}
+	if stamm != null and fern != null:
+		fertig = _baum_werte(stamm, krone, fern)
+		fertig["name"] = bezeichnung
+	_baeume[schluessel] = fertig
+	return fertig
+
+
+## Kennzahlen aus den fertigen Netzen (auch aus dem Bauspeicher gelesenen).
+static func _baum_werte(stamm: ArrayMesh, krone: ArrayMesh, fern: ArrayMesh) -> Dictionary:
+	var s_box := stamm.get_aabb()
+	# Die Höhe des Modells (Blattkarten ragen etwas darüber hinaus).
+	var hoehe := float(stamm.get_meta("hoehe", s_box.end.y))
+	var huelle := s_box
+	var unten := s_box.end.y
+	var oben := s_box.end.y
+	var dreiecke := Waldsetzer._dreiecke(stamm)
+	if krone != null:
+		huelle = krone.custom_aabb if krone.custom_aabb.size != Vector3.ZERO else krone.get_aabb()
+		var k_box := krone.get_aabb()
+		unten = k_box.position.y
+		oben = k_box.end.y
+		dreiecke += Waldsetzer._dreiecke(krone)
+	return {"stamm": stamm, "krone": krone, "fern": fern, "huelle": huelle,
+		"hoehe": hoehe, "radius": float(stamm.get_meta("radius", 0.3)),
+		"krone_unten": unten, "krone_oben": oben, "dreiecke": dreiecke}
+
+
+## Hat das Modell Laub? (Ohne Netz zu bauen: nur die Materialklassen.)
+static func _hat_laub(pfad: String, optionen: Dictionary) -> bool:
+	var knoten := _instanz(pfad)
+	if knoten == null:
+		return false
+	var teile: Array[Dictionary] = []
+	_teile_sammeln(knoten, Transform3D.IDENTITY, teile)
+	knoten.free()
+	for teil in teile:
+		var klasse := String(_stoff_lesen(teil["stoff"] as Material, optionen)["klasse"])
+		if klasse in ["laub", "bluete"]:
+			return true
+	return false
+
+
+static func _baum_bauen(pfad: String, optionen: Dictionary, bezeichnung: String) -> Dictionary:
+	var knoten := _instanz(pfad)
+	if knoten == null:
+		return {}
+	var teile: Array[Dictionary] = []
+	_teile_sammeln(knoten, Transform3D.IDENTITY, teile)
+	knoten.free()
+	# Holz und Laub getrennt sammeln, in den Einheiten der Datei.
+	var holz := _neue_gruppe("hart", null, 0.0)
+	var laub := _neue_gruppe("laub", null, 0.0)
+	for teil in teile:
+		var info := _stoff_lesen(teil["stoff"] as Material, optionen)
+		teil["info"] = info
+		var klasse := String(info["klasse"])
+		if klasse in ["laub", "bluete"]:
+			_teil_anhaengen(laub, teil)
+		else:
+			_teil_anhaengen(holz, teil)
+	var v_holz: PackedVector3Array = holz["v"]
+	if v_holz.is_empty():
+		return {}
+	var gruppen := {"hart": holz, "laub": laub}
+	var reihe: Array[String] = ["hart", "laub"]
+	var huelle := _gruppen_huelle(gruppen, reihe)
+	var faktor := 1.0
+	var ziel := float(optionen.get("hoehe", 0.0))
+	if ziel > 0.0 and huelle.size.y > 0.0001:
+		faktor = ziel / huelle.size.y
+	# Fuß: die Stammmitte am Boden (unterste 4 % der Höhe) in den Ursprung.
+	var boden := huelle.position.y
+	var fuss := Vector3.ZERO
+	var zahl := 0
+	for p in v_holz:
+		if p.y < boden + huelle.size.y * 0.04:
+			fuss += p
+			zahl += 1
+	fuss = fuss / float(maxi(zahl, 1))
+	var versatz := Vector3(-fuss.x, -boden, -fuss.z)
+	for g: Dictionary in [holz, laub]:
+		var v: PackedVector3Array = g["v"]
+		for k in v.size():
+			v[k] = (v[k] + versatz) * faktor
+		g["v"] = v
+	var hoehe := huelle.size.y * faktor
+	var rng := PropWerkzeug.zufall(int(optionen.get("saat", bezeichnung.hash())))
+
+	var ergebnis := {}
+	var v_laub: PackedVector3Array = laub["v"]
+	if not v_laub.is_empty():
+		_krone_strecken(laub, hoehe, float(optionen.get("unten", 1.0)),
+				float(optionen.get("streck_max", 1.6)))
+		ergebnis["krone"] = _krone_netz(laub, rng, optionen, -1)
+	ergebnis["stamm"] = _ausduennen(_stamm_netz(holz, hoehe, float(optionen.get("moos", 0.35))),
+			int(optionen.get("stamm_dreiecke", 1200)))
+	ergebnis["fern"] = _fern_netz(holz, laub, rng, optionen)
+	return ergebnis
+
+
+## Streckt eine Krone, die höher als `unten` · Höhe ansetzt, nach unten (der
+## Scheitel bleibt).
+static func _krone_strecken(g: Dictionary, hoehe: float, unten: float, streck_max: float) -> void:
+	var v: PackedVector3Array = g["v"]
+	var tief := INF
+	var hoch := -INF
+	for p in v:
+		tief = minf(tief, p.y)
+		hoch = maxf(hoch, p.y)
+	var soll := hoehe * unten
+	if tief <= soll or hoch - tief < 0.01:
+		return
+	var streck := minf((hoch - soll) / (hoch - tief), streck_max)
+	for k in v.size():
+		v[k].y = hoch - (hoch - v[k].y) * streck
+	g["v"] = v
+
+
+## Die Krone im Format der `Kronenwolke`: geglättete und zur Kronenmitte
+## gebogene Normalen, Verdeckung innen, Höhe in UV2, Tönung aus der Datei
+## (dunkles Laub bleibt dunkler), dazu Blattkarten auf der Außenseite.
+static func _krone_netz(g: Dictionary, rng: RandomNumberGenerator, optionen: Dictionary,
+		karten: int, karten_mass: float = 1.0) -> ArrayMesh:
+	var v: PackedVector3Array = g["v"]
+	var n: PackedVector3Array = g["n"]
+	var c: PackedColorArray = g["c"]
+	var ind: PackedInt32Array = g["i"]
+	var box := AABB(v[0], Vector3.ZERO)
+	for p in v:
+		box = box.expand(p)
+	var mitte := box.get_center()
+	mitte.y = box.position.y + box.size.y * 0.45
+	var radien := (box.size * 0.5).max(Vector3(0.1, 0.1, 0.1))
+	var wind := float(optionen.get("wind", 1.0))
+	# Bezugsfarbe: das hellste Laub der Datei; dunkleres bleibt dunkler.
+	var bezug := 0.0
+	for f in c:
+		bezug = maxf(bezug, f.get_luminance())
+	bezug = maxf(bezug, 0.01)
+	var glatt := _glatte_normalen(v, n)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var randpunkte: Array[Dictionary] = []
+	var farben := PackedColorArray()
+	farben.resize(v.size())
+	var normalen := PackedVector3Array()
+	normalen.resize(v.size())
+	var hoehen := PackedFloat32Array()
+	hoehen.resize(v.size())
+	var waerme := rng.randf_range(-0.04, 0.04)
+	for k in v.size():
+		var p := v[k]
+		var rel := (p - mitte) / radien
+		var nh := Vector3(rel.x / radien.x, rel.y / radien.y, rel.z / radien.z).normalized()
+		var nb := glatt[k].lerp(nh, Kronenwolke.BIEGUNG).normalized()
+		nb = (nb + Vector3.UP * 0.35).normalized()
+		normalen[k] = nb
+		var t := clampf(inverse_lerp(box.position.y, box.end.y, p.y), 0.0, 1.0)
+		hoehen[k] = t
+		var e := rel.length()
+		var ao := lerpf(0.68, 1.0, smoothstep(0.45, 1.0, e))
+		var ton := clampf(c[k].get_luminance() / bezug, 0.55, 1.0)
+		var hell := ao * ton
+		farben[k] = Color(clampf(hell * (1.0 + waerme), 0.0, 1.0), hell,
+				clampf(hell * (1.0 - waerme), 0.0, 1.0), clampf((0.25 + 0.75 * t) * wind, 0.0, 1.0))
+		if karten != 0 and e > 0.55 and nb.y > -0.4:
+			randpunkte.append({"ort": p, "normale": nb, "farbe": farben[k], "hoehe": t})
+	for k in ind:
+		st.set_color(farben[k])
+		st.set_uv(Vector2.ZERO)
+		st.set_uv2(Vector2(0.0, hoehen[k]))
+		st.set_normal(normalen[k])
+		st.add_vertex(v[k])
+	var max_karte := 0.0
+	var radius := maxf(radien.x, radien.z)
+	if karten < 0:
+		karten = int(optionen.get("karten", clampi(int(radius * radius * 7.0), 30, 160)))
+	if karten > 0 and not randpunkte.is_empty():
+		var mass := clampf(radius * 0.25, 0.6, 1.4) * karten_mass
+		for zaehler in karten:
+			var wahl: Dictionary = randpunkte[rng.randi_range(0, randpunkte.size() - 1)]
+			var groesse := mass * rng.randf_range(0.8, 1.2)
+			max_karte = maxf(max_karte, groesse)
+			var nrm: Vector3 = wahl["normale"]
+			var ort: Vector3 = (wahl["ort"] as Vector3) + nrm * groesse * rng.randf_range(0.0, 0.25)
+			var f: Color = wahl["farbe"]
+			f = Color(minf(f.r * 1.06, 1.0), minf(f.g * 1.06, 1.0), minf(f.b * 1.04, 1.0),
+					minf(f.a + 0.2, 1.0))
+			_karte_anhaengen(st, ort, (nrm + Vector3.UP * 0.6).normalized(), groesse, f,
+					float(wahl["hoehe"]))
+	st.index()
+	var netz := st.commit()
+	netz.custom_aabb = netz.get_aabb().grow(max_karte * 0.75 + 0.1)
+	return netz
+
+
+## Eine Blattkarte im Format der `Kronenwolke` (vier Ecken am selben Ort, der
+## Shader zieht sie zur Kamera auf).
+static func _karte_anhaengen(st: SurfaceTool, ort: Vector3, normale: Vector3, groesse: float,
+		farbe: Color, hoehe: float) -> void:
+	var art := 1.0 + clampf(hoehe, 0.0, 0.99)
+	for e: Vector2 in [Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0),
+			Vector2(0.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0)]:
+		st.set_color(farbe)
+		st.set_uv(e)
+		st.set_uv2(Vector2(art, groesse))
+		st.set_normal(normale)
+		st.add_vertex(ort)
+
+
+## Der Stamm im Format von `Riesenstamm`: Verdeckung am Fuß, Moos unten,
+## Nordmoos nach der Höhe; Schnittholz (Klasse „holz") in Eigenfarbe. Die
+## unterste Kante reicht `BAUM_VERSENKT` in den Boden.
+static func _stamm_netz(g: Dictionary, hoehe: float, moos: float) -> ArrayMesh:
+	var v: PackedVector3Array = g["v"]
+	var n: PackedVector3Array = g["n"]
+	var c: PackedColorArray = g["c"]
+	var uv2: PackedVector2Array = g["uv2"]
+	var ind: PackedInt32Array = g["i"]
+	var glatt := _glatte_normalen(v, n)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var radius := 0.0
+	var tief := INF
+	for p in v:
+		tief = minf(tief, p.y)
+	for k in ind:
+		var p := v[k]
+		if p.y < 1.6 and p.y > 0.8:
+			radius = maxf(radius, Vector2(p.x, p.z).length())
+		var t := clampf(p.y / maxf(hoehe, 0.01), 0.0, 1.0)
+		var ao := lerpf(0.62, 1.0, smoothstep(0.0, 1.6, p.y))
+		var m := moos * (1.0 - smoothstep(0.0, 2.2, p.y))
+		# Bewuchs aus der Datei (Klasse „moos", UV2.y): dort liegt Moos.
+		m = maxf(m, uv2[k].y * 0.9)
+		if uv2[k].x > 0.5:
+			# Schnittholz: die Farbe der Datei, aufgehellt wie Holz.
+			st.set_color(Color(c[k].r, c[k].g, c[k].b, 0.0))
+			st.set_uv2(Vector2(Riesenstamm.EIGEN, 0.0))
+		else:
+			st.set_color(Color(ao, ao, ao, m))
+			st.set_uv2(Vector2(Riesenstamm.BORKE, 1.0 - t))
+		st.set_uv(Vector2.ZERO)
+		# Ganz geglättet: Die Borke liest sich rund, und gleiche Orte
+		# verschmelzen zu einem Scheitel (halb so viele).
+		st.set_normal(glatt[k])
+		if p.y < tief + 0.02:
+			p.y -= BAUM_VERSENKT
+		st.add_vertex(p)
+	st.index()
+	var netz := st.commit()
+	netz.set_meta("radius", maxf(radius, 0.12))
+	netz.set_meta("hoehe", hoehe)
+	return netz
+
+
+## Fernfassung: Krone ohne Karten, Stamm im Kronenstoff dunkel – ein Netz,
+## ausgedünnt. Für den fernen Talwald und die Fernfassung naher Bäume.
+static func _fern_netz(holz: Dictionary, laub: Dictionary, rng: RandomNumberGenerator,
+		optionen: Dictionary) -> ArrayMesh:
+	var ziel := int(optionen.get("fern_dreiecke", 360))
+	var v_laub: PackedVector3Array = laub["v"]
+	var teile: Array[ArrayMesh] = []
+	var laub_anteil := 0.0
+	var karten := int(optionen.get("fern_karten", 24))
+	if not v_laub.is_empty():
+		var krone := _krone_netz(laub, rng, optionen, 0)
+		laub_anteil = 0.8
+		teile.append(_ausduennen(krone, int(float(ziel) * laub_anteil) - karten * 2))
+		# Wenige große Blattkarten brechen den kantigen Umriss der Modellkrone
+		# auch in der Ferne (zwei Dreiecke je Karte).
+		if karten > 0:
+			var karten_netz := _nur_karten(_krone_netz(laub, rng, optionen, karten, 1.7))
+			if karten_netz != null:
+				teile.append(karten_netz)
+	var v: PackedVector3Array = holz["v"]
+	var glatt := _glatte_normalen(v, holz["n"] as PackedVector3Array)
+	var tief := INF
+	for p in v:
+		tief = minf(tief, p.y)
+	var sst := SurfaceTool.new()
+	sst.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k: int in holz["i"]:
+		var p := v[k]
+		if p.y < tief + 0.02:
+			p.y -= BAUM_VERSENKT
+		sst.set_color(BAUM_FERN_STAMM)
+		sst.set_uv(Vector2.ZERO)
+		sst.set_uv2(Vector2.ZERO)
+		sst.set_normal(glatt[k])
+		sst.add_vertex(p)
+	sst.index()
+	teile.append(_ausduennen(sst.commit(), maxi(int(float(ziel) * (1.0 - laub_anteil)), 24)))
+	var netz := _vereint(teile)
+	netz.custom_aabb = netz.get_aabb().grow(1.6)
+	return netz
+
+
+## Hängt die erste Fläche mehrerer Netze zu einem Netz aneinander, mit oder
+## ohne Indizes (SurfaceTool.append_from verlor bei gemischten Netzen die
+## Indizes der ersten). Felder: Ort, Normale, Farbe, UV, UV2.
+static func _vereint(netze: Array[ArrayMesh]) -> ArrayMesh:
+	var v := PackedVector3Array()
+	var n := PackedVector3Array()
+	var c := PackedColorArray()
+	var uv := PackedVector2Array()
+	var uv2 := PackedVector2Array()
+	var ind := PackedInt32Array()
+	for netz in netze:
+		if netz == null or netz.get_surface_count() == 0:
+			continue
+		if netz.surface_get_array_index_len(0) == 0:
+			# Ohne Indizes (Kronenwolke): gleiche Scheitel erst verschmelzen.
+			var st := SurfaceTool.new()
+			st.create_from(netz, 0)
+			st.index()
+			netz = st.commit()
+		var a := netz.surface_get_arrays(0)
+		var start := v.size()
+		var pv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var anzahl := pv.size()
+		v.append_array(pv)
+		n.append_array(_feld3(a[Mesh.ARRAY_NORMAL], anzahl, Vector3.UP))
+		c.append_array(_feldc(a[Mesh.ARRAY_COLOR], anzahl))
+		uv.append_array(_feld2(a[Mesh.ARRAY_TEX_UV], anzahl))
+		uv2.append_array(_feld2(a[Mesh.ARRAY_TEX_UV2], anzahl))
+		var pi := PackedInt32Array()
+		if a[Mesh.ARRAY_INDEX] is PackedInt32Array:
+			pi = a[Mesh.ARRAY_INDEX]
+		if pi.is_empty():
+			pi.resize(anzahl)
+			for k in anzahl:
+				pi[k] = k
+		for k in pi.size():
+			ind.append(pi[k] + start)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = v
+	arrays[Mesh.ARRAY_NORMAL] = n
+	arrays[Mesh.ARRAY_COLOR] = c
+	arrays[Mesh.ARRAY_TEX_UV] = uv
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2
+	arrays[Mesh.ARRAY_INDEX] = ind
+	var fertig := ArrayMesh.new()
+	fertig.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return fertig
+
+
+static func _feld3(roh: Variant, anzahl: int, vorgabe: Vector3) -> PackedVector3Array:
+	if roh is PackedVector3Array and (roh as PackedVector3Array).size() == anzahl:
+		return roh
+	var f := PackedVector3Array()
+	f.resize(anzahl)
+	f.fill(vorgabe)
+	return f
+
+
+static func _feld2(roh: Variant, anzahl: int) -> PackedVector2Array:
+	if roh is PackedVector2Array and (roh as PackedVector2Array).size() == anzahl:
+		return roh
+	var f := PackedVector2Array()
+	f.resize(anzahl)
+	return f
+
+
+static func _feldc(roh: Variant, anzahl: int) -> PackedColorArray:
+	if roh is PackedColorArray and (roh as PackedColorArray).size() == anzahl:
+		return roh
+	var f := PackedColorArray()
+	f.resize(anzahl)
+	f.fill(Color.WHITE)
+	return f
+
+
+## Nur die Blattkarten eines Kronennetzes (UV2.x ≥ 1).
+static func _nur_karten(netz: ArrayMesh) -> ArrayMesh:
+	var arrays := netz.surface_get_arrays(0)
+	var ind: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var uv2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	var neu := PackedInt32Array()
+	for t in range(0, ind.size() - 2, 3):
+		if uv2[ind[t]].x >= 0.5:
+			neu.append_array([ind[t], ind[t + 1], ind[t + 2]])
+	if neu.is_empty():
+		return null
+	arrays[Mesh.ARRAY_INDEX] = neu
+	return _verdichtet(arrays)
+
+
+## Ein Netz (eine Fläche) auf höchstens `ziel` Dreiecke, über Godots
+## LOD-Stufen (meshoptimizer). Ohne die Fähigkeit bleibt es, wie es ist.
+static func _ausduennen(netz: ArrayMesh, ziel: int) -> ArrayMesh:
+	var arrays := netz.surface_get_arrays(0)
+	var ind: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	if ind.size() / 3 <= ziel:
+		return netz
+	var roh := ImporterMesh.new()
+	roh.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	roh.generate_lods(60.0, 25.0, [])
+	var stufen := roh.get_surface_lod_count(0)
+	if stufen == 0:
+		if not _lod_gewarnt:
+			_lod_gewarnt = true
+			push_warning("Fremdmodelle: Vereinfachen hier nicht möglich, Netz bleibt voll")
+		return netz
+	var beste := PackedInt32Array()
+	for stufe in stufen:
+		beste = roh.get_surface_lod_indices(0, stufe)
+		if beste.size() / 3 <= ziel:
+			break
+	var neu := roh.get_surface_arrays(0)
+	neu[Mesh.ARRAY_INDEX] = beste
+	var fertig := _verdichtet(neu)
+	fertig.custom_aabb = netz.custom_aabb
+	for m in netz.get_meta_list():
+		fertig.set_meta(m, netz.get_meta(m))
+	return fertig
+
+
+## Ein Netz aus Feldern, deren Indizes nur einen Teil der Scheitel nutzen
+## (LOD-Stufe, Auswahl): nur die benutzten Scheitel bleiben. Sonst trüge
+## jede Fernfassung alle Scheitel des vollen Modells mit – verschmolzen zu
+## Hunderten waren das 60 MB Grafikspeicher für nichts.
+static func _verdichtet(arrays: Array) -> ArrayMesh:
+	var ind: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var neu_index := {}
+	var reihe := PackedInt32Array()
+	var umgezaehlt := PackedInt32Array()
+	umgezaehlt.resize(ind.size())
+	for k in ind.size():
+		var alt := ind[k]
+		if not neu_index.has(alt):
+			neu_index[alt] = reihe.size()
+			reihe.append(alt)
+		umgezaehlt[k] = int(neu_index[alt])
+	var aus := []
+	aus.resize(Mesh.ARRAY_MAX)
+	for feld in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2,
+			Mesh.ARRAY_COLOR]:
+		var roh: Variant = arrays[feld]
+		if roh is PackedVector3Array:
+			var q: PackedVector3Array = roh
+			var z := PackedVector3Array()
+			z.resize(reihe.size())
+			for k in reihe.size():
+				z[k] = q[reihe[k]]
+			aus[feld] = z
+		elif roh is PackedVector2Array:
+			var q2: PackedVector2Array = roh
+			var z2 := PackedVector2Array()
+			z2.resize(reihe.size())
+			for k in reihe.size():
+				z2[k] = q2[reihe[k]]
+			aus[feld] = z2
+		elif roh is PackedColorArray:
+			var qc: PackedColorArray = roh
+			var zc := PackedColorArray()
+			zc.resize(reihe.size())
+			for k in reihe.size():
+				zc[k] = qc[reihe[k]]
+			aus[feld] = zc
+	aus[Mesh.ARRAY_INDEX] = umgezaehlt
+	var fertig := ArrayMesh.new()
+	fertig.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, aus)
+	return fertig
+
+
+## Je Scheitel die gemittelte Normale aller Scheitel am selben Ort
+## (flach schattierte Modelle tragen an jeder Ecke mehrere).
+static func _glatte_normalen(v: PackedVector3Array, n: PackedVector3Array) -> PackedVector3Array:
+	var summe := {}
+	for k in v.size():
+		var ort := _ort(v[k])
+		summe[ort] = (summe.get(ort, Vector3.ZERO) as Vector3) + n[k]
+	var glatt := PackedVector3Array()
+	glatt.resize(v.size())
+	for k in v.size():
+		var s: Vector3 = summe[_ort(v[k])]
+		glatt[k] = s.normalized() if s.length_squared() > 0.000001 else n[k]
+	return glatt
+
+
 # ---------------------------------------------------------------- Innereien
 
 ## Schlüssel für den Stoffvorrat. Die Textur geht nur mit ihrer Kennung ein:
@@ -954,7 +1556,15 @@ static func _stoff_lesen(stoff: Material, optionen: Dictionary) -> Dictionary:
 		var t: Variant = sm.get_shader_parameter("texture_albedo")
 		if t is Texture2D:
 			textur = t
+	# Blender hängt doppelten Namen „.001" an, der glTF-Weg macht „_001"
+	# daraus: Für Farbe und Klasse zählt der Name ohne diese Nummer.
+	name = _ohne_nummer(name)
 	var klasse := _klasse(name.to_lower(), farbe)
+	var eigene_klassen: Dictionary = optionen.get("klassen", {})
+	if eigene_klassen.has(name):
+		klasse = String(eigene_klassen[name])
+	elif _NAMEN_KLASSE.has(name):
+		klasse = String(_NAMEN_KLASSE[name])
 	var eigene: Dictionary = optionen.get("farben", {})
 	if eigene.has(name):
 		farbe = eigene[name]
@@ -963,6 +1573,14 @@ static func _stoff_lesen(stoff: Material, optionen: Dictionary) -> Dictionary:
 	farbe.a = 1.0
 	return {"name": name, "klasse": klasse, "farbe": farbe, "textur": textur,
 		"schnitt": schnitt, "scheitelfarbe": scheitelfarbe}
+
+
+static func _ohne_nummer(name: String) -> String:
+	var n := name.length()
+	if n > 4 and (name[n - 4] == "." or name[n - 4] == "_") \
+			and name.substr(n - 3).is_valid_int():
+		return name.substr(0, n - 4)
+	return name
 
 
 static func _klasse(name: String, farbe: Color) -> String:
