@@ -71,7 +71,7 @@ auf der Levelkurve (`Reiter`, `Fluechtling`, `Rennfahrer` – alle erben von
 ## Spielsysteme
 - **Kisten:** normal (gibt Frucht), Checkpoint (setzt Respawn), später: TNT-artig (Timer), Bounce, Eisen (unzerbrechlich)
 - **Sammeln:** Früchte (100 ⇒ Extraleben), Kisten-Zähler pro Level (alle ⇒ Edelstein-Äquivalent)
-- **Leben/Respawn:** Tod ⇒ letzter Checkpoint; 0 Leben ⇒ Levelanfang
+- **Leben/Respawn:** Tod ⇒ letzter Checkpoint; 0 Leben ⇒ Game Over, zurück in den Portalraum
 - **Hub:** Raum mit Portalen, 5 Level pro Abschnitt freischalten
 - **Zeitmodus:** in den Einstellungen schaltbar. Jedes Level wird dann auf
   Zeit gespielt; jede dritte Holzkiste ist eine **Zeitkiste**, die die Uhr

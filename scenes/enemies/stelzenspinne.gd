@@ -93,6 +93,49 @@ func _init() -> void:
 func _ready() -> void:
 	super._ready()
 	_stoss_zeit = randf_range(STOSS_ABSTAND_MIN, STOSS_ABSTAND_MAX)
+	_fegezone_bauen()
+
+
+## Fegezone: flach am Boden, so breit wie die Beine. Die Trefferzone ist nur
+## der schmale Leib (0,9 m): Wer zwischen den Beinen, aber neben der Mitte
+## durchrutschte, kam unbeschadet durch, und die Spinne blieb stehen –
+## obwohl die Silhouette genau das verspricht. Hier zählen NUR Slide und
+## Bauchplatscher; wer läuft, berührt die Zone ohne Folgen, Schaden gibt
+## weiter allein der Leib.
+const FEGE_RADIUS := 1.25
+const FEGE_HOEHE := 0.9
+
+var _fegezone: Area3D = null
+
+
+func _fegezone_bauen() -> void:
+	_fegezone = Area3D.new()
+	_fegezone.name = "Fegezone"
+	_fegezone.collision_layer = 0
+	_fegezone.collision_mask = 2
+	var form := CollisionShape3D.new()
+	var zylinder := CylinderShape3D.new()
+	zylinder.radius = FEGE_RADIUS
+	zylinder.height = FEGE_HOEHE
+	form.shape = zylinder
+	form.position.y = FEGE_HOEHE * 0.5
+	_fegezone.add_child(form)
+	add_child(_fegezone)
+
+
+func _physics_process(delta: float) -> void:
+	super._physics_process(delta)
+	if besiegt or _fegezone == null or not _fegezone.monitoring:
+		return
+	for koerper in _fegezone.get_overlapping_bodies():
+		var spieler := koerper as Spieler
+		if spieler == null:
+			continue
+		var wirksam := spieler.angriffe() & besiegbar_durch & (Angriff.SLIDE | Angriff.SLAM)
+		if wirksam != 0:
+			_fegezone.set_deferred("monitoring", false)
+			besiegen(wirksam)
+			return
 
 
 ## Mitgeliefertes Modell für diesen Gegner.

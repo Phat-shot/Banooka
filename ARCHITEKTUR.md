@@ -286,6 +286,13 @@ flach auf `_liege_hoehe`; beide Werte setzt der Gegner in `_init()`.
 | Stelzenspinne | Slide | wird weggefegt |
 | Stelzenspinne | Bauchplatscher | wird platt |
 
+Die Stelzenspinne hat neben ihrer Trefferzone (Leib, Radius 0,45 m) eine
+flache **Fegezone** in Beinbreite (Zylinder, Radius 1,25 m, 0,9 m hoch),
+die nur Slide und Bauchplatscher auswertet. Wer zwischen den Beinen, aber
+neben der Mitte durchrutschte, kam vorher unbeschadet durch, und die Spinne
+blieb stehen. Gemessen (feststehende Spinnen in Level 01): 1,2 m neben der
+Mitte vorher 0 von 3 besiegt, jetzt 3 von 3. Schaden gibt weiter nur der Leib.
+
 **Prüfung** (`werkzeuge/level_check.gd`, jedes Level in `pruefe.sh`):
 - „Gegnerblick": Jede Art wird über ihren eigenen Weg gemessen, Blick gleich
   Laufrichtung. Der Schwarm zählt als „ohne Blickrichtung".
@@ -328,6 +335,20 @@ func zeige_banner(text: String, farbe := Farben.UI_GOLD, dauer := 2.0)
 behält seine zwei Parameter. `zeige_banner` hat ein eigenes Signal
 `banner(text, farbe, dauer)`: das große schräge Band im HUD, nur für
 seltene Momente (Extraleben, alle Kisten, Game Over).
+
+**Game Over** (letztes Leben verloren): Banner, das Level wird wie bei
+einem Tod zurückgesetzt (Uhr, HUD und Zeitmodus hängen an
+`level_zuruecksetzen`), dann geht es nach `GAME_OVER_PAUSE` (2,5 s) in den
+Portalraum, mit vollen Leben. Nur aus einem Level heraus und nur, wenn der
+Spieler inzwischen nicht selbst die Szene gewechselt hat.
+
+**Vorladen** (`Spielfluss.vorladen`, `vorladen_naechstes`): Ist der
+Portalraum eingeblendet, lädt das nächste offene Level im Hintergrund
+(`ResourceLoader.load_threaded_request`, Szene und Skripte, nicht der
+Aufbau). Jeder Wechsel mit Ladeschirm holt die Szene über diesen Faden; der
+Ladeschirm läuft dabei weiter. Gemessen (Level 01, Rechner, headless,
+Zwischenspeicher warm): Szene nach 0,13 statt 2,3 s, spielbereit nach 5,4
+statt 7,0 s.
 
 ## Zeitmodus (`autoload/Zeitlauf.gd`)
 

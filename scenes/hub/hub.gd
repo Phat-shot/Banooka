@@ -573,6 +573,9 @@ func _vorwaermen_und_zeigen() -> void:
 	Ladeschirm.fortschritt(1.0, "Fertig")
 	Ladeschirm.verbergen()
 	aufbau_fertig.emit()
+	# Während man im Portalraum steht, lädt das nächste Level schon im
+	# Hintergrund (Szene und Skripte) – das Betreten wird kürzer.
+	Spielfluss.vorladen_naechstes()
 	_nach_dem_einblenden()
 
 
