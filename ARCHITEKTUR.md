@@ -528,16 +528,19 @@ Kapseln, Kegel mit `ART_FELL`) nicht mehr als Netze aneinandergesteckt. An
 jeder Naht lag sonst eine scharfe Kerbe, und die Figur las sich wie aus
 Bällen gebaut. `Form` sammelt sie als Abstandsfeld und vereinigt sie weich
 (polynomielles smin; der Übergang ist 35 % des kleinsten Radius, 0,8–4 cm).
-Ausgelesen wird EINE Haut mit Surface Nets auf einem Gitter, 56 Zellen über
-die längste Seite des Glieds (4–12 mm). Die Normalen kommen aus dem Feld, die
+Ausgelesen wird EINE Haut mit Surface Nets auf einem Gitter, 34 Zellen über
+die längste Seite des Glieds (6–20 mm). Mit 56 Zellen kostete die Figur
+bei Level 01, 186 m, 248 000 Primitive mehr (903 000, über dem Budget); mit
+34 sind es 69 000 mehr (724 000). Die Normalen kommen aus dem Feld, die
 Farbe von der nächsten Form, an den Nähten über 6 mm gemischt, jede mit ihrem
 Maler. Scharf und als eigenes Netz bleiben Augen, Iris, Pupillen, Glanz,
 Nase und Lächeln (`ART_GLATT`/`ART_LICHT`), Halstuch und Knoten sowie das
 Innenohr (`teil(…, weich = false)`); ein Glied mit nur einer Form bleibt
 dessen Grundnetz. Die Gelenke ZWISCHEN den Gliedern (Kopf, Arme, Beine,
 Schweif) bleiben getrennt, weil sie sich bewegen.
-Kosten: erster Bau 2,4 s (vorher 15 ms), deshalb liegt jedes Gliednetz im
-`Bauspeicher` (`beuteldachs_<name>`); jeder weitere Start lädt es in 21 ms.
+Kosten: erster Bau 1,0 s (vorher 15 ms), deshalb liegt jedes Gliednetz im
+`Bauspeicher` (`beuteldachs_<name>`); bei 56 Zellen lud der nächste Start
+es in 21 ms.
 
 **Stoff (`FELL_CODE`):** ein geteiltes `ShaderMaterial` für alle Glieder.
 Die Eckfarbe trägt die Farbe (sRGB, im Shader linearisiert) und im Alpha

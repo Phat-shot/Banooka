@@ -481,9 +481,9 @@ class Form:
 	var _weich: Array[Dictionary] = []
 
 	## Gitterweite: so viele Zellen über die längste Seite des Glieds.
-	const ZELLEN := 56
-	const ZELLE_MIN := 0.004
-	const ZELLE_MAX := 0.012
+	const ZELLEN := 34
+	const ZELLE_MIN := 0.006
+	const ZELLE_MAX := 0.02
 	## Weicher Übergang: Anteil des kleinsten Radius, mit Grenzen.
 	const UEBERGANG := 0.35
 	const UEBERGANG_MIN := 0.008
