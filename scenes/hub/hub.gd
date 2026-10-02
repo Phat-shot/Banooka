@@ -517,6 +517,8 @@ func _ready() -> void:
 		_baue_raum(i, raumwinkel(i))
 	_baue_torschmuck()
 	_baue_hallenluft()
+	if _modellwald_setzer != null:
+		_modellwald_setzer.fertig()
 	# Dieselben dunklen Bildecken wie in Level 01, nur schwächer und kühler:
 	# Sie rahmen die leuchtenden Tore, ohne die HUD-Ecken zu schlucken.
 	Bildrahmen.einsetzen(self, 0.25, Color(0.03, 0.03, 0.05), 0.03)
@@ -1457,7 +1459,10 @@ func _baue_umland() -> void:
 	horizont.position = BOGEN_MITTE
 	_deko.add_child(horizont)
 
-	# Je Raum zwei bis drei Bäume hinter der Mauer, passend zum Raum.
+	# Mit den Modellbäumen aus natur2 ein Waldsaum statt zwölf Einzelbäumen.
+	if _umland_modellwald():
+		return
+	# Rückfall: je Raum zwei bis drei Bäume hinter der Mauer, passend zum Raum.
 	var baeume := [
 		# [Winkel, Radius, Art, Höhe, Laubfarbe]
 		[-50.0, 66.0, Baum.Art.LAUBBAUM, 10.0, Farben.LAUB],
@@ -1482,6 +1487,202 @@ func _baue_umland() -> void:
 		# Hinter der Mauer wirft kein Baum einen sichtbaren Schatten – die
 		# Schattenkarte spart hier zwölf mal zwei Netze.
 		_ohne_schatten(baum)
+
+
+# ---------------------------------------------------------- Modellbäume
+
+## Bäume aus natur2 (`Fremdmodelle.baum`) statt der Kenney-Klötze: im Stoff
+## des Waldes von Level 01 – Borke in Weltprojektion, Kronen als
+## `Kronenwolke` mit Blattkarten –, für den ganzen Saal je Art EIN Netz
+## (`Waldsetzer`, verschmolzen). Die Krone tönt je Baum die Scheitelfarbe,
+## deshalb ist die Grundfarbe das hellste Laub, das vorkommt.
+## Hinter der Nordmauer werfen sie keinen Schatten (wie vorher); in den
+## Räumen wirft der Stamm seinen und die Krone den ihrer Fernfassung (ohne
+## Karten – die drehten sich sonst zur Sonne).
+const MODELL_LAUB := Color(0.42, 0.68, 0.32)
+const UMLAND_LAUB := ["unp/CommonTree_1", "unp/CommonTree_2", "unp/CommonTree_4",
+		"unp/CommonTree_5"]
+const UMLAND_NADEL := ["unp/PineTree_1", "unp/PineTree_2", "unp/PineTree_3", "unp/PineTree_5"]
+const UMLAND_TOT := ["unp/CommonTree_Dead_1", "unp/CommonTree_Dead_2"]
+## In den Räumen schmale Kronen: Die Bäume stehen zwischen Portalreihe und
+## Rückwand, eine breite Krone hinge über den Toren.
+const RAUM_LAUB := ["unp/CommonTree_3", "unp/CommonTree_4"]
+const RAUM_NADEL := ["unp/PineTree_2", "unp/PineTree_5"]
+## Bezugshöhe der Modellbäume; gesetzt wird skaliert (die Blattkarten
+## wachsen mit), so entsteht jedes Modell nur einmal.
+const MODELL_HOEHE := 10.0
+## Waagerechter Maßstab der Raumbäume (schmale Kronen zwischen den Mauern).
+const RAUM_SCHLANK := 0.72
+## Tönung der Modellfelsen in Sand und Neon (auf die Felsfarbe des Walds).
+const SANDSTEIN_FELS := Color(1.35, 1.0, 0.66)
+## In der Steinfeste etwas dunkler: In der tiefen Sonne stand der Fels
+## sonst fast weiß vor dem hellen Pflaster.
+const STEINFESTE_FELS := Color(0.8, 0.78, 0.76)
+
+var _modellwald_setzer: Waldsetzer = null
+
+
+func _modellwald() -> Waldsetzer:
+	if _modellwald_setzer == null:
+		var ws := Waldsetzer.new(_deko, "Modellwald", 0.0)
+		var borke := Riesenstamm.borkenstoff({"welt": true, "radius": 0.4})
+		var laub := Kronenwolke.stoff(MODELL_LAUB)
+		ws.art("umland_stamm", {"stoff": borke, "verschmelzen": true})
+		ws.art("umland_krone", {"stoff": laub, "verschmelzen": true, "karten": true})
+		ws.art("raum_stamm", {"stoff": borke, "schatten": true, "verschmelzen": true})
+		ws.art("raum_krone", {"stoff": laub, "verschmelzen": true, "karten": true})
+		ws.art("raum_schatten", {"stoff": Kronenwolke.stoff(MODELL_LAUB, false),
+				"schatten": "nur", "verschmelzen": true})
+		_modellwald_setzer = ws
+	return _modellwald_setzer
+
+
+## Setzt einen Modellbaum, eines aus `namen` nach `wahl` (0..1). false, wenn
+## keines da ist – dann baut der Aufrufer wie bisher.
+func _modellbaum(namen: Array, wahl: float, pos: Vector3, hoehe: float, laub: Color,
+		im_raum: bool, drehung: float) -> bool:
+	var da: Array[String] = []
+	for n: Variant in namen:
+		if Fremdmodelle.hat(String(n)):
+			da.append(String(n))
+	if da.is_empty():
+		return false
+	var name := da[clampi(int(wahl * float(da.size())), 0, da.size() - 1)]
+	var b := Fremdmodelle.baum(name, {"hoehe": MODELL_HOEHE, "unten": 0.3})
+	if b.is_empty():
+		return false
+	var s := hoehe / float(b["hoehe"])
+	# In den Räumen schlanker: Die Krone soll nicht durch die Trennmauer
+	# ragen (dahinter, im Schatten der Mauer, stand sie schwarz im Bild).
+	var quer := s * (RAUM_SCHLANK if im_raum else 1.0)
+	var lage := Transform3D(Basis(Vector3.UP, drehung).scaled(Vector3(quer, s, quer)), pos)
+	# Etwas dunkler als die Farbe des Raums: Die tiefe Sonne liegt warm auf
+	# den Kronen, und deren Scheitel hellt der Kronenstoff ohnehin auf.
+	var ton := Color(clampf(laub.r * 0.86 / MODELL_LAUB.r, 0.0, 1.0),
+			clampf(laub.g * 0.86 / MODELL_LAUB.g, 0.0, 1.0),
+			clampf(laub.b * 0.86 / MODELL_LAUB.b, 0.0, 1.0))
+	var ws := _modellwald()
+	var art := "raum_" if im_raum else "umland_"
+	ws.setze(art + "stamm", b["stamm"] as ArrayMesh, lage)
+	if b["krone"] != null:
+		ws.setze(art + "krone", b["krone"] as ArrayMesh, lage, ton)
+		if im_raum:
+			ws.setze("raum_schatten", b["fern"] as ArrayMesh, lage)
+	return true
+
+
+## Der Waldsaum hinter der Nordmauer aus Modellbäumen: zwei Reihen, die
+## Arten und Farben nach dem Raum davor (Wurzelwald Laub, Nebelsümpfe
+## Totholz und Moos, Steinfeste Nadelbäume im Frost, Rost und Ranken
+## Dschungel, Sand und Neon kahle Stämme). false ohne Modelle.
+func _umland_modellwald() -> bool:
+	if Fremdmodelle.rolle("M1").is_empty():
+		return false
+	var zufall := PropWerkzeug.zufall(5160)
+	var gesetzt := 0
+	for reihe in 2:
+		var grad := -55.0 + zufall.randf_range(0.0, 3.0) + float(reihe) * 2.6
+		while grad < 55.0:
+			var radius := (64.0 if reihe == 0 else 71.0) + zufall.randf_range(-1.5, 2.5)
+			var raum := clampi(roundi(grad / RAUM_WINKEL) + 2, 0, Spielfluss.RAEUME - 1)
+			var hoehe := zufall.randf_range(9.0, 12.5) * (1.0 if reihe == 0 else 1.15)
+			var wahl := zufall.randf()
+			var dreh := zufall.randf() * TAU
+			var namen: Array = UMLAND_LAUB
+			var laub: Color = Farben.LAUB
+			match raum:
+				0:
+					laub = [Farben.LAUB, Farben.LAUB_DUNKEL, Farben.LAUB_HELL][zufall.randi() % 3]
+				1:
+					namen = UMLAND_TOT if zufall.randf() < 0.45 else UMLAND_LAUB
+					laub = Farben.MOOS
+				2:
+					namen = UMLAND_NADEL
+					laub = Farben.NADEL_FROST if zufall.randf() < 0.6 else Farben.LAUB_DUNKEL
+				3:
+					namen = UMLAND_LAUB if zufall.randf() < 0.6 else UMLAND_NADEL
+					laub = DSCHUNGEL if zufall.randf() < 0.6 else DSCHUNGEL_HELL
+				_:
+					namen = UMLAND_TOT if zufall.randf() < 0.7 else UMLAND_NADEL
+					laub = Farben.LAUB_DUNKEL
+			if _modellbaum(namen, wahl, ort(grad, radius), hoehe, laub, false, dreh):
+				gesetzt += 1
+			grad += zufall.randf_range(4.2, 6.4) * (1.0 if reihe == 0 else 1.25)
+	return gesetzt > 0
+
+
+## Ein Felsbrocken in einem Raum aus den Modellfelsen (M8, `Fremdmodelle.netz`
+## im Stoff der Felsen von Level 01, `dazu` stellt Moos und Tönung ein) mit
+## derselben Kollision wie der Kenney-Fels, den `Stein` dort setzte (Kugel,
+## Radius 0,45 · Größe, mindestens 0,2 m, Mitte auf 0,7 Radien). false ohne
+## Modelle – dann baut der Aufrufer den `Stein` wie bisher.
+func _raumfels(pos: Vector3, groesse: float, saat: int, dazu: Dictionary) -> bool:
+	var modelle := Fremdmodelle.rolle_netze("M8", dazu)
+	if modelle.is_empty():
+		return false
+	var zufall := PropWerkzeug.zufall(saat)
+	var k := zufall.randi() % modelle.size()
+	var modell := modelle[k]
+	var ws := _modellwald()
+	var art := "fels_%s_%d" % [str(dazu.hash()), k]
+	var namen: Array[String] = []
+	if ws.hat_art(art + "/0"):
+		for f in (modell["flaechen"] as Array).size():
+			namen.append("%s/%d" % [art, f])
+	else:
+		namen = ws.fremd(art, modell)
+	# So groß wie der Kenney-Fels: 0,9 · Größe hoch, höchstens 1,8-mal so
+	# breit wie hoch (wie `Fremdmodelle.nimm`).
+	var huelle: AABB = modell["huelle"]
+	var hoch := groesse * 0.9
+	var faktor := hoch / maxf(huelle.size.y, 0.01)
+	var breite := maxf(huelle.size.x, huelle.size.z)
+	if breite * faktor > hoch * 1.8:
+		faktor = hoch * 1.8 / breite
+	var lage := Transform3D(Basis(Vector3.UP, zufall.randf() * TAU).scaled(Vector3.ONE * faktor),
+			pos - Vector3.UP * huelle.size.y * faktor * 0.09)
+	ws.setze_fremd(namen, modell, lage)
+	var koerper := StaticBody3D.new()
+	koerper.name = "Fels"
+	koerper.collision_layer = 1
+	koerper.collision_mask = 0
+	var form := SphereShape3D.new()
+	form.radius = maxf(groesse * 0.45, 0.2)
+	var kollision := CollisionShape3D.new()
+	kollision.shape = form
+	kollision.position = Vector3(0.0, form.radius * 0.7, 0.0)
+	koerper.add_child(kollision)
+	koerper.position = pos
+	_deko.add_child(koerper)
+	return true
+
+
+## Ein Baum in einem Raum: als Modellbaum mit derselben Kollision wie der
+## Kenney-Baum, den `Baum` sonst setzt (Zylinder, Radius 0,055 · Höhe ·
+## Stärke, mindestens 0,22 m, 60 % der Höhe hoch), sonst wie bisher als
+## `Baum`.
+func _raumbaum(pos: Vector3, art: Baum.Art, hoehe: float, saat: int, laubfarbe: Color,
+		staerke: float = 1.0) -> void:
+	var namen: Array = RAUM_NADEL if art == Baum.Art.NADELBAUM else RAUM_LAUB
+	var zufall := PropWerkzeug.zufall(saat)
+	if not _modellbaum(namen, zufall.randf(), pos, hoehe, laubfarbe, true,
+			zufall.randf() * TAU):
+		_prop(BAUM, pos, {"art": art, "hoehe": hoehe, "saat": saat,
+				"laubfarbe": laubfarbe, "staerke": staerke})
+		return
+	var koerper := StaticBody3D.new()
+	koerper.name = "Baumstamm"
+	koerper.collision_layer = 1
+	koerper.collision_mask = 0
+	var form := CylinderShape3D.new()
+	form.radius = maxf(hoehe * 0.055 * staerke, 0.22)
+	form.height = maxf(hoehe * 0.6, 0.5)
+	var kollision := CollisionShape3D.new()
+	kollision.shape = form
+	kollision.position = Vector3(0.0, form.height * 0.5, 0.0)
+	koerper.add_child(kollision)
+	koerper.position = pos
+	_deko.add_child(koerper)
 
 
 # ------------------------------------------------------------------- Räume
@@ -2157,19 +2358,14 @@ func _bogen(st: SurfaceTool, mitte: Vector3, basis: Basis) -> void:
 # -------------------------------------------------------------- Ausstattung
 
 func _deko_wurzelwald(grad: float) -> void:
-	_prop(BAUM, stelle(grad, 54.0, -8.2), {
-		"art": Baum.Art.LAUBBAUM, "hoehe": 7.6, "saat": 11,
-		"laubfarbe": Farben.LAUB, "staerke": 1.1})
-	_prop(BAUM, stelle(grad, 54.5, 8.4), {
-		"art": Baum.Art.LAUBBAUM, "hoehe": 6.9, "saat": 12,
-		"laubfarbe": Farben.LAUB_HELL})
+	_raumbaum(stelle(grad, 54.0, -8.2), Baum.Art.LAUBBAUM, 7.6, 11, Farben.LAUB, 1.1)
+	_raumbaum(stelle(grad, 54.5, 8.4), Baum.Art.LAUBBAUM, 6.9, 12, Farben.LAUB_HELL)
 	# Vorne links steht bewusst kein Baum: Der Wurzelwald liegt ganz außen,
 	# die Kamera schaut schräg hinein – eine Krone an dieser Stelle würde
 	# genau das offene Tor 01 verdecken.
 	_prop(KLEINZEUG, stelle(grad, 44.8, -7.4),
 			{"art": Kleinzeug.Art.BUSCH, "groesse": 1.1, "saat": 13})
-	_prop(BAUM, stelle(grad, 45.2, 8.0), {
-		"art": Baum.Art.LAUBBAUM, "hoehe": 7.1, "saat": 14})
+	_raumbaum(stelle(grad, 45.2, 8.0), Baum.Art.LAUBBAUM, 7.1, 14, Color(0.20, 0.44, 0.16))
 
 	_prop(WURZELPROP, stelle(grad, 45.5, -2.4),
 			{"spannweite": 4.2, "hoehe": 1.0, "saat": 21}, deg_to_rad(grad + 70.0))
@@ -2278,6 +2474,9 @@ func _deko_felsenschlucht(grad: float) -> void:
 	]
 	for i in brocken.size():
 		var b: Array = brocken[i]
+		if _raumfels(stelle(grad, float(b[0]), float(b[1])), float(b[2]), 71 + i,
+				{"moos": 0.12, "formen": 1, "hart_toenung": STEINFESTE_FELS}):
+			continue
 		_prop(STEIN, stelle(grad, float(b[0]), float(b[1])), {
 			"groesse": float(b[2]), "brocken": 3, "bemoost": false,
 			"saat": 71 + i, "zerklueftung": 0.4})
@@ -2312,9 +2511,8 @@ func _deko_rost_und_ranken(grad: float) -> void:
 	for eintrag in [[54.5, -8.2, 8.0, 81], [54.0, 8.0, 7.2, 82],
 			[44.8, -7.9, 6.6, 83], [45.2, 8.0, 7.0, 84]]:
 		var e: Array = eintrag
-		_prop(BAUM, stelle(grad, float(e[0]), float(e[1])), {
-			"art": Baum.Art.NADELBAUM, "hoehe": float(e[2]), "saat": int(e[3]),
-			"laubfarbe": DSCHUNGEL})
+		_raumbaum(stelle(grad, float(e[0]), float(e[1])), Baum.Art.NADELBAUM, float(e[2]),
+				int(e[3]), DSCHUNGEL)
 
 	# Kanalrinne vor der Rückwand, mit Rostgitter darüber – begehbar wie
 	# der Boden daneben (sie liegt flach auf ihm), keine eigene Kollision.
@@ -2364,6 +2562,9 @@ func _deko_sand_und_neon(grad: float) -> void:
 			[45.0, 6.6, 2.0], [49.5, -8.4, 1.5], [50.5, 8.6, 1.3]]
 	for i in brocken.size():
 		var b: Array = brocken[i]
+		if _raumfels(stelle(grad, float(b[0]), float(b[1])), float(b[2]), 91 + i,
+				{"moos": 0.0, "formen": 1, "hart_toenung": SANDSTEIN_FELS}):
+			continue
 		var stein := _prop(STEIN, stelle(grad, float(b[0]), float(b[1])), {
 			"groesse": float(b[2]), "brocken": 3, "bemoost": false,
 			"saat": 91 + i, "zerklueftung": 0.44})

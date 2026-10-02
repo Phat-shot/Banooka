@@ -1,54 +1,76 @@
-# natur2 – Stilmodelle für Level 01
+# natur2 – Stilmodelle für Level 01 und den Portalraum
 
 Hier liegen die CC0-Naturmodelle, die das neue Level 01 „Wurzelschlucht"
-streut: Bäume, Büsche, Farne, Felsen, Kiesel, Pilze, Totholz. Jedes Paket
-bekommt einen eigenen Unterordner, sein Lizenztext liegt daneben, und in
-`assets/CREDITS.md` steht je Paket eine Zeile.
+und der Portalraum streuen: Bäume, Totholz, bemooste Felsen, Stumpf und
+Moosstamm. Jedes Paket bekommt einen eigenen Unterordner, sein Lizenztext
+liegt daneben, und in `assets/CREDITS.md` steht je Paket eine Zeile.
 
-Gelesen werden die Dateien ausschließlich über `Fremdmodelle.netz()`
-(`scripts/fremdmodelle.gd`): Jedes Modell wird zu einem Netz mit höchstens
-drei Flächen verschmolzen, beleuchtet und in den Stoff des Waldes gesetzt
-(`moosdecke()`, `laubstoff()`). Welche Datei welche Rolle trägt, steht in
-`Fremdmodelle.ROLLEN` (Rollen M1–M18 aus dem Levelplan).
+Gelesen werden die Dateien ausschließlich über `Fremdmodelle`
+(`scripts/fremdmodelle.gd`):
 
-## Stand: leer – die Rückfälle greifen
+- `Fremdmodelle.baum()` macht aus einem Baum Netze im Format der
+  prozeduralen Bäume – Stamm wie `Riesenstamm` (Borke in Weltprojektion),
+  Krone wie `Kronenwolke` (mit Blattkarten), dazu eine Fernfassung. So
+  teilen Modell- und prozedurale Bäume eine Zeichnung und einen Stoff
+  (ARCHITEKTUR.md, „Modellbäume").
+- `Fremdmodelle.netz()` verschmilzt alles andere zu einem Netz mit
+  höchstens drei Flächen im Stoff des Waldes (`moosdecke()`, `laubstoff()`).
 
-Beim Bau dieses Ordners (29.09.2026) waren alle drei Quellen gesperrt:
-`kenney.nl`, `quaternius.com` und `poly.pizza` lehnte die Netzwerkrichtlinie
-der Bauumgebung ab (CONNECT 403). Der Ordner ist deshalb absichtlich leer.
+Welche Datei welche Rolle trägt, steht in `Fremdmodelle.ROLLEN` (Rollen
+M1–M18 aus dem Levelplan).
 
-Ohne natur2 läuft alles weiter:
+## Stand: Ultimate Nature Pack (`unp/`, 16 Modelle)
 
-| Rollen | was sie heute bekommen |
-|---|---|
-| M8 Felsen, M9 Kiesel, M11 Büsche, M14 Blumen, M16 Stämme, M18 Pilze | die vorhandenen Kenney-Modelle aus `../natur/`, über `netz()` nachgeformt (aus Tischplatten werden gewölbte Findlinge, Stämme rund) und bemoost |
-| M1–M3 Bäume, M7 Konsolenpilze, M10 Trittsteine, M12 Farne, M13 Großblatt, M15 Wispelgras, M17 Totholz | den prozeduralen Rückfall des Aufrufers (`Riesenstamm`, `Kronenwolke`, `Findling`, `Farnwerk`, `Schluchtsaum`, `Rasensaum`, `Baum` TOTHOLZ) |
-
-`Fremdmodelle.rolle("M1")` ist dann leer; genau daran erkennt der Streuer,
-dass er selbst bauen muss.
-
-## Messwerte (Stand: leer, Kenney-Rückfälle über `netz()`)
-
-| Größe | Wert | gemessen mit |
+| Rolle | Dateien | wo |
 |---|---|---|
-| VRAM, Texturen | +2,1 MB | Modellschau (`MODELLSCHAU_NETZ=1`): alle 20 Rollenmodelle, ihre Stoffe und das Prüfmodell. Davon Moosmuster 0,35 MB (256², Mipmaps); der Rest sind die Muster `fels`, `rinde`, `laub` der Materialbibliothek, die das Level ohnehin teilt |
-| VRAM, Puffer | +1,3 MB | ebenda: 20 Netze, je Fläche zweifach (Gesamtnetz und Einzelfläche) |
-| `.pck` (Web) | +0,05 MB (2 813 668 → 2 866 052 Byte) | `--export-pack "Web"` vor und nach diesem Paket; nur Skripte, keine Dateien |
-| Dreiecke | Felsen 576–680, Kiesel 64–96, Stamm 384, Büsche 16–104, Blumen 76, Pilze 48–144 | Modellschau |
+| M1 Hallen- und Hangbäume | `CommonTree_1`–`_5`, `PineTree_1`, `_2`, `_3`, `_5` | Level 01: hintere Reihen des Hangwalds; Portalraum: Waldsaum hinter der Nordmauer, `CommonTree_3`/`_4` und `PineTree_2`/`_5` (schmale Kronen) in den Räumen |
+| M3 Talwald nah | `CommonTree_1`, `_2`, `_5`, `PineTree_1`, `_3` | Level 01: alle Bäume des nahen Talwalds samt ihrer Fernfassung |
+| M8 Felsen | `Rock_Moss_2`, `_5`, `_6` | Level 01: Deko-Felsen am Saum, Waldboden der Haine |
+| M16 Moosstämme, Stümpfe | `WoodLog_Moss`, `TreeStump_Moss` | Level 01: Waldboden der Haine |
+| M17 Totholz | `CommonTree_Dead_1`, `_2` | Level 01: Totholz im Tal; Portalraum: Nebelsümpfe, Sand und Neon (Waldsaum) |
 
-Grenze aus dem Plan: VRAM-Zuwachs ≤ 30 MB, `.pck` ≤ +30 MB. Mit den
-Paketen oben kommen deren Texturen dazu – nach dem Hinzufügen neu messen
-und hier eintragen.
+Die Dateien sind die FBX-Modelle des Pakets, mit Godot 4.7 in `.glb`
+umgewandelt (FBX-Import über ufbx, Ausgabe über `GLTFDocument`): Form und
+Materialnamen bleiben, nur das Format ändert sich (aus „White.001" wird
+„White_001"; `Fremdmodelle` liest beide ohne die Nummer). Godot liest die
+FBX headless auch selbst; `.glb` ist es, weil der Ordner, die Modellschau
+und `Fremdmodelle` glTF erwarten – so gibt es im Projekt ein Modellformat.
+Umwandeln (in einem Hilfsprojekt mit den FBX-Dateien):
 
-## Einkaufsliste (höchstens 20 Modelle)
+    var szene := load("res://…/CommonTree_1.fbx") as PackedScene
+    var wurzel := szene.instantiate()
+    var doc := GLTFDocument.new()
+    var zustand := GLTFState.new()
+    doc.append_from_scene(wurzel, zustand)
+    doc.write_to_filesystem(zustand, "/pfad/CommonTree_1.glb")
 
-| Unterordner | Paket | Quelle | Lizenz |
-|---|---|---|---|
-| `megakit/` | Quaternius **Stylized Nature MegaKit** (Standard, kostenlos) | quaternius.com – der Knopf führt oft zu drive.google.com oder quaternius.itch.io | CC0 |
-| `unp/` | Quaternius **Ultimate Nature Pack** | quaternius.com; Einzelmodelle mit CC0-Vermerk auch auf poly.pizza | CC0 |
-| `kenney/` | Kenney **Nature Kit**, vollständig | kenney.nl/assets/nature-kit | CC0 |
+Die Materialien heißen nach ihrer Farbe („Green", „Wood", „White" …).
+`NETZ_FARBEN` legt sie auf die Farben des Waldes, `_NAMEN_KLASSE` ordnet
+sie zu (Birkenrinde „White" wäre nach der Farbe Fels, Beeren wären Borke),
+die Option `klassen` überschreibt das je Rolle (M16: Grün auf dem Holz ist
+Moos).
 
-Die Auswahl (20), Namen wie im Plan – nach dem Herunterladen prüfen:
+**Bewusst nicht genommen** – verglichen in der Modellschau und im Level:
+Die Büsche des Pakets (`Bush_*`) stehen als gestapelte Kuppeln da, die
+Pflanzen (`Plant_*`) sind keine Farne und auf Rollengröße drei Meter breit
+– dort bleiben `Kronenwolke`, `Farnwerk` und `Bodenstreu`. Blumen und Gras
+des Pakets sind nicht verdrahtet: Für M14 und M15 gibt es keinen Streuer,
+der Modelle nimmt, `Bodenstreu` und `Rasensaum` decken beides ab. Ebenso der ferne Talwald: Aus
+100 m lasen sich die kantigen Modellkronen als schwebende Platten, als
+weiche Kugeln an ihren Stellen als Pilze auf Stielen.
+
+## Messwerte
+
+MESSWERTE_FOLGEN
+
+## Einkaufsliste für später: Stylized Nature MegaKit
+
+Das Quaternius **Stylized Nature MegaKit** (CC0) war die erste Wahl. Es
+gibt es nur über itch.io (`quaternius.itch.io`), und das war in der
+Bauumgebung gesperrt (CONNECT 403; quaternius.com selbst ging, poly.pizza
+antwortete mit einer Browser-Prüfung). Die Rollen nennen seine Dateien
+weiter in der Stufe `primaer`: Liegt es eines Tages in `megakit/`, gewinnt
+es dort, wo es etwas hat, vor dem Ultimate Nature Pack (`ersatz`).
 
 | Rolle | Datei |
 |---|---|
@@ -62,13 +84,12 @@ Die Auswahl (20), Namen wie im Plan – nach dem Herunterladen prüfen:
 | M13 Großblatt | `megakit/Plant_1` |
 | M14 Blumen, Klee | `megakit/Flower_3_Group`, `megakit/Clover_1` |
 | M15 Gras-Akzente | `megakit/Grass_Wispy_Tall` |
-| M16 Moosstämme | `unp/WoodLog_Moss` |
 | M18 Pilze | `megakit/Mushroom_Common` |
 
-Weitere Namen aus `ROLLEN` (etwa `DeadTree_1`, `RockPath_Round_Wide`,
-`TreeStump_Moss`, Kenneys `stump_old`) sind vorgesehen, aber nur, wenn das
-Budget es hergibt. Stimmt ein Name nicht, wird `ROLLEN` angepasst, nicht
-die Datei umbenannt.
+Stimmt ein Name nicht, wird `ROLLEN` angepasst, nicht die Datei
+umbenannt. Für M11–M15 und M18 gibt es heute keinen Streuer, der Modelle
+nimmt (außer M12/M13 in `L01Rasen`): Wer sie hinzufügt, verdrahtet sie
+dort, wo heute der Rückfall steht.
 
 ## Anforderungen an die Dateien
 
@@ -76,9 +97,9 @@ die Datei umbenannt.
 |---|---|
 | Format | glTF (`.gltf` + `.bin` + Texturen im selben Ordner) oder `.glb` |
 | Komprimierung | **keine**: kein Draco, kein Meshopt, kein Basis-Universal |
-| Texturen | nach dem Import VRAM-komprimiert: in der `.import` jeder Textur `compress/mode=2` (ETC2/ASTC ist im Projekt an) |
-| Dreiecke | nahe Bäume ≤ 3000 (sonst `max_dreiecke` in `ROLLEN` setzen) |
-| Budget | ≤ 20 Modelle, VRAM ≤ 140 MB im Level, `.pck` höchstens 30 MB größer |
+| Texturen | nach dem Import VRAM-komprimiert: in der `.import` jeder Textur `compress/mode=2` (ETC2/ASTC ist im Projekt an) – das Ultimate Nature Pack bringt keine |
+| Dreiecke | nahe Bäume ≤ 3000 (sonst `max_dreiecke` in `ROLLEN` setzen); `baum()` dünnt Stämme auf 1200 aus |
+| Budget | höchstens rund 25 Modelle, VRAM ≤ 140 MB im Level, `.pck` höchstens 30 MB größer |
 
 Unbeleuchtete Materialien (`KHR_materials_unlit`), fehlende Normalen,
 gespiegelte Knoten und Alphaschnitt verarbeitet `netz()` selbst; ein
@@ -97,11 +118,12 @@ Prüfmodell in der Modellschau deckt genau diese Fälle ab.
 
    Sie listet je Modell Flächen, Dreiecke, Hülle und Kronenunterkante,
    meldet `FEHLER` bei mehr als drei Flächen, unbeleuchteten Flächen und
-   nahen Bäumen über 3000 Dreiecken und endet mit `=== 0 Abweichungen`.
-   Die Bilder (Übersicht, Streuung aus der Spielkamera, Nahaufnahmen)
-   zeigen jedes Modell im Licht und in der Tönung von Level 01 – keine
-   rosa, keine flach leuchtenden Flächen. Die Schau nennt auch den
-   VRAM-Zuwachs der Netze.
+   nahen Bäumen über 3000 Dreiecken, prüft die Modellbäume (`baum()`:
+   Höhe, Fuß im Boden, Blattkarten, Dreiecke von Stamm, Krone und
+   Fernfassung) und endet mit `=== 0 Abweichungen`. Die Bilder (Übersicht,
+   Streuung aus der Spielkamera, Nahaufnahmen) zeigen jedes Modell im
+   Licht und in der Tönung von Level 01 – keine rosa, keine flach
+   leuchtenden Flächen. Die Schau nennt auch den VRAM-Zuwachs der Netze.
 4. `.pck` vorher und nachher exportieren und die Größe notieren.
 5. CREDITS-Zeile, dann `PRUEF_ASSETS=0` und `PRUEF_ASSETS=1 bash werkzeuge/pruefe.sh`
    – beide müssen SAUBER melden.
@@ -109,3 +131,7 @@ Prüfmodell in der Modellschau deckt genau diese Fälle ab.
 Die `.md`- und `.txt`-Dateien hier gehen nicht in den Export
 (`export_filter` nimmt nur Ressourcen); CC0 verlangt keine Weitergabe des
 Lizenztexts.
+
+Achtung Bauspeicher: Die Netze von `baum()` liegen im `Bauspeicher`,
+dessen Fassung nur die Skripte kennt. Wer eine Modelldatei austauscht,
+ohne ein Skript zu ändern, leert `user://bauspeicher` von Hand.
