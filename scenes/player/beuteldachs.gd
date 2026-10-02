@@ -436,9 +436,13 @@ static func _stoff() -> ShaderMaterial:
 ## zusammengesetzt, danach aus dem Vorrat.
 func _netz(name: String, bau: Callable) -> ArrayMesh:
 	if not _netze.has(name):
-		var form := Form.new()
-		bau.call(form)
-		_netze[name] = form.netz()
+		# Die verschmolzene Haut kostet beim ersten Bau gut eine Sekunde;
+		# danach kommt sie von der Platte (`Bauspeicher`, veraltet mit
+		# jeder Codeänderung).
+		_netze[name] = Bauspeicher.holen("beuteldachs_" + name, func() -> Resource:
+			var form := Form.new()
+			bau.call(form)
+			return form.netz()) as ArrayMesh
 	return _netze[name]
 
 
@@ -459,14 +463,44 @@ func _glied(elternteil: Node3D, bezeichnung: String, netz: Mesh,
 ## Sammelt Grundformen zu EINEM Netz mit Eckfarben. Ein Maler (optional)
 ## bekommt Ort, Normale (beides im Glied) und Grundfarbe jeder Ecke und
 ## gibt ihre Farbe zurück – so entsteht die Zeichnung im Fell.
+##
+## FELL fließt: Kugeln, Kapseln und Kegel im Fell (`ART_FELL`, `weich`)
+## werden nicht als Netze aneinandergesteckt – an jeder Naht lag sonst eine
+## scharfe Kerbe, und die Figur sah aus wie aus Bällen gebaut. Sie werden
+## als Abstandsfeld gesammelt, weich vereinigt (polynomielles smin, der
+## Übergang wächst mit der Größe der Form) und als EINE Haut ausgelesen
+## (Surface Nets auf einem Gitter, Normalen aus dem Feld). Augen, Nase,
+## Glanzpunkte, Halstuch und Knoten bleiben eigene, scharfe Netze.
+## Das Auslesen kostet beim ersten Bau Zeit; das Ergebnis liegt im
+## `Bauspeicher` (siehe `_netz`).
 class Form:
 	var ecken := PackedVector3Array()
 	var normalen := PackedVector3Array()
 	var farben := PackedColorArray()
 	var indizes := PackedInt32Array()
+	var _weich: Array[Dictionary] = []
+
+	## Gitterweite: so viele Zellen über die längste Seite des Glieds.
+	const ZELLEN := 56
+	const ZELLE_MIN := 0.004
+	const ZELLE_MAX := 0.012
+	## Weicher Übergang: Anteil des kleinsten Radius, mit Grenzen.
+	const UEBERGANG := 0.35
+	const UEBERGANG_MIN := 0.008
+	const UEBERGANG_MAX := 0.04
+	## Breite der Farbmischung an den Nähten (m).
+	const FARBNAHT := 0.006
 
 	func teil(netz: PrimitiveMesh, lage: Transform3D, farbe: Color,
-			art: float = ART_FELL, maler: Callable = Callable()) -> void:
+			art: float = ART_FELL, maler: Callable = Callable(), weich := true) -> void:
+		if weich and art == ART_FELL and (netz is SphereMesh or netz is CapsuleMesh \
+				or netz is CylinderMesh):
+			_weich.append(_feldform(netz, lage, farbe, maler))
+			return
+		_hart(netz, lage, farbe, art, maler)
+
+	func _hart(netz: PrimitiveMesh, lage: Transform3D, farbe: Color,
+			art: float, maler: Callable) -> void:
 		var daten := netz.get_mesh_arrays()
 		var e: PackedVector3Array = daten[Mesh.ARRAY_VERTEX]
 		var nn: PackedVector3Array = daten[Mesh.ARRAY_NORMAL]
@@ -486,6 +520,12 @@ class Form:
 			indizes.append(start + ii[k])
 
 	func netz() -> ArrayMesh:
+		if _weich.size() == 1:
+			# Allein fließt nichts zusammen: die Grundform selbst.
+			var w: Dictionary = _weich[0]
+			_hart(w["netz"], w["lage"], w["farbe"], ART_FELL, w["maler"])
+		elif _weich.size() > 1:
+			_haut()
 		var daten := []
 		daten.resize(Mesh.ARRAY_MAX)
 		daten[Mesh.ARRAY_VERTEX] = ecken
@@ -495,6 +535,300 @@ class Form:
 		var ergebnis := ArrayMesh.new()
 		ergebnis.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, daten)
 		return ergebnis
+
+	# ------------------------------------------------------- Abstandsfeld
+
+	## Eine Grundform als Feld: Lage zerlegt in Drehung und Maßstab, Hülle im
+	## Glied, Art und Maße.
+	static func _feldform(netz: PrimitiveMesh, lage: Transform3D, farbe: Color,
+			maler: Callable) -> Dictionary:
+		var b := lage.basis
+		var m := Vector3(b.x.length(), b.y.length(), b.z.length())
+		var dreh := Basis(b.x / m.x, b.y / m.y, b.z / m.z)
+		var f := {"netz": netz, "lage": lage, "farbe": farbe, "maler": maler,
+				"ort": lage.origin, "zurueck": dreh.transposed(), "mass": m,
+				"mass_min": minf(m.x, minf(m.y, m.z))}
+		var radius := 0.0
+		if netz is SphereMesh:
+			var k := netz as SphereMesh
+			f["typ"] = 0
+			f["radien"] = Vector3(k.radius, k.height * 0.5, k.radius) * m
+			radius = minf(k.radius, k.height * 0.5)
+		elif netz is CapsuleMesh:
+			var k := netz as CapsuleMesh
+			f["typ"] = 1
+			f["r"] = k.radius
+			f["a"] = maxf(k.height * 0.5 - k.radius, 0.0)
+			radius = k.radius
+		else:
+			var k := netz as CylinderMesh
+			f["typ"] = 2
+			f["h"] = k.height * 0.5
+			f["r1"] = k.bottom_radius
+			f["r2"] = k.top_radius
+			radius = maxf(k.bottom_radius, k.top_radius) * 0.5
+		f["k"] = clampf(radius * float(f["mass_min"]) * UEBERGANG, UEBERGANG_MIN, UEBERGANG_MAX)
+		f["huelle"] = lage * netz.get_aabb()
+		return f
+
+	static func _abstand(f: Dictionary, p: Vector3) -> float:
+		var q: Vector3 = (f["zurueck"] as Basis) * (p - (f["ort"] as Vector3))
+		match int(f["typ"]):
+			0:
+				# Ellipsoid (Näherung nach Quilez): genau auf der Fläche
+				var r: Vector3 = f["radien"]
+				var k0 := (q / r).length()
+				var k1 := (q / (r * r)).length()
+				if k1 < 0.000001:
+					return -minf(r.x, minf(r.y, r.z))
+				return k0 * (k0 - 1.0) / k1
+			1:
+				var m: Vector3 = f["mass"]
+				var u := q / m
+				var a: float = f["a"]
+				var d := (u - Vector3(0.0, clampf(u.y, -a, a), 0.0)).length() - float(f["r"])
+				return d * float(f["mass_min"])
+			_:
+				var m: Vector3 = f["mass"]
+				var u := q / m
+				return _kegelstumpf(u, f["h"], f["r1"], f["r2"]) * float(f["mass_min"])
+
+	## Kegelstumpf entlang Y, halbe Höhe h, unten r1, oben r2 (Quilez, exakt).
+	static func _kegelstumpf(p: Vector3, h: float, r1: float, r2: float) -> float:
+		var q := Vector2(Vector2(p.x, p.z).length(), p.y)
+		var k1 := Vector2(r2, h)
+		var k2 := Vector2(r2 - r1, 2.0 * h)
+		var ca := Vector2(q.x - minf(q.x, r1 if q.y < 0.0 else r2), absf(q.y) - h)
+		var cb := q - k1 + k2 * clampf((k1 - q).dot(k2) / k2.length_squared(), 0.0, 1.0)
+		var vz := -1.0 if (cb.x < 0.0 and ca.y < 0.0) else 1.0
+		return vz * sqrt(minf(ca.length_squared(), cb.length_squared()))
+
+	static func _smin(a: float, b: float, k: float) -> float:
+		var h := clampf(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
+		return lerpf(b, a, h) - k * h * (1.0 - h)
+
+	# ------------------------------------------------------------- Haut
+
+	## Liest die weich vereinigten Formen als eine Haut aus (Surface Nets).
+	func _haut() -> void:
+		var huelle: AABB = _weich[0]["huelle"]
+		for f in _weich:
+			huelle = huelle.merge(f["huelle"])
+		var zelle := clampf(huelle.get_longest_axis_size() / float(ZELLEN), ZELLE_MIN, ZELLE_MAX)
+		var rand := UEBERGANG_MAX + zelle * 2.0
+		var ursprung := huelle.position - Vector3.ONE * rand
+		var groesse := huelle.size + Vector3.ONE * rand * 2.0
+		var nx := ceili(groesse.x / zelle) + 1
+		var ny := ceili(groesse.y / zelle) + 1
+		var nz := ceili(groesse.z / zelle) + 1
+		var feld := PackedFloat32Array()
+		feld.resize(nx * ny * nz)
+		feld.fill(1.0)
+		# Je Form nur in ihrer (erweiterten) Hülle rechnen. Außerhalb liegt
+		# sie weiter als ihr Übergang von jeder Fläche – sie trüge nichts bei.
+		# Die Schleife ist der teure Teil (rund 100 000 Punkte je Glied):
+		# Werte der Form vorher in lokale Variablen, Kugeln – die meisten
+		# Formen – ohne Funktionsaufruf.
+		for f in _weich:
+			var h: AABB = (f["huelle"] as AABB).grow(float(f["k"]) + zelle * 2.0)
+			var k: float = f["k"]
+			var typ: int = f["typ"]
+			var zurueck: Basis = f["zurueck"]
+			var ort: Vector3 = f["ort"]
+			var r: Vector3 = f["radien"] if typ == 0 else Vector3.ONE
+			var r2 := r * r
+			var x0 := clampi(floori((h.position.x - ursprung.x) / zelle), 0, nx - 1)
+			var y0 := clampi(floori((h.position.y - ursprung.y) / zelle), 0, ny - 1)
+			var z0 := clampi(floori((h.position.z - ursprung.z) / zelle), 0, nz - 1)
+			var x1 := clampi(ceili((h.end.x - ursprung.x) / zelle), 0, nx - 1)
+			var y1 := clampi(ceili((h.end.y - ursprung.y) / zelle), 0, ny - 1)
+			var z1 := clampi(ceili((h.end.z - ursprung.z) / zelle), 0, nz - 1)
+			# Schritt um eine Zelle in x, im Raum der Form
+			var dx := zurueck.x * zelle
+			for iz in range(z0, z1 + 1):
+				for iy in range(y0, y1 + 1):
+					var i := (iz * ny + iy) * nx + x0
+					var q := zurueck * (ursprung + Vector3(x0, iy, iz) * zelle - ort)
+					for ix in range(x0, x1 + 1):
+						var d := 0.0
+						if typ == 0:
+							var k0 := (q / r).length()
+							var k1 := (q / r2).length()
+							d = k0 * (k0 - 1.0) / k1 if k1 > 0.000001 else -r.x
+						else:
+							d = _abstand(f, ursprung + Vector3(ix, iy, iz) * zelle)
+						var a := feld[i]
+						var t := clampf(0.5 + 0.5 * (d - a) / k, 0.0, 1.0)
+						feld[i] = lerpf(d, a, t) - k * t * (1.0 - t)
+						i += 1
+						q += dx
+
+		# Eine Ecke je Zelle, durch die die Fläche geht: Mittel der
+		# Schnittpunkte auf ihren Kanten.
+		var zellen := PackedInt32Array()
+		zellen.resize((nx - 1) * (ny - 1) * (nz - 1))
+		zellen.fill(-1)
+		var orte := PackedVector3Array()
+		var ecke := [Vector3i(0, 0, 0), Vector3i(1, 0, 0), Vector3i(0, 1, 0), Vector3i(1, 1, 0),
+				Vector3i(0, 0, 1), Vector3i(1, 0, 1), Vector3i(0, 1, 1), Vector3i(1, 1, 1)]
+		var kanten := [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7],
+				[0, 4], [1, 5], [2, 6], [3, 7]]
+		var schritt := PackedInt32Array([0, 1, nx, nx + 1, nx * ny, nx * ny + 1,
+				nx * ny + nx, nx * ny + nx + 1])
+		var w := PackedFloat32Array()
+		w.resize(8)
+		for iz in nz - 1:
+			for iy in ny - 1:
+				for ix in nx - 1:
+					var basis_i := (iz * ny + iy) * nx + ix
+					var innen := 0
+					for c in 8:
+						var v := feld[basis_i + schritt[c]]
+						w[c] = v
+						if v < 0.0:
+							innen += 1
+					if innen == 0 or innen == 8:
+						continue
+					var summe := Vector3.ZERO
+					var zahl := 0
+					for kante in kanten:
+						var a: float = w[kante[0]]
+						var b: float = w[kante[1]]
+						if (a < 0.0) == (b < 0.0):
+							continue
+						var t := a / (a - b)
+						var pa := Vector3(ecke[kante[0]])
+						var pb := Vector3(ecke[kante[1]])
+						summe += pa.lerp(pb, t)
+						zahl += 1
+					zellen[(iz * (ny - 1) + iy) * (nx - 1) + ix] = orte.size()
+					orte.append(ursprung + (Vector3(ix, iy, iz) + summe / float(zahl)) * zelle)
+
+		# Vierecke über jede Gitterkante mit Vorzeichenwechsel.
+		var vierecke := PackedInt32Array()
+		var nzx := nx - 1
+		var nzy := ny - 1
+		for iz in range(1, nz - 1):
+			for iy in range(1, ny - 1):
+				for ix in range(1, nx - 1):
+					var i := (iz * ny + iy) * nx + ix
+					var v := feld[i]
+					var c := (iz * nzy + iy) * nzx + ix
+					# Kante in x: Zellen um die Kante liegen in y und z daneben
+					if ix < nx - 1 and (v < 0.0) != (feld[i + 1] < 0.0):
+						_viereck(vierecke, zellen, v < 0.0,
+								c, c - nzx, c - nzx * nzy - nzx, c - nzx * nzy)
+					if iy < ny - 1 and (v < 0.0) != (feld[i + nx] < 0.0):
+						_viereck(vierecke, zellen, v < 0.0,
+								c, c - nzx * nzy, c - nzx * nzy - 1, c - 1)
+					if iz < nz - 1 and (v < 0.0) != (feld[i + nx * ny] < 0.0):
+						_viereck(vierecke, zellen, v < 0.0,
+								c, c - 1, c - nzx - 1, c - nzx)
+
+		# Normalen aus dem Feld, Farben aus der nächsten Form (weich gemischt).
+		var start := ecken.size()
+		for p in orte:
+			var n := _neigung(feld, ursprung, zelle, nx, ny, nz, p)
+			ecken.append(p)
+			normalen.append(n)
+			farben.append(_farbe(p, n))
+		var wende := _wenden()
+		for q in range(0, vierecke.size(), 4):
+			var a := start + vierecke[q]
+			var b := start + vierecke[q + 1]
+			var c := start + vierecke[q + 2]
+			var d := start + vierecke[q + 3]
+			if wende:
+				indizes.append_array(PackedInt32Array([a, c, b, a, d, c]))
+			else:
+				indizes.append_array(PackedInt32Array([a, b, c, a, c, d]))
+
+	static func _viereck(liste: PackedInt32Array, zellen: PackedInt32Array, innen_unten: bool,
+			a: int, b: int, c: int, d: int) -> void:
+		var ia := zellen[a]
+		var ib := zellen[b]
+		var ic := zellen[c]
+		var id := zellen[d]
+		if ia < 0 or ib < 0 or ic < 0 or id < 0:
+			return
+		if innen_unten:
+			liste.append_array(PackedInt32Array([ia, ib, ic, id]))
+		else:
+			liste.append_array(PackedInt32Array([ia, id, ic, ib]))
+
+	## Steigung des Felds an `p`, dreilinear aus den Gitterpunkten.
+	static func _neigung(feld: PackedFloat32Array, ursprung: Vector3, zelle: float,
+			nx: int, ny: int, nz: int, p: Vector3) -> Vector3:
+		var g := (p - ursprung) / zelle
+		var ix := clampi(floori(g.x), 1, nx - 3)
+		var iy := clampi(floori(g.y), 1, ny - 3)
+		var iz := clampi(floori(g.z), 1, nz - 3)
+		var t := Vector3(clampf(g.x - ix, 0.0, 1.0), clampf(g.y - iy, 0.0, 1.0),
+				clampf(g.z - iz, 0.0, 1.0))
+		var summe := Vector3.ZERO
+		for dz in 2:
+			for dy in 2:
+				for dx in 2:
+					var i := ((iz + dz) * ny + iy + dy) * nx + ix + dx
+					var n := Vector3(feld[i + 1] - feld[i - 1], feld[i + nx] - feld[i - nx],
+							feld[i + nx * ny] - feld[i - nx * ny])
+					var gew := (t.x if dx == 1 else 1.0 - t.x) \
+							* (t.y if dy == 1 else 1.0 - t.y) * (t.z if dz == 1 else 1.0 - t.z)
+					summe += n * gew
+		return summe.normalized() if summe.length_squared() > 0.0 else Vector3.UP
+
+	## Farbe einer Hautecke: die Formen nach Nähe gewichtet, jede mit ihrem
+	## Maler – an den Nähten gehen die Farben weich ineinander über.
+	func _farbe(p: Vector3, n: Vector3) -> Color:
+		var abstaende := PackedFloat32Array()
+		var kleinster := INF
+		for f in _weich:
+			var d := _abstand(f, p)
+			abstaende.append(d)
+			kleinster = minf(kleinster, d)
+		var summe := Color(0.0, 0.0, 0.0, 0.0)
+		var gewicht := 0.0
+		for i in _weich.size():
+			var g := exp(-(abstaende[i] - kleinster) / FARBNAHT)
+			if g < 0.02:
+				continue
+			var f: Dictionary = _weich[i]
+			var c: Color = f["farbe"]
+			var maler: Callable = f["maler"]
+			if maler.is_valid():
+				c = maler.call(p, n, c)
+			summe += c * g
+			gewicht += g
+		var c := summe / gewicht
+		return Color(c.r, c.g, c.b, ART_FELL)
+
+	## Umlaufsinn der Dreiecke wie in Godots eigenen Netzen – einmal an
+	## einer Kugel abgelesen statt aus dem Gedächtnis.
+	static var _wende_bekannt := false
+	static var _wende := false
+
+	static func _wenden() -> bool:
+		if _wende_bekannt:
+			return _wende
+		var probe := SphereMesh.new()
+		probe.radial_segments = 8
+		probe.rings = 4
+		var daten := probe.get_mesh_arrays()
+		var e: PackedVector3Array = daten[Mesh.ARRAY_VERTEX]
+		var ii: PackedInt32Array = daten[Mesh.ARRAY_INDEX]
+		var nn: PackedVector3Array = daten[Mesh.ARRAY_NORMAL]
+		var stimmen := 0
+		for t in range(0, ii.size(), 3):
+			var a := e[ii[t]]
+			var flaeche := (e[ii[t + 1]] - a).cross(e[ii[t + 2]] - a)
+			if flaeche.length_squared() < 1e-12:
+				continue
+			stimmen += 1 if flaeche.dot(nn[ii[t]]) > 0.0 else -1
+		# Unsere Vierecke (a, b, c, d) laufen so, dass (b−a)×(c−a) nach
+		# außen zeigt; zeigt Godots Kreuzprodukt nach innen, wird gewendet.
+		_wende = stimmen < 0
+		_wende_bekannt = true
+		return _wende
 
 
 ## Verwandlung einer Grundform: erst skaliert, dann gedreht, dann versetzt.
@@ -551,7 +885,7 @@ func _form_rumpf(f: Form) -> void:
 	f.teil(tuch, _lage(Vector3(0.0, 0.245, -0.01), Vector3(1.0, 1.0, 0.94),
 			Vector3(0.12, 0.0, 0.0)), TUCH)
 	f.teil(_kugel(0.042, 14, 8), _lage(Vector3(0.0, 0.215, -0.245), Vector3(1.3, 0.9, 0.8)),
-			TUCH)
+			TUCH, ART_FELL, Callable(), false)
 
 
 func _male_rumpf(p: Vector3, n: Vector3, grund: Color, hinten_tiefer: bool) -> Color:
@@ -668,8 +1002,9 @@ func _form_lid(f: Form) -> void:
 func _form_ohr(f: Form) -> void:
 	f.teil(_kugel(0.095, 20, 14), _lage(Vector3(0.0, 0.11, 0.0), Vector3(0.88, 1.4, 0.36)),
 			FELL, ART_FELL, _male_spitze.bind(0.20))
+	# Innen scharf: Verschmolzen ginge das Rosa im Ohr auf.
 	f.teil(_kugel(0.095, 16, 10), _lage(Vector3(0.0, 0.10, -0.02), Vector3(0.55, 1.0, 0.18)),
-			INNENOHR)
+			INNENOHR, ART_FELL, Callable(), false)
 
 
 func _form_arm(f: Form) -> void:
