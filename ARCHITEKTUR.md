@@ -303,7 +303,10 @@ Früchte fliegen ab 2,6 m Abstand zum Spieler und zählen über
 
 Alle Früchte teilen EIN Netz mit EINER Fläche (Beere, Stiel, Blätter;
 Farbe aus Scheitelfarben) und EIN Material. Das Eigenleuchten liegt über
-eine Zwei-Pixel-Maske (`EMISSION_OP_MULTIPLY`) nur auf der Beere. Die
+eine Zwei-Pixel-Maske (`EMISSION_OP_MULTIPLY`) nur auf der Beere und ist
+schwach (0,15): Die Form kommt aus Licht, Glanz (Rauheit 0,3) und einem
+Eigenschatten in den Scheitelfarben (unten 40 % dunkler). Mit 0,45 lag
+die Beere flach wie ein Aufkleber. Die Beere hat 14 Ringe zu 22 Segmenten. Die
 Frucht wirft keinen Schatten: ein Zeichenaufruf je Frucht statt bis zu
 zehn. Beim Einsammeln verlässt sie sofort Gruppe und Trefferzone, ploppt
 0,13 s und gibt sich dann frei; Funken und Blitz hängen an der Szene. Aus
@@ -534,7 +537,8 @@ bei Level 01, 186 m, 248 000 Primitive mehr (903 000, über dem Budget); mit
 34 sind es 69 000 mehr (724 000). Die Normalen kommen aus dem Feld, die
 Farbe von der nächsten Form, an den Nähten über 6 mm gemischt, jede mit ihrem
 Maler. Scharf und als eigenes Netz bleiben Augen, Iris, Pupillen, Glanz,
-Nase und Lächeln (`ART_GLATT`/`ART_LICHT`), Halstuch und Knoten sowie das
+Nase und Lächeln (`ART_GLATT`/`ART_LICHT`), Halstuch (ein flaches Band:
+dünner Ring, hochgezogen) und Knoten sowie das
 Innenohr (`teil(…, weich = false)`); ein Glied mit nur einer Form bleibt
 dessen Grundnetz. Die Gelenke ZWISCHEN den Gliedern (Kopf, Arme, Beine,
 Schweif) bleiben getrennt, weil sie sich bewegen.
@@ -584,8 +588,11 @@ unregelmäßigem Takt.
 
 Jeder `Spieler` hängt sich in `_ready()` einen Schutzgeist an. Es gibt
 immer genau EINEN, gleich wie viele Ladungen `GameState.schutz` zählt;
-die Stufe zeigt sich am Leuchten (`STUFEN`): 1 glimmt, 2 strahlt mit
-großem Hof, 3 bekommt Strahlenkranz und blinkende Funken. Der Hof ist
+die Stufe zeigt sich am Leuchten (`STUFEN`): 1 glimmt, 2 leuchtet mit
+kleinem Hof, 3 bekommt einen schwachen Strahlenkranz und blinkende Funken.
+Bewusst dezent (Größe `GEIST_GROESSE` 0,8, Leuchten bis 1,0, Hof bis
+1,2): Der Geist begleitet die Figur, er ist nicht die Hauptsache im Bild.
+Vorher reichten Leuchten bis 1,9 und Hof bis 1,85. Der Hof ist
 eine immer zur Kamera gedrehte Fläche (`SCHEIN_CODE`, additiv) und
 leuchtet auch in Leveln ohne Glow. Drei Draw-Calls (Maske, Flügel, Hof),
 die Flügel schlagen im Vertex-Shader.

@@ -60,11 +60,14 @@ const RAND := 0.28
 
 # --- Leuchten je Stufe: [Leuchten der Maske, Hof, Hofgröße, Strahlen] ---
 const STUFEN := [
-	[0.0, 0.0, 0.9, 0.0],
-	[0.35, 0.32, 1.1, 0.0],
-	[1.1, 0.7, 1.45, 0.0],
-	[1.9, 1.0, 1.85, 0.85],
+	[0.0, 0.0, 0.8, 0.0],
+	[0.25, 0.16, 0.85, 0.0],
+	[0.6, 0.32, 1.0, 0.0],
+	[1.0, 0.48, 1.2, 0.4],
 ]
+## Grundgröße des Geists. Dezent: Er begleitet die Figur, er ist nicht die
+## Hauptsache im Bild (vorher 1,0 mit Hof bis 1,85 und Leuchten bis 1,9).
+const GEIST_GROESSE := 0.8
 
 const FARBE := Farben.KISTE_SCHUTZ
 const SCHALE := Color(0.86, 0.94, 1.0)
@@ -287,7 +290,7 @@ func _ausrichten(delta: float) -> void:
 				randf_range(-0.4, 0.4), randf_range(-0.3, 0.3)) * (_zittern / 0.4))
 	_dreh = _dreh.slerp(ziel.get_rotation_quaternion(), 1.0 - exp(-9.0 * delta))
 	var puls := 1.0 + _puls * 0.25
-	_geist.basis = Basis(_dreh).scaled(Vector3.ONE * maxf(_groesse * puls, 0.001))
+	_geist.basis = Basis(_dreh).scaled(Vector3.ONE * maxf(_groesse * puls * GEIST_GROESSE, 0.001))
 
 
 # ---------------------------------------------------------------- Leuchten

@@ -876,15 +876,17 @@ func _form_rumpf(f: Form) -> void:
 	f.teil(_kugel(0.235, 40, 24), _lage(Vector3(0.0, 0.13, -0.01), Vector3(1.08, 0.95, 0.92)),
 			FELL, ART_FELL, _male_rumpf.bind(false))
 	f.teil(_kugel(0.15, 20, 10), _lage(Vector3(0.0, 0.29, -0.02)), FELL)
-	# Halstuch: Wulst um den Hals, vorn ein Knoten
+	# Halstuch: ein flaches Band, das am Hals anliegt, vorn ein Knoten.
+	# Der Ring ist dünn (1,7 cm) und hochgezogen – ein runder Wulst las sich
+	# als Schlauch.
 	var tuch := TorusMesh.new()
-	tuch.inner_radius = 0.175
-	tuch.outer_radius = 0.255
+	tuch.inner_radius = 0.198
+	tuch.outer_radius = 0.232
 	tuch.rings = 32
 	tuch.ring_segments = 10
-	f.teil(tuch, _lage(Vector3(0.0, 0.245, -0.01), Vector3(1.0, 1.0, 0.94),
+	f.teil(tuch, _lage(Vector3(0.0, 0.245, -0.01), Vector3(1.0, 1.9, 0.94),
 			Vector3(0.12, 0.0, 0.0)), TUCH)
-	f.teil(_kugel(0.042, 14, 8), _lage(Vector3(0.0, 0.215, -0.245), Vector3(1.3, 0.9, 0.8)),
+	f.teil(_kugel(0.036, 14, 8), _lage(Vector3(0.0, 0.22, -0.232), Vector3(1.35, 0.95, 0.6)),
 			TUCH, ART_FELL, Callable(), false)
 
 
