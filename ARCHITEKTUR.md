@@ -1212,19 +1212,20 @@ negativ, also unter dem Horizont:
 | Szene | Licht | vorher | nachher | Energie |
 |---|---|---|---|---|
 | Level 11 | Sonne | −18°, aus +59° | 32°, aus −55° (links hinten) | 1,0 → 0,7 |
-| Level 12 | Hallenglut | −50°, aus −32° | 55°, aus +20° | 0,5 |
-| Level 14 | Sonne | −38°, aus −39° | 45°, aus +30° | 0,95 → 0,35 |
-| Level 16 | Sonne | −18°, aus −57° | 60°, aus +53° | 1,45 |
-| Level 17 | Mondlicht | −18°, aus −57° | 50°, aus +53° | 0,8 → 0,25, Farbe blauer (0,45/0,62/1) |
-| Level 18 | Sonne | −21°, aus −77° | 60°, aus +65° | 1,8 → 1,1 |
-| Level 19 | Sonne | −14°, aus −101° | 53°, aus +107° (rechts) | 2,2 → 0,6 |
-| Level 20 | Sonne | −34°, aus −47° | 45°, aus +37° | 0,85 |
+| Level 12 | Hallenglut | −50°, aus −32° | 55°, aus +20° | 0,5 → 0,3, Farbe kühl-neutral (0,85/0,88/1) statt orange |
+| Level 14 | Sonne | −38°, aus −39° | 45°, aus +30° | 0,95 → 0,2; Belichtung 1,0 → 0,6 |
+| Level 16 | Sonne | −18°, aus −57° | 60°, aus +53° | 1,45 → 1,05 |
+| Level 17 | Mondlicht | −18°, aus −57° | 50°, aus −110° | 0,8 → 0,25, Farbe blauer (0,45/0,62/1) |
+| Level 18 | Sonne | −21°, aus −77° | 60°, aus −110° | 1,8 → 0,25; Belichtung 1,34 → 1,2 |
+| Level 19 | Sonne | −14°, aus −101° | 53°, aus +107° (rechts) | 2,2 → 0,45 |
+| Level 20 | Sonne | −34°, aus −47° | 45°, aus −100° | 0,85 |
 | Level 21 | Sonne | −24°, aus −61° | 50°, aus +53° | 0,95 → 0,65 |
 | Level 22 | Sonne | −25°, aus −52° | 37°, aus +46° | 0,9 → 0,55 |
 | Testlevel | Sonne | −32°, aus −71° | 63°, aus +53° | 1,6 |
 
-Der Azimut ist der der transponierten Basis, also der gemeinte. Nur die
-Höhe ist dort angehoben, wo sie zwischen hohen Wänden zu flach war:
+Der Azimut ist meist der der transponierten Basis, also der gemeinte.
+Ausnahmen sind Level 17, 18 und 20 (unten) und Level 19. Die Höhe ist dort
+angehoben, wo sie zwischen hohen Wänden zu flach war:
 Level 16 (Kanal) hatte transponiert 32°, Level 17 und 21 (Schluchten) 32°
 bzw. 42°; der Weg lag dann großteils im Schatten der Wände.
 
@@ -1243,8 +1244,11 @@ Level 11 85/58/96 → 123/92/111, Level 12 67/40/85 → 82/42/84, Level 14
 105/101/99 → 126/111/108, Level 18 119/85/64 → 135/91/90, Level 19
 60/36/57 → 72/48/75, Level 20 73/60/68 → 65/54/64, Level 21 124/44/59 →
 159/67/88, Level 22 192/187/187/201 → 199/198/190/189, Testlevel 42/41/43
-→ 48/52/51. Draw-Calls je Bild zwischen −272 und +175 (die Schattenwerfer
-liegen jetzt über dem Bild statt darunter).
+→ 48/52/51. Die Zahlen gelten für die erste Fassung; die Nachbesserung
+unten ändert sie für Level 12, 14, 16, 18 und 19. Die Draw-Calls ändern sich
+je nach Stelle in beide Richtungen, weil die Schattenwerfer jetzt über dem
+Bild liegen statt darunter. An einzelnen Stellen steigen sie deutlich, auch
+auf dem Handyweg; eine Spanne für alle Stellen ist nicht gemessen.
 
 Je Level, was dabei zählte:
 - **Level 11, 18, 21:** Die alten Werte (1,0, 1,8, 0,95) waren für Licht
@@ -1261,26 +1265,40 @@ Je Level, was dabei zählte:
   Wegblech als hellste Fläche im Bild – Licht von unten trifft es nie, und
   die „Zeichnung" des Ersatzlichts lag an Decken und Unterseiten. Im Bild:
   40 m 67 → 82; bei 270 m liegen die Schatten der Deckenträger als Streifen
-  auf dem Hallenboden. Die Torhalle wird dabei wärmer (kühle Pixel 64 % →
-  42 %), bleibt aber überwiegend kühl.
-- **Level 14:** Der Steg liegt im Weiß ganz oben in der Tonkurve. Schon
-  0,2 hob das Holz bei 140 m von 166/154/143 auf 207/191/171 (RGB) und
-  machte das Eis im Rutschsteg weiß (241/243/243 statt 217/230/236); mit
-  0,35 und 0,5 steht es bei 243/243/243, ist also gesättigt. Die
-  Stimmungszone 90–160 m setzt das Umgebungslicht dort fest auf 1,05
-  (`level14.gd`). 0,35 gibt den Stegen Schatten (Deckkraft 0,55);
-  das Eis bleibt vom Holz klar getrennt, liest sich aber weiß statt
-  bläulich. Eine Höhe von 35° statt 45° änderte am Eis nichts und kostete
-  bis zu 88 Draw-Calls mehr.
+  auf dem Hallenboden. Mit der alten orangen Farbe wurde die Torhalle
+  wärmer (kühle Pixel 64 % → 42 %). `level12.gd` will sie aber als den
+  einzigen kühlen Ort („Der kalte Anfang ist es, der das Glühen danach warm
+  aussehen lässt"). Daher hat die `Hallenglut` jetzt eine kühl-neutrale Farbe
+  (0,85/0,88/1) und die Energie 0,3. Das Glühen tragen die Glutlichter und
+  der Ofen.
+- **Level 14:** Der Steg liegt im Weiß ganz oben in der Tonkurve. Mit
+  Sonne von oben brannte das Eis im Rutschsteg (90–160 m) weiß aus. Das
+  bläuliche Eis ist aber das Spielsignal für „glatt“, und die Früchte
+  kippten ins Blassgelbe. Die Stimmungszone 90–160 m setzt das
+  Umgebungslicht dort fest auf 1,05 (`level14.gd`). Abhilfe: Belichtung
+  1,0 → 0,6, Sonne 0,2. Damit Himmel und Dunst nicht grau werden, sind die
+  Himmelsenergie (×1,125) und das Licht im Nebel (0,9 → 1,5) angehoben.
+  Eis wieder hellblau, Früchte orange, Stege mit Schatten.
+- **Level 16:** Mit 1,45 von oben kippten Früchte ins Gelbe und der dunkle
+  Körper der Spinne wurde blass; 1,05.
+- **Level 17, 18, 20:** Die Wege biegen nach rechts ab (+X). Mit dem
+  transponierten Azimut (+53°, +65°, +37°) lag ein großer Teil im
+  Gegenlicht. Gespiegelt auf −110°/−110°/−100° steht die Quelle hinter
+  der Kamera, solange sie nach +X schaut.
+- **Level 18:** Der helle Sandstreifen auf dem Weg brannte mit 1,1 aus,
+  und die orange Frucht verschwand darauf (gleiche Farbe, gleiche Luma).
+  Sonne 0,25, Belichtung 1,34 → 1,2: Der Streifen brennt nicht mehr aus.
 - **Level 17 (Nacht):** Von oben wird der Schnee schnell weiß und
   neutral: Schon mit 0,4 und der alten Lichtfarbe sanken die kühlen Pixel
   von 91–94 % auf 51–73 %. Mit 0,25 und blauerem Licht sind es 75–90 %,
   der Schatten von Reiter und Tier liegt auf der Rinne.
-- **Level 19 (Sturm):** Der Blitz setzt die Sonne aufs Siebenfache. Von
-  unten erhellte er den Weg kaum (bei 172 m 36 → 38); mit 0,6 von oben ist
-  er auf dem Weg zu sehen (72/48/75 → 131/74/102 im Dauerblitz, Kopie mit
-  `BLITZ_DAUER` hochgesetzt), ohne weiß auszubrennen. `level19.gd`
-  unverändert.
+- **Level 19 (Sturm):** Früher setzte der Blitz Sonne UND Umgebungslicht
+  aufs Siebenfache. Mit der Sonne von oben brannte der Weg im Blitz weiß
+  aus. Jetzt geht die Sonne im Blitz aus (`BLITZ_SONNE = 0`), und nur das
+  Umgebungslicht steigt (`BLITZ_STAERKE = 7`). Ein Blitz erhellt den
+  ganzen Himmel, sein Licht kommt von überall und wirft keine Schatten.
+  Im Blitz sieht der Weg damit aus wie vor der Umstellung. Ruhende Sonne
+  0,6 → 0,45.
 - **Level 20:** Die Halle hat ein Dach; die Sonne trifft den Boden nur
   durch Lücken. Etwas dunkler als vorher, die Wände tragen das Licht.
 - **Level 22:** Wolken und Berge sind Grau in drei Stufen, Farbe tragen

@@ -36,8 +36,13 @@ import os
 import re
 import sys
 
+# Der Rumpf eines Knotens endet vor der nächsten Zeile, die mit „[" beginnt.
+# Das erste Zeichen einer Rumpfzeile darf kein Zeilenumbruch sein: Sonst
+# frisst `.*` nach einer Leerzeile den nächsten Kopf mit, und der Rumpf läuft
+# bis ans Dateiende – die Probe sähe nur das erste Licht jeder Szene.
 KNOTEN = re.compile(
-    r'\[node name="([^"]+)" type="DirectionalLight3D"[^\]]*\]\n((?:[^\[].*\n|\n)*)')
+    r'\[node name="([^"]+)" type="DirectionalLight3D"[^\]]*\]\n'
+    r'((?:[^\[\n][^\n]*\n|\n)*)')
 
 
 def lichter(text: str):

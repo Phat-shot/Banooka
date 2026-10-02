@@ -47,7 +47,7 @@ script = ExtResource("1_level")
 environment = SubResource("Umgebung")
 
 [node name="Mondlicht" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.6, -0.61283, 0.51423, 0, 0.64279, 0.76604, -0.8, -0.45963, 0.38567, 0, 30, 0)
+transform = Transform3D(-0.34202, 0.71985, -0.60402, 0, 0.64279, 0.76604, 0.93969, 0.262, -0.21985, 0, 30, 0)
 light_color = Color(0.45, 0.62, 1, 1)
 light_energy = 0.25
 light_specular = 0.35
