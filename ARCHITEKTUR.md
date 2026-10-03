@@ -180,7 +180,9 @@ Kistenfarbe, Auslöser = Ring mit 3 m. TNT und Nitro wackeln die Kamera mit
 0,7 (nach Abstand).
 
 **Federn und Zünden** sind reine Optik auf `_modell`, die Kollision bleibt:
-Sprung-, Feder- und TNT-Kiste stauchen beim Absprung zum Boden hin. TNT
+Sprung-, Feder- und TNT-Kiste stauchen beim Absprung zum Boden hin. Ein
+Schlag (Drehschlag, Slide, Bauchplatscher) lässt TNT sofort explodieren;
+nur Draufspringen zündet den Countdown (3 s). TNT
 glimmt ab dem Zünden an der Zündschnur (`Effekte.dauerfunken`, erst beim
 Zünden angelegt) und glüht im Sekundentakt auf – auf einer eigenen
 Materialkopie, das geteilte TNT-Holz bleibt unberührt.

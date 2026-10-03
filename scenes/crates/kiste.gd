@@ -27,7 +27,7 @@ enum Art {
 	LEBEN,            ## gibt ein Extraleben
 	FEDER,            ## Sprungkiste: 10 Absprünge, je 1 Frucht
 	SPRUNG,           ## reine Sprungfeder, unzerstörbar
-	TNT,              ## Countdown 3 s, dann Explosion
+	TNT,              ## Schlag: sofort; Draufspringen: Countdown 3 s
 	NITRO,            ## explodiert bei jeder Berührung
 	EISEN,            ## unzerbrechlich, reine Plattform
 	CHECKPOINT,       ## setzt den Respawn-Punkt
@@ -958,7 +958,13 @@ func _auf_spieler(spieler: Spieler) -> void:
 				_explodieren(NITRO_RADIUS, Farben.KISTE_NITRO, false)
 				spieler.schaden_nehmen()
 		Art.TNT:
-			if _countdown < 0.0 and ((maske & ZERBRECHENDE_ANGRIFFE) != 0 or von_oben):
+			# Ein Schlag (Drehschlag, Slide, Bauchplatscher) zündet sofort –
+			# wer zuschlägt, steht mitten in der Explosion. Nur wer
+			# draufspringt, bekommt den Countdown und federt ab.
+			if (maske & ZERBRECHENDE_ANGRIFFE) != 0:
+				_explodieren(TNT_RADIUS, Farben.KISTE_TNT, true)
+				return
+			if _countdown < 0.0 and von_oben:
 				_zuenden()
 			if von_oben and _abprall_sperre <= 0.0:
 				_abprall_sperre = ABPRALL_SPERRE
@@ -1118,8 +1124,10 @@ func zerbrechen(art_treffer: int = 0) -> void:
 			# Aus der Ferne gezündet: gefahrlos für den Spieler.
 			_explodieren(NITRO_RADIUS, Farben.KISTE_NITRO, false)
 		Art.TNT:
-			if art_treffer == 0:
-				_explodieren(TNT_RADIUS, Farben.KISTE_TNT, true)   # Kettenreaktion
+			# Kettenreaktion (0) und jeder Schlag: sofort. Nur ein Treffer
+			# von oben zündet den Countdown.
+			if art_treffer == 0 or (art_treffer & ZERBRECHENDE_ANGRIFFE) != 0:
+				_explodieren(TNT_RADIUS, Farben.KISTE_TNT, true)
 			elif _countdown < 0.0:
 				_zuenden()
 		_:

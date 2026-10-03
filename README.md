@@ -110,7 +110,7 @@ Der Bauchplatscher wirkt bei allen dreien.
 ### Kisten
 
 `NORMAL` (1 Frucht) · `FRUCHT_MEHRFACH` (5) · `LEBEN` · `FEDER` (10 Absprünge,
-je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (3 s Countdown) ·
+je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (Schlag: sofort, Draufspringen: 3 s Countdown) ·
 `NITRO` (explodiert bei Berührung) · `EISEN` (unzerbrechlich) · `CHECKPOINT` ·
 `SCHUTZ` (fängt einen Treffer ab) · `UMRISS` und `AUSLOESER` (das Gerippe
 wird fest, wenn sein Auslöser fällt) · `ZEIT` (hält im Zeitmodus die Uhr an)
