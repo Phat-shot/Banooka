@@ -114,12 +114,19 @@ halten das Bild nicht an.
 Bodenfleck, Lauf- und Slidestaub und das Auftauchen bekommt nur die Figur
 zu Fuß (`_mit_bodeneffekten()`). Reiter, Rennfahrer und Flieger werden
 getragen und führen ihr Modell selbst; eine Unterklasse, die wieder läuft,
-überschreibt die Methode. So der `Fluechtling` (Level 05): Er klebt wie der
-Reiter auf der Kurve, und der Reiter ersetzt `_process` samt Takt der
-Bodeneffekte. Der Flüchtling holt den Takt zurück und überschreibt
-`_bodeneffekte_takten()` mit dem Bodenbegriff der Schiene – am Boden ist,
-wer nicht springt (`is_on_floor()` bleibt ohne `move_and_slide` immer
-falsch). Slidestaub gibt es auf der Flucht nicht.
+überschreibt die Methode.
+
+**Hauerjagd (Level 05)** läuft mit der normalen Figur (`Spieler`). Früher
+klebte dort ein `Fluechtling` auf der Kurve und lief von selbst, mit
+Schwung. Jetzt führt das Level den Keiler als Abstand auf der Kurve
+(`level05.gd`): Er läuft immer mit `KEILER_TEMPO` (7,4 m/s, das Lauftempo
+ist 8,5), fällt nie weiter als `HOECHSTABSTAND` (15 m) zurück und tötet
+bei `TODESABSTAND` (2 m). Wer steht, ist aus 12 m in 1,4 s eingeholt
+(gemessen). Hindernisse sind feste Körper mit einer etwas größeren Zone;
+wer sie berührt, stolpert (`Spieler.stolpern`, 0,45 s ohne Vortrieb, kein
+Schaden). Die Jagd beginnt in `_vor_dem_start()`; nach einem Tod bekommt
+der Keiler seinen Abstand (`VORSPRUNG` 12 m) zurück. Die Spalten sind
+3,5 m breit (vorher 5 m, gebaut für den Flüchtling mit bis zu 20 m/s).
 
 ### Bodenschatten (`scripts/bodenschatten.gd`, `class_name Bodenschatten`)
 
@@ -921,6 +928,8 @@ ersten Laden im **Bauspeicher**:
 Bauspeicher.holen(schluessel, erzeuger) -> Resource     # Image, Textur, Material …
 Bauspeicher.wert(schluessel, erzeuger) -> Variant       # Dictionary usw., als Metadaten
 Bauspeicher.netz(art, argumente: Array, erzeuger) -> ArrayMesh
+Bauspeicher.gespeichert(schluessel) -> Variant           # null, wenn nichts da
+Bauspeicher.ablegen(schluessel, inhalt)                  # Gegenstück, für Bauten über mehrere Schritte
 ```
 
 - Ordner `user://bauspeicher`, je Eintrag eine komprimierte `.res`.
@@ -940,8 +949,14 @@ Bauspeicher.netz(art, argumente: Array, erzeuger) -> ArrayMesh
   Struktur geteilt), Weltrauschen und Rasentextur der `Wegmaske`, das
   Blattbild der `Kronenwolke`, der Wurzelvorhang des Weltenbaums und die
   Netze von `Kronenwolke.netz`, `Riesenstamm.netz`/`liegend`,
-  `Farnwerk.netz`, `Findling.netz`/`brocken` und `Weltenbaum.krone`. Für
-  Level 01 und den Portalraum rund 400 Dateien, 20 MB.
+  `Farnwerk.netz`, `Findling.netz`/`brocken` und `Weltenbaum.krone`,
+  dazu das Gelände von Level 01 (`l01_gelaende_*`: Höhenraster und die
+  Netze aller Stücke, 0,8 MB). Das Gelände läuft über zehn Bauschritte und
+  passt deshalb in keinen Erzeuger: `L01Gelaende.bauschritte` fragt
+  `gespeichert()` und baut bei Erfolg nur noch zwei Schritte („Das Tal
+  wird geladen“ 5 ms statt rund 0,9 s, Rechner, Handyweg); gebautes und
+  geladenes Gelände sind gleich (Höhen-Hash, Eckpunkte). Für Level 01 und
+  den Portalraum rund 400 Dateien, 21 MB.
 - **Nicht** hinein gehört, was schneller gebaut als gelesen ist
   (einfarbige Materialien, kleine Netze) und was Godot selbst nachlädt
   (`NoiseTexture2D` speichert nur ihre Einstellungen).

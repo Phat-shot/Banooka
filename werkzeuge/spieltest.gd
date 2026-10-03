@@ -13,7 +13,7 @@ extends Node
 ##   Laufmodus     – der Bot steuert selbst am Korridorverlauf entlang
 ##                   (Level 01–03)
 ##   Schienenmodus – die Figur rennt von allein, gelenkt wird nur quer
-##                   (Reiter, Flüchtling, Rennfahrer; Level 04–06).
+##                   (Reiter, Rennfahrer; Level 04 und 06).
 ##                   Erkannt an der Eigenschaft `strecke` der Figur.
 ##
 ## Lücken erkennt der Bot per Strahltest nach unten, nicht aus den

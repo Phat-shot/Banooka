@@ -267,6 +267,15 @@ static func bauschritte(level: Level01) -> Array:
 	var id := level.get_instance_id()
 	level.tree_exiting.connect(func() -> void: L01Gelaende.vergessen(id), CONNECT_ONE_SHOT)
 	var feld := _feld_anlegen()
+	# Schon einmal gebaut (gleicher Code, Bauspeicher): Netze und Höhenraster
+	# laden statt acht Schritte rechnen. Der Nebel wird wie immer gebaut.
+	var gesichert: Variant = Bauspeicher.gespeichert(_speicher_schluessel())
+	if gesichert is Dictionary:
+		var d: Dictionary = gesichert
+		return [{"text": "Das Tal wird geladen", "tun": func() -> void:
+				_aus_speicher(level, feld, d)},
+			{"text": "Nebel steigt vom Bach", "tun": func() -> void:
+				_nebel_bauen(level)}]
 	var schritte: Array = [{"text": "Das Tal wird vermessen", "tun": func() -> void:
 		_modell.sammeln = true
 		feld.kanten = _modell.kanten()
@@ -393,6 +402,21 @@ static func _feld_anlegen() -> GelaendeFeld:
 	return feld
 
 
+## Schlüssel im Bauspeicher. Der Code steckt im Fingerabdruck des Speichers;
+## `reduziert` vorsorglich mit, falls das Gelände je davon abhängt.
+static func _speicher_schluessel() -> String:
+	return "l01_gelaende_" + ("handy" if Effekte.reduziert else "voll")
+
+
+## Gelände aus dem Bauspeicher: Höhenraster übernehmen, Netze einhängen.
+static func _aus_speicher(level: Level01, feld: GelaendeFeld, d: Dictionary) -> void:
+	feld.stoff = _stoff()
+	feld.zustand_setzen(d["feld"])
+	var netze: Array[ArrayMesh] = []
+	netze.assign(d["netze"])
+	feld.knoten_bauen(level.geometrie, netze, "Gelaende")
+
+
 static func _netze_bauen(level: Level01, feld: GelaendeFeld) -> void:
 	feld.stoff = _stoff()
 	feld.normalen_rechnen()
@@ -402,6 +426,7 @@ static func _netze_bauen(level: Level01, feld: GelaendeFeld) -> void:
 		netze.append(feld.stueck_netz(s, mulden))
 	feld.knoten_bauen(level.geometrie, netze, "Gelaende")
 	_modell.ablage_leeren()
+	Bauspeicher.ablegen(_speicher_schluessel(), {"feld": feld.zustand(), "netze": netze})
 	if level.debug:
 		var z := feld.zaehlen()
 		print("Gelände: %d Punkte, %d Dreiecke" % [z.x, z.y])

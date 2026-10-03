@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes/levels/level05.gd" id="1_level"]
-[ext_resource type="PackedScene" path="res://scenes/player/Fluechtling.tscn" id="2_flucht"]
+[ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="2_flucht"]
 [ext_resource type="PackedScene" path="res://scenes/camera/CorridorCamera.tscn" id="3_cam"]
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
@@ -57,7 +57,7 @@ directional_shadow_max_distance = 90.0
 directional_shadow_split_1 = 0.08
 directional_shadow_split_2 = 0.22
 
-[node name="Fluechtling" parent="." instance=ExtResource("2_flucht")]
+[node name="Player" parent="." instance=ExtResource("2_flucht")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
 
 [node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]

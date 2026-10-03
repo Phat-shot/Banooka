@@ -43,7 +43,7 @@ aus dem Spiel.
 | Bäume, Felsen, Pilze, Büsche, Blumen | Kenney Nature Kit |
 | Talbäume, hintere Hangbäume, Totholz und Waldboden in Level 01, Waldsaum und Raumbäume im Portalraum | Quaternius Ultimate Nature Pack |
 | Sumpfkröte, Panzerkäfer, Stelzenspinne | Quaternius bzw. Exceptional_3D – **alle Gegner** |
-| Spielfigur, Reiter, Flüchtling, Rennfahrer, Flieger | selbstgebaut |
+| Spielfigur, Reiter, Rennfahrer, Flieger | selbstgebaut |
 | Werfer, Schwarm, Flugziel | selbstgebaut – für diese drei gibt es noch kein fremdes Modell |
 | Hang-Clips der Spielfigur (`Hang`, `HangDuck`, `HangSpin`) | selbst erzeugt mit `werkzeuge/clip_bauen.py` |
 | Kisten, Früchte, Portale, Stacheln, Wasser | selbstgebaut |

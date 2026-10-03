@@ -723,6 +723,30 @@ static func vorwaermen(bei: Node) -> void:
 		b.gravity = Vector3.ZERO
 		b.scale_amount_min = 0.01
 		b.scale_amount_max = 0.01
+	# Die Bretter einer Kiste fliegen im Stoff DIESER Kiste (`Kiste.bruchstoff`),
+	# nicht im allgemeinen Kistenholz – in Level 01 tragen die Kisten eigene
+	# Stoffe, und deren Teilchenfassung kam sonst erst beim ersten Bruch dran.
+	var gesehen := {}
+	for knoten in bei.get_tree().get_nodes_in_group("kisten"):
+		if not knoten.has_method("bruchstoff"):
+			continue
+		var stoff := knoten.call("bruchstoff") as Material
+		if stoff == null or gesehen.has(stoff):
+			continue
+		gesehen[stoff] = true
+		# Vom Limit je Bild ausgenommen: Das gilt dem Spiel, hier steht noch
+		# der Ladeschirm, und ein Level hat mehr Kistenstoffe als acht.
+		_im_bild = 0
+		var k := _emitter(bei, ort, 1, 0.2, false)
+		if k == null:
+			break
+		k.speed_scale = VORWAERM_ZEITLUPE
+		k.mesh = _brett_netz()
+		k.material_override = stoff
+		k.initial_velocity_max = 0.0
+		k.gravity = Vector3.ZERO
+		k.scale_amount_min = 0.01
+		k.scale_amount_max = 0.01
 	# Verborgene Netze (`VORWAERM_GRUPPE`): Was nicht gezeichnet wird, wird
 	# nicht übersetzt – der Rundgang sieht sie also nie.
 	for knoten in bei.get_tree().get_nodes_in_group(VORWAERM_GRUPPE):

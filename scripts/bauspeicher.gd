@@ -25,6 +25,9 @@ class_name Bauspeicher
 ##       Kronen, Farne, Felsen): Schlüssel aus `art` und dem md5 der
 ##       Argumente. Jeder Aufruf liefert ein eigenes Netz wie vorher auch –
 ##       wer es verändert, verändert nichts im Speicher.
+##   gespeichert(schluessel) -> Variant / ablegen(schluessel, inhalt)
+##       Lesen und Schreiben getrennt, für Bauten über mehrere Bauschritte
+##       (Gelände in Level 01); null heißt: noch nichts da.
 ##   an: bool    false = nie lesen, nie schreiben (zum Vergleichen)
 ##
 ## Der SCHLÜSSEL muss alles nennen, wovon das Ergebnis abhängt und was sich
@@ -75,6 +78,33 @@ static func holen(schluessel: String, erzeuger: Callable) -> Resource:
 		if ResourceSaver.save(neu, zwischen, ResourceSaver.FLAG_COMPRESS) == OK:
 			DirAccess.rename_absolute(zwischen, pfad)
 	return neu
+
+
+## Liest einen mit `ablegen()` abgelegten Wert, ohne etwas zu erzeugen;
+## null, wenn keiner da ist. Für Bauten, die über mehrere Bauschritte
+## laufen und deshalb nicht in einen Erzeuger passen (Gelände in Level 01).
+static func gespeichert(schluessel: String) -> Variant:
+	if not _vorbereiten():
+		return null
+	var pfad := _pfad(schluessel)
+	if not FileAccess.file_exists(pfad):
+		return null
+	var huelle := ResourceLoader.load(pfad, "", ResourceLoader.CACHE_MODE_IGNORE)
+	if huelle == null or not huelle.has_meta("wert"):
+		return null
+	return huelle.get_meta("wert")
+
+
+## Legt einen Wert ab (Gegenstück zu `gespeichert()`).
+static func ablegen(schluessel: String, inhalt: Variant) -> void:
+	if not _vorbereiten():
+		return
+	var huelle := Resource.new()
+	huelle.set_meta("wert", inhalt)
+	var pfad := _pfad(schluessel)
+	var zwischen := "%s.%d.neu.res" % [pfad.get_basename(), OS.get_process_id()]
+	if ResourceSaver.save(huelle, zwischen, ResourceSaver.FLAG_COMPRESS) == OK:
+		DirAccess.rename_absolute(zwischen, pfad)
 
 
 static func wert(schluessel: String, erzeuger: Callable) -> Variant:

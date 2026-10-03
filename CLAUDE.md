@@ -62,11 +62,13 @@ zeigt jedes einzeln, Level 10 zeigt sie im Zusammenspiel.
 
 Level 03 wechselt zwischen Laufen und Fahren: Zwei Abschnitte haben
 keinen Boden, dort trägt eine `Wasserplattform` (Treibfloß) den Spieler.
-Die Steuerung bleibt dabei die normale – anders als in 04 bis 06.
+Die Steuerung bleibt dabei die normale – anders als in 04 und 06.
 
-Die Level 04, 05 und 06 laufen nicht über `move_and_slide`, sondern kleben
-auf der Levelkurve (`Reiter`, `Fluechtling`, `Rennfahrer` – alle erben von
-`Spieler`, weil Kisten und Gegner `koerper is Spieler` prüfen).
+Die Level 04 und 06 laufen nicht über `move_and_slide`, sondern kleben
+auf der Levelkurve (`Reiter`, `Rennfahrer` – beide erben von `Spieler`,
+weil Kisten und Gegner `koerper is Spieler` prüfen). Level 05 (Hauerjagd)
+läuft mit der normalen Figur: Der Keiler jagt immer mit festem Tempo knapp
+unter dem Lauftempo und holt auf, wer stehen bleibt oder stolpert.
 
 ## Spielsysteme
 - **Kisten:** normal (gibt Frucht), Checkpoint (setzt Respawn), später: TNT-artig (Timer), Bounce, Eisen (unzerbrechlich)

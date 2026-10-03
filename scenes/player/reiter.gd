@@ -223,8 +223,7 @@ func _turbo_takten(delta: float) -> void:
 	_schwingen = maxf(_schub, _schwingen - delta / TURBO_NACHSCHWINGEN)
 
 
-## Faktor auf das Grundtempo. `tempo` selbst bleibt unberührt – der
-## Flüchtling in Level 05 misst daran seinen Vorsprung, und die
+## Faktor auf das Grundtempo. `tempo` selbst bleibt unberührt: Die
 ## Tempowerte des Levels sollen die Tempowerte des Levels bleiben.
 func tempo_faktor() -> float:
 	var f := 1.0 + _schub * (turbo_faktor - 1.0)

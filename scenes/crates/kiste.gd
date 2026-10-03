@@ -1355,6 +1355,11 @@ func _explodieren(wirkradius: float, ton: Color, trifft_spieler: bool) -> void:
 ## trägt. Im Dunkellevel ist das die leuchtende Kopie aus `Leuchtmarker`
 ## (sonst flögen dort schwarze Bretter davon), in Level 25 der
 ## Nitroanstrich der Treppe. Es wird nur referenziert, nie verändert.
+## Stoff der Bretter beim Bruch – öffentlich für `Effekte.vorwaermen`.
+func bruchstoff() -> Material:
+	return _bruchstoff()
+
+
 func _bruchstoff() -> Material:
 	var korpus := _modell.get_node_or_null("Korpus") as MeshInstance3D
 	if korpus != null:

@@ -487,6 +487,35 @@ func knoten_bauen(eltern: Node3D, netze: Array[ArrayMesh], name_: String) -> Nod
 	return wurzel
 
 
+# ================================================================ Speicher
+
+## Zustand nach dem Bau: alles, was `hoehe_bei()` und die Abfragen
+## brauchen – für den Bauspeicher. Die Netze legt der Aufrufer dazu.
+func zustand() -> Dictionary:
+	return {"px": _px, "pz": _pz, "py": _py, "normalen": _normalen,
+			"alle": _alle, "gitter": _gitter, "gitter_zelle": _gitter_zelle,
+			"gitter_n": _gitter_n, "stueck_punkte": _stueck_punkte,
+			"stueck_dreiecke": _stueck_dreiecke}
+
+
+## Übernimmt einen mit `zustand()` gesicherten Bau; danach ist das Feld
+## fertig, ohne gerechnet zu haben.
+func zustand_setzen(d: Dictionary) -> void:
+	_px = d["px"]
+	_pz = d["pz"]
+	_py = d["py"]
+	_normalen = d["normalen"]
+	_alle = d["alle"]
+	_gitter.assign(d["gitter"])
+	_gitter_zelle = float(d["gitter_zelle"])
+	_gitter_n = d["gitter_n"]
+	_stueck_punkte.assign(d["stueck_punkte"])
+	_stueck_dreiecke.assign(d["stueck_dreiecke"])
+	_hoehe_da.resize(_px.size())
+	_hoehe_da.fill(1)
+	_fertig = true
+
+
 # ================================================================ Abfragen
 
 ## Ist das Feld gebaut (Dreiecke da)?

@@ -12,10 +12,16 @@ extends KorridorLevel
 ## Hindernisse aus dem Rücken und werden erst spät sichtbar. Genau das ist
 ## der Handel.
 ##
-## Der Keiler ist kein Gegner mit Trefferzone, sondern ein Abstand: Er
-## läuft mit festem Tempo, der Rückstand wächst und schrumpft mit dem
-## Tempo des Spielers. Ein Hindernis wirft deshalb nicht ab, es bremst –
-## und der Rest ergibt sich von selbst.
+## Gelaufen wird mit der normalen Figur (`Spieler`, Steuerung, Sprung und
+## Animation wie überall, ohne Schwung): Wer die Taste loslässt, steht.
+## Weil die Kamera zurückschaut, läuft man auf sie zu.
+##
+## Der Keiler ist kein Gegner mit Trefferzone, sondern ein Abstand auf der
+## Kurve. Er läuft IMMER, mit festem Tempo knapp unter dem Lauftempo
+## (`KEILER_TEMPO`), und fällt nie weiter als `HOECHSTABSTAND` zurück. Wer
+## läuft, hält ihn auf Abstand; wer stehen bleibt oder stolpert, wird
+## eingeholt. Hindernisse sind feste Körper; wer sie berührt, stolpert
+## (`Spieler.stolpern`) – kein Schaden, aber ein Moment ohne Vortrieb.
 ##
 ## Abschnitte (Strecke auf der Kurve):
 ##     0 –  70  Aufbruch  – weit gestellte Hindernisse, Keiler noch fern
@@ -32,6 +38,16 @@ const KEILER := preload("res://scenes/enemies/Keiler.tscn")
 const M_ENDE := 350.0
 const AUSLAUF := 10.0
 
+## Die Jagd. Lauftempo der Figur ist 8,5 m/s (RUN_SPEED); auf der Kurve
+## kommt davon im Geraden fast alles an, in Bögen und beim Ausweichen
+## weniger. 7,4 m/s: Wer durchläuft, hält den Keiler hinten; wer steht,
+## hat ihn aus 15 m in zwei Sekunden an den Fersen.
+const KEILER_TEMPO := 7.4
+const VORSPRUNG := 12.0
+const HOECHSTABSTAND := 15.0
+const TODESABSTAND := 2.0
+const STOLPER_DAUER := 0.45
+
 ## Bahnbreite und Wandabstand. Wie in Level 02 stehen die Wände an der
 ## Kante: Seitlich hinunterfallen gibt es nicht, nur die Spalten zählen.
 const BAHN := 13.0
@@ -39,17 +55,25 @@ const WANDABSTAND := 6.8
 
 const STRECKE := [
 	{"von": 0.0, "bis": 70.0, "breite": BAHN},
-	{"von": 75.0, "bis": 118.0, "breite": BAHN},
-	{"von": 123.0, "bis": 150.0, "breite": BAHN},
+	# Spalten 3,5 m: Die normale Figur springt aus dem Lauf gut 5,5 m weit
+	# (vorher 5 m – genug für den Flüchtling mit bis zu 20 m/s, für die
+	# Figur ein Absprung genau an der Kante).
+	{"von": 73.5, "bis": 118.0, "breite": BAHN},
+	{"von": 121.5, "bis": 150.0, "breite": BAHN},
 	{"von": 150.0, "bis": 186.0, "breite": BAHN},
-	{"von": 191.0, "bis": 214.0, "breite": BAHN},
-	{"von": 219.0, "bis": 240.0, "breite": BAHN},
+	{"von": 189.5, "bis": 214.0, "breite": BAHN},
+	{"von": 217.5, "bis": 240.0, "breite": BAHN},
 	{"von": 240.0, "bis": 286.0, "breite": BAHN},
-	{"von": 291.0, "bis": 350.0, "breite": BAHN},
+	{"von": 289.5, "bis": 350.0, "breite": BAHN},
 ]
 
-var _laeufer: Fluechtling
+var _laeufer: Spieler
 var _keiler: Keiler
+## Stelle des Keilers auf der Kurve.
+var _keiler_s := 0.0
+var _jagd := false
+var _fertig := false
+var _neu_stellen := false
 
 
 func abschnitte() -> Array:
@@ -131,9 +155,8 @@ func _absturz_spannen() -> void:
 
 # =========================================================== Hindernisse
 
-## Ein Hindernis ist eine Zone, kein Körper: Der Spieler klebt auf der
-## Kurve und würde an einem festen Körper nur hängen bleiben, statt
-## gebremst zu werden.
+## Ein Hindernis ist ein fester Körper (darüber springen oder ausweichen)
+## und darum eine etwas größere Zone: Wer ihn berührt, stolpert.
 func _hindernis(strecke: float, seitlich: float, breite: float,
 		als_stamm: bool) -> void:
 	var zone := Area3D.new()
@@ -151,10 +174,21 @@ func _hindernis(strecke: float, seitlich: float, breite: float,
 	var hoehe := 1.1 if als_stamm else 1.6
 	var form := CollisionShape3D.new()
 	var kasten := BoxShape3D.new()
-	kasten.size = Vector3(breite, hoehe, 1.4)
+	kasten.size = Vector3(breite + 0.3, hoehe + 0.15, 1.7)
 	form.shape = kasten
-	form.position.y = hoehe * 0.5
+	form.position.y = (hoehe + 0.15) * 0.5
 	zone.add_child(form)
+
+	var koerper := StaticBody3D.new()
+	koerper.collision_layer = 1
+	koerper.collision_mask = 0
+	var fest := CollisionShape3D.new()
+	var block := BoxShape3D.new()
+	block.size = Vector3(breite, hoehe, 1.2 if als_stamm else 1.4)
+	fest.shape = block
+	fest.position.y = hoehe * 0.5
+	koerper.add_child(fest)
+	zone.add_child(koerper)
 
 	if als_stamm:
 		var stamm := MeshInstance3D.new()
@@ -177,8 +211,8 @@ func _hindernis(strecke: float, seitlich: float, breite: float,
 
 
 func _auf_hindernis(koerper: Node3D) -> void:
-	if koerper.is_in_group("spieler") and koerper.has_method("schaden_nehmen"):
-		koerper.call("schaden_nehmen")
+	if koerper is Spieler and not _fertig:
+		(koerper as Spieler).stolpern(STOLPER_DAUER)
 
 
 ## Zwischen zwei Hindernissen liegen nie weniger als 16 m. Weil die Kamera
@@ -212,7 +246,8 @@ func _hindernisse_setzen() -> void:
 
 func _kisten_setzen() -> void:
 	for eintrag in [
-		{"s": 10.0, "n": 5, "q": 0.0}, {"s": 32.0, "n": 4, "q": 3.0},
+		# Nicht vor 17 m: Dort steht die Figur am Start (`start_strecke`).
+		{"s": 17.0, "n": 3, "q": 0.0}, {"s": 32.0, "n": 4, "q": 3.0},
 		{"s": 52.0, "n": 4, "q": -3.0}, {"s": 92.0, "n": 5, "q": 0.0},
 		{"s": 112.0, "n": 4, "q": -2.6}, {"s": 140.0, "n": 4, "q": 2.6},
 		{"s": 166.0, "n": 5, "q": 0.0}, {"s": 206.0, "n": 4, "q": 2.8},
@@ -289,9 +324,11 @@ func _checkpoints_setzen() -> void:
 
 
 func _auf_checkpoint(koerper: Node3D, s: float) -> void:
-	if koerper is Fluechtling:
-		(koerper as Fluechtling).setze_checkpoint(s)
-		GameState.zeige_nachricht("Rastplatz", 1.2)
+	if koerper is Spieler and not _fertig:
+		var ort := LevelWerkzeuge.punkt(verlauf, s, 0.0, 1.0)
+		if GameState.checkpoint.distance_to(ort) > 1.0:
+			GameState.setze_checkpoint(ort)
+			GameState.zeige_nachricht("Rastplatz", 1.2)
 
 
 func _deko_bauen() -> void:
@@ -324,25 +361,70 @@ func _deko_bauen() -> void:
 # =========================================================== Flucht
 
 func _flucht_einrichten() -> void:
-	_laeufer = get_tree().get_first_node_in_group("spieler") as Fluechtling
+	_laeufer = get_tree().get_first_node_in_group("spieler") as Spieler
 	if _laeufer == null:
-		push_warning("Level 05 ohne Fluechtling – ist Fluechtling.tscn in der Szene?")
+		push_warning("Level 05 ohne Spielfigur – ist Player.tscn in der Szene?")
 		return
-
 	_keiler = KEILER.instantiate() as Keiler
 	objekte.add_child(_keiler)
+	# Die Figur startet ein Stück im Weg, der Keiler mit VORSPRUNG dahinter –
+	# so steht auch er von Anfang an auf dem Weg und nicht im Leeren.
+	start_strecke = VORSPRUNG + 2.0
+	_keiler_s = start_strecke - VORSPRUNG
+	if not _laeufer.gestorben.is_connected(_nach_tod):
+		_laeufer.gestorben.connect(_nach_tod)
+	_keiler_stellen(start_strecke, 0.0)
 
-	_laeufer.verlauf = verlauf
-	_laeufer.keiler = _keiler
-	_laeufer.seiten_grenze = func(s: float) -> float: return rand_bei(s, 1.2)
-	_laeufer.boden_pruefer = func(s: float) -> bool: return breite_bei(s) > 0.0
-	_laeufer.ziel_strecke = M_ENDE - AUSLAUF
-	_laeufer.strecke = 2.0
-	if not _laeufer.ziel_erreicht.is_connected(_auf_ziel):
-		_laeufer.ziel_erreicht.connect(_auf_ziel)
+
+## Die Jagd beginnt erst, wenn die Figur losdarf (nach dem Rundgang).
+func _vor_dem_start() -> void:
+	_jagd = true
+
+
+## Nach einem Tod steht die Figur am Rastplatz – der Keiler bekommt seinen
+## Abstand zurück, sonst stünde sie gleich wieder unter den Hauern.
+func _nach_tod() -> void:
+	_neu_stellen = true
+
+
+func _physics_process(delta: float) -> void:
+	if not _jagd or _fertig or _laeufer == null or verlauf == null \
+			or not is_instance_valid(_keiler):
+		return
+	var s_spieler := verlauf.get_closest_offset(to_local(_laeufer.global_position))
+	if _neu_stellen:
+		_neu_stellen = false
+		_keiler_s = s_spieler - VORSPRUNG
+		_keiler_stellen(s_spieler, 0.0)
+		_keiler.reset_physics_interpolation()
+		return
+	# Er läuft immer – und fällt nie weiter zurück als HOECHSTABSTAND.
+	_keiler_s = maxf(_keiler_s + KEILER_TEMPO * delta, s_spieler - HOECHSTABSTAND)
+	var abstand := s_spieler - _keiler_s
+	var naehe := 1.0 - clampf(abstand / HOECHSTABSTAND, 0.0, 1.0)
+	_keiler_stellen(s_spieler, delta)
+	_keiler.aktualisiere(delta, 1.0, naehe)
+	if s_spieler >= M_ENDE - AUSLAUF:
+		_auf_ziel()
+		return
+	if abstand <= TODESABSTAND and _laeufer.invuln <= 0.0:
+		_laeufer.sterben()
+
+
+## Der Keiler auf der Kurve, seitlich ein Stück zur Figur hin.
+func _keiler_stellen(s_spieler: float, _delta: float) -> void:
+	var s := maxf(_keiler_s, 0.0)
+	var mitte := verlauf.sample_baked(clampf(s_spieler, 0.0, verlauf.get_baked_length()))
+	var quer := LevelWerkzeuge.richtung(verlauf, s_spieler).cross(Vector3.UP).normalized()
+	var seitlich := (to_local(_laeufer.global_position) - mitte).dot(quer) if _laeufer != null else 0.0
+	var ort := verlauf.sample_baked(clampf(s, 0.0, verlauf.get_baked_length()))
+	var quer_k := LevelWerkzeuge.richtung(verlauf, s).cross(Vector3.UP).normalized()
+	_keiler.global_position = to_global(ort + quer_k * seitlich * 0.4)
+	_keiler.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 
 
 func _auf_ziel() -> void:
+	_fertig = true
 	_laeufer.gesperrt = true
 	GameState.zeige_nachricht("Entkommen!", 3.0)
 	_auf_level_geschafft()
