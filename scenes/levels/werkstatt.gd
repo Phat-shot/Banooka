@@ -14,8 +14,12 @@ extends KorridorLevel
 ## Die Stationen stehen bewusst weit auseinander und auf breitem Weg: Es
 ## geht ums Ansehen, nicht ums Bestehen. Wer hier stirbt, hat ein Bauteil
 ## gefunden, das zu früh trifft.
+##
+## Station 1–13 zeigen die Spielbauteile aus `korridor_level.gd`, 14–19
+## die Schlucht, 20–29 die Bauteile aus Level 01 (Stämme, Kronen, Steine,
+## Bewuchs, Zaun, Saum, Waldsetzer, Weltenbaum im Kleinen).
 
-const M_ENDE := 290.0
+const M_ENDE := 450.0
 const ABSTURZ := -8.0
 const WEGBREITE := 12.0
 
@@ -26,7 +30,7 @@ const SCHRITT := 14.0
 const STRECKE := [
 	{"von": 0.0, "bis": 26.0, "breite": WEGBREITE},
 	# Lücke 26–34: darüber liegen die Bruchplatten
-	{"von": 34.0, "bis": 290.0, "breite": WEGBREITE},
+	{"von": 34.0, "bis": M_ENDE, "breite": WEGBREITE},
 ]
 
 ## Die Schlucht am Ende (Station 14–18): eine Wand zu beiden Seiten, an der
@@ -62,6 +66,10 @@ func _bauschritte() -> Array:
 		{"text": "Hangeln und Deckung", "tun": _koerper_setzen},
 		{"text": "Schlucht", "tun": _schlucht_setzen},
 		{"text": "Blätterdach", "tun": _blaetterdach_setzen},
+		{"text": "Stämme, Kronen, Steine", "tun": _waldbauteile_setzen},
+		{"text": "Bewuchs", "tun": _bewuchs_setzen},
+		{"text": "Zaun, Saum, Wald", "tun": _waldrand_setzen},
+		{"text": "Weltenbaum im Kleinen", "tun": _weltenbaum_setzen},
 		{"text": "Portale", "tun": _portale},
 		{"text": "Schilder", "tun": _schilder_setzen},
 	]
@@ -82,6 +90,12 @@ func _verlauf_anlegen() -> void:
 		Vector3(160, 0, -112),
 		Vector3(188, 0, -97),
 		Vector3(214, 0, -86),
+		Vector3(240, 0, -79),
+		Vector3(266, 0, -76),
+		Vector3(292, 0, -78),
+		Vector3(318, 0, -85),
+		Vector3(342, 0, -96),
+		Vector3(364, 0, -110),
 	])
 
 
@@ -191,10 +205,11 @@ func _schlucht_setzen() -> void:
 	# 15 · Wasserfall an der linken Wand
 	Wasserfall.an_schluchtwand(deko, verlauf, kronen, 224.0, -1.0, 3.2, -6.0)
 
-	# 16 · Lichtschacht an der rechten Wand. Die Sonne dieser Szene steht
-	# noch falsch herum (Licht von unten) – der Schacht nimmt dann seine
-	# Vorgaberichtung.
+	# 16 · Lichtschacht an der rechten Wand, in der Richtung der Sonne
 	var schacht := Lichtschacht.new()
+	var sonne := get_node_or_null("Sonne") as DirectionalLight3D
+	if sonne != null:
+		schacht.richtung = -sonne.global_transform.basis.z
 	schacht.saat = 1416
 	schacht.laenge = 16.0
 	schacht.position = LevelWerkzeuge.punkt(verlauf, 234.0, 4.0, -0.5)
@@ -227,6 +242,302 @@ func _blaetterdach_setzen() -> void:
 			"breite": rng.randf_range(2.6, 3.6),
 		})
 	Schluchtsaum.blaetterdach(deko, baeume, 1420)
+
+
+# =================================================== Bauteile aus Level 01
+#
+# Station 20–29. Alles ohne Kollision bis auf den Kasten unter dem
+# Findling (Station 22) – die Bauteile stehen am Wegrand, die Mitte bleibt
+# frei. Jedes Teil so, wie sein Kopfkommentar es aufruft.
+
+## Station 20–22: Stämme, Kronen, Steine.
+func _waldbauteile_setzen() -> void:
+	var borke := Riesenstamm.borkenstoff()
+
+	# 20 · Riesenstamm: Talriese mit Brettwurzeln und Beiwerk, oben
+	# gebrochen; daneben ein liegender Stamm und ein Stumpf
+	var riese := Riesenstamm.netz({"hoehe": 15.0, "radius": 0.9, "brettwurzeln": 6,
+			"pilze": 2, "efeu": 1, "leuchtpilze": 1, "oben": "bruch", "saat": 2001})
+	_netz_setzen(riese, borke, _lage(298.0, 4.2), true, "Talriese")
+	var liegend := Riesenstamm.liegend(0.45, 5.0, {"saat": 2002, "aeste": 2})
+	# Die Achse liegt entlang +Y: um X gekippt zeigt sie den Weg entlang.
+	var quer := _lage(296.0, -4.0, 0.36)
+	quer.basis = quer.basis * Basis(Vector3.RIGHT, -PI * 0.5)
+	_netz_setzen(liegend, borke, quer, true, "Liegend")
+	_netz_setzen(Riesenstamm.stumpf(0.6, 1.2, {"saat": 2003}), borke,
+			_lage(303.0, -4.4), true, "Stumpf")
+
+	# 21 · Kronenwolke: ein Baum mit Ästen in die Krone, dazu die drei
+	# Varianten (rund, breit, hoch) und die Fernfassung, bodennah
+	var baum := Riesenstamm.baum({"hoehe": 11.0, "radius": 0.3, "aeste": 4, "saat": 2101})
+	_netz_setzen(baum["stamm"], borke, _lage(312.0, 4.4), true, "Baum")
+	_netz_setzen(baum["krone"], Kronenwolke.stoff(Farben.LAUB), _lage(312.0, 4.4), false,
+			"Baumkrone")
+	for variante in 3:
+		var krone := Kronenwolke.netz({"radius": 1.3, "variante": variante,
+				"saat": 2102 + variante})
+		_netz_setzen(krone, Kronenwolke.stoff(Farben.LAUB),
+				_auf_boden(krone, 307.0 + 3.6 * float(variante), -4.2), false,
+				"Krone %d" % variante)
+	var fern := Kronenwolke.fern({"radius": 1.6, "saat": 2105})
+	_netz_setzen(fern, Kronenwolke.stoff(Farben.LAUB, false), _auf_boden(fern, 318.5, -4.2),
+			false, "Krone fern")
+
+	# 22 · Findling genau auf seinem Kasten – der Kasten trägt, man kann
+	# hinaufspringen. Daneben ein Deko-Brocken und ein Trittstein.
+	var groesse := Vector3(2.4, 1.0, 1.8)
+	var kasten := _lage(326.0, 3.4, groesse.y * 0.5)
+	var koerper := StaticBody3D.new()
+	koerper.name = "Findlingskasten"
+	koerper.transform = kasten
+	var form := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = groesse
+	form.shape = box
+	koerper.add_child(form)
+	geometrie.add_child(koerper)
+	Findling.bauen(deko, groesse, kasten, {"saat": 2201})
+	_netz_setzen(Findling.brocken(Vector3(1.4, 0.9, 1.2), {"saat": 2202}), Findling.stoff(),
+			_lage(324.0, -4.3, 0.3, 0.6), true, "Brocken")
+	_netz_setzen(Findling.scheibe(0.8, 0.6, {"saat": 2203, "wasser_y": 0.1}), Findling.stoff(),
+			_lage(329.0, -3.6, 0.1), true, "Trittstein")
+
+
+## Station 23–25: Bewuchs am Boden.
+func _bewuchs_setzen() -> void:
+	var rng := PropWerkzeug.zufall(2300)
+
+	# 23 · Farnwerk: kleine Farne links, große rechts, ein Rahmenfarn
+	var farnstoff := Farnwerk.stoff(Farben.LAUB)
+	for k in 5:
+		_netz_setzen(Farnwerk.klein(k + 1), farnstoff,
+				_lage(334.0 + 2.0 * float(k), rng.randf_range(-5.4, -3.6), 0.0, float(k) * 1.3),
+				false, "Farn klein %d" % k)
+	for k in 2:
+		_netz_setzen(Farnwerk.gross(k + 1), farnstoff,
+				_lage(335.0 + 5.0 * float(k), 4.6, 0.0, float(k) * 2.0), false, "Farn gross %d" % k)
+	_netz_setzen(Farnwerk.rahmen(1), farnstoff, _lage(342.0, -4.8, 0.0, 0.8), false,
+			"Rahmenfarn")
+
+	# 24 · Rasensaum: Flecken und Büschel rechts, Wispelgras über der
+	# Kante, Moospolster und Moosflecken links
+	var flecken: Array[Transform3D] = []
+	var buesche: Array[Transform3D] = []
+	var wispel: Array[Transform3D] = []
+	var polster: Array[Transform3D] = []
+	var moos: Array[Transform3D] = []
+	var farben_f := PackedColorArray()
+	var farben_b := PackedColorArray()
+	var farben_w := PackedColorArray()
+	var farben_p := PackedColorArray()
+	var farben_m := PackedColorArray()
+	for i in 140:
+		flecken.append(_lage(rng.randf_range(345.0, 355.0), rng.randf_range(2.4, 5.8), 0.0,
+				rng.randf() * TAU))
+		farben_f.append(Rasensaum.farbe(0.9, 1.0, rng.randf_range(0.35, 0.65), 0.0))
+	for i in 18:
+		buesche.append(_lage(rng.randf_range(345.0, 355.0), rng.randf_range(5.0, 5.8), 0.0,
+				rng.randf() * TAU))
+		farben_b.append(Rasensaum.farbe(0.85, 1.0, rng.randf_range(0.4, 0.6), 0.0))
+	for i in 8:
+		# Wispelgras hängt nach +X über eine Kante: mit der Wegdrehung ist das
+		# die rechte Wegkante.
+		wispel.append(_lage(346.0 + 1.2 * float(i), 5.85, 0.0, rng.randf_range(-0.3, 0.3)))
+		farben_w.append(Rasensaum.farbe(Wegmaske.RAND_VERDECKUNG, 1.0, 0.5, 0.0))
+	for i in 6:
+		polster.append(_lage(rng.randf_range(345.0, 355.0), rng.randf_range(-5.4, -3.0), 0.0,
+				rng.randf() * TAU))
+		farben_p.append(Rasensaum.farbe(0.9, 1.0, 0.5, 0.0))
+		moos.append(_lage(rng.randf_range(345.0, 355.0), rng.randf_range(-5.4, -3.0), 0.0,
+				rng.randf() * TAU))
+		farben_m.append(Rasensaum.farbe(0.9, 1.0, 0.5, 0.0))
+	Rasensaum.feld(deko, "Rasen Flecken", Rasensaum.fleck(2401), flecken, farben_f)
+	Rasensaum.feld(deko, "Rasen Bueschel", Rasensaum.bueschel(2402), buesche, farben_b)
+	Rasensaum.feld(deko, "Rasen Wispel", Rasensaum.wispel(2403), wispel, farben_w)
+	Rasensaum.feld(deko, "Rasen Polster", Rasensaum.polster(2404), polster, farben_p)
+	Rasensaum.feld(deko, "Rasen Moos", Rasensaum.moosfleck(2405), moos, farben_m,
+			Rasensaum.SICHTWEITE, true)
+
+	# 25 · Bodenstreu: Klee, Blüten, Kiesel und Pilze in EINEM Netz, dazu
+	# Großblattstauden als Feld
+	var haufen := Bodenstreu.Haufen.new(LevelWerkzeuge.punkt(verlauf, 362.0))
+	for i in 4:
+		haufen.teil(Bodenstreu.klee(rng, 0.35, i % 2 == 0),
+				_lage(358.0 + 2.5 * float(i), rng.randf_range(-5.2, -2.8)))
+	for i in 5:
+		haufen.teil(Bodenstreu.blueten(rng, i % 3, Bodenstreu.BLUETEN_FARBEN[i]),
+				_lage(357.0 + 2.2 * float(i), rng.randf_range(2.8, 5.2)))
+	for i in 4:
+		haufen.teil(Bodenstreu.kiesel(rng, 0.16, 3),
+				_lage(rng.randf_range(357.0, 367.0), rng.randf_range(-5.4, -2.6)))
+	for i in 3:
+		haufen.teil(Bodenstreu.pilze(rng, 0.06, 3, i == 2),
+				_lage(359.0 + 3.0 * float(i), rng.randf_range(2.6, 4.4)))
+	haufen.knoten(deko, "Streu", 60.0)
+	var stauden: Array[Transform3D] = []
+	var farben_s := PackedColorArray()
+	for i in 3:
+		stauden.append(_lage(358.0 + 4.0 * float(i), 5.0, 0.0, rng.randf() * TAU))
+		farben_s.append(Color.WHITE)
+	Bodenstreu.feld(deko, "Grossblatt", Bodenstreu.grossblatt(rng, 1.0).netz(), stauden,
+			farben_s, 60.0)
+
+
+## Station 26–28: Zaun, Saum und ein kleiner Wald.
+func _waldrand_setzen() -> void:
+	# 26 · Totholzzaun am rechten Rand, mit geborstenem Endpfosten
+	var linie := PackedVector3Array()
+	var s := 368.0
+	while s <= 381.0:
+		linie.append(LevelWerkzeuge.punkt(verlauf, s, 5.3))
+		s += 1.0
+	_netz_setzen(Totholzzaun.bauen(linie, {"saat": 2601, "aussen": 1.0,
+			"ende_geborsten": true, "verfall": 0.5}), Totholzzaun.stoff(), Transform3D.IDENTITY,
+			true, "Totholzzaun")
+
+	# 27 · GelaendeSaum: eine Felsbank am linken Rand
+	_saum_setzen(383.0, 394.0)
+
+	# 28 · Waldsetzer: ein Hain aus vier Bäumen und Farnen in drei Arten,
+	# Stämme und Kronen je Zelle verschmolzen, Farne als MultiMesh
+	var ws := Waldsetzer.new(deko, "Waldprobe", 20.0)
+	ws.art("stamm", {"stoff": Riesenstamm.borkenstoff(), "schatten": true, "sicht": 120.0,
+			"verschmelzen": true})
+	ws.art("krone", {"stoff": Kronenwolke.stoff(Farben.LAUB_DUNKEL), "sicht": 120.0,
+			"verschmelzen": true, "karten": true})
+	ws.art("farn", {"stoff": Farnwerk.stoff(Farben.LAUB), "sicht": 60.0})
+	var rng := PropWerkzeug.zufall(2800)
+	for k in 4:
+		var b := Riesenstamm.baum({"hoehe": rng.randf_range(9.0, 11.0),
+				"radius": rng.randf_range(0.24, 0.3), "aeste": 3, "saat": 2801 + k})
+		var lage := _lage(397.0 + 3.6 * float(k), 4.8 if k % 2 == 0 else -4.8, 0.0,
+				rng.randf() * TAU)
+		var ton := Color(1.0, 1.0, 1.0).darkened(rng.randf_range(0.0, 0.15))
+		ws.setze("stamm", b["stamm"], lage, ton)
+		ws.setze("krone", b["krone"], lage, ton)
+	var farn := Farnwerk.klein(7)
+	for k in 8:
+		ws.setze("farn", farn, _lage(rng.randf_range(397.0, 408.0),
+				rng.randf_range(3.2, 5.6) * (1.0 if k % 2 == 0 else -1.0), 0.0,
+				rng.randf() * TAU))
+	ws.fertig()
+
+
+## Eine Felsbank aus `GelaendeSaum`: Fuß im Rasen am Wegrand, Schichtfels,
+## ein kleiner Überhang, Grasnarbe obenauf und hinten wieder hinab. Die
+## Enden schließt `deckel()`.
+func _saum_setzen(von: float, bis: float) -> void:
+	const SEITE := -1.0
+	var q := -WEGBREITE * 0.5 + 0.6
+	var proben := GelaendeSaum.linie(verlauf, PackedVector2Array([Vector2(von, q),
+			Vector2(bis, q)]), 0.8)
+	var g := GelaendeSaum.querschnitte(verlauf, proben, SEITE, _saum_profil,
+			func(_i: int, _probe: Dictionary) -> float: return 0.0,
+			func(_i: int, _probe: Dictionary) -> float: return 0.0)
+	var reihen: Array[PackedVector3Array] = g["reihen"]
+	var farben: Array[PackedColorArray] = g["farben"]
+	var n := reihen.size()
+	if n < 2:
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	GelaendeSaum.gitter_schreiben(st, g, GelaendeSaum.normalen(g), 0, n - 1)
+	for ende in 2:
+		var i := 0 if ende == 0 else n - 1
+		var aussen := reihen[i][0] - reihen[1 if ende == 0 else n - 2][0]
+		aussen.y = 0.0
+		if aussen.length_squared() > 0.000001:
+			GelaendeSaum.deckel(st, reihen[i], farben[i], aussen.normalized(), 0.0)
+	st.index()
+	_netz_setzen(st.commit(), GelaendeSaum.stoff(), Transform3D.IDENTITY, false, "Saum")
+
+
+## Querschnitt der Felsbank: Versatz nach außen und Welt-Y, Farbe als
+## (Verdeckung, Erde, Moos, Rasen). Zur Mitte der Bank hin höher.
+func _saum_profil(i: int, _probe: Dictionary) -> GelaendeSaum.Profil:
+	var h := 2.6 + 0.8 * sin(float(i) * 0.45)
+	var p := GelaendeSaum.Profil.new()
+	p.punkt(-0.5, -0.02, Color(0.78, 0.0, 0.1, 1.0))
+	p.punkt(0.0, 0.0, Color(0.5, 0.7, 0.3, 0.3))
+	p.punkt(0.15, 0.35, Color(0.35, 0.8, 0.1, 0.0), 0.8, 0.12, 2.0)
+	p.punkt(0.3, h * 0.35, Color(0.6, 0.15, 0.05, 0.0), 1.6, 0.25, 2.0, 0.12)
+	p.punkt(0.45, h * 0.65, Color(0.65, 0.1, 0.05, 0.0), 1.6, 0.25, 2.0, 0.12)
+	p.punkt(0.4, h * 0.9, Color(0.55, 0.1, 0.2, 0.0), 0.8, 0.15, 1.0)
+	p.punkt(0.65, h, Color(0.7, 0.2, 0.5, 0.3))
+	p.punkt(1.2, h + 0.08, Color(0.8, 0.0, 0.2, 1.0))
+	p.punkt(2.4, h + 0.1, Color(0.8, 0.0, 0.1, 1.0))
+	p.punkt(3.0, h * 0.6, Color(0.5, 0.4, 0.2, 0.3), 1.6, 0.2, 2.0)
+	p.punkt(3.3, -1.5, Color(0.3, 0.6, 0.1, 0.0), 1.6, 0.2, 2.0)
+	return p
+
+
+## Station 29: der Weltenbaum im Maßstab 1:8 – rund 3 statt 24 m Stamm-
+## durchmesser. Der echte (Level 01) passt auf keinen Prüfstand, und ein
+## Platz für ein größeres Muster zöge Nähte quer über den Weg; die
+## Bausteine sind dieselben: Stamm aus `profil` mit Brettwurzeln, Ästen,
+## Konsolen, Knollen, Efeu und Leuchtpilzen, darauf der Kronenschirm aus
+## Ballen. Die Borke in Weltprojektion mit der Kachel für diesen Radius –
+## die des Riesen (`Weltenbaum.stoff_stamm`) wäre hier achtmal zu grob.
+func _weltenbaum_setzen() -> void:
+	var fuss := _lage(432.0, 3.6)
+	var st := Riesenstamm.bauer()
+	var info := Weltenbaum.stamm_in(st, {
+		"profil": PackedVector2Array([Vector2(-1.0, 2.0), Vector2(0.5, 1.6),
+				Vector2(3.0, 1.3), Vector2(8.0, 1.1), Vector2(12.0, 1.0)]),
+		"y_von": -1.0, "y_bis": 12.0, "rippen": 24, "ring_min": 0.5, "ring_max": 1.2,
+		"saat": 2901,
+		"brettwurzeln": [
+			{"winkel": 0.4, "reichweite": 2.2, "hoehe": 1.4, "dicke": 0.22, "fuss_y": -0.5},
+			{"winkel": 2.2, "reichweite": 1.9, "hoehe": 1.2, "dicke": 0.2, "fuss_y": -0.5},
+			{"winkel": 3.6, "reichweite": 2.4, "hoehe": 1.6, "dicke": 0.22, "fuss_y": -0.5},
+			{"winkel": 5.1, "reichweite": 1.8, "hoehe": 1.1, "dicke": 0.2, "fuss_y": -0.5},
+		],
+		"aeste": [
+			{"winkel": 0.8, "y": 9.2, "laenge": 2.6, "steigung": 0.5, "radius": 0.32},
+			{"winkel": 2.9, "y": 9.8, "laenge": 2.3, "steigung": 0.55, "radius": 0.28},
+			{"winkel": 4.8, "y": 10.4, "laenge": 2.4, "steigung": 0.5, "radius": 0.28},
+		],
+		"pilze": [{"winkel": 1.6, "y": 2.6, "breite": 0.9}],
+		"knollen": [{"winkel": 4.2, "y": 3.4, "radius": 0.3}],
+		"efeu": [{"winkel": 2.6, "von": 0.0, "bis": 5.5}],
+		"leuchten": [{"winkel": 5.6, "y": 0.6}],
+	})
+	_netz_setzen(Riesenstamm.fertig(st), Riesenstamm.borkenstoff({"welt": true, "radius": 1.5}),
+			fuss, true, "Weltenbaum")
+	var spitzen: PackedVector3Array = info["ast_spitzen"]
+	var ballen: Array = []
+	for k in spitzen.size():
+		ballen.append({"mitte": spitzen[k], "radius": 1.8, "variante": 1, "saat": 2910 + k})
+	ballen.append({"mitte": Vector3(0.0, 12.6, 0.0), "radius": 2.2, "variante": 1, "saat": 2920})
+	_netz_setzen(Weltenbaum.krone(ballen, false), Weltenbaum.stoff_krone(), fuss, false,
+			"Weltenbaum Krone")
+
+
+## Lage am Weg: Strecke, Querabstand (rechts positiv), Höhe und eine
+## Drehung um die Hochachse, ausgerichtet nach der Wegrichtung (+X zeigt
+## nach rechts, -Z den Weg entlang).
+func _lage(strecke: float, quer: float, hoehe: float = 0.0, dreh: float = 0.0) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, LevelWerkzeuge.drehung(verlauf, strecke) + dreh),
+			LevelWerkzeuge.punkt(verlauf, strecke, quer, hoehe))
+
+
+## Lage für ein Netz, das um seine Mitte gebaut ist: die Unterkante knapp
+## über den Weg.
+func _auf_boden(netz: Mesh, strecke: float, quer: float) -> Transform3D:
+	return _lage(strecke, quer, 0.2 - netz.get_aabb().position.y)
+
+
+func _netz_setzen(netz: Mesh, stoff: Material, lage: Transform3D, schatten: bool,
+		name: String) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = name
+	mi.mesh = netz
+	mi.material_override = stoff
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if schatten \
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.transform = lage
+	deko.add_child(mi)
+	return mi
 
 
 ## Auflagepunkt auf der Wandkrone (wie in Level 01): ein Stück hinter der
@@ -267,6 +578,10 @@ func _schilder_setzen() -> void:
 		216.0: "14 Schluchtsaum", 224.0: "15 Wasserfall",
 		234.0: "16 Lichtschacht", 244.0: "17 Wurzeltor",
 		254.0: "18 Baumstamm", 276.0: "19 Blaetterdach",
+		298.0: "20 Riesenstamm", 312.0: "21 Kronenwolke", 326.0: "22 Findling",
+		338.0: "23 Farnwerk", 350.0: "24 Rasensaum", 362.0: "25 Bodenstreu",
+		374.0: "26 Totholzzaun", 388.0: "27 GelaendeSaum",
+		402.0: "28 Waldsetzer", 432.0: "29 Weltenbaum (1:8)",
 	}
 	for strecke: float in stationen:
 		var schild := Label3D.new()

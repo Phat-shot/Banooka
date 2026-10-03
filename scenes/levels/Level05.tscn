@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes/levels/level05.gd" id="1_level"]
-[ext_resource type="PackedScene" path="res://scenes/player/Fluechtling.tscn" id="2_flucht"]
+[ext_resource type="PackedScene" path="res://scenes/player/Player.tscn" id="2_flucht"]
 [ext_resource type="PackedScene" path="res://scenes/camera/CorridorCamera.tscn" id="3_cam"]
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
@@ -45,9 +45,9 @@ script = ExtResource("1_level")
 environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.6, 0, -0.8, -0.71552, 0.44722, -0.53664, 0.3578, 0.8944, 0.2683, 0, 30, 0)
+transform = Transform3D(0.6, -0.71552, 0.3578, 0, 0.44722, 0.8944, -0.8, -0.53664, 0.2683, 0, 30, 0)
 light_color = Color(1, 0.898, 0.769, 1)
-light_energy = 1.6
+light_energy = 1.3
 light_specular = 0.4
 shadow_enabled = true
 shadow_bias = 0.04
@@ -57,7 +57,7 @@ directional_shadow_max_distance = 90.0
 directional_shadow_split_1 = 0.08
 directional_shadow_split_2 = 0.22
 
-[node name="Fluechtling" parent="." instance=ExtResource("2_flucht")]
+[node name="Player" parent="." instance=ExtResource("2_flucht")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
 
 [node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]

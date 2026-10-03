@@ -185,10 +185,13 @@ static func _stoff_holen() -> StandardMaterial3D:
 	# Scheitelfarben werden wie `albedo_color` als sRGB gelesen – so hat die
 	# Beere genau den Ton von `Farben.FRUCHT`, wie das Symbol im HUD.
 	m.vertex_color_is_srgb = true
-	m.roughness = 0.42
+	# Glänzend und kaum selbstleuchtend: Die Form kommt aus Licht und
+	# Schatten. Mit 0,45 Eigenleuchten lag die Beere flach wie ein Aufkleber.
+	m.roughness = 0.3
+	m.metallic_specular = 0.7
 	m.emission_enabled = true
 	m.emission = Farben.FRUCHT
-	m.emission_energy_multiplier = 0.45
+	m.emission_energy_multiplier = 0.15
 	m.emission_texture = ImageTexture.create_from_image(bild)
 	m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -220,8 +223,8 @@ static func _netz_holen() -> ArrayMesh:
 ## einer flachen Naht an einer Seite. Farbe: oben goldener, unten und auf
 ## der Nahtseite röter – so wirkt sie rund, auch wo das Licht flach ist.
 static func _beere(st: SurfaceTool) -> void:
-	var ringe := 10
-	var segmente := 16
+	var ringe := 14
+	var segmente := 22
 	var gold := Farben.FRUCHT.lerp(Color(1.0, 0.8, 0.3), 0.4)
 	var rot := Farben.FRUCHT.lerp(Color(0.92, 0.26, 0.1), 0.45)
 	# Glatt schattiert: Scheitel an derselben Stelle teilen sich die Normale.
@@ -233,7 +236,7 @@ static func _beere(st: SurfaceTool) -> void:
 		var s := sin(th)
 		var c := cos(th)
 		# Naht: eine flache Rinne entlang eines Längengrads.
-		var naht := 1.0 - 0.07 * exp(-pow(wrapf(ph, -PI, PI) / 0.3, 2.0)) * s
+		var naht := 1.0 - 0.11 * exp(-pow(wrapf(ph, -PI, PI) / 0.28, 2.0)) * s
 		# Mulde oben, wo der Stiel sitzt.
 		var mulde := 1.0 - 0.28 * exp(-pow(th / 0.42, 2.0))
 		return Vector3(cos(ph) * s * BEERE_R * naht, c * BEERE_H * mulde,
@@ -243,7 +246,9 @@ static func _beere(st: SurfaceTool) -> void:
 		var seite := clampf(p.x / BEERE_R, 0.0, 1.0)
 		var c := Farben.FRUCHT.lerp(gold, smoothstep(0.55, 1.0, hoch))
 		c = c.lerp(rot, maxf(smoothstep(0.45, 0.0, hoch), seite * 0.5))
-		return c
+		# Unten dunkler (Eigenschatten), damit sie auch im flachen Licht
+		# rund steht.
+		return c.lerp(c.darkened(0.4), smoothstep(0.35, 0.0, hoch))
 	for r in ringe:
 		for i in segmente:
 			var a: Vector3 = punkt.call(r, i)

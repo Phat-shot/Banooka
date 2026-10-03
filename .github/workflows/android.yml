@@ -4,7 +4,9 @@
 # Gebraucht werden dafür nur ein Schlüsselspeicher und apksigner/zipalign
 # aus dem Android-SDK, das auf den GitHub-Läufern schon installiert ist.
 #
-# Standardmäßig entsteht ein Debug-APK als Artefakt. Sind die Geheimnisse
+# Standardmäßig entstehen ein Debug-APK und ein mit dem Debug-Schlüssel
+# signiertes Release-APK zum Testen (`banooka-release-test.apk` – schneller,
+# ohne GDScript-Prüfungen). Sind die Geheimnisse
 # ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD und ANDROID_KEY_ALIAS
 # hinterlegt, wird zusätzlich ein signiertes Release-APK gebaut und bei
 # einem v*-Tag an die Veröffentlichung gehängt.
@@ -107,6 +109,32 @@ jobs:
             --export-debug "Android" build/banooka-debug.apk 2>&1 | tail -30
           test -f build/banooka-debug.apk
           ls -lh build/banooka-debug.apk
+
+      - name: Release-APK zum Testen bauen (Debug-Schlüssel)
+        # Ohne hinterlegten Schlüsselspeicher: dieselbe Release-Fassung, aber
+        # mit dem Debug-Schlüssel signiert. Zum Beurteilen der Leistung taugt
+        # nur sie – das Debug-APK führt GDScript mit zusätzlichen Prüfungen
+        # aus und lädt spürbar langsamer. Nicht für eine Veröffentlichung.
+        if: env.KEYSTORE == ''
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, pathlib
+          p = pathlib.Path("export_presets.cfg")
+          s = p.read_text()
+          s = s.replace('keystore/release=""',
+                        'keystore/release="%s/debug.keystore"' % os.environ["HOME"])
+          s = s.replace('keystore/release_user=""', 'keystore/release_user="androiddebugkey"')
+          s = s.replace('keystore/release_password=""', 'keystore/release_password="android"')
+          p.write_text(s)
+          PY
+          ~/godot-bin/godot --headless --path . \
+            --export-release "Android" build/banooka-release-test.apk 2>&1 | tail -30
+          test -f build/banooka-release-test.apk
+          ls -lh build/banooka-release-test.apk
+          git checkout -- export_presets.cfg
 
       - name: Release-APK bauen
         # Nur wenn ein echter Schlüsselspeicher hinterlegt ist

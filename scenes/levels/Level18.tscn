@@ -24,7 +24,7 @@ ambient_light_source = 2
 ambient_light_color = Color(0.42, 0.58, 0.4, 1)
 ambient_light_energy = 1.55
 tonemap_mode = 3
-tonemap_exposure = 1.34
+tonemap_exposure = 1.2
 tonemap_white = 6.0
 fog_enabled = true
 fog_mode = 0
@@ -47,9 +47,9 @@ script = ExtResource("1_level")
 environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.42, 0, -0.9075, -0.78173, 0.5, -0.36181, 0.45373, 0.86603, 0.21001, 0, 30, 0)
+transform = Transform3D(-0.34202, 0.8138, -0.46985, 0, 0.5, 0.86603, 0.93969, 0.2962, -0.17101, 0, 30, 0)
 light_color = Color(1, 0.94, 0.72, 1)
-light_energy = 1.8
+light_energy = 0.25
 light_specular = 0.3
 shadow_enabled = true
 shadow_bias = 0.04

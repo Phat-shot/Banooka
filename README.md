@@ -55,35 +55,43 @@ Flug 22.
 
 ## Level 01 – Wurzelschlucht
 
-Ein 236 m langer Waldpfad auf einem Grat, in fünf Abschnitten. Der Verlauf
+Der Kammweg zum Weltenbaum: 287 m, in sechs Abschnitten. Der Verlauf
 steckt in einer `Curve3D`; alle Objekte werden relativ dazu platziert, ein
 geänderter Verlauf verschiebt also alles mit. So ist jedes Korridorlevel
-gebaut.
+gebaut. Eine Bildregel trägt das ganze Level: **links** ist zu, dunkel
+und nah, **rechts** offen, hell und weit – vom Hangweg an sieht man das
+Ziel, einen Weltenbaum auf der anderen Talseite.
 
 | Strecke | Abschnitt | Inhalt |
 |---|---|---|
-| 0–42 m | Waldrand | Anlaufstrecke, erste Kisten, Sumpfkröten für den Drehschlag |
-| 42–100 m | Schlucht | Rechtskurve, Bach mit Lücken, Federkiste, Panzerkäfer, TNT-Kette |
-| 100–158 m | Stacheln | Linkskurve, Stachelfelder, Stelzenspinnen, Nitro |
-| 158–208 m | Baumkronen | Anstieg, schmaler Grat, Sprungfeder, Nitro |
-| 208–236 m | Lichtung | Extraleben, Zielportal |
+| 0–33 m | Waldsaum | Hallenwald, Moosstamm als erste Hürde, Erdspalt, Enthüllung des Tals |
+| 33–104 m | Hangweg | Grat 20 m über dem Tal, Kanzel (Checkpoint), Moosbank, Torbaum-Pforte |
+| 104–160 m | Fallklamm | Terrassen am zweistufigen Wasserfall hinab |
+| 160–198 m | Bachwiese | Furt über Trittsteine, zwei Geheimnisse, Wurzelaufgang |
+| 198–273 m | Wurzelwendel | Spirale (R 22 m) um den Stamm des Weltenbaums hinauf |
+| 273–287 m | Kronentor | Wurzelregal unter der Krone, Zielportal bei 283 m |
 
-45 Kisten, 14 Gegner, drei Checkpoints. Wer neben den Pfad fällt, landet
-in der Absturzzone.
+62 Kisten (57 zählen), 9 Gegner, 4 Checkpoints, 5 Geheimnisse. Die Lehrfolge
+liegt in den ersten 105 m: Sumpfkröte bei 18 m (Drehschlag), Panzerkäfer an
+der Felsstufe bei 69,5 m (draufspringen), Stelzenspinne in der engen Pforte
+bei 101,5 m (Slide). Pflichtsprünge sind Einzelsprünge; Doppelsprung,
+Slide-Sprung, Feder- und Sprungfederkiste braucht man nur für die
+Geheimnisse. Wer neben den Weg fällt, landet in einer einseitigen
+Todeszone.
 
-**Wahrzeichen.** Die Schluchtwände sind bewachsen: Blattsaum auf der
-Kante, Ranken über den Simsen, Wurzeln, Farne und große Blätter am
-Wandfuß. An den Abschnittswechseln (42, 100 und 157 m) spannen sich
-Wurzeltore hoch über den Weg. Bei 59,5 m stürzt ein Wasserfall die linke
-Wand hinab in die Bachlücke, über der TNT-Kette liegt ein umgestürzter
-Baumriese von Krone zu Krone, und an vier Stellen bis 158 m fallen
-Lichtschächte schräg über die Wandkante. Über den Baumkronen werden die
-Wände niedrig und der Blick geht auf ein Meer aus Wipfeln unter dem Grat,
-daneben stehen einzelne Baumriesen. Am Ziel rahmt ein Wurzelbogen das
-Portal, links daneben steigt der Weltenbaum aus dem Tal, und bewaldete
-Hügel schließen den Horizont. Jeder Abschnitt hat sein eigenes Licht: die
-Schlucht kühl und dunstig, die Baumkronen hell und golden, die Lichtung
-warm.
+**Bild.** Kein Bordstein und keine Würfelwand mehr: Der Weg ist eine
+ausgetretene Erdspur, die in Rasen übergeht (Shader-Maske, die Halme
+wachsen genau dort, wo der Shader Gras zeigt). Die Kanten sind modellierte
+Profile mit Grasnarbe, Überhang und Wurzeln, die Felswände geschichtet.
+Das Tal ist ein Höhenfeld mit Wald in drei Tiefen; Bach, Furt und
+Wasserfall sind vom Grat und vom Ziel aus lesbar. Die Lichtfolge ergibt
+sich aus dem Kurs: Morgenlicht im Hallenwald, golden und klar am Hang,
+kühl in der Klamm, warm auf der Wiese, Gegenlicht am Ziel.
+
+**Kosten** (Desktop, `schaufenster.sh`): 285–474 Draw-Calls je Station,
+höchstens rund 0,64 Mio. Primitive, VRAM 121,5 MB. Auf Handys (eine
+Schattenstufe bis 50 m, kürzere Sichtweiten) 387–436 Draw-Calls bei
+102,5 MB. Aufbau und Module beschreibt ARCHITEKTUR.md unter „Level 01“.
 
 ### Gegner
 
@@ -102,7 +110,7 @@ Der Bauchplatscher wirkt bei allen dreien.
 ### Kisten
 
 `NORMAL` (1 Frucht) · `FRUCHT_MEHRFACH` (5) · `LEBEN` · `FEDER` (10 Absprünge,
-je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (3 s Countdown) ·
+je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (Schlag: sofort, Draufspringen: 3 s Countdown) ·
 `NITRO` (explodiert bei Berührung) · `EISEN` (unzerbrechlich) · `CHECKPOINT` ·
 `SCHUTZ` (fängt einen Treffer ab) · `UMRISS` und `AUSLOESER` (das Gerippe
 wird fest, wenn sein Auslöser fällt) · `ZEIT` (hält im Zeitmodus die Uhr an)
@@ -150,6 +158,11 @@ ARCHITEKTUR.md, „Bildtakt und Physiktakt"). Muss `ERGEBNIS: SAUBER` melden.
 `PRUEF_LEVEL=08,09 bash werkzeuge/pruefe.sh` grenzt die Geometrieprüfung auf
 einzelne Level ein – der volle Lauf dauert einige Minuten.
 
+`python3 werkzeuge/lichtprobe.py` listet für jedes Richtungslicht in jeder
+Szene Laufrichtung, Höhe und Energie und meldet schattenwerfende Lichter von
+unten (`.tscn` speichert die Basis zeilenweise, siehe ARCHITEKTUR.md,
+„Sonnen prüfen"). Es läuft ohne Godot und steckt nicht in `pruefe.sh`.
+
 Zwei Werkzeuge daneben, die nicht prüfen, sondern **messen** und deshalb
 nicht in `pruefe.sh` stecken:
 
@@ -169,6 +182,77 @@ als Schwierigkeitsurteil.
 `Zeittafel` druckt für jedes Level die Richtzeit des Zeitmodus samt ihrer
 Herkunft.
 
+### Ladezeit und Ruckler (`werkzeuge/bauzeitprobe.gd`, `ruckelprobe.sh`)
+
+Zwei Messwerkzeuge für die Klage „lädt lange, ruckelt beim Laufen" vom
+Handy (Hintergrund: ARCHITEKTUR.md, „Ladezeit und Ruckler"):
+
+```bash
+godot --headless --path <Kopie> res://werkzeuge/Bauzeitprobe.tscn   # Bauzeit je Schritt
+RUCKEL_REDUZIERT=1 bash werkzeuge/ruckelprobe.sh                    # Ruckler, Handyweg
+RUCKEL_LEVEL=res://scenes/hub/Hub.tscn RUCKEL_REDUZIERT=1 RUCKEL_BESUCHE=2 \
+    RUCKEL_MASS=cpu bash werkzeuge/ruckelprobe.sh                   # Portalraum, zwei Besuche
+godot --headless --path <Kopie> res://werkzeuge/Rundgangprobe.tscn  # sieht der Rundgang alles?
+```
+
+`RUCKEL_MASS=cpu` zählt Ruckler nach der Rechenzeit des Prozesses statt
+nach der echten Bildzeit – nötig, sobald nebenher ein zweiter Lauf
+rechnet. Die Ruckelprobe schaltet Mesas Shader-Speicher ab; die
+Rundgangprobe prüft headless, ob jedes sichtbare Objekt in einem Blick
+des Rundgangs liegt.
+
+Die Bauzeitprobe zweimal mit demselben `XDG_DATA_HOME` starten: Der erste
+Lauf füllt den Bauspeicher (wie der erste Start nach der Installation),
+der zweite liest ihn. Die Ruckelprobe fährt dieselbe Zickzackfahrt
+zweimal; Ruckler nur im ersten Durchgang sind Arbeit beim ersten Gebrauch.
+
+Gemessen beim Umbau für das Handy (Rechner mit 4 geteilten Kernen,
+llvmpipe; vorher = 22f205b, Werte schwanken um gut 10 %):
+
+| Bauzeit headless | vorher | erster Start | jeder weitere |
+|---|---|---|---|
+| Level 01, Rechnerweg | 11,5 s (Skripte laden 2,2 · Bauschritte 8,7) | 11,2 s | 7,7 s (2,1 · 5,0) |
+| Level 01, Handyweg | 11,2 s (2,0 · 8,7) | 12,2 s | 6,8 s (2,2 · 4,2) |
+| Portalraum | 1,0 s (Aufbau 0,59) | 1,0 s | 0,57 s (Aufbau 0,11) |
+
+| Ruckelprobe, Handyweg, 640 × 360 (vorher ohne 3D-Skalierung) | vorher | jetzt |
+|---|---|---|
+| erstes Bild nach dem Ladeschirm | 14,0 s | 0,16 s |
+| Durchgang 1: längstes Bild, Bilder über 600 ms | 2,9 s, 7 | 0,43 s, 0 |
+| Durchgang 2: längstes Bild | 0,44 s | 0,53 s |
+| Rundgang beim Laden | – | 16,5 s (fast nur Übersetzen) |
+
+Unter llvmpipe ist das Übersetzen der Shader viel teurer als auf einer
+Grafikkarte; die Sekunden sind darum nicht aufs Handy übertragbar, das
+Muster schon: Was vorher beim Laufen anfiel, fällt jetzt unter dem
+Ladeschirm an. Die übrigen Ausreißer liegen in beiden Durchgängen gleich
+(geteilte Kerne).
+
+Portalraum, Handyweg, 640 × 360, Spielstand „mitte", Rechenzeit des
+Hauptfadens, ohne Mesas Shader-Speicher (vorher = b837a09):
+
+| Ruckelprobe Portalraum | vorher | jetzt |
+|---|---|---|
+| 1. Besuch: bis der Ladeschirm ausblendet | 27,3 s | 28,6 s (Rundgang 25,8) |
+| 1. Besuch, Durchgang 1: Ruckler, längstes Bild | 3, 721 ms | 0, 40 ms |
+| 1. Besuch, Durchgang 2 | 0, 45 ms | 0, 42 ms |
+| 2. Besuch: bis der Ladeschirm ausblendet | 4,2 s | 5,3 s (Rundgang 5,3) |
+| 2. Besuch, Durchgang 1 | 1, 342 ms | 0, 49 ms |
+| Draw-Calls nach dem Laden / höchstens auf der Fahrt | 400 / 483 | 360 / 454 |
+
+Am Rechner sind die Orbitbilder (0, 90, 140, 180, 270°) unverändert:
+461 / 519 / 527 / 473 / 430 Draw-Calls vorher wie nachher, im Bild
+weichen nur bewegte Teile ab (Kronen im Wind, Siegelgitter, Wirbel).
+Auf dem Handyweg (`FOTO_REDUZIERT=1`, 0 / 90 / 180 / 270°)
+461 / 519 / 473 / 430 → 460 / 466 / 448 / 414. Der Grafikspeicher steigt
+um einmalig 2 MB, sobald ein Rundgang gelaufen ist (auch mit nur einem
+Blick; über mehrere Besuche bleibt es dabei).
+
+Draw-Calls der App in Level 01 (s 4 / 70 / 176): vorher lief sie auf dem
+Rechnerweg, 457 / 429 / 370 bei 121,5 MB Grafikspeicher; jetzt auf dem
+Handyweg 369 / 336 / 319 bei 102,4 MB (`FOTO_REDUZIERT=1`, ohne die
+3D-Skalierung, die keine Draw-Calls spart).
+
 ### Bildvergleich und Kostenmessung (`werkzeuge/schaufenster.sh`, `foto.sh`, `kontaktbogen.py`)
 
 Jede sichtbare Änderung wird an Bild UND Preis gemessen. Der Preis zählt, weil das Spiel im Browser und auf Mobilgeräten läuft (WebGL2, Compatibility-Renderer). Das Werkzeug dafür ist ein fester Bildersatz, das „Schaufenster“: Splash, Hub und Level 01, immer aus denselben Blickwinkeln.
@@ -183,9 +267,13 @@ SCHAUFENSTER_TEILE=l01 bash werkzeuge/schaufenster.sh /tmp/schau   # nur ein Tei
 - **Teile:**
   - `splash`: Splash, zwei Aufnahmen im Abstand von 70 Bildern
   - `hub`: verfolger 0, 14, 60
-  - `l01`: verfolger 4, 30, 50, 75, 112, 136, 170, 192, 216, 233
-  - `l01seite`: seite 50, 170
-  - `l01nah`: nah 30
+  - `l01`: verfolger 4, 31, 46, 70, 101, 119, 140, 176, 212, 249, 275,5
+  - `l01seite`: seite 60, 186
+  - `l01nah`: nah 53,5
+
+  Die Stationen von Level 01 folgen seit dem Neubau dem neuen Verlauf; die
+  Werte der alten Tabelle unten sind deshalb nicht mehr Stelle für Stelle
+  vergleichbar.
 - **Ausgabe je Seite:**
   - `<teil>/*.png` mit den Aufnahmen
   - `<teil>/werte.tsv` mit den Kosten je Bild
@@ -396,6 +484,17 @@ Lokal geht der Export genauso, sobald die Android-Templates über
 godot --headless --path . --export-debug "Android" build/banooka-debug.apk
 ```
 
+Die App läuft auf dem Handyweg wie ein Handy im Browser
+(`Effekte.reduziert`: halbe Dichten, kürzere Sichtweiten, eine
+Schattenstufe bis 50 m in jedem Level) und hat eigene Projektwerte
+(`.mobile`): ohne MSAA, 3D in 80 % der Auflösung (im Handy-Browser setzt
+`Einstellungen` dieselben 80 %), Schattenkarte 2048, höchstens 60 Bilder je
+Sekunde. Der erste Start nach der Installation rechnet Texturen und Netze
+und legt sie in `user://bauspeicher` ab (rund 20 MB); jeder weitere liest
+sie nur noch. Das Debug-APK aus dem Arbeitsablauf führt GDScript mit
+zusätzlichen Prüfungen aus; zum Beurteilen der Leistung taugt das
+Release-APK eines Tags besser (nicht am Gerät gemessen).
+
 ## Steuerung
 
 | Aktion | Tastatur | Controller | Touch |
@@ -501,7 +600,8 @@ shaders/                   wasser, himmel, portal_wirbel, gegner_glanz,
                            bildrahmen (.gdshader)
 werkzeuge/                 pruefe.sh, Szenen- und Levelprüfung, Spieltest-Bot,
                            Glattprobe (Ruckeln im Bildtakt), Bild- und
-                           Messwerkzeuge, Webserver
+                           Messwerkzeuge (figurschau.sh: Figur und Schutz
+                           aus der Nähe), Webserver
 assets/schrift/            LilitaOne-Regular.ttf (Anzeigeschrift, SIL OFL 1.1)
                            samt Lizenztext OFL.txt
 assets/CREDITS.md          Quellen und Lizenzen

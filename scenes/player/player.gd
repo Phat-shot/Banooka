@@ -60,7 +60,7 @@ signal abgeprallt
 
 @onready var _kollision: CollisionShape3D = $Kollision
 @onready var _kollision_slide: CollisionShape3D = $KollisionSlide
-## Kann fehlen: Die Schienenfiguren (Reiter, Flüchtling, Rennfahrer) sind
+## Kann fehlen: Die Schienenfiguren (Reiter, Rennfahrer) sind
 ## eigene Szenen und keine Ableger von Player.tscn – eine neue Kapsel dort
 ## nachzutragen ist leicht zu vergessen. Ohne diese Absicherung meldete
 ## Godot beim Laden "Node not found" und `_hitbox_aktualisieren()` liefe
@@ -85,6 +85,9 @@ var slamming := false
 var can_djump := false
 ## Restlaufzeit der Unverwundbarkeit.
 var invuln := 0.0
+## Restzeit eines Stolperers (`stolpern()`): Die Figur hat so lange keinen
+## Vortrieb – sie bleibt stehen und muss neu ansetzen.
+var _stolpern := 0.0
 ## Steuerung gesperrt (z. B. während einer Portal-Animation).
 var gesperrt := false
 ## Krabbelt die Figur gerade? Kein Schalter: Gekrabbelt wird, solange die
@@ -179,6 +182,9 @@ func _physics_process(delta: float) -> void:
 
 	# --- Horizontale Bewegung ---
 	var eingabe := _kamerarelativ(InputHub.bewegung())
+	if _stolpern > 0.0:
+		_stolpern = maxf(_stolpern - delta, 0.0)
+		eingabe = Vector2.ZERO
 	var staerke := eingabe.length()
 	var ctrl := 1.0 if am_boden else AIR_CTRL
 
@@ -414,6 +420,21 @@ func schaden_nehmen() -> void:
 	sterben()
 
 
+## Stolpern (Hindernis auf der Flucht in Level 05): kein Schaden, aber
+## für `dauer` Sekunden kein Vortrieb. Wer schon stolpert, stolpert nicht
+## noch einmal von vorn.
+func stolpern(dauer: float) -> void:
+	if _stolpern > 0.0 or invuln > 0.0:
+		return
+	_stolpern = dauer
+	sliding = 0.0
+	velocity.x = 0.0
+	velocity.z = 0.0
+	_stoss(0.35)
+	Klang.spiele("schaden")
+	GameState.zeige_nachricht("Gestolpert!", 0.9)
+
+
 func sterben() -> void:
 	gestorben.emit()
 	Klang.spiele("tod")
@@ -423,6 +444,7 @@ func sterben() -> void:
 
 func respawn() -> void:
 	velocity = Vector3.ZERO
+	_stolpern = 0.0
 	sliding = 0.0
 	spinning = 0.0
 	slamming = false

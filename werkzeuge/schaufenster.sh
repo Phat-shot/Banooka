@@ -21,10 +21,13 @@
 #   splash    Splash.tscn, zwei Aufnahmen im Abstand von 70 Bildern
 #             (die Einblendung ist dann fertig, die Kamera ist gewandert)
 #   hub       Hub.tscn, verfolger 0,14,60 (Rundgang aus hub.gd)
-#   l01       Level01, verfolger 4,30,50,75,112,136,170,192,216,233
-#             (alle Abschnitte, vom Waldrand bis zum Ziel)
-#   l01seite  Level01, seite 50,170 (Blick quer auf den Weg)
-#   l01nah    Level01, nah 30 (Figur und Umgebung aus der Nähe)
+#   l01       Level01, verfolger 4,31,46,70,101,119,140,176,212,249,275.5
+#             (Start, Enthüllung, Kanzel, Käfer an der Stufe, Pforte,
+#             Fallkerbe, Terrassen, Furt, G1, Oberwurzel, Ziel – das
+#             Zielportal bei 283 steht dort vor der Figur, nicht hinter ihr)
+#   l01seite  Level01, seite 60,186 (Felswand; Wiese und Stammfuß)
+#   l01nah    Level01, nah 53.5 (Rasen und Lippe aus der Nähe; hinter den
+#             Kisten bei 52, auf denen die Figur sonst stünde)
 #
 # Ausgabe unter <Ziel>/<seite>/ – seite ist "jetzt" oder mit VORHER "vorher":
 #   <teil>/*.png      die Aufnahmen; ein Lauf des Teils ersetzt sie alle
@@ -101,9 +104,9 @@ teil_daten() {
 	case "$1" in
 	splash)   echo "res://scenes/ui/Splash.tscn|70|verfolger|0,2" ;;
 	hub)      echo "res://scenes/hub/Hub.tscn||verfolger|0,14,60" ;;
-	l01)      echo "res://scenes/levels/Level01.tscn||verfolger|4,30,50,75,112,136,170,192,216,233" ;;
-	l01seite) echo "res://scenes/levels/Level01.tscn||seite|50,170" ;;
-	l01nah)   echo "res://scenes/levels/Level01.tscn||nah|30" ;;
+	l01)      echo "res://scenes/levels/Level01.tscn||verfolger|4,31,46,70,101,119,140,176,212,249,275.5" ;;
+	l01seite) echo "res://scenes/levels/Level01.tscn||seite|60,186" ;;
+	l01nah)   echo "res://scenes/levels/Level01.tscn||nah|53.5" ;;
 	*)        return 1 ;;
 	esac
 }
