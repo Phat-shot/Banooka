@@ -49,6 +49,18 @@ extends Node
 ##                 bild  draw  objekte  primitive  vram_mb  knoten
 ##   FOTO_BUDGET_DRAW  Draw-Calls je Bild; darüber gibt es eine WARNUNG
 ##
+## OPT-IN DES LEVELS (Baukasten Raum 1 §1.7), beides über `has_method`;
+## ein Level ohne die Methoden wird fotografiert wie bisher:
+##   foto_stelle(s, q) -> Vector3  Weltort der Figur für verfolger/seite/nah.
+##                 Ohne sie steht die Figur 1 m über der KURVE – auf einer
+##                 Terrasse schwebt sie dann oder steckt im Boden. Die
+##                 Kameras von seite und nah bleiben im selben Abstand zur
+##                 Figur wie bisher (ihr Bezugspunkt liegt 1 m unter ihr).
+##                 Bewusst nicht `weg_punkt`: Level 01 hat die Funktion, und
+##                 seine Bilder sollen bleiben, wie sie sind.
+##   pruefruhe()   einmal, nachdem die Figur stillgelegt ist: hält an, was
+##                 von selbst läuft (Keiler, Taktgefahren, Stromuhr)
+##
 ## Ausgabe je Aufnahme, eine Zeile – Bild und Kosten stehen zusammen, damit
 ## jede Verschönerung zugleich nach Aussehen UND Preis beurteilt wird:
 ##   ok   <pfad>  draw 2026  obj 2044  prim 859k  vram 94.4 MB  knoten 3555
@@ -178,6 +190,10 @@ func _ready() -> void:
 		if koerper != null:
 			koerper.collision_layer = 0
 			koerper.collision_mask = 0
+	# Opt-in (siehe Kopf): Was von selbst läuft, steht für die Bilder still –
+	# der Keiler holte die stillgelegte Figur sonst ein und kostete Leben.
+	if _szene.has_method("pruefruhe"):
+		_szene.call("pruefruhe")
 	# Zum Prüfen der Schutzmasken: FOTO_SCHUTZ=3 gibt drei Ladungen.
 	if not OS.get_environment("FOTO_SCHUTZ").is_empty():
 		GameState.schutz = int(OS.get_environment("FOTO_SCHUTZ"))
@@ -261,8 +277,12 @@ func _fotografiere(stellen: PackedStringArray, modus: String) -> void:
 			if not OS.get_environment("FOTO_SEITLICH").is_empty():
 				quer_versatz = float(OS.get_environment("FOTO_SEITLICH"))
 			var mitte: Vector3 = LevelWerkzeuge.punkt(_verlauf, wert, quer_versatz, 0.0)
+			var figur_ort := mitte + Vector3.UP * 1.0
+			if _szene.has_method("foto_stelle"):
+				figur_ort = _szene.call("foto_stelle", wert, quer_versatz)
+				mitte = figur_ort - Vector3.UP * 1.0
 			if _spieler != null:
-				_spieler.global_position = mitte + Vector3.UP * 1.0
+				_spieler.global_position = figur_ort
 				# Versetzt, nicht gelaufen: Ohne Rücksetzen zeichnete Godot
 				# die Figur bis zum nächsten Physikschritt auf halbem Weg
 				# von der vorigen Stelle – bei festen 30 Bildern je Sekunde

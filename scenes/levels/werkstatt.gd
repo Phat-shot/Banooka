@@ -29,6 +29,16 @@ extends KorridorLevel
 ## Duckdurchlass und eine Tafel, die jeden Aufruf aus der Gruppe
 ## `LevelBasis.NACH_TOD` anschreibt.
 ##
+## Dahinter die SPRUNGBAHN (Paket G2): zwei flache Lücken, 3,0 und 5,0 m,
+## und eine Messhürde. Daran und an Bauteilen der alten Stationen misst
+## `sprungfaelle()` jede Art der Sprungprobe einmal (werkzeuge/
+## sprungprobe.gd) – mit denselben Maßen, mit denen die Entwürfe von
+## Level 02 und 05 rechnen, sodass die Probe ihre Zahlen nachprüfen kann:
+##   godot --headless --fixed-fps 60 --path . res://werkzeuge/Sprungprobe.tscn \
+##       -- res://scenes/levels/Werkstatt.tscn
+## `foto_stelle()` stellt die Figur für Fotos auf die Wegdecke statt 1 m
+## über die Kurve – auf den Terrassen schwebte sie sonst oder steckte im Boden.
+##
 ## ZWEI WEGDATEN. `weg` beschreibt den ganzen Prüfstand (die alte Strecke
 ## samt Station 30), damit `breite_bei`, `boden_bei` & Co. überall
 ## stimmen. Gebaut wird aus `weg` aber nur Station 30 (`_weg_30`): Der alte
@@ -36,7 +46,8 @@ extends KorridorLevel
 ## 1–29 stehen. Für die alten Stationen ändert `weg` nichts – ihre Stellen
 ## liegen weit von jeder Kante, Breite und Klemmung bleiben dieselben.
 
-const M_ENDE := 530.0
+## Bis 556,7 m reicht die Kurve; Station 31 (G3) verlängert sie.
+const M_ENDE := 554.0
 const ABSTURZ := -8.0
 const WEGBREITE := 12.0
 ## Bis hier reicht der alte Boden (Korridor mit Bordstein), danach Station 30.
@@ -60,6 +71,17 @@ const STRECKE := [
 ##   480  Stufe −1,2 hinab auf die untere Terrasse (Fels)
 ##   492  Stufe +1,2 hinauf
 ##   505  Duckdurchlass, 1,6 m tief
+## Die Sprungbahn (G2), flach auf der Kurve:
+##   513–516  Lücke 3,0 m
+##   529–534  Lücke 5,0 m
+##   543,5    Messhürde (Stolperzone bis 544,5)
+const LUECKE_3_VON := 513.0
+const LUECKE_3_BIS := 516.0
+const LUECKE_5_VON := 529.0
+const LUECKE_5_BIS := 534.0
+## Vorderkante der Stolperzone der Messhürde.
+const HUERDE_30 := 543.5
+
 const STATION_30 := [
 	{"name": "30A", "von": M_STATION_30, "bis": 458.0, "breite": WEGBREITE,
 			"breite_ende": 8.0},
@@ -67,7 +89,9 @@ const STATION_30 := [
 	{"name": "30C", "von": 470.0, "bis": 480.0, "breite": 8.0, "hoehe": 0.0},
 	{"name": "30D", "von": 480.0, "bis": 492.0, "breite": 8.0, "hoehe": -1.2,
 			"stoff": "fels"},
-	{"name": "30E", "von": 492.0, "bis": M_ENDE, "breite": 8.0},
+	{"name": "30E", "von": 492.0, "bis": LUECKE_3_VON, "breite": 8.0},
+	{"name": "30F", "von": LUECKE_3_BIS, "bis": LUECKE_5_VON, "breite": 8.0},
+	{"name": "30G", "von": LUECKE_5_BIS, "bis": M_ENDE, "breite": 8.0},
 ]
 
 ## Links eine Leitlinie (Ebene 16) 0,6 m außerhalb der Wegkante, dazwischen
@@ -83,6 +107,18 @@ const LEITLINIEN_30 := [
 const DURCHLASS_30 := 505.0
 const DURCHLASS_30_TIEFE := 1.6
 const DURCHLASS_30_STOLPERN := 0.45
+
+## Messhürde nach dem Entwurf von Level 05 (§1 Nr. 12): Körper 0,7 m hoch
+## und 0,6 m tief, die Stolperzone 1,0 m lang und vom Boden bis 0,8 m hoch,
+## mittig um den Körper.
+const HUERDE_HOCH := 0.7
+const HUERDE_TIEF := 0.6
+const HUERDE_ZONE_TIEF := 1.0
+const HUERDE_ZONE_HOCH := 0.8
+
+## Eine Landung zählt in der Sprungprobe ab so weit vor dem Rand der
+## Gegenseite (wie Level 01, `LANDUNG_SPIEL`).
+const LANDUNG_SPIEL := 0.45
 
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 
@@ -618,6 +654,7 @@ func _station_30_setzen() -> void:
 		"stolperzone": DURCHLASS_30_STOLPERN,
 		"optik": _durchlass_optik,
 	})
+	_messhuerde(HUERDE_30)
 
 	var tafel := Nachtodtafel.new()
 	tafel.name = "Nachtodtafel"
@@ -632,6 +669,41 @@ func _station_30_setzen() -> void:
 	tafel.position = weg_punkt(512.0, -5.6, 3.0)
 	deko.add_child(tafel)
 	nach_tod_melden(tafel)
+
+
+## Messhürde der Sprungbahn: Körper auf Ebene 16 wie der Duckdurchlass, die
+## Stolperzone an seiner Stelle (`stolpern` mit der Dauer des Durchlasses).
+## Nur ein Prüfling für die Art `huerde` der Sprungprobe – das Bauteil
+## `huerde()` mit Optik baut erst das Paket von Level 05. `s` ist die
+## Vorderkante der Zone; quer reicht beides bis an die Leitlinie.
+func _messhuerde(s: float) -> void:
+	var halb := breite_bei(s) * 0.5 + 1.0
+	var mitte := s + HUERDE_ZONE_TIEF * 0.5
+	var koerper := StaticBody3D.new()
+	koerper.name = "Messhuerde"
+	koerper.collision_layer = LevelWerkzeuge.SPIELERGRENZE
+	koerper.collision_mask = 0
+	var schnitte: Array[PackedVector3Array] = [
+		_durchlass_schnitt(mitte - HUERDE_TIEF * 0.5, -halb, halb, 0.0, HUERDE_HOCH),
+		_durchlass_schnitt(mitte + HUERDE_TIEF * 0.5, -halb, halb, 0.0, HUERDE_HOCH),
+	]
+	koerper.add_child(Wegdaten.prisma(schnitte[0], schnitte[1]))
+	var zone := Area3D.new()
+	zone.name = "Stolperzone"
+	zone.collision_layer = 0
+	zone.collision_mask = 2
+	zone.monitorable = false
+	zone.add_child(Wegdaten.prisma(
+			_durchlass_schnitt(s, -halb, halb, 0.0, HUERDE_ZONE_HOCH),
+			_durchlass_schnitt(s + HUERDE_ZONE_TIEF, -halb, halb, 0.0, HUERDE_ZONE_HOCH)))
+	zone.body_entered.connect(_durchlass_stolpern.bind(DURCHLASS_30_STOLPERN))
+	koerper.add_child(zone)
+	var netz := MeshInstance3D.new()
+	netz.name = "Platzhalter"
+	netz.mesh = Wegdaten.schnittnetz(schnitte)
+	netz.material_override = Materialbibliothek.kistenholz(Farben.HOLZ_DUNKEL)
+	koerper.add_child(netz)
+	geometrie.add_child(koerper)
 
 
 ## Optik des Duckdurchlasses an Station 30, nach dem Entwurf von Level 05
@@ -727,6 +799,64 @@ func _kronenpunkt(kronen: Array, strecke: float, seite: float) -> Vector3:
 			seite * (float(beste["innen"]) + 1.0), float(beste["oben"]) + 0.6)
 
 
+# ======================================================= Probenhaken
+
+## Die Sprungfälle der Werkstatt (Paket G2): jede Art der Sprungprobe
+## einmal, an der Sprungbahn von Station 30 und an alten Stationen. Die
+## ersten drei Fälle sind die Abnahme des Pakets; ihre Sollwerte stehen
+## in den Entwürfen (gemessen bzw. gerechnet mit 0,05 m Raster, daher hier
+## dasselbe Raster):
+##   Einfach 3,0  Fenster 1,95 ± 0,25 m (Messbank L05 §2.3: −1,80 … +0,15)
+##   Doppel 5,0   Fenster ≥ 1,30 m bei Doppelsprung nach 0,20 s (L02 §2;
+##                0,25 s: 1,75, 0,33 s: 2,35)
+##   Duck 1,6     sauber ≥ 3,0 m (Messbank: −3,9 … −0,5 = 3,4 m)
+## Die übrigen zeigen jede weitere Art einmal in Gebrauch: Einzelsprung
+## über 5,0 darf nicht tragen (Wehr L05, P1/P3 L02), der Slide-Sprung
+## darüber ist Kür (Messbank 0,80 m), Slide und Doppelsprung zusammen,
+## Hürde ≥ 1,5 m (Entwurf L05, Paket P1), Überlauf über die Bruchplatten
+## (Station 1), Landung auf dem Fließband (Station 7) mit zehn Bildern Halt.
+func sprungfaelle() -> Array[Dictionary]:
+	var drei := LUECKE_3_VON
+	var fuenf := LUECKE_5_VON
+	var landung_drei := LUECKE_3_BIS - LANDUNG_SPIEL
+	var landung_fuenf := LUECKE_5_BIS - LANDUNG_SPIEL
+	return [
+		{"name": "Einfach 3,0", "art": "einfach", "start": Vector2(drei - 5.0, 0.0),
+				"kante": drei, "von": drei - 3.0, "landung": landung_drei,
+				"schritt": 0.05, "fenster_min": 1.7},
+		{"name": "Doppel 5,0", "art": "doppel", "start": Vector2(fuenf - 5.5, 0.0),
+				"kante": fuenf, "von": fuenf - 3.5, "landung": landung_fuenf,
+				"schritt": 0.05, "fenster_min": 1.3},
+		{"name": "Duck 1,6", "art": "duck", "start": Vector2(DURCHLASS_30 - 9.0, 0.0),
+				"kante": DURCHLASS_30, "von": DURCHLASS_30 - 6.5,
+				"landung": DURCHLASS_30 + DURCHLASS_30_TIEFE + 1.0,
+				"schritt": 0.05, "fenster_min": 3.0},
+		{"name": "Einfach 5,0", "art": "einfach", "start": Vector2(fuenf - 5.5, 0.0),
+				"kante": fuenf, "von": fuenf - 2.0, "landung": landung_fuenf,
+				"darf_nicht_tragen": true},
+		{"name": "Slide-Sprung 5,0", "art": "slide", "start": Vector2(fuenf - 5.5, 0.0),
+				"kante": fuenf, "von": fuenf - 2.0, "landung": landung_fuenf,
+				"schritt": 0.05, "pflicht": false},
+		{"name": "Slide-Doppel 5,0", "art": "slide_doppel", "start": Vector2(fuenf - 5.5, 0.0),
+				"kante": fuenf, "von": fuenf - 2.0, "landung": landung_fuenf,
+				"doppel_t": [0.25]},
+		{"name": "Hürde 0,7", "art": "huerde", "start": Vector2(HUERDE_30 - 5.5, 0.0),
+				"kante": HUERDE_30, "von": HUERDE_30 - 4.0,
+				"landung": HUERDE_30 + HUERDE_ZONE_TIEF + 2.0,
+				"schritt": 0.05, "fenster_min": 1.5},
+		{"name": "Bruchplatten", "art": "ueberlauf", "start": Vector2(18.0, 0.0),
+				"bis": 36.0},
+		{"name": "Fliessband", "art": "bewegt", "start": Vector2(111.5, 0.0),
+				"kante": 116.0, "von": 114.0, "landung": 118.3},
+	]
+
+
+## Fotos (werkzeuge/foto.gd): die Figur auf die Wegdecke, nicht 1 m über
+## die Kurve.
+func foto_stelle(s: float, q: float) -> Vector3:
+	return weg_punkt(s, q)
+
+
 func _portale() -> void:
 	portale_setzen(1.0, 4.0)
 
@@ -750,7 +880,7 @@ func _schilder_setzen() -> void:
 		338.0: "23 Farnwerk", 350.0: "24 Rasensaum", 362.0: "25 Bodenstreu",
 		374.0: "26 Totholzzaun", 388.0: "27 GelaendeSaum",
 		402.0: "28 Waldsetzer", 432.0: "29 Weltenbaum (1:8)",
-		452.0: "30 Unterbau (Wegdaten)",
+		452.0: "30 Unterbau (Wegdaten)", 526.0: "30 Sprungbahn",
 	}
 	for strecke: float in stationen:
 		var schild := Label3D.new()

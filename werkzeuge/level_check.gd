@@ -44,6 +44,14 @@ extends Node
 ## die Oberseiten des Begehbaren `BEGEHBARES` und `begehbar(name)` wie
 ## Level 01.
 ##
+## RUHE (Opt-in, Baukasten Raum 1 §1.7): Hat das Level `pruefruhe()`, ruft
+## die Prüfung es vor den Opt-in-Proben (Sichtprobe samt Kamera-Abgleich)
+## und vor jeder Stichprobe der Sturzprobe. Es hält an, was von selbst
+## läuft – ein Keiler, der die Figur fängt, zählte sonst als Todeszone, die
+## einen Sturz abfängt. Vor JEDER Stichprobe, weil jede mit einem Tod endet
+## und ein Level nach dem Tod (`nach_tod`) seine Ruhe wieder aufheben darf.
+## Level ohne `pruefruhe()` laufen wie bisher.
+##
 ## ABGLEICH der Sichtprobe mit der echten Kamera (Level 01, 29.09.2026):
 ## Die Figur wird an drei Stellen abgesetzt, mit
 ## `reset_physics_interpolation()`, einem `sofort_ausrichten()` und einer
@@ -164,6 +172,7 @@ func _ready() -> void:
 	_pruefe_gegner_patrouille()
 	_pruefe_gegner_blick()
 	# Vor der Sturzprobe: Sie versetzt die Figur und lässt sie sterben.
+	_pruefruhe()
 	await _opt_in_proben()
 	await _pruefe_absturz()
 	# Zuletzt: Die Probe besiegt Gegner, danach fehlen sie jeder anderen.
@@ -439,6 +448,7 @@ func _pruefe_absturz() -> void:
 		# meldet einen Fehler, den es nicht gibt.
 		for i in 40:
 			await get_tree().physics_frame
+		_pruefruhe()
 		var vorher: int = GameState.leben
 		spieler.global_position = LevelWerkzeuge.punkt(verlauf, s, 26.0, 2.0)
 		spieler.reset_physics_interpolation()
@@ -467,6 +477,12 @@ func _pruefe_absturz() -> void:
 			_fehler += 1; misslungen += 1
 		GameState.leben = 3
 	print("  Absturzzone: %d von %d Stichproben fehlgeschlagen" % [misslungen, stellen.size()])
+
+## Ruhe für die Proben, wenn das Level sie anbietet (siehe Kopf, RUHE).
+func _pruefruhe() -> void:
+	if _level.has_method("pruefruhe"):
+		_level.call("pruefruhe")
+
 
 ## Hat dieses Level überhaupt einen Verlauf?
 ##

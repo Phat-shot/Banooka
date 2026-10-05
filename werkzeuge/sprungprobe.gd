@@ -48,6 +48,64 @@ extends Node
 ##             er nicht stirbt ("k" in der Ausgabe).
 ## Die Absprungstellen zählen als Strecke `s` auf dem Levelverlauf, auch
 ## auf der Diagonale.
+##
+## ARTEN (Feld `art`, Baukasten Raum 1 §1.7). Ohne `art` läuft ein Fall
+## genau wie oben beschrieben – das ist `einfach`, und die Fälle von
+## Level 01 tragen kein Feld, ihre Ausgabe bleibt Zeile für Zeile dieselbe.
+##   einfach       Sprung an der Stelle, Taste gehalten (Vorgabe)
+##   doppel        dazu ein Doppelsprung `doppel_t` Sekunden nach dem
+##                 Absprung. Die Taste geht EIN Bild vorher los und wird
+##                 dann neu gedrückt – wie bei einem Menschen, der zweimal
+##                 drückt; der Jump-Cut greift dabei, wo er greift. Je Zeit
+##                 eine eigene Reihe "<name> @0.20s"
+##   slide         Slide `slide_vor` m vor der Stelle angetippt, an der Stelle
+##                 gesprungen (aus dem Slide heraus: Slide-Sprung)
+##   slide_doppel  beides: Slide, Slide-Sprung, Doppelsprung
+##   duck          Slide an der Stelle angetippt, vor einem Duckdurchlass
+##                 (`kante` = seine Stirn). Gut ist nur ein Versuch, der ohne
+##                 Stolpern UND ohne Krabbeln bis `landung` kommt; "+<s>"
+##                 nennt dort, wo der Slide endete. "s" gestolpert, "c" durch,
+##                 aber gekrabbelt (Zwangskrabbeln, weil der Slide unter dem
+##                 Riegel ausging)
+##   huerde        Sprung an der Stelle über eine Stolperzone (`kante` = ihre
+##                 Vorderkante); gut, wer ohne Stolpern bis `landung` kommt,
+##                 "+<s>" nennt die Landung. Wer zu kurz springt, landet davor
+##                 und läuft hinein ("s")
+##   ueberlauf     kein Sprung: von `start` bis `bis` laufen und lebend
+##                 ankommen (Wechten, Bruchplatten). Ein Versuch, kein Fenster
+##   bewegt        wie einfach, aber gelandet ist erst, wer danach `halt`
+##                 Bilder mit gehaltenem Stick auf dem Boden bleibt – auf
+##                 einem Floß rutscht man sonst nach der Landung über den Rand
+## Bei duck und huerde muss nicht die Kante tragen (dort stolpert jeder);
+## das Fenster sind die zusammenhängenden guten Stellen um die letzte gute
+## vor der Kante, und die Reihe endet an der Kante.
+##
+## Weitere Felder, alle freiwillig:
+##   schritt           Abstand der Absprungstellen (Vorgabe 0,25). Hinter der
+##                     Kante reicht die Reihe immer HINTER_KANTE weit. Feiner
+##                     als 0,25 nur zum Messen gegen gerechnete Fenster – die
+##                     Entwürfe rechnen mit 0,05 m
+##   fenster_min       Vorgabe FENSTER_MIN (1,25)
+##   tief_erlaubt      so tief unter dem Absprung zählt eine Landung noch
+##                     (Vorgabe ZU_TIEF, 1,5): Fangleisten unter einer Lücke
+##   pflicht           false: Kür. Mängel stehen als "KÜR" da und zählen nicht
+##   darf_nicht_tragen true: FEHLER, sobald irgendeine Stelle trägt (die Lücke,
+##                     über die man nur mit dem Doppelsprung kommt); kein Fenster
+##   doppel_t          Sekunden bis zum Doppelsprung, Vorgabe DOPPEL_T
+##   slide_vor         Vorgabe SLIDE_VOR (2,0 m, wie die Messbank von L05)
+##   halt              Bilder nach der Landung, Vorgabe HALT_BEWEGT bei
+##                     `bewegt`, sonst 0 (sofort loslassen, wie bisher)
+##   bis               nur ueberlauf: Ziel der Strecke (Vorgabe `kante`)
+## Für duck und huerde ist `landung` das Ziel hinter dem Hindernis (Vorgabe
+## `kante` + 3).
+##
+## RUHE. Vor jedem Versuch ruft die Probe `pruefruhe()` des Levels, wenn es
+## eine hat: Sie hält an, was von selbst läuft (Keiler, Taktgefahren, eine
+## Stromuhr auf festem Wert). Jede Art außer `einfach` setzt dazu die Figur
+## still (`_beruhigen`): Nach einem Tod ist sie 1,2 s unverwundbar, und
+## `Spieler.stolpern()` übergeht einen Unverwundbaren – der nächste Versuch
+## an einer Hürde liefe sonst glatt durch und zählte als sauber. `einfach`
+## lässt das wie bisher, damit Level 01 Zeile für Zeile gleich misst.
 
 const SCHRITT := 0.25
 const FENSTER_MIN := 1.25
@@ -57,6 +115,23 @@ const ZU_TIEF := 1.5
 const VERSUCH_MAX := 600
 ## Bodenstrahl beim Absetzen: fester Boden und Spielergrenze.
 const BODEN_MASKE := 1 | LevelWerkzeuge.SPIELERGRENZE
+## So weit reicht die Reihe hinter die Kante (die Figur steht dort noch mit
+## dem Rand ihrer Kapsel). Bei `schritt` 0,25 genau die eine Stelle von früher.
+const HINTER_KANTE := 0.25
+## Die Arten (siehe Kopf).
+const ARTEN: Array[String] = ["einfach", "doppel", "slide", "slide_doppel", "duck",
+		"huerde", "ueberlauf", "bewegt"]
+## Doppelsprung so viele Sekunden nach dem Absprung (Entwurf L02 §2: 0,20 ist
+## der Fall, auf den die Pflichtlücken gerechnet sind, 0,33 der Scheitel).
+const DOPPEL_T: Array[float] = [0.20, 0.25, 0.33]
+## Slide so weit vor dem Absprung angetippt (Messbank L05).
+const SLIDE_VOR := 2.0
+## Bilder mit gehaltenem Stick nach der Landung auf einem bewegten Träger
+## (Entwurf L03: Wer landet, läuft weiter – zehn Bilder muss das Deck tragen).
+const HALT_BEWEGT := 10
+## Ohne `landung` liegt das Ziel hinter Durchlass oder Hürde so weit hinter
+## der Kante.
+const DURCHGANG_ZIEL := 3.0
 
 var _level: Node
 var _spieler: CharacterBody3D
@@ -114,56 +189,158 @@ func _ready() -> void:
 	get_tree().quit(1 if _fehler > 0 else 0)
 
 
+## Ein Fall: je nach Art eine Reihe, eine Reihe je Doppelsprungzeit oder
+## (Überlauf) ein einzelner Versuch.
 func _fall_pruefen(fall: Dictionary) -> void:
+	var art: String = fall.get("art", "einfach")
+	if not ARTEN.has(art):
+		_fehler += 1
+		print("  FEHLER  %s: unbekannte Art \"%s\"" % [String(fall.get("name", "?")), art])
+		return
+	if art == "ueberlauf":
+		await _ueberlauf_pruefen(fall)
+		return
+	if art == "doppel" or art == "slide_doppel":
+		var zeiten: Array = fall.get("doppel_t", DOPPEL_T)
+		for t: Variant in zeiten:
+			await _reihe_pruefen(fall, art, float(t))
+		return
+	await _reihe_pruefen(fall, art, -1.0)
+
+
+## Eine Reihe von Absprungstellen und ihr Fenster. `doppel_t` < 0: ohne
+## Doppelsprung.
+func _reihe_pruefen(fall: Dictionary, art: String, doppel_t: float) -> void:
 	var name: String = fall["name"]
-	var start: Vector2 = fall["start"]
+	if doppel_t >= 0.0:
+		name = "%s @%.2fs" % [name, doppel_t]
 	var kante: float = fall["kante"]
 	var von: float = fall["von"]
-	var ziel: Vector2 = fall.get("ziel", Vector2(NAN, NAN))
-	var landung: float = fall.get("landung", -INF)
+	var schritt: float = fall.get("schritt", SCHRITT)
+	var pflicht: bool = fall.get("pflicht", true)
+	# Durchlass und Hürde: Wer an der Kante drückt, stolpert immer – die
+	# Reihe endet dort, und nicht die Kante muss tragen.
+	var durchgang := art == "duck" or art == "huerde"
 	# Stellen: hinter der Kante, die Kante, dann zurück bis `von`.
-	var stellen: Array[float] = [kante + SCHRITT, kante]
-	var s := kante - SCHRITT
+	var stellen: Array[float] = []
+	if not durchgang:
+		for i in range(roundi(HINTER_KANTE / schritt), 0, -1):
+			stellen.append(kante + schritt * float(i))
+	stellen.append(kante)
+	var s := kante - schritt
 	while s >= von - 0.001:
 		stellen.append(s)
-		s -= SCHRITT
+		s -= schritt
 	stellen.reverse()
 	var zeile := "SPRUNG %-24s" % name
 	var gut: Array[bool] = []
 	for stelle in stellen:
-		var ergebnis := await _versuch(start, ziel, stelle, landung)
+		var ergebnis := await _versuch(fall, art, stelle, doppel_t)
 		zeile += " %.2f%s" % [stelle, ergebnis]
 		gut.append(ergebnis.begins_with("+"))
 	print(zeile)
-	# Fenster: die zusammenhängenden tragenden Stellen um die Kante.
-	var i_kante := stellen.find(kante)
-	if not gut[i_kante]:
-		_fehler += 1
-		print("  FEHLER  %s: Der Absprung an der Kante (s %.2f) trägt nicht" % [name, kante])
+	if bool(fall.get("darf_nicht_tragen", false)):
+		var tragend: Array[String] = []
+		for i in stellen.size():
+			if gut[i]:
+				tragend.append("%.2f" % stellen[i])
+		if tragend.is_empty():
+			print("SPRUNG %-24s trägt an keiner Stelle, wie verlangt" % name)
+		else:
+			_melden(pflicht, "%s: trägt bei %s, darf aber nicht tragen"
+					% [name, ", ".join(tragend)])
 		return
-	var a := i_kante
+	# Fenster: die zusammenhängenden tragenden Stellen um die Kante – bei
+	# Durchlass und Hürde um die letzte gute Stelle davor.
+	var anker := stellen.find(kante)
+	if durchgang:
+		anker = gut.rfind(true)
+		if anker < 0:
+			_melden(pflicht, "%s: Kein Versuch kommt sauber hindurch" % name)
+			return
+	elif not gut[anker]:
+		_melden(pflicht, "%s: Der Absprung an der Kante (s %.2f) trägt nicht" % [name, kante])
+		return
+	var a := anker
 	while a > 0 and gut[a - 1]:
 		a -= 1
-	var b := i_kante
+	var b := anker
 	while b < stellen.size() - 1 and gut[b + 1]:
 		b += 1
 	var weite := stellen[b] - stellen[a]
 	var bis_rand := " (ganze Reihe)" if a == 0 else ""
-	if weite < FENSTER_MIN - 0.001:
+	var fenster_min: float = fall.get("fenster_min", FENSTER_MIN)
+	if weite < fenster_min - 0.001:
+		_melden(pflicht, "%s: Absprungfenster %.2f – %.2f nur %.2f m (mindestens %.2f)"
+				% [name, stellen[a], stellen[b], weite, fenster_min])
+		return
+	var ende := "Kante %.2f trägt" % kante
+	if durchgang:
+		ende = "Kante %.2f" % kante
+	# Mit `art` dazu die Lage zur Kante – so stehen die Fenster in den
+	# Entwürfen. Die Fälle von Level 01 haben kein `art` und bleiben gleich.
+	if fall.has("art"):
+		ende += ", zur Kante %+.2f … %+.2f" % [stellen[a] - kante, stellen[b] - kante]
+	print("SPRUNG %-24s Fenster %.2f – %.2f (%.2f m%s), %s" % [name,
+			stellen[a], stellen[b], weite, bis_rand, ende])
+
+
+## Überlauf: ein Versuch ohne Sprung, von `start` bis `bis`.
+func _ueberlauf_pruefen(fall: Dictionary) -> void:
+	var name: String = fall["name"]
+	var start: Vector2 = fall["start"]
+	var bis: float = fall.get("bis", fall.get("kante", start.x))
+	var ergebnis := await _versuch(fall, "ueberlauf", INF, -1.0)
+	print("SPRUNG %-24s Überlauf %.2f → %.2f: %s" % [name, start.x, bis, ergebnis])
+	if not ergebnis.begins_with("+"):
+		_melden(bool(fall.get("pflicht", true)),
+				"%s: Wer ohne Sprung von %.2f bis %.2f läuft, kommt nicht an (%s)"
+				% [name, start.x, bis, ergebnis])
+
+
+## Mangel melden: als FEHLER, bei `pflicht: false` als Kür ohne Folgen.
+func _melden(pflicht: bool, text: String) -> void:
+	if pflicht:
 		_fehler += 1
-		print("  FEHLER  %s: Absprungfenster %.2f – %.2f nur %.2f m (mindestens %.2f)"
-				% [name, stellen[a], stellen[b], weite, FENSTER_MIN])
+		print("  FEHLER  " + text)
 	else:
-		print("SPRUNG %-24s Fenster %.2f – %.2f (%.2f m%s), Kante %.2f trägt" % [name,
-				stellen[a], stellen[b], weite, bis_rand, kante])
+		print("  KÜR     " + text + " (keine Pflicht)")
 
 
-## Ein Versuch: bei `start` absetzen, anlaufen, bei `absprung` springen.
-## Rückgabe wie im Kopf beschrieben ("+<s>", "x", "k", "?").
-func _versuch(start: Vector2, ziel: Vector2, absprung: float, landung: float) -> String:
+## Ein Versuch: bei `start` absetzen, anlaufen, bei `absprung` springen
+## (Arten: siehe Kopf). Rückgabe wie im Kopf beschrieben ("+<s>", "x",
+## "k", "?", dazu "s" und "c" bei Durchlass und Hürde).
+func _versuch(fall: Dictionary, art: String, absprung: float, doppel_t: float) -> String:
+	var start: Vector2 = fall["start"]
+	var ziel: Vector2 = fall.get("ziel", Vector2(NAN, NAN))
+	var landung: float = fall.get("landung", -INF)
+	var tief: float = fall.get("tief_erlaubt", ZU_TIEF)
+	var halt := int(fall.get("halt", HALT_BEWEGT if art == "bewegt" else 0))
+	var durchgang := art == "duck" or art == "huerde"
+	# Wo der Versuch zu Ende ist, wenn nicht mit der Landung: hinter dem
+	# Hindernis bzw. am Ende des Überlaufs.
+	var ziel_s := INF
+	if durchgang:
+		ziel_s = fall.get("landung", float(fall["kante"]) + DURCHGANG_ZIEL)
+	elif art == "ueberlauf":
+		ziel_s = fall.get("bis", fall.get("kante", start.x))
+	var mit_sprung := art != "duck" and art != "ueberlauf"
+	var mit_slide := art == "slide" or art == "slide_doppel" or art == "duck"
+	var slide_ab := absprung
+	if art == "slide" or art == "slide_doppel":
+		slide_ab = absprung - float(fall.get("slide_vor", SLIDE_VOR))
+	# Doppelsprung: so viele Bilder nach dem Absprung, losgelassen eins vorher.
+	var doppel_bild := -1
+	if doppel_t >= 0.0:
+		doppel_bild = maxi(roundi(doppel_t * Engine.physics_ticks_per_second), 2)
+
+	if _level.has_method("pruefruhe"):
+		_level.call("pruefruhe")
 	InputHub.zuruecksetzen()
 	GameState.leben = 50
 	_spieler.set("can_djump", false)
+	if art != "einfach":
+		_beruhigen()
 	_spieler.velocity = Vector3.ZERO
 	_spieler.global_position = _abstellen(start)
 	_spieler.reset_physics_interpolation()
@@ -185,6 +362,13 @@ func _versuch(start: Vector2, ziel: Vector2, absprung: float, landung: float) ->
 	var gesprungen := false
 	var in_luft := false
 	var y_start := _spieler.global_position.y
+	var sprung_bild := -1
+	var slide_bild := -1
+	var slide_ende := NAN
+	var s_land := NAN
+	var gekrabbelt := false
+	# >= 0: gelandet, der Stick bleibt noch so viele Bilder gehalten.
+	var halt_rest := -1
 	for f in VERSUCH_MAX:
 		var s := _verlauf.get_closest_offset(_spieler.global_position)
 		var hin := fern
@@ -193,29 +377,111 @@ func _versuch(start: Vector2, ziel: Vector2, absprung: float, landung: float) ->
 		var d := hin - _spieler.global_position
 		d.y = 0.0
 		InputHub.touch_bewegung = _eingabe_fuer(d.normalized())
-		if not gesprungen and s >= absprung and _spieler.is_on_floor():
+		if mit_slide:
+			# Angetippt, nicht gehalten: Wer die Taste hält, krabbelt nach
+			# dem Slide weiter (player.gd, `_kriechen_pruefen`).
+			if slide_bild < 0 and s >= slide_ab and _spieler.is_on_floor():
+				InputHub.touch_slide(true)
+				slide_bild = f
+			elif slide_bild >= 0 and f == slide_bild + 1:
+				InputHub.touch_slide(false)
+		if mit_sprung and not gesprungen and s >= absprung and _spieler.is_on_floor():
 			InputHub.touch_sprung(true)
 			gesprungen = true
+			sprung_bild = f
 			y_start = _spieler.global_position.y
+		elif doppel_bild > 0 and gesprungen:
+			if f == sprung_bild + doppel_bild - 1:
+				InputHub.touch_sprung(false)
+			elif f == sprung_bild + doppel_bild and not _spieler.is_on_floor():
+				InputHub.touch_sprung(true)
 		await get_tree().physics_frame
 		if _tot:
 			InputHub.zuruecksetzen()
 			return "x"
+		if durchgang and _stolpert():
+			InputHub.zuruecksetzen()
+			return "s"
+		if slide_bild >= 0 and is_nan(slide_ende) and not _gleitet():
+			slide_ende = _verlauf.get_closest_offset(_spieler.global_position)
+		if _krabbelt():
+			gekrabbelt = true
+		if halt_rest >= 0:
+			if _spieler.global_position.y < y_start - tief:
+				InputHub.zuruecksetzen()
+				return "x"
+			halt_rest -= 1
+			if halt_rest == 0:
+				InputHub.zuruecksetzen()
+				return ("+%.1f" % s_land) if _spieler.is_on_floor() else "x"
+			continue
 		if gesprungen and not _spieler.is_on_floor():
 			in_luft = true
 		if in_luft and _spieler.is_on_floor():
+			if durchgang or halt > 0:
+				# Gelandet, aber noch nicht fertig: hinter dem Hindernis
+				# ankommen bzw. den Stick noch halten.
+				in_luft = false
+				InputHub.touch_sprung(false)
+				if _spieler.global_position.y < y_start - tief:
+					InputHub.zuruecksetzen()
+					return "x"
+				s_land = _verlauf.get_closest_offset(_spieler.global_position)
+				if not durchgang:
+					if s_land < landung:
+						InputHub.zuruecksetzen()
+						return "k"
+					halt_rest = halt
+					continue
+			else:
+				InputHub.zuruecksetzen()
+				if _spieler.global_position.y < y_start - tief:
+					return "x"
+				var s_auf := _verlauf.get_closest_offset(_spieler.global_position)
+				if s_auf < landung:
+					return "k"
+				return "+%.1f" % s_auf
+		# Angekommen ist, wer hinter dem Ziel wieder auf den Beinen steht –
+		# ein Slide, der über das Ziel hinausträgt, läuft erst aus.
+		if ziel_s < INF and _spieler.is_on_floor() and not _krabbelt() and not _gleitet() \
+				and _verlauf.get_closest_offset(_spieler.global_position) >= ziel_s:
 			InputHub.zuruecksetzen()
-			if _spieler.global_position.y < y_start - ZU_TIEF:
-				return "x"
-			var s_land := _verlauf.get_closest_offset(_spieler.global_position)
-			if s_land < landung:
-				return "k"
-			return "+%.1f" % s_land
-		if _spieler.global_position.y < y_start - 4.0:
+			if gekrabbelt:
+				return "c"
+			if art == "duck":
+				return "+%.1f" % slide_ende
+			if art == "huerde":
+				return "+%.1f" % s_land
+			return "+%.1f" % _verlauf.get_closest_offset(_spieler.global_position)
+		if _spieler.global_position.y < y_start - maxf(4.0, tief + 1.0):
 			InputHub.zuruecksetzen()
 			return "x"
 	InputHub.zuruecksetzen()
 	return "?"
+
+
+## Figur still setzen (nur die neuen Arten, siehe Kopf unter RUHE).
+func _beruhigen() -> void:
+	for feld: String in ["invuln", "_stolpern", "sliding", "spinning"]:
+		_spieler.set(feld, 0.0)
+	_spieler.set("slamming", false)
+	_spieler.set("kriechen", false)
+
+
+## Stolpert die Figur gerade? `Spieler._stolpern` ist die Restzeit; ein
+## eigenes Signal gibt es nicht, und die Probe soll player.gd nicht ändern.
+func _stolpert() -> bool:
+	var rest: Variant = _spieler.get("_stolpern")
+	return rest is float and float(rest) > 0.0
+
+
+func _gleitet() -> bool:
+	var rest: Variant = _spieler.get("sliding")
+	return rest is float and float(rest) > 0.0
+
+
+func _krabbelt() -> bool:
+	return _spieler.get("kriechen") == true
 
 
 ## Fußpunkt auf dem Boden unter (s, q): Bodenstrahl von 4 m darüber.
