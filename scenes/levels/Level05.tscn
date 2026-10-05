@@ -52,18 +52,19 @@ light_specular = 0.4
 shadow_enabled = true
 shadow_bias = 0.04
 shadow_normal_bias = 1.5
-directional_shadow_mode = 2
-directional_shadow_max_distance = 90.0
-directional_shadow_split_1 = 0.08
-directional_shadow_split_2 = 0.22
+directional_shadow_mode = 1
+directional_shadow_max_distance = 70.0
+directional_shadow_split_1 = 0.45
 
 [node name="Player" parent="." instance=ExtResource("2_flucht")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 26.6, -6)
 
 [node name="CorridorCamera" parent="." instance=ExtResource("3_cam")]
+far = 380.0
 hoehe = 5.6
 abstand = -21.0
 blick_vorlauf = -5.0
 seiten_faktor = 0.35
+sicht_maske = 8
 
 [node name="HUD" parent="." instance=ExtResource("4_hud")]

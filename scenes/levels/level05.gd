@@ -1,430 +1,1156 @@
 extends KorridorLevel
-## Level 05 – "Hauerjagd"
+class_name Level05
+## Level 05 – „Hauerjagd": den Hauerhang hinab, den Keiler im Nacken.
 ##
-## Eine Flucht in umgekehrter Blickrichtung: Die Kamera steht vor dem
-## Spieler und schaut zurück, er rennt also auf uns zu. Hinter ihm bricht
-## ein Riesenkeiler durch die Schlucht.
+## Unterhalb der gespaltenen Hauereiche schläft der Keiler in seiner Suhle.
+## Man schleicht an ihm vorbei; auf dem ersten Rastplatz wacht er auf und
+## rennt einem den ganzen Hang hinunter nach – durch den Hohlweg, über die
+## Wurzelterrassen, durch den Tobel bis über das gebrochene Wehr am
+## Mühlbach. Die Kamera schaut die ganze Zeit zurück (abstand −21): Man
+## läuft auf sie zu, hinter einem die Hauer. Unter Wurzelbögen und
+## Gerinnen kommt man nur im Slide durch; ein Slide gibt Vorsprung, jeder
+## Sprung kostet welchen.
 ##
-## Warum umgekehrt? Weil die Bedrohung sichtbar sein muss. Läuft die
-## Kamera hinterher, sieht man den Verfolger nie und die Aufgabe wäre
-## bloß ein Hindernislauf mit Zeitdruck. So hat man ihn die ganze Zeit im
-## Bild und sieht an den Hauern, wie knapp es steht – dafür kommen die
-## Hindernisse aus dem Rücken und werden erst spät sichtbar. Genau das ist
-## der Handel.
+##       0 –  31  A Suhle          Diebstahl ohne Druck, Wecken bei 31
+##      31 – 120  B Hohlweg        H1, D1, L1, G2, H2, D2
+##     120 – 180  C Wurzelterrassen 5 × 1,2 m, L2, L3
+##     180 – 265  D Tobel          L4, Kette D3–D4–L5, Findlingsgasse, G3
+##     265 – 300  E Mühlbach       Wehrkrone, L6 Wehrbruch (Doppelsprung)
+##     300 – 332  Auslauf          nur Kulisse, die Kamera steht bei s + 21
 ##
-## Gelaufen wird mit der normalen Figur (`Spieler`, Steuerung, Sprung und
-## Animation wie überall, ohne Schwung): Wer die Taste loslässt, steht.
-## Weil die Kamera zurückschaut, läuft man auf sie zu.
+## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Dies ist der ROHBAU
+## (Paket P1a): Verlauf, Weg, Bauteile, Spielobjekte, Jagd und Proben als
+## Graubox, voll spielbar. Gelände, Saum, Eiche, Wegbauten-Optik, Wasser,
+## Wald, Rasen und Stimmung folgen in eigenen Paketen; bis dahin stehen die
+## Bauteile als graue Platzhalter in der Form ihrer Kollision.
 ##
-## Der Keiler ist kein Gegner mit Trefferzone, sondern ein Abstand auf der
-## Kurve. Er läuft IMMER, mit festem Tempo knapp unter dem Lauftempo
-## (`KEILER_TEMPO`), und fällt nie weiter als `HOECHSTABSTAND` zurück. Wer
-## läuft, hält ihn auf Abstand; wer stehen bleibt oder stolpert, wird
-## eingeholt. Hindernisse sind feste Körper; wer sie berührt, stolpert
-## (`Spieler.stolpern`) – kein Schaden, aber ein Moment ohne Vortrieb.
+## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
+## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
+## Begehbares, Leitlinien, Kisten, Früchte, Rastplätze, Geheimnisse) und
+## rechnet daraus beim Laden die Wegdaten (`weg`, scripts/gemeinsam/
+## wegdaten.gd) – VOR der Schrittliste, wie Level 01. Alle Abfragen
+## (`boden_bei`, `breite_bei`, `weg_punkt`, `ist_luecke` …) gehen über `weg`.
 ##
-## Abschnitte (Strecke auf der Kurve):
-##     0 –  70  Aufbruch  – weit gestellte Hindernisse, Keiler noch fern
-##    70 – 150  Engstelle – Schlucht zieht sich zusammen, erste Spalten
-##   150 – 240  Bruch     – dichte Folge, zwei Spalten hintereinander
-##   240 – 320  Endspurt  – Höchsttempo, Hindernisse im Wechseltakt
-##   320 – 350  Ausgang   – Felsentor, geschafft
+## MODULE unter `scenes/levels/level05/`, je eine Klasse mit
+## `bauschritte(level: Level05)`: bisher `L05Jagd` (der Keiler).
+##
+## KOORDINATEN wie überall: `s` Strecke auf dem Verlauf (3D-Bogenlänge),
+## `q` quer dazu (positiv = rechts in Laufrichtung, im Rückblick also
+## BILDLINKS), Höhen über der Wegdecke, außer wo ein Name auf `_y` endet.
+##
+## VERLAUF (Entwurf §3). Der Grundriss kommt aus zwölf Stützpunkten (KURVE),
+## die Höhe aus KURVENHOEHE, stückweise linear. `kurve_bauen` legt alle 3 m
+## einen Punkt auf den Grundriss – so weit entlang, dass die 3D-Bogenlänge
+## bis dorthin genau `s` ist – mit der Höhe KURVENHOEHE(s). WARUM: Die
+## Höhen der Absätze, die Lippen der Lücken und die Kamera über den
+## Durchlässen sind gegen KURVENHOEHE gerechnet. Die Kurve allein durch
+## die zwölf Punkte (`kurve_aus_punkten`) lag gemessen bis 0,24 m neben
+## KURVENHOEHE (bei s 18), fiel über 21 m steiler als 10 % (Kamera nur
+## 3,41 m über der Figur bei s 248) und endete bei 330 statt 332. So
+## gebaut (P1a): Länge 332,00 m, |Kurve − KURVENHOEHE| höchstens 0,036 m
+## (am Knick bei s 31), Kamera mindestens 3,486 m über der Figur.
+## ABGLEICH: Die Stützpunkte des Entwurfs lagen in der Fläche je 30 m
+## auseinander; mit dem Gefälle war die 3D-Bogenlänge am Punkt „s300"
+## dadurch 301,07 m. Die Punkte unten sind so verschoben (je Abschnitt in
+## seiner Richtung gestaucht), dass jeder bei seinem s liegt: gemessen
+## höchstens 0,008 m daneben (Grenze ±0,2).
+##
+## WEG (Entwurf §2.7, §3). Die Decke folgt der Kurve, außer auf den
+## Absätzen (waagerecht auf der Kurvenhöhe ihrer Mitte, mit Rampen von 6 m
+## auf die Kurve), den fünf Terrassen samt Treppentritten in C und dem
+## Suhlgraben. Wo zwei Rampen sich überlappten (62–71 und 200–210), wird
+## daraus EINE Rampe von Absatz zu Absatz – das Rechenmodell des Entwurfs
+## (boden2.py) ließ dort eine Stufe von 0,21 m stehen. Die Abschnitte
+## rechnet `_abschnitte_rechnen` aus diesen Tabellen, Stufen bekommen eine
+## Stufenkollision, Lücken sind Lücken (Wegdaten). Die Lippen jeder Lücke
+## liegen auf einem Absatz oder einer Terrasse.
+##
+## KOLLISION (Entwurf §7.2, Baukasten §0 Nr. 5, Variante b):
+##   Ebene 1    Wegdecke mit Stufen, Schultern bis an die Leitlinien,
+##              Startboden, Grabenrampe, Trittstein G3, Wehrkörper, Kisten
+##   Ebene 16   Leitlinien, Körper der Durchlässe, Hürden und Findlinge,
+##              Wurzelknie G1, Böschungsbank G2, Sonnensims G3
+##   Areas      Stolperzonen (an der Stirn), Rastplätze, Meldungen,
+##              Todeszonen
+## Die Kamera prüft nur Ebene 8 (`sicht_maske`, Level05.tscn, Entwurf §1
+## Nr. 8): Kein Durchlass, keine Kiste und keine Terrasse holt sie heran.
+## Was dafür über dem Weg frei bleiben muss, prüft `freiraumprobe`.
+##
+## LEITLINIEN Höhe 5 über der Decke. `LevelWerkzeuge.leitlinie` misst die
+## Höhe über der KURVE, die Decke liegt bis 0,64 m darüber (Absätze,
+## Wehrkrone) – deshalb 5,7. An den Geheimnissen G1–G3 dazu 7 m: Von der
+## Bank (+2,2) trägt ein Doppelsprung die Füße auf 5,4 m, von G1 (+2,8)
+## auf 6,0 m – über 5 m Leitlinie und die Böschung dahinter hinweg aus dem
+## Level. G2 und G3 haben eine Nische hinter der Bank (Entwurf §6.3).
+##
+## TODESZONEN (Entwurf §7.3, Baukasten §4 Nr. 7): Je Lücke eine Zone auf
+## fester Höhe, 2 m unter der unteren Lippe, am Wehr auf Y 2,6. Dazu für
+## die Sturzprobe „Boden − 8" überall (`Wegdaten.zonen_unter_boden`) statt
+## der alten `absturzzonen`. Der Suhlgraben ist nicht tödlich, seitlich
+## stürzt man nirgends ab (Leitlinien).
+##
+## START. Die Figur steht schon in Level05.tscn auf dem Start (0, 26,6, −6).
+## Am alten Ort (0, 1, 4) lag sie mitten in der Todeszone „Boden − 8" unter
+## dem Startboden, die beim Bau entsteht – sie starb beim Laden, bevor das
+## Level stand (gemessen: Leben 5 → 4, im Foto blieb sie unsichtbar).
+##
+## ABWEICHUNGEN VOM ENTWURF, jede von Code oder Messung erzwungen:
+##   * Verlauf aus dichten Punkten statt aus den zwölf (siehe VERLAUF).
+##   * Überlappende Rampen als eine (siehe WEG).
+##   * Leitlinien 5,7 bzw. 7 statt 5 m (siehe LEITLINIEN).
+##   * G2 2,0 m breit (q 4,6–6,6) statt 1,4, die vier Kisten zu zweit hinten
+##     auf der Bank: In einer Reihe deckten sie die ganze Bank, und kein
+##     Slide-Sprung kam hinauf (Sprungprobe: jede Stelle prallte an der
+##     vordersten Kiste ab). Die Nische dahinter beginnt schon bei 78.
+##   * G3 (Trittstein und Sims) 5 m später, Trittstein 257 statt 252: Er
+##     lag 0,5 m hinter F2 auf derselben Querlage – kein Anlauf, die
+##     Sprungprobe konnte die Figur dort nicht einmal absetzen. Ein Sprung
+##     mit gehaltener Taste trägt auf den 1,4 m kurzen Stein nur aus
+##     2,7–4,9 m vor seiner Stirn (gerechnet).
+##   * Das Zielportal ohne Lichtsäule (`portale_auf`, Freiraumprobe K1:
+##     Die Säule stand bis 14 m hoch in der Kamerabahn).
+##   * Geweckt wird nach der Strecke der Figur, nicht über die Zone des
+##     Rastplatzes (siehe L05Jagd, Kopf).
 
-const STEIN := preload("res://scenes/props/Stein.tscn")
-const BAUM := preload("res://scenes/props/Baum.tscn")
-const GRASFELD := preload("res://scenes/props/Gras.tscn")
-const KEILER := preload("res://scenes/enemies/Keiler.tscn")
+const M_ENDE := 300.0
+## Bis hier reicht die Kurve: Die Kamera steht 21 m weiter auf dem Verlauf
+## als die Figur (abstand −21), am Ziel also bei 317.
+const KURVE_ENDE := 332.0
+const START_S := 6.0
+const ZIEL_S := 296.0
+## Ab hier „Entkommen!" – nur als Meldung, Ziel ist allein das Zielportal.
+const ENTKOMMEN_S := 289.0
+## Hinweis vor dem Gatter Ü (Entwurf §5 A, JS6).
+const HINWEIS_S := 11.0
+const HINWEIS_SLIDE := "Slide: kurz antippen, nicht halten"
 
-const M_ENDE := 350.0
-const AUSLAUF := 10.0
+# =========================================================== Verlauf
 
-## Die Jagd. Lauftempo der Figur ist 8,5 m/s (RUN_SPEED); auf der Kurve
-## kommt davon im Geraden fast alles an, in Bögen und beim Ausweichen
-## weniger. 7,4 m/s: Wer durchläuft, hält den Keiler hinten; wer steht,
-## hat ihn aus 15 m in zwei Sekunden an den Fersen.
-const KEILER_TEMPO := 7.4
-const VORSPRUNG := 12.0
-const HOECHSTABSTAND := 15.0
-const TODESABSTAND := 2.0
-const STOLPER_DAUER := 0.45
+## Stützpunkte des Grundrisses bei s = 0, 30, …, 330 (abgeglichen, siehe
+## Kopf). y ist KURVENHOEHE an der Stelle; die Kurve nimmt die Höhe aber aus
+## KURVENHOEHE selbst.
+const KURVE := [
+	Vector3(0.00, 26.00, 0.00), Vector3(0.00, 26.00, -30.00),
+	Vector3(-0.80, 23.56, -59.88), Vector3(-4.18, 21.03, -89.57),
+	Vector3(-8.97, 18.50, -119.08), Vector3(-13.05, 15.50, -148.64),
+	Vector3(-14.64, 12.50, -178.43), Vector3(-13.95, 9.64, -208.28),
+	Vector3(-11.65, 8.47, -238.15), Vector3(-8.47, 5.57, -267.84),
+	Vector3(-6.08, 3.00, -297.63), Vector3(-4.58, 2.25, -327.59),
+]
+## Höhe der Kurve (Kameraschiene) über `s`, stückweise linear (Entwurf §3).
+## Die Kurve fällt über 21 m höchstens 10 %: Die Kamera steht so mindestens
+## 3,5 m über der Figur (§2.6).
+const KURVENHOEHE := [
+	Vector2(0.0, 26.0), Vector2(31.0, 26.0), Vector2(120.0, 18.5), Vector2(180.0, 12.5),
+	Vector2(208.0, 9.7), Vector2(236.0, 8.86), Vector2(265.0, 6.0), Vector2(300.0, 3.0),
+	Vector2(332.0, 2.2),
+]
+## Abstand der Punkte, aus denen die Kurve gebaut wird.
+const KURVE_DICHTE := 3.0
 
-## Bahnbreite und Wandabstand. Wie in Level 02 stehen die Wände an der
-## Kante: Seitlich hinunterfallen gibt es nicht, nur die Spalten zählen.
-const BAHN := 13.0
-const WANDABSTAND := 6.8
+# =========================================================== Weg
 
-const STRECKE := [
-	{"von": 0.0, "bis": 70.0, "breite": BAHN},
-	# Spalten 3,5 m: Die normale Figur springt aus dem Lauf gut 5,5 m weit
-	# (vorher 5 m – genug für den Flüchtling mit bis zu 20 m/s, für die
-	# Figur ein Absprung genau an der Kante).
-	{"von": 73.5, "bis": 118.0, "breite": BAHN},
-	{"von": 121.5, "bis": 150.0, "breite": BAHN},
-	{"von": 150.0, "bis": 186.0, "breite": BAHN},
-	{"von": 189.5, "bis": 214.0, "breite": BAHN},
-	{"von": 217.5, "bis": 240.0, "breite": BAHN},
-	{"von": 240.0, "bis": 286.0, "breite": BAHN},
-	{"von": 289.5, "bis": 350.0, "breite": BAHN},
+## Wegbreite über `s` (Entwurf §2.7), linear zwischen den Punkten:
+## A 12, B (Hohlweg) 9,5, C 10, D 9, E (Wehrkrone) 7.
+const BREITEN := [
+	Vector2(0.0, 12.0), Vector2(29.0, 12.0), Vector2(34.0, 9.5), Vector2(118.0, 9.5),
+	Vector2(120.0, 10.0), Vector2(180.0, 10.0), Vector2(184.0, 9.0), Vector2(263.0, 9.0),
+	Vector2(267.0, 7.0), Vector2(M_ENDE, 7.0),
 ]
 
-var _laeufer: Spieler
-var _keiler: Keiler
-## Stelle des Keilers auf der Kurve.
-var _keiler_s := 0.0
-var _jagd := false
-var _fertig := false
-var _neu_stellen := false
+## Die tödlichen Lücken. "tod_y": Oberkante ihrer Todeszone (Welt-Y), 2 m
+## unter der unteren Lippe, am Wehr 2,6 (unter dem Weißwasser, §7.3).
+const LUECKEN := [
+	{"name": "L1 Wasserriss", "von": 75.0, "bis": 78.0, "tod_y": 20.2},
+	{"name": "L2 Terrasse", "von": 136.3, "bis": 139.7, "tod_y": 14.1},
+	{"name": "L3 Terrasse", "von": 160.3, "bis": 163.7, "tod_y": 11.7},
+	{"name": "L4 Seitenrinne", "von": 194.0, "bis": 197.5, "tod_y": 9.0},
+	{"name": "L5 Mühlrinne", "von": 228.5, "bis": 231.5, "tod_y": 7.25},
+	{"name": "L6 Wehrbruch", "von": 284.0, "bis": 289.0, "tod_y": 2.6},
+]
 
+## Absätze: waagerecht auf der Kurvenhöhe ihrer Mitte (Welt-Y), Rampen von
+## RAMPE Metern davor und dahinter auf die Kurve.
+const ABSAETZE := [
+	{"name": "Absatz D1", "von": 54.0, "bis": 62.0, "hoehe": 23.72},
+	{"name": "Absatz L1", "von": 71.0, "bis": 81.0, "hoehe": 22.21},
+	{"name": "Absatz D2", "von": 100.0, "bis": 108.0, "hoehe": 19.85},
+	{"name": "Absatz L4", "von": 190.0, "bis": 200.0, "hoehe": 11.0},
+	{"name": "Absatz Kette", "von": 210.0, "bis": 236.0, "hoehe": 9.25},
+	{"name": "Wehrkrone", "von": 279.0, "bis": 294.0, "hoehe": 4.16},
+]
+const RAMPE := 6.0
 
-func abschnitte() -> Array:
-	return STRECKE
+## Die Wurzelterrassen in C (Welt-Y), samt den Treppentritten (je 0,6 m)
+## der Wurzeltreppen S1–S3. Zwischen T1/T2 und T3/T4 liegen L2 und L3.
+const TERRASSEN := [
+	{"name": "T0", "von": 120.0, "bis": 126.0, "hoehe": 18.5},
+	{"name": "S1 Tritt", "von": 126.0, "bis": 126.8, "hoehe": 17.9},
+	{"name": "T1", "von": 126.8, "bis": 136.3, "hoehe": 17.3},
+	{"name": "T2", "von": 139.7, "bis": 150.0, "hoehe": 16.1},
+	{"name": "S2 Tritt", "von": 150.0, "bis": 150.8, "hoehe": 15.5},
+	{"name": "T3", "von": 150.8, "bis": 160.3, "hoehe": 14.9},
+	{"name": "T4", "von": 163.7, "bis": 174.0, "hoehe": 13.7},
+	{"name": "S3 Tritt", "von": 174.0, "bis": 174.8, "hoehe": 13.1},
+	{"name": "T5", "von": 174.8, "bis": 180.0, "hoehe": 12.5},
+]
+
+## Suhlgraben (von, bis, Welt-Y der Sohle): 0,8 m tief, nicht tödlich,
+## Rampe rechts hinaus (BEGEHBARES "Grabenrampe").
+const SUHLGRABEN := Vector3(23.5, 28.1, 25.2)
+
+# =========================================================== Bauteile
+
+## Duckdurchlässe: "s" die Stirn, "tiefe" in Laufrichtung (Entwurf §1 Nr. 2).
+const DURCHLAESSE := [
+	{"name": "Ü Wildgatter", "s": 17.0, "tiefe": 1.6},
+	{"name": "D1 Wurzelbogen", "s": 58.0, "tiefe": 1.8},
+	{"name": "D2 Wurzelbogen", "s": 104.0, "tiefe": 1.8},
+	{"name": "D3 Fluderjoch", "s": 214.0, "tiefe": 1.6},
+	{"name": "D4 Fluderjoch", "s": 222.0, "tiefe": 1.6},
+]
+## Hürden: "s" ihre Mitte (Körper 0,7 × 0,6, Zone 1,0 × 0,8; §1 Nr. 12).
+const HUERDEN := [
+	{"name": "H1", "s": 44.0},
+	{"name": "H2", "s": 93.0},
+]
+## Findlingsgasse (§5 D, §1 Nr. 17): je 4,6 m breit, 1,6 tief, 1,4 hoch,
+## versetzt – die Gasse dazwischen verlangt ≥ 1 m Querversatz.
+const FINDLINGE := [
+	{"name": "F1", "s": 244.0, "q": -2.2, "breite": 4.6},
+	{"name": "F2", "s": 250.0, "q": 2.2, "breite": 4.6},
+]
+
+## Alles außerhalb der Wegdecke, worauf man steht (Schema Level 01,
+## `Wegdaten.begehbar`). Die Geheimnisse (§6.3):
+##   G1 Wurzelknie    hinter dem Start, +2,8, Doppelsprung
+##   G2 Böschungsbank +2,2, Slide-Sprung oder Doppelsprung, Einzelsprung nicht
+##   G3 Sonnensims    +2,6, über den Trittstein (+1,2) mit zwei Einzelsprüngen
+## Der Startboden trägt die Figur zwischen Querwand und Kurvenanfang (die
+## Decke beginnt bei s 0), die Grabenrampe führt aus dem Suhlgraben, die
+## Wehrkörper liegen unter der Wehrkrone (Optik und Stirn des Bruchs).
+const BEGEHBARES := [
+	{"name": "Startboden", "form": "streifen", "von": -4.0, "bis": 0.2,
+			"innen": [Vector2(-4.0, -6.6), Vector2(0.2, -6.6)],
+			"aussen": [Vector2(-4.0, 6.6), Vector2(0.2, 6.6)],
+			"oben": 0.0, "hoehe": 2.0, "ebene": 1},
+	{"name": "G1 Wurzelknie", "form": "kasten", "s": 1.3, "q": 5.1,
+			"groesse": Vector3(3.0, 3.8, 2.6), "oben": 2.8, "ebene": 16},
+	{"name": "Grabenrampe", "form": "sweep", "von": 24.6, "bis": 28.1,
+			"profil": [Vector2(3.0, 0.0), Vector2(5.5, 0.0), Vector2(5.5, -1.0),
+				Vector2(3.0, -1.0)],
+			"profil_ende": [Vector2(3.0, 0.8), Vector2(5.5, 0.8), Vector2(5.5, -1.0),
+				Vector2(3.0, -1.0)],
+			"ebene": 1},
+	# G2 2,0 m breit statt 1,4 (bis an die Nische): Vier Kisten in einer
+	# Reihe deckten die ganze Bank, und kein Slide-Sprung kam mehr hinauf
+	# (Sprungprobe: jede Stelle prallte an der vordersten Kiste ab). Jetzt
+	# stehen sie zu zweit hinten, vorn bleiben 3 m zum Landen.
+	{"name": "G2 Böschungsbank", "form": "kasten", "s": 84.5, "q": 5.6,
+			"groesse": Vector3(2.0, 3.2, 5.0), "oben": 2.2, "ebene": 16},
+	{"name": "G3 Trittstein", "form": "kasten", "s": 257.0, "q": 3.4,
+			"groesse": Vector3(1.4, 2.2, 1.4), "oben": 1.2, "ebene": 1},
+	{"name": "G3 Sonnensims", "form": "kasten", "s": 260.5, "q": 4.9,
+			"groesse": Vector3(1.4, 3.6, 4.0), "oben": 2.6, "ebene": 16},
+	{"name": "Wehrkörper vorn", "form": "sweep", "von": 279.0, "bis": 284.0,
+			"profil": [Vector2(-3.6, -0.03), Vector2(3.6, -0.03), Vector2(3.6, -1.6),
+				Vector2(-3.6, -1.6)], "ebene": 1},
+	{"name": "Wehrkörper hinten", "form": "sweep", "von": 289.0, "bis": 294.0,
+			"profil": [Vector2(-3.6, -0.03), Vector2(3.6, -0.03), Vector2(3.6, -1.6),
+				Vector2(-3.6, -1.6)], "ebene": 1},
+]
+
+## Leitlinien (Ebene 16), je [Vector2(s, q)] = Innenseite, 0,6 m außerhalb
+## der Wegkante; dazwischen eine Schulter (Ebene 1). Höhe siehe Kopf.
+const LEITLINIE_HOCH := 5.7
+const LEITLINIE_GEHEIMNIS := 7.0
+const LEITLINIEN := [
+	{"name": "Querwand Start", "aussen": 1.0, "hoehe": LEITLINIE_GEHEIMNIS, "unten": 3.0,
+			"punkte": [Vector2(-4.0, -7.6), Vector2(-4.0, 7.6)]},
+	{"name": "Links", "aussen": -1.0, "hoehe": LEITLINIE_HOCH, "unten": 3.0,
+			"schulter": Vector2(-4.0, M_ENDE), "punkte": [
+				Vector2(-4.0, -6.6), Vector2(29.0, -6.6), Vector2(34.0, -5.35),
+				Vector2(118.0, -5.35), Vector2(120.0, -5.6), Vector2(180.0, -5.6),
+				Vector2(184.0, -5.1), Vector2(263.0, -5.1), Vector2(267.0, -4.1),
+				Vector2(M_ENDE, -4.1)]},
+	# Rechts mit den Nischen hinter G2 (78–88) und G3 (258–263).
+	{"name": "Rechts", "aussen": 1.0, "hoehe": LEITLINIE_HOCH, "unten": 3.0,
+			"schulter": Vector2(-4.0, M_ENDE), "punkte": [
+				Vector2(-4.0, 6.6), Vector2(29.0, 6.6), Vector2(34.0, 5.35),
+				Vector2(77.5, 5.35), Vector2(78.0, 6.6), Vector2(88.0, 6.6),
+				Vector2(88.5, 5.35), Vector2(118.0, 5.35), Vector2(120.0, 5.6),
+				Vector2(180.0, 5.6), Vector2(184.0, 5.1), Vector2(257.5, 5.1),
+				Vector2(258.0, 6.2), Vector2(263.0, 6.2), Vector2(263.5, 4.98),
+				Vector2(267.0, 4.1), Vector2(M_ENDE, 4.1)]},
+	{"name": "Rechts G1", "aussen": 1.0, "hoehe": LEITLINIE_GEHEIMNIS, "unten": 3.0,
+			"punkte": [Vector2(-4.0, 6.6), Vector2(4.5, 6.6)]},
+	{"name": "Rechts G2", "aussen": 1.0, "hoehe": LEITLINIE_GEHEIMNIS, "unten": 3.0,
+			"punkte": [Vector2(76.0, 5.35), Vector2(77.5, 5.35), Vector2(78.0, 6.6),
+				Vector2(88.0, 6.6), Vector2(88.5, 5.35), Vector2(90.0, 5.35)]},
+	{"name": "Rechts G3", "aussen": 1.0, "hoehe": LEITLINIE_GEHEIMNIS, "unten": 3.0,
+			"punkte": [Vector2(256.0, 5.1), Vector2(257.5, 5.1), Vector2(258.0, 6.2),
+				Vector2(263.0, 6.2), Vector2(263.5, 4.98), Vector2(265.0, 4.6)]},
+	{"name": "Querwand Ende", "aussen": 1.0, "hoehe": LEITLINIE_HOCH, "unten": 3.0,
+			"punkte": [Vector2(M_ENDE, 5.1), Vector2(M_ENDE, -5.1)]},
+]
+## Die Sturzprobe fällt neben dem Weg in „Boden − UNTER_BODEN".
+const UNTER_BODEN := 8.0
+
+# =========================================================== Spiel
+
+## Alle 49 Kisten (§6.4): 46 NORMAL (im Zeitmodus 15 Zeitkisten),
+## 2 FRUCHT_MEHRFACH, 1 LEBEN; keine SCHUTZ-Kisten (§1 Nr. 14 – der Keiler
+## ruft `sterben()` direkt). Auf q 0 nur im Lehrteil A, sonst q +2,2 bzw.
+## +2,0 in Gassen von höchstens drei, 1,2 m auseinander, über `boden_bei`.
+## "auf": Name eines Eintrags aus BEGEHBARES, auf dessen Oberkante sie steht.
+const KISTEN := [
+	# --- A: 7 NORMAL, dazu FRUCHT_MEHRFACH auf G1 ---
+	{"art": Kiste.Art.NORMAL, "s": 20.4, "q": 0.0},
+	{"art": Kiste.Art.NORMAL, "s": 21.6, "q": 0.0},
+	{"art": Kiste.Art.NORMAL, "s": 24.6, "q": 0.0},
+	{"art": Kiste.Art.NORMAL, "s": 25.8, "q": 0.0},
+	{"art": Kiste.Art.NORMAL, "s": 27.0, "q": 0.0},
+	# Auf G1 hinten und außen: Vorn innen bleibt Platz zum Landen.
+	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 2.0, "q": 4.3, "auf": "G1 Wurzelknie"},
+	{"art": Kiste.Art.NORMAL, "s": 2.0, "q": 5.5, "auf": "G1 Wurzelknie"},
+	{"art": Kiste.Art.NORMAL, "s": 0.8, "q": 6.0, "auf": "G1 Wurzelknie"},
+	# --- B: 13 ---
+	{"art": Kiste.Art.NORMAL, "s": 36.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 37.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 38.4, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 65.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 66.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 67.4, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 85.5, "q": 5.1, "auf": "G2 Böschungsbank"},
+	{"art": Kiste.Art.NORMAL, "s": 85.5, "q": 6.1, "auf": "G2 Böschungsbank"},
+	{"art": Kiste.Art.NORMAL, "s": 86.5, "q": 5.1, "auf": "G2 Böschungsbank"},
+	{"art": Kiste.Art.NORMAL, "s": 86.5, "q": 6.1, "auf": "G2 Böschungsbank"},
+	{"art": Kiste.Art.NORMAL, "s": 110.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 111.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 112.4, "q": 2.2},
+	# --- C: 9 ---
+	{"art": Kiste.Art.NORMAL, "s": 128.6, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 129.8, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 144.5, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 145.7, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 152.5, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 153.7, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 167.5, "q": 2.0},
+	{"art": Kiste.Art.NORMAL, "s": 168.7, "q": 2.0},
+	{"art": Kiste.Art.NORMAL, "s": 169.9, "q": 2.0},
+	# --- D: 12, dazu FRUCHT_MEHRFACH auf G3 ---
+	{"art": Kiste.Art.NORMAL, "s": 182.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 183.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 184.4, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 200.4, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 201.6, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 237.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 238.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 260.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 261.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 262.4, "q": 2.2},
+	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 259.9, "q": 4.9, "auf": "G3 Sonnensims"},
+	{"art": Kiste.Art.NORMAL, "s": 261.0, "q": 4.9, "auf": "G3 Sonnensims"},
+	{"art": Kiste.Art.NORMAL, "s": 262.1, "q": 4.9, "auf": "G3 Sonnensims"},
+	# --- E: 5, dazu LEBEN ---
+	{"art": Kiste.Art.NORMAL, "s": 271.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 272.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 273.4, "q": 2.2},
+	{"art": Kiste.Art.LEBEN, "s": 291.5, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 292.9, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 294.1, "q": 2.2},
+]
+
+## Früchte (§6.4, 119). Schema wie Level 01: "reihe" gleichmäßig von–bis auf
+## Höhe "h" (Vorgabe 0,9), auf Wunsch quer von "q" nach "q_ende"; "boden"
+## dasselbe auf 0,35 m (weist auf den Slide, Durchlässe); "bogen" über eine
+## Lücke, "scheitel" = Höhe der mittleren Frucht über der Decke; "punkte"
+## einzelne Vector3(s, q, Höhe über der Decke).
+const FRUECHTE := [
+	# --- A: 24 ---
+	# Eichelspur an der Schnauze des schlafenden Keilers vorbei.
+	{"art": "reihe", "von": 7.5, "bis": 12.5, "anzahl": 8, "q": -2.6, "q_ende": 0.0},
+	{"art": "boden", "von": 13.6, "bis": 16.6, "anzahl": 4, "q": 0.0},
+	# Über den Suhlgraben auf der Bahn des Slide-Sprungs: Scheitel 2,4 über
+	# dem Weg ist 3,2 über der Grabensohle (gemessen wird an der Decke).
+	{"art": "bogen", "von": 23.0, "bis": 28.6, "anzahl": 6, "q": 0.0, "scheitel": 3.2},
+	{"art": "punkte", "punkte": [Vector3(3.6, 4.6, 1.6), Vector3(3.0, 4.6, 2.6),
+			Vector3(2.6, 4.6, 3.4), Vector3(0.8, 4.6, 3.7), Vector3(0.4, 4.6, 3.7),
+			Vector3(2.0, 4.9, 4.4)]},
+	# --- B: 32 ---
+	{"art": "bogen", "von": 43.0, "bis": 45.0, "anzahl": 3, "q": 0.0, "scheitel": 1.9},
+	{"art": "boden", "von": 54.6, "bis": 57.6, "anzahl": 4, "q": 0.0},
+	{"art": "bogen", "von": 74.5, "bis": 78.5, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	# G2: eine Spur hinauf und oben über den Kisten.
+	{"art": "punkte", "punkte": [Vector3(79.6, 3.9, 1.2), Vector3(80.4, 4.4, 2.0),
+			Vector3(81.2, 4.9, 2.8), Vector3(81.8, 5.2, 3.3), Vector3(83.0, 5.4, 3.1),
+			Vector3(84.2, 5.6, 3.1), Vector3(86.0, 5.6, 4.0)]},
+	{"art": "bogen", "von": 92.0, "bis": 94.0, "anzahl": 3, "q": 0.0, "scheitel": 1.9},
+	{"art": "boden", "von": 100.6, "bis": 103.6, "anzahl": 4, "q": 0.0},
+	{"art": "reihe", "von": 112.0, "bis": 118.0, "anzahl": 5, "q": 0.0},
+	# --- C: 21 ---
+	{"art": "reihe", "von": 125.4, "bis": 127.4, "anzahl": 3, "q": 0.0},
+	{"art": "bogen", "von": 135.8, "bis": 140.2, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	{"art": "reihe", "von": 149.4, "bis": 151.4, "anzahl": 3, "q": 0.0},
+	{"art": "bogen", "von": 159.8, "bis": 164.2, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	{"art": "reihe", "von": 173.4, "bis": 175.4, "anzahl": 3, "q": 0.0},
+	# --- D: 30 ---
+	{"art": "bogen", "von": 193.5, "bis": 198.0, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	{"art": "boden", "von": 210.6, "bis": 213.6, "anzahl": 4, "q": 0.0},
+	{"art": "boden", "von": 218.6, "bis": 221.6, "anzahl": 4, "q": 0.0},
+	{"art": "bogen", "von": 228.0, "bis": 232.0, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	# Durch die Findlingsgasse: rechts an F1 vorbei, links an F2.
+	{"art": "punkte", "punkte": [Vector3(242.0, 1.8, 0.9), Vector3(244.0, 1.8, 0.9),
+			Vector3(247.0, 0.0, 0.9), Vector3(250.0, -1.8, 0.9), Vector3(252.0, -1.8, 0.9)]},
+	{"art": "punkte", "punkte": [Vector3(257.0, 3.4, 2.1), Vector3(257.8, 4.0, 3.2),
+			Vector3(258.8, 4.9, 3.5), Vector3(262.2, 4.9, 3.5), Vector3(262.2, 4.4, 3.5)]},
+	# --- E: 12 ---
+	# Auf der Bahn des Doppelsprungs über das Wehr (Füße im Scheitel 3,2).
+	{"art": "bogen", "von": 283.5, "bis": 289.5, "anzahl": 7, "q": 0.0, "scheitel": 3.6},
+	{"art": "reihe", "von": 290.5, "bis": 295.0, "anzahl": 5, "q": 0.0},
+]
+
+## Platzhalter der Durchlässe (K5): Oberkante des Riegels, Unterkante der
+## Kappe, Breite und Abstand der Latten (0,2 auf 1,0 m: 80 % offen).
+const RIEGEL_OBEN := 1.4
+const KAPPE_UNTEN := 4.2
+const LATTE := 0.2
+const LATTEN_ABSTAND := 1.0
+
+## Rastplätze (§6.5): Zonen auf `boden_bei`, Breite `breite_bei` + 2. Der
+## erste ist zugleich die Stelle des Weckens (L05Jagd.WECK_S).
+const RASTPLAETZE: Array[float] = [31.0, 122.0, 178.0, 204.0, 268.0]
+## Die Zone ist so hoch, dass auch ein Doppelsprung (Füße 3,2 + Figur 1,3)
+## nicht darüber hinwegkommt, und so tief, dass ein Slide sie nicht
+## überspringt.
+const RASTPLATZ_HOEHE := 8.0
+const RASTPLATZ_TIEFE := 2.0
+
+## Geheimnisse (§6.3) zum Nachschlagen: Ort, Weg hinauf, Inhalt.
+const GEHEIMNISSE := [
+	{"name": "G1 Eichelvorrat", "auf": "G1 Wurzelknie", "weg": "Doppelsprung",
+			"inhalt": "FRUCHT_MEHRFACH, 2 NORMAL, 6 Früchte"},
+	{"name": "G2 Böschungsbank", "auf": "G2 Böschungsbank",
+			"weg": "Slide-Sprung oder Doppelsprung, Einzelsprung nicht",
+			"inhalt": "4 NORMAL, 7 Früchte (Spur und Bank)"},
+	{"name": "G3 Sonnensims", "auf": "G3 Sonnensims",
+			"weg": "Trittstein, dann zwei Einzelsprünge",
+			"inhalt": "FRUCHT_MEHRFACH, 2 NORMAL, 5 Früchte"},
+]
+
+## Harte Sichtweiten (Entwurf §9.5, Kostenmessung §10): Spiel und HUD sind
+## ohne sie der größte Posten.
+const SICHTWEITEN := {"kiste": 50.0, "frucht": 40.0, "kiste_web": 40.0, "frucht_web": 35.0}
+
+## Richtzeit, vorläufig (§6.6): 1,3 × Bot-Zeit folgt aus dem Spieltest.
+const ZIELZEIT := 46.0
+
+# =========================================================== Proben
+
+## Eine Landung zählt ab so weit vor dem Rand der Gegenseite (wie Level 01).
+const LANDUNG_SPIEL := 0.45
+## Freiraum (Entwurf §7.1, §2.6): K1 über |q| ≤ K1_Q zwischen K1_UNTEN und
+## K1_OBEN über dem Weg nichts Sichtbares; K2 Kamera über jedem Durchlass
+## mindestens K2_MIN über seinem Boden; die Kamera mindestens
+## KAMERA_UEBER_FIGUR über der Figur – 3,5 m laut Entwurf, 5 cm Spiel für
+## die Glättung der Kurve an den Knicken der KURVENHOEHE (gemessen 3,486).
+const K1_Q := 3.5
+const K1_UNTEN := 4.6
+const K1_OBEN := 9.2
+const K2_MIN := 5.3
+const KAMERA_UEBER_FIGUR := 3.45
+## K1: Dreiecke werden in Punkten höchstens so weit auseinander abgetastet.
+const K1_RASTER := 1.0
+
+## Die Jagd (Modul `L05Jagd`); gesetzt von ihrem Bauschritt.
+var jagd: L05Jagd
+## Meldungen, die nur einmal kommen.
+var _gemeldet := {}
 
 
 func ende() -> float:
 	return M_ENDE
 
 
+## Ohne Wirkung: Statt `absturzzonen` liegen Todeszonen auf fester Höhe.
 func absturz_hoehe() -> float:
-	return -5.0
+	return -UNTER_BODEN
 
 
+# =========================================================== Aufbau
+
+## Gerüst nach Entwurf §9.4. Was ein späteres Paket baut (Hang, Böschungen,
+## Wasser, Eiche, Wald, Rasen, Licht), fehlt hier noch; die Reihenfolge der
+## übrigen Schritte bleibt.
 func _bauschritte() -> Array:
-	return [
-		{"text": "Schlucht wird vermessen", "tun": _verlauf_anlegen},
-		{"text": "Felswände", "tun": _waende_bauen},
-		{"text": "Boden wird gelegt", "tun": _boden_bauen},
-		{"text": "Absturzzone", "tun": _absturz_spannen},
-		{"text": "Felsen und Stämme", "tun": _hindernisse_setzen},
-		{"text": "Kisten werden gestapelt", "tun": _kisten_setzen},
-		{"text": "Früchte werden verteilt", "tun": _fruechte_setzen},
-		{"text": "Rastplätze", "tun": _checkpoints_setzen},
-		{"text": "Wald am Rand", "tun": _deko_bauen},
-		{"text": "Der Keiler wittert Beute", "tun": _flucht_einrichten},
+	_verlauf_anlegen()
+	var schritte: Array = [
+		{"text": "Der Hohlweg wird gelegt", "tun": _weg_bauen},
+		{"text": "Wurzelbögen und Hürden", "tun": _wegbauten_setzen},
+		{"text": "Kisten, Früchte, Rastplätze", "tun": _spiel_setzen},
 	]
+	schritte.append_array(L05Jagd.bauschritte(self))
+	return schritte
 
 
-# =========================================================== Verlauf
-
-## Lange Bögen. Enge Kurven wären hier doppelt unfair: Man sieht ohnehin
-## erst spät, was vor einem liegt, weil die Kamera nach hinten schaut.
 func _verlauf_anlegen() -> void:
-	verlauf = LevelWerkzeuge.kurve_aus_punkten([
-		Vector3(0, 0, 6),
-		Vector3(0, 0, -34),
-		Vector3(6, 0, -72),
-		Vector3(22, 1, -106),
-		Vector3(48, 1, -132),
-		Vector3(80, 2, -146),
-		Vector3(114, 2, -144),
-		Vector3(144, 3, -128),
-		Vector3(166, 4, -102),
-		Vector3(178, 5, -70),
-		Vector3(180, 6, -36),
-		Vector3(174, 6, -4),
-	])
-
-
-func _waende_bauen() -> void:
-	var stoff := Materialbibliothek.fels()
-	var waende := [{
-		"von": -6.0, "bis": M_ENDE + 6.0,
-		"abstand": WANDABSTAND, "hoehe": 12.0,
-	}]
-	LevelWerkzeuge.schluchtwand(geometrie, verlauf, waende, stoff, {
-		"schritt": 3.0, "neigung": 4.0, "zacken": 3.0, "sockel": 20.0, "saat": 5051,
+	Effekte.staubfarbe = Farben.WEG_HELL.lerp(Farben.KIES_HELL, 0.3)
+	verlauf = kurve_bauen()
+	start_strecke = START_S
+	weg = Wegdaten.new(verlauf, {
+		"abschnitte": _abschnitte_rechnen(),
+		"begehbares": BEGEHBARES,
+		"leitlinien": LEITLINIEN,
 	})
-	LevelWerkzeuge.leitwand(geometrie, verlauf, 0.0, M_ENDE, WANDABSTAND - 0.4, 5.0)
-	LevelWerkzeuge.sims(geometrie, verlauf, [{
-		"von": -4.0, "bis": M_ENDE, "innen": WANDABSTAND - 2.0,
-		"aussen": WANDABSTAND + 0.6, "hoehe": -0.05,
-	}], Materialbibliothek.gras())
+	weg.todeszonen = _todeszonen_rechnen()
 
 
-func _boden_bauen() -> void:
-	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
-		"oben": Materialbibliothek.waldweg(),
-		"kante": Materialbibliothek.gras(),
-		"klippe": Materialbibliothek.fels(),
-	}, {"tiefe": 12.0, "schritt": 1.4, "kante_hoehe": 0.3, "kante_breite": 0.7})
-	luecken_markieren()
+## Die Kurve (siehe Kopf, VERLAUF): erst der Grundriss durch KURVE (flach),
+## dann alle KURVE_DICHTE Meter ein Punkt darauf, so weit entlang, dass die
+## 3D-Bogenlänge bis dorthin `s` ist, mit der Höhe KURVENHOEHE(s).
+static func kurve_bauen() -> Curve3D:
+	var flach: Array[Vector3] = []
+	for p: Vector3 in KURVE:
+		flach.append(Vector3(p.x, 0.0, p.z))
+	var grund := LevelWerkzeuge.kurve_aus_punkten(flach)
+	var punkte: Array[Vector3] = []
+	var s := 0.0
+	while s < KURVE_ENDE - 0.5:
+		punkte.append(_kurvenpunkt(grund, s))
+		s += KURVE_DICHTE
+	punkte.append(_kurvenpunkt(grund, KURVE_ENDE))
+	return LevelWerkzeuge.kurve_aus_punkten(punkte)
 
 
-func _absturz_spannen() -> void:
-	absturzzonen(20.0, 40.0)
+static func _kurvenpunkt(grund: Curve3D, s: float) -> Vector3:
+	var p := LevelWerkzeuge.punkt_frei(grund, _grundlaenge(s))
+	p.y = kurvenhoehe(s)
+	return p
 
 
-# =========================================================== Hindernisse
-
-## Ein Hindernis ist ein fester Körper (darüber springen oder ausweichen)
-## und darum eine etwas größere Zone: Wer ihn berührt, stolpert.
-func _hindernis(strecke: float, seitlich: float, breite: float,
-		als_stamm: bool) -> void:
-	var zone := Area3D.new()
-	zone.collision_layer = 0
-	zone.collision_mask = 2
-	zone.position = LevelWerkzeuge.punkt(verlauf, strecke, seitlich, 0.0)
-	zone.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
-	zone.body_entered.connect(_auf_hindernis)
-	zone.add_to_group("hindernis")
-	zone.set_meta("strecke", strecke)
-	zone.set_meta("seitlich", seitlich)
-	zone.set_meta("breite", breite)
-	objekte.add_child(zone)
-
-	var hoehe := 1.1 if als_stamm else 1.6
-	var form := CollisionShape3D.new()
-	var kasten := BoxShape3D.new()
-	kasten.size = Vector3(breite + 0.3, hoehe + 0.15, 1.7)
-	form.shape = kasten
-	form.position.y = (hoehe + 0.15) * 0.5
-	zone.add_child(form)
-
-	var koerper := StaticBody3D.new()
-	koerper.collision_layer = 1
-	koerper.collision_mask = 0
-	var fest := CollisionShape3D.new()
-	var block := BoxShape3D.new()
-	block.size = Vector3(breite, hoehe, 1.2 if als_stamm else 1.4)
-	fest.shape = block
-	fest.position.y = hoehe * 0.5
-	koerper.add_child(fest)
-	zone.add_child(koerper)
-
-	if als_stamm:
-		var stamm := MeshInstance3D.new()
-		var walze := CylinderMesh.new()
-		walze.top_radius = hoehe * 0.45
-		walze.bottom_radius = hoehe * 0.45
-		walze.height = breite
-		walze.radial_segments = 10
-		stamm.mesh = walze
-		stamm.material_override = Materialbibliothek.rinde()
-		stamm.rotation.z = PI * 0.5
-		stamm.position.y = hoehe * 0.45
-		zone.add_child(stamm)
-	else:
-		var brocken := STEIN.instantiate() as Stein
-		brocken.groesse = breite * 0.75
-		brocken.kollision = false
-		brocken.saat = int(strecke * 5.0) + 3
-		zone.add_child(brocken)
+## KURVENHOEHE an der Stelle `s` (linear, vor dem Anfang und hinter dem
+## Ende wie dort).
+static func kurvenhoehe(s: float) -> float:
+	var erster: Vector2 = KURVENHOEHE[0]
+	if s <= erster.x:
+		return erster.y
+	for i in KURVENHOEHE.size() - 1:
+		var a: Vector2 = KURVENHOEHE[i]
+		var b: Vector2 = KURVENHOEHE[i + 1]
+		if s <= b.x:
+			return lerpf(a.y, b.y, (s - a.x) / (b.x - a.x))
+	var letzter: Vector2 = KURVENHOEHE[KURVENHOEHE.size() - 1]
+	return letzter.y
 
 
-func _auf_hindernis(koerper: Node3D) -> void:
-	if koerper is Spieler and not _fertig:
-		(koerper as Spieler).stolpern(STOLPER_DAUER)
+## Länge im Grundriss bis zur 3D-Bogenlänge `s`. KURVENHOEHE ist stückweise
+## linear in `s`, die Neigung k also je Stück fest: Ein Meter Bogen ist dort
+## √(1 − k²) Meter Grundriss.
+static func _grundlaenge(s: float) -> float:
+	var laenge := 0.0
+	var bis_hier := 0.0
+	for i in KURVENHOEHE.size() - 1:
+		var a: Vector2 = KURVENHOEHE[i]
+		var b: Vector2 = KURVENHOEHE[i + 1]
+		var k := (b.y - a.y) / (b.x - a.x)
+		var ende_stueck := minf(s, b.x)
+		if ende_stueck > bis_hier:
+			laenge += (ende_stueck - bis_hier) * sqrt(1.0 - k * k)
+			bis_hier = ende_stueck
+		if s <= b.x:
+			break
+	if s > bis_hier:
+		laenge += s - bis_hier
+	return laenge
 
 
-## Zwischen zwei Hindernissen liegen nie weniger als 16 m. Weil die Kamera
-## nach hinten schaut, sieht man sie erst spät – enger gesetzt wäre es
-## Raten statt Reagieren.
-func _hindernisse_setzen() -> void:
-	# ---------- Aufbruch ----------
-	_hindernis(24.0, -3.4, 3.2, false)
-	_hindernis(44.0, 3.4, 3.2, false)
-	_hindernis(62.0, 0.0, 3.6, true)
-
-	# ---------- Engstelle ----------
-	_hindernis(84.0, -3.8, 3.4, true)
-	_hindernis(102.0, 3.8, 3.4, false)
-	_hindernis(132.0, 0.0, 4.0, true)
-
-	# ---------- Bruch ----------
-	_hindernis(158.0, -3.6, 3.2, false)
-	_hindernis(176.0, 3.6, 3.2, true)
-	_hindernis(198.0, 0.0, 3.8, false)
-	_hindernis(226.0, -3.4, 3.2, true)
-
-	# ---------- Endspurt ----------
-	_hindernis(250.0, 3.6, 3.4, false)
-	_hindernis(268.0, -3.6, 3.4, true)
-	_hindernis(298.0, 0.0, 4.0, false)
-	_hindernis(318.0, 3.4, 3.2, true)
+func _kurve_y(s: float) -> float:
+	return verlauf.sample_baked(clampf(s, 0.0, verlauf.get_baked_length())).y
 
 
-# =========================================================== Inhalt
+## Breite laut BREITEN an der Stelle `s`.
+static func breite_nach_tabelle(s: float) -> float:
+	var erster: Vector2 = BREITEN[0]
+	if s <= erster.x:
+		return erster.y
+	for i in BREITEN.size() - 1:
+		var a: Vector2 = BREITEN[i]
+		var b: Vector2 = BREITEN[i + 1]
+		if s <= b.x:
+			return lerpf(a.y, b.y, (s - a.x) / (b.x - a.x))
+	var letzter: Vector2 = BREITEN[BREITEN.size() - 1]
+	return letzter.y
 
-func _kisten_setzen() -> void:
-	for eintrag in [
-		# Nicht vor 17 m: Dort steht die Figur am Start (`start_strecke`).
-		{"s": 17.0, "n": 3, "q": 0.0}, {"s": 32.0, "n": 4, "q": 3.0},
-		{"s": 52.0, "n": 4, "q": -3.0}, {"s": 92.0, "n": 5, "q": 0.0},
-		{"s": 112.0, "n": 4, "q": -2.6}, {"s": 140.0, "n": 4, "q": 2.6},
-		{"s": 166.0, "n": 5, "q": 0.0}, {"s": 206.0, "n": 4, "q": 2.8},
-		{"s": 234.0, "n": 4, "q": -2.8}, {"s": 258.0, "n": 5, "q": 0.0},
-		{"s": 280.0, "n": 4, "q": 3.2}, {"s": 306.0, "n": 5, "q": 0.0},
-		{"s": 330.0, "n": 6, "q": 0.0},
-	]:
-		for i in eintrag["n"]:
-			kiste(Kiste.Art.NORMAL, eintrag["s"] + i * 1.6, eintrag["q"])
-	kiste(Kiste.Art.LEBEN, 344.0, 0.0)
-	# Schutz vor den beiden dichtesten Hindernisfolgen – ein abgefangener
-	# Stolperer ist hier bares Vorsprung.
-	kiste(Kiste.Art.SCHUTZ, 76.0, 0.0)
-	kiste(Kiste.Art.SCHUTZ, 244.0, 0.0)
+
+## Die Abschnitte im Schema der Wegdaten aus den Tabellen (siehe Kopf, WEG):
+##  1. feste Stücke – Terrassen, Suhlgraben, Absätze mit ihren Rampen
+##     (Rampen beginnen und enden auf der Höhe der fertigen Kurve, damit an
+##     keiner Naht eine Stufe entsteht);
+##  2. dazwischen folgt die Decke der Kurve (ohne "hoehe");
+##  3. geschnitten an jeder Lückengrenze und jeder Stützstelle der Breite,
+##     Lücken fallen heraus.
+func _abschnitte_rechnen() -> Array[Dictionary]:
+	var fest: Array[Dictionary] = []
+	for t: Dictionary in TERRASSEN:
+		var h: float = t["hoehe"]
+		fest.append({"name": t["name"], "von": t["von"], "bis": t["bis"], "h0": h, "h1": h})
+	fest.append({"name": "Suhlgraben", "von": SUHLGRABEN.x, "bis": SUHLGRABEN.y,
+			"h0": SUHLGRABEN.z, "h1": SUHLGRABEN.z})
+	for i in ABSAETZE.size():
+		var a: Dictionary = ABSAETZE[i]
+		var name_a: String = a["name"]
+		var von: float = a["von"]
+		var bis: float = a["bis"]
+		var h: float = a["hoehe"]
+		fest.append({"name": name_a, "von": von, "bis": bis, "h0": h, "h1": h})
+		# Rampe davor, außer sie fällt mit der Rampe hinter dem vorigen
+		# Absatz zusammen (dann baut jener die gemeinsame).
+		var vorher_frei := i == 0 or float(ABSAETZE[i - 1]["bis"]) + RAMPE <= von - RAMPE
+		if vorher_frei:
+			fest.append({"name": "Rampe vor " + name_a, "von": von - RAMPE, "bis": von,
+					"h0": _kurve_y(von - RAMPE), "h1": h})
+		var nachher_frei := i == ABSAETZE.size() - 1 \
+				or bis + RAMPE <= float(ABSAETZE[i + 1]["von"]) - RAMPE
+		if nachher_frei:
+			var ende_rampe := minf(bis + RAMPE, M_ENDE)
+			fest.append({"name": "Rampe hinter " + name_a, "von": bis, "bis": ende_rampe,
+					"h0": h, "h1": _kurve_y(ende_rampe)})
+		else:
+			var naechster: Dictionary = ABSAETZE[i + 1]
+			fest.append({"name": "Rampe nach " + String(naechster["name"]), "von": bis,
+					"bis": naechster["von"], "h0": h, "h1": naechster["hoehe"]})
+	fest.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["von"]) < float(b["von"]))
+	# Lückenlos über den ganzen Weg; zwischen festen Stücken die Kurve.
+	var stuecke: Array[Dictionary] = []
+	var bis_hier := 0.0
+	for f in fest:
+		var f_von: float = f["von"]
+		if f_von < bis_hier - 0.001:
+			push_error("Level 05: festes Wegstück %s überlappt seinen Vorgänger" % String(f["name"]))
+		if f_von > bis_hier + 0.001:
+			stuecke.append({"name": "Kurve", "von": bis_hier, "bis": f_von})
+		stuecke.append(f)
+		bis_hier = f["bis"]
+	if bis_hier < M_ENDE - 0.001:
+		stuecke.append({"name": "Kurve", "von": bis_hier, "bis": M_ENDE})
+	var schnitte: Array[float] = []
+	for l: Dictionary in LUECKEN:
+		schnitte.append(float(l["von"]))
+		schnitte.append(float(l["bis"]))
+	for b: Vector2 in BREITEN:
+		schnitte.append(b.x)
+	var liste: Array[Dictionary] = []
+	for st in stuecke:
+		var st_von: float = st["von"]
+		var st_bis: float = st["bis"]
+		var grenzen: Array[float] = [st_von]
+		for x in schnitte:
+			if x > st_von + 0.001 and x < st_bis - 0.001 and not grenzen.has(x):
+				grenzen.append(x)
+		grenzen.append(st_bis)
+		grenzen.sort()
+		for k in grenzen.size() - 1:
+			var a := grenzen[k]
+			var b := grenzen[k + 1]
+			if _in_luecke((a + b) * 0.5):
+				continue
+			var e := {"name": st["name"], "von": a, "bis": b,
+					"breite": breite_nach_tabelle(a), "breite_ende": breite_nach_tabelle(b)}
+			if st.has("h0"):
+				var h0: float = st["h0"]
+				var h1: float = st["h1"]
+				e["hoehe"] = lerpf(h0, h1, inverse_lerp(st_von, st_bis, a))
+				e["hoehe_ende"] = lerpf(h0, h1, inverse_lerp(st_von, st_bis, b))
+			liste.append(e)
+	return liste
+
+
+static func _in_luecke(s: float) -> bool:
+	for l: Dictionary in LUECKEN:
+		if s > float(l["von"]) and s < float(l["bis"]):
+			return true
+	return false
+
+
+## Todeszonen (siehe Kopf): „Boden − UNTER_BODEN" von hinter der Querwand
+## bis zum Ende der Kurve, dazu je Lücke eine auf fester Höhe.
+func _todeszonen_rechnen() -> Array[Dictionary]:
+	var zonen := Wegdaten.zonen_unter_boden(weg, -8.0, KURVE_ENDE, -30.0, 30.0, UNTER_BODEN)
+	for l: Dictionary in LUECKEN:
+		var von: float = l["von"]
+		var bis: float = l["bis"]
+		var tod_y: float = l["tod_y"]
+		var halb := maxf(breite_nach_tabelle(von), breite_nach_tabelle(bis)) * 0.5 + 2.0
+		zonen.append({"name": l["name"], "von": von - 0.5, "bis": bis + 0.5,
+				"q_von": -halb, "q_bis": halb, "oben_y": tod_y, "unten_y": tod_y - 12.0})
+	return zonen
+
+
+func _weg_bauen() -> void:
+	# Platzhalterstoff (Waldweg); die Wegdecke des Hohlwegs folgt (P3).
+	weg.decke_bauen(geometrie, Callable())
+	weg.schultern_bauen(geometrie)
+	weg.leitlinien_bauen(geometrie)
+	weg.begehbares_bauen(geometrie, _begehbar_platzhalter)
+	weg.todeszonen_bauen(geometrie)
+
+
+## Grauer Platzhalter in der Form der Kollision, ohne Schatten: Schatten
+## werfen nur Stämme, Kisten, Figur und Keiler (Entwurf §10) – jeder
+## Schattenwerfer kostet je Schattenstufe einen Zeichenaufruf mehr. Die
+## Optik kommt mit den Wegbauten (P5).
+func _begehbar_platzhalter(e: Dictionary) -> Node3D:
+	var sicht := weg.platzhalter(e)
+	_ohne_schatten(sicht)
+	return sicht
+
+
+static func _ohne_schatten(wurzel: Node) -> void:
+	if wurzel is GeometryInstance3D:
+		(wurzel as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for kind in wurzel.get_children():
+		_ohne_schatten(kind)
+
+
+## Für LevelCheck (Oberseiten des Begehbaren) und Kisten auf Begehbarem.
+func begehbar(name_: String) -> Dictionary:
+	return weg.begehbar(name_)
+
+
+## Durchlässe, Hürden, Findlinge als graue Platzhalter in der Form ihrer
+## Körper, ohne Schatten wie das Begehbare (Optik: Paket P5).
+func _wegbauten_setzen() -> void:
+	for d: Dictionary in DURCHLAESSE:
+		var koerper := duckdurchlass(float(d["s"]), float(d["tiefe"]),
+				{"stolperzone": L05Jagd.STOLPER_DAUER, "optik": _durchlass_platzhalter})
+		koerper.name = String(d["name"])
+		_ohne_schatten(koerper)
+	for h: Dictionary in HUERDEN:
+		var koerper := huerde(float(h["s"]), {"stolperzone": L05Jagd.STOLPER_DAUER})
+		koerper.name = String(h["name"])
+		_ohne_schatten(koerper)
+	for f: Dictionary in FINDLINGE:
+		var koerper := findling_hindernis(float(f["s"]), float(f["q"]), float(f["breite"]),
+				{"stolperzone": L05Jagd.STOLPER_DAUER})
+		koerper.name = String(f["name"])
+		_ohne_schatten(koerper)
+
+
+# =========================================================== Spiel
+
+## Sichtweiten zuerst (sie greifen bei allem, was danach unter `objekte`
+## eintritt), dann Kisten, Früchte, Rastplätze, Meldungen, Portale.
+func _spiel_setzen() -> void:
+	sichtweiten_einrichten(SICHTWEITEN)
+	for e: Dictionary in KISTEN:
+		var art: Kiste.Art = e["art"]
+		var s: float = e["s"]
+		var q: float = e["q"]
+		var ueber := 0.5
+		if e.has("auf"):
+			ueber = weg.oberkante(String(e["auf"]), s, q) - boden_bei(s) + 0.5
+		kiste_auf(art, s, q, ueber)
+	_fruechte_setzen()
+	for s in RASTPLAETZE:
+		_rastplatz(s)
+	_meldung(HINWEIS_S, HINWEIS_SLIDE, 2.4)
+	_meldung(ENTKOMMEN_S + 0.2, "Entkommen!", 2.4)
+	# Ohne Lichtsäule (siehe `portale_auf`): Im Rückblick stünde sie mitten
+	# in der Kamerabahn.
+	portale_auf(START_S, ZIEL_S, 0.0)
 
 
 func _fruechte_setzen() -> void:
-	fruechte_reihe(4.0, 20.0, 8, 0.0)
-	fruechte_reihe(28.0, 40.0, 7, 3.0)
-	fruechte_reihe(48.0, 60.0, 7, -3.0)
-	fruechte_bogen(70.5, 74.5, 6, 0.0, 3.4)
-	fruechte_reihe(78.0, 96.0, 8, 0.0)
-	fruechte_bogen(118.5, 122.5, 6, 0.0, 3.4)
-	fruechte_reihe(126.0, 148.0, 9, -2.6)
-	fruechte_reihe(154.0, 184.0, 11, 0.0)
-	fruechte_bogen(186.5, 190.5, 6, 0.0, 3.6)
-	fruechte_reihe(194.0, 212.0, 8, 2.8)
-	fruechte_bogen(214.5, 218.5, 6, 0.0, 3.6)
-	fruechte_reihe(222.0, 238.0, 7, -2.8)
-	fruechte_reihe(244.0, 284.0, 14, 0.0)
-	fruechte_bogen(286.5, 290.5, 6, 0.0, 3.8)
-	fruechte_reihe(294.0, 346.0, 16, 0.0)
+	for e: Dictionary in FRUECHTE:
+		match String(e["art"]):
+			"reihe", "boden":
+				var anzahl: int = e["anzahl"]
+				var von: float = e["von"]
+				var bis: float = e["bis"]
+				var q: float = e["q"]
+				var q_ende: float = e.get("q_ende", q)
+				var h: float = 0.35 if String(e["art"]) == "boden" else float(e.get("h", 0.9))
+				for i in anzahl:
+					var t := float(i) / maxf(float(anzahl - 1), 1.0)
+					frucht_auf(lerpf(von, bis, t), lerpf(q, q_ende, t), h)
+			"bogen":
+				fruechte_bogen_auf(float(e["von"]), float(e["bis"]), int(e["anzahl"]),
+						float(e["q"]), float(e["scheitel"]))
+			"punkte":
+				for p: Vector3 in e["punkte"]:
+					frucht_auf(p.x, p.y, p.z)
 
 
-## Rastplätze wie in Level 04: Der Fluchtläufer braucht eine Strecke als
-## Rückkehrpunkt, keine Weltposition.
-func _checkpoints_setzen() -> void:
-	# ACHTUNG: nicht dicht vor eine Lücke legen. Bei 70.0 begann genau an
-	# dieser Stelle die erste Spalte – nach dem Respawn stand man auf der
-	# Kante, lief im nächsten Bild hinein, starb und landete wieder auf
-	# derselben Kante. Das Spiel hing dann in einer Todesschleife fest.
-	for s: float in [60.0, 150.0, 240.0, 300.0]:
-		var zone := Area3D.new()
-		zone.collision_layer = 0
-		zone.collision_mask = 2
-		zone.position = LevelWerkzeuge.punkt(verlauf, s, 0.0, 1.2)
-		zone.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
-		var form := CollisionShape3D.new()
-		var kasten := BoxShape3D.new()
-		kasten.size = Vector3(BAHN + 2.0, 5.0, 1.5)
-		form.shape = kasten
-		zone.add_child(form)
-		zone.body_entered.connect(_auf_checkpoint.bind(s))
-		objekte.add_child(zone)
-
-		for seite: float in [-1.0, 1.0]:
-			var mast := MeshInstance3D.new()
-			var stange := CylinderMesh.new()
-			stange.top_radius = 0.08
-			stange.bottom_radius = 0.1
-			stange.height = 3.0
-			mast.mesh = stange
-			mast.material_override = Materialbibliothek.kistenholz(Farben.HOLZ_DUNKEL)
-			mast.position = LevelWerkzeuge.punkt(verlauf, s, seite * (BAHN * 0.5 - 0.8), 1.5)
-			deko.add_child(mast)
-			var fahne := MeshInstance3D.new()
-			var tuch := BoxMesh.new()
-			tuch.size = Vector3(1.0, 0.6, 0.06)
-			fahne.mesh = tuch
-			fahne.material_override = Materialbibliothek.leuchtend(Farben.PORTAL_START, 0.9)
-			fahne.position = mast.position + Vector3(0.0, 1.2, 0.0)
-			fahne.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
-			deko.add_child(fahne)
+## Rastplatz: eine Zone quer über den Weg (auf der Decke, Breite + 2 m) und
+## ein Pfahl mit leuchtender Laterne am rechten Rand (Platzhalter; der
+## Wegpfahl kommt mit den Wegbauten, P5).
+## Platzhalter eines Durchlasses nach K5 (Entwurf §7.1, §1 Nr. 2): massiv
+## nur der Riegel (DUCK_UNTEN bis RIEGEL_OBEN), darüber Latten mit 80 %
+## offener Fläche, oben eine Kappe bis zur Oberkante des Körpers, außen zwei
+## Pfosten – ein Netz, grau, ohne Schatten. WARUM nicht der Kasten in
+## Körperform: Im Rückblick steht jeder Durchlass zwischen Kamera und Figur,
+## solange sie 1,3–16 m davor läuft (Sichtlinie von 5,6 m Höhe 21 m voraus
+## auf die Figur); ein voller Kasten verdeckte sie dort jedes Mal
+## (gesehen im Foto bei s 8: die Figur hinter dem Gatter Ü).
+func _durchlass_platzhalter(s: float, tiefe: float) -> Node3D:
+	var halb := maxf(breite_bei(s), breite_bei(s + tiefe)) * 0.5 + 1.0
+	var teile: Array[Vector4] = [
+		Vector4(-halb, halb, DUCK_UNTEN, RIEGEL_OBEN),
+		Vector4(-halb, halb, KAPPE_UNTEN, DUCK_OBEN),
+		Vector4(-halb, -halb + 0.3, 0.0, DUCK_OBEN),
+		Vector4(halb - 0.3, halb, 0.0, DUCK_OBEN),
+	]
+	var q := -halb + LATTEN_ABSTAND
+	while q < halb - LATTEN_ABSTAND * 0.5:
+		teile.append(Vector4(q - LATTE * 0.5, q + LATTE * 0.5, RIEGEL_OBEN, KAPPE_UNTEN))
+		q += LATTEN_ABSTAND
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for t in teile:
+		st.append_from(Wegdaten.schnittnetz(_hindernis_schnitte(s, s + tiefe, t.x, t.y, t.z, t.w)),
+				0, Transform3D.IDENTITY)
+	var netz := MeshInstance3D.new()
+	netz.name = "Platzhalter"
+	netz.mesh = st.commit()
+	netz.material_override = Materialbibliothek.einfarbig(Color(0.52, 0.52, 0.5))
+	netz.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return netz
 
 
-func _auf_checkpoint(koerper: Node3D, s: float) -> void:
-	if koerper is Spieler and not _fertig:
-		var ort := LevelWerkzeuge.punkt(verlauf, s, 0.0, 1.0)
-		if GameState.checkpoint.distance_to(ort) > 1.0:
-			GameState.setze_checkpoint(ort)
-			GameState.zeige_nachricht("Rastplatz", 1.2)
+func _rastplatz(s: float) -> void:
+	var zone := Area3D.new()
+	zone.name = "Rastplatz %.0f" % s
+	zone.collision_layer = 0
+	zone.collision_mask = 2
+	zone.monitorable = false
+	var form := CollisionShape3D.new()
+	var kasten := BoxShape3D.new()
+	kasten.size = Vector3(breite_bei(s) + 2.0, RASTPLATZ_HOEHE, RASTPLATZ_TIEFE)
+	form.shape = kasten
+	zone.add_child(form)
+	zone.position = weg_punkt(s, 0.0, RASTPLATZ_HOEHE * 0.5 - 1.0)
+	zone.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
+	zone.body_entered.connect(_auf_rastplatz.bind(s))
+	objekte.add_child(zone)
+
+	var pfahl := MeshInstance3D.new()
+	pfahl.name = "Rastplatzpfahl"
+	var stange := CylinderMesh.new()
+	stange.top_radius = 0.08
+	stange.bottom_radius = 0.1
+	stange.height = 2.4
+	stange.radial_segments = 8
+	pfahl.mesh = stange
+	pfahl.material_override = Materialbibliothek.einfarbig(Color(0.52, 0.52, 0.5))
+	pfahl.position = weg_punkt(s, breite_bei(s) * 0.5 + 0.3, 1.2)
+	pfahl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	deko.add_child(pfahl)
+	var laterne := MeshInstance3D.new()
+	laterne.name = "Rastplatzlaterne"
+	var licht := BoxMesh.new()
+	licht.size = Vector3(0.3, 0.4, 0.3)
+	laterne.mesh = licht
+	laterne.material_override = Materialbibliothek.leuchtend(Farben.PORTAL_START, 0.9)
+	laterne.position = weg_punkt(s, breite_bei(s) * 0.5 + 0.3, 2.6)
+	laterne.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	deko.add_child(laterne)
 
 
-func _deko_bauen() -> void:
-	var wuerfel := randi()
-	seed(50511)
-	for i in 110:
-		var s := randf_range(-8.0, M_ENDE + 8.0)
-		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var baum := BAUM.instantiate() as Baum
-		baum.art = Baum.Art.NADELBAUM if i % 4 == 0 else Baum.Art.LAUBBAUM
-		baum.hoehe = randf_range(5.0, 11.0)
-		baum.saat = 12000 + i
-		baum.kollision = false
-		baum.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * randf_range(WANDABSTAND - 1.8, WANDABSTAND - 0.3), 0.0)
-		deko.add_child(baum)
-
-	for i in 50:
-		var s := randf_range(2.0, M_ENDE - 2.0)
-		var seite: float = -1.0 if i % 2 == 0 else 1.0
-		var horst := GRASFELD.instantiate() as Grasfeld
-		horst.flaeche = Vector2(3.5, 3.5)
-		horst.saat = 12500 + i
-		horst.position = LevelWerkzeuge.punkt(verlauf, s,
-				seite * randf_range(BAHN * 0.5 - 2.0, BAHN * 0.5 - 0.4), 0.0)
-		deko.add_child(horst)
-	seed(wuerfel)
-
-
-# =========================================================== Flucht
-
-func _flucht_einrichten() -> void:
-	_laeufer = get_tree().get_first_node_in_group("spieler") as Spieler
-	if _laeufer == null:
-		push_warning("Level 05 ohne Spielfigur – ist Player.tscn in der Szene?")
+func _auf_rastplatz(koerper: Node3D, s: float) -> void:
+	if not koerper is Spieler:
 		return
-	_keiler = KEILER.instantiate() as Keiler
-	objekte.add_child(_keiler)
-	# Die Figur startet ein Stück im Weg, der Keiler mit VORSPRUNG dahinter –
-	# so steht auch er von Anfang an auf dem Weg und nicht im Leeren.
-	start_strecke = VORSPRUNG + 2.0
-	_keiler_s = start_strecke - VORSPRUNG
-	if not _laeufer.gestorben.is_connected(_nach_tod):
-		_laeufer.gestorben.connect(_nach_tod)
-	_keiler_stellen(start_strecke, 0.0)
+	var ort := to_global(weg_punkt(s, 0.0, 0.6))
+	if GameState.checkpoint.distance_to(ort) > 1.0:
+		GameState.setze_checkpoint(ort)
+		GameState.zeige_nachricht("Rastplatz", 1.2)
+
+
+## Meldung, die beim ersten Durchlaufen von `s` einmal erscheint.
+func _meldung(s: float, text: String, dauer: float) -> void:
+	var zone := Area3D.new()
+	zone.name = "Meldung %.0f" % s
+	zone.collision_layer = 0
+	zone.collision_mask = 2
+	zone.monitorable = false
+	var form := CollisionShape3D.new()
+	var kasten := BoxShape3D.new()
+	kasten.size = Vector3(breite_bei(s) + 2.0, RASTPLATZ_HOEHE, 0.8)
+	form.shape = kasten
+	zone.add_child(form)
+	zone.position = weg_punkt(s, 0.0, RASTPLATZ_HOEHE * 0.5 - 1.0)
+	zone.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
+	zone.body_entered.connect(func(koerper: Node3D) -> void:
+		if koerper is Spieler and not _gemeldet.has(text):
+			_gemeldet[text] = true
+			GameState.zeige_nachricht(text, dauer))
+	objekte.add_child(zone)
 
 
 ## Die Jagd beginnt erst, wenn die Figur losdarf (nach dem Rundgang).
 func _vor_dem_start() -> void:
-	_jagd = true
+	if jagd != null:
+		jagd.freigeben()
 
 
-## Nach einem Tod steht die Figur am Rastplatz – der Keiler bekommt seinen
-## Abstand zurück, sonst stünde sie gleich wieder unter den Hauern.
-func _nach_tod() -> void:
-	_neu_stellen = true
+func zielzeit() -> float:
+	return ZIELZEIT
 
 
-func _physics_process(delta: float) -> void:
-	if not _jagd or _fertig or _laeufer == null or verlauf == null \
-			or not is_instance_valid(_keiler):
+# =========================================================== Proben
+
+## Opt-in-Proben von `werkzeuge/level_check.gd` (Entwurf P1).
+func pruefprofil() -> Dictionary:
+	return {"sicht": true, "todeszonen": true, "rand": true, "freiraum": true}
+
+
+## Hält an, was von selbst läuft: den Keiler (L05Jagd, Ruhestellung).
+func pruefruhe() -> void:
+	if jagd != null:
+		jagd.pruefruhe()
+
+
+## Fotos (werkzeuge/foto.gd): die Figur auf die Wegdecke, nicht 1 m über
+## die Kurve – auf Terrassen und Absätzen schwebte sie sonst.
+func foto_stelle(s: float, q: float) -> Vector3:
+	return weg_punkt(s, q)
+
+
+## Sprungfälle für `werkzeuge/sprungprobe.gd` (Entwurf §6.2, P1). Die
+## Grenzen sind die gemessenen Fenster des Entwurfs minus einen Raster-
+## schritt (0,25), bzw. die Grenzen aus P1: L1 und L5 ≥ 1,75, L2/L3 ≥ 1,85,
+## L4 ≥ 1,25; das Wehr nur im Doppelsprung (im Scheitel, 0,33 s) ≥ 2,0 –
+## der Einzelsprung darf nicht tragen; Durchlässe als Slide sauber ≥ 3,0,
+## Hürden ≥ 1,5. Kür mit `pflicht: false`: G1 Doppelsprung, G2 Slide-
+## Sprung, Suhlgraben, G3 und der Slide-Sprung am Wehr (R3: Slide-Sprung
+## nur als Kür); an G2 darf der Einzelsprung nicht tragen (Pflicht).
+## Jeder Fall startet nach dem letzten Hindernis davor: hinter D3 für D4,
+## hinter D4 für L5.
+func sprungfaelle() -> Array[Dictionary]:
+	var faelle: Array[Dictionary] = []
+	var fenster := {"L1 Wasserriss": 1.75, "L2 Terrasse": 1.85, "L3 Terrasse": 1.85,
+			"L4 Seitenrinne": 1.25, "L5 Mühlrinne": 1.75}
+	var anlauf := {"L1 Wasserriss": 70.0, "L2 Terrasse": 131.3, "L3 Terrasse": 155.3,
+			"L4 Seitenrinne": 189.0, "L5 Mühlrinne": 224.1}
+	for l: Dictionary in LUECKEN:
+		var name_l: String = l["name"]
+		if not fenster.has(name_l):
+			continue
+		var kante: float = l["von"]
+		var start: float = anlauf[name_l]
+		faelle.append({"name": name_l, "art": "einfach", "start": Vector2(start, 0.0),
+				"kante": kante, "von": maxf(kante - 2.75, start + 1.5),
+				"landung": float(l["bis"]) - LANDUNG_SPIEL, "fenster_min": fenster[name_l]})
+	var wehr: Dictionary = LUECKEN[5]
+	var wehr_von: float = wehr["von"]
+	var wehr_landung: float = float(wehr["bis"]) - LANDUNG_SPIEL
+	faelle.append({"name": "L6 Wehr Doppel", "art": "doppel", "start": Vector2(278.0, 0.0),
+			"kante": wehr_von, "von": 280.0, "landung": wehr_landung, "doppel_t": [0.33],
+			"fenster_min": 2.0})
+	faelle.append({"name": "L6 Wehr Einzel", "art": "einfach", "start": Vector2(278.0, 0.0),
+			"kante": wehr_von, "von": 281.0, "landung": wehr_landung, "darf_nicht_tragen": true})
+	faelle.append({"name": "L6 Wehr Slide-Sprung", "art": "slide", "start": Vector2(278.0, 0.0),
+			"kante": wehr_von, "von": 280.5, "landung": wehr_landung, "pflicht": false})
+	# Durchlässe: Start 9 m vor der Stirn, bei D4 hinter D3 (Ausgang 215,6).
+	# Angekommen ist, wer 0,5 m hinter dem Ausgang steht: Hinter Ü stehen
+	# die Kisten auf q 0 (20,4), vor denen ein früher Slide stehen bleibt.
+	for d: Dictionary in DURCHLAESSE:
+		var stirn: float = d["s"]
+		var tiefe: float = d["tiefe"]
+		var start := stirn - 9.0
+		if String(d["name"]).begins_with("D4"):
+			start = 216.1
+		faelle.append({"name": String(d["name"]), "art": "duck", "start": Vector2(start, 0.0),
+				"kante": stirn, "von": maxf(stirn - 5.0, start + 1.0),
+				"landung": stirn + tiefe + 0.5, "fenster_min": 3.0})
+	for h: Dictionary in HUERDEN:
+		var vorn := float(h["s"]) - HUERDE_ZONE_LAENGE * 0.5
+		faelle.append({"name": String(h["name"]), "art": "huerde",
+				"start": Vector2(vorn - 5.5, 0.0), "kante": vorn, "von": vorn - 4.0,
+				"landung": vorn + HUERDE_ZONE_LAENGE + 2.0, "fenster_min": 1.5})
+	# --- Geheimnisse: Bänke statt Lücken ---
+	# Bei einer Bank ist "kante" die letzte Absprungstelle, die das Mess-
+	# fenster des Entwurfs noch nennt (0,4 m vor der Stirn), nicht die Stirn
+	# selbst: Dort springt niemand hinauf. Die Bahn liegt ganz über der Bank –
+	# wer sie verfehlt, prallt an der Stirn ab ("k") und landet nicht daneben
+	# auf dem Weg, was die Probe sonst als getragen zählte.
+	# G1 vom Startboden vor s 0 (die Decke und das Knie beginnen bei 0).
+	faelle.append({"name": "G1 Wurzelknie Doppel", "art": "doppel", "start": Vector2(-3.6, 4.6),
+			"kante": -0.4, "von": -3.15, "landung": 0.3, "doppel_t": [0.25, 0.33],
+			"pflicht": false})
+	# G2: Die Nische rechts beginnt hinter L1 (78), die Bahn q 5,3 liegt
+	# über der Bank. Der Slide beginnt am Start (Slide 2 m vor der Stelle
+	# läge noch in L1); bis 84 trägt er, jede Stelle ist ein Slide-Sprung.
+	# Gemessen trägt er bis 0,9 m vor der Stirn (Entwurf: 0,4 – dort ohne
+	# Kisten und mit dem Slide 2 m vor dem Absprung), daher die Kante 81,1.
+	faelle.append({"name": "G2 Bank Einzel", "art": "einfach", "start": Vector2(78.4, 5.3),
+			"kante": 81.6, "von": 78.75, "landung": 82.3, "darf_nicht_tragen": true})
+	faelle.append({"name": "G2 Bank Slide-Sprung", "art": "slide", "start": Vector2(78.4, 5.3),
+			"kante": 81.1, "von": 78.85, "landung": 82.3, "pflicht": false})
+	# Suhlgraben neben den Kisten (q −2): Landung erst auf der Gegenseite
+	# zählt, nicht in der Sohle (0,8 tiefer). Entwurf: Slide-Sprung über
+	# 4,6 m 1,25 m Fenster (Raster 0,05) – hier im Raster 0,25 ≥ 1,0.
+	faelle.append({"name": "Suhlgraben Slide-Sprung", "art": "slide",
+			"start": Vector2(19.2, -2.0), "kante": SUHLGRABEN.x, "von": 21.2,
+			"landung": SUHLGRABEN.y, "tief_erlaubt": 0.4, "pflicht": false, "fenster_min": 1.0})
+	# G3: hinter F2 auf den Trittstein (+1,2), dann vom Trittstein auf den
+	# Sims (+1,4 darüber). Mit gehaltener Taste trägt ein Sprung auf den
+	# 1,4 m kurzen Stein nur aus 2,7–4,9 m vor seiner Stirn (gerechnet), die
+	# Kante also 2,7 m davor; vom Stein misst die Probe nur, ob der Sims
+	# trägt (Landung höchstens 0,5 m unter dem Stein zählt).
+	var stein: Dictionary = weg.begehbar("G3 Trittstein")
+	var stein_s: float = stein["s"]
+	var stein_vorn := stein_s - float((stein["groesse"] as Vector3).z) * 0.5
+	faelle.append({"name": "G3 Trittstein", "art": "einfach", "start": Vector2(251.2, 3.4),
+			"kante": stein_vorn - 2.7, "von": 251.45, "landung": stein_vorn + 0.1,
+			"pflicht": false})
+	faelle.append({"name": "G3 Sonnensims", "art": "einfach", "start": Vector2(stein_s - 0.5, 3.4),
+			"ziel": Vector2(stein_s + 3.5, 4.9), "kante": stein_s, "von": stein_s - 0.25,
+			"landung": stein_s + 1.6, "tief_erlaubt": 0.5, "pflicht": false})
+	return faelle
+
+
+## Freiraum über der Kamerabahn (Opt-in "freiraum" in level_check.gd;
+## Entwurf §7.1 K1/K2 und §2.6). Mit `sicht_maske = 8` holt nichts auf
+## Ebene 1 die Kamera heran – was in ihrer Bahn steht, sähe man also durch
+## sie hindurch. Diese Probe ist die Wache dafür. Je Abweichung eine Zeile
+## "ABWEICHUNG …", zuletzt "GEPRUEFT n" (n Stellen der Kamerabahn):
+##   Kamera  an jeder Stelle 0–M_ENDE (alle 0,5 m) steht die Kamera
+##           mindestens KAMERA_UEBER_FIGUR über der Figur:
+##           hoehe − (Kurve(s) − Kurve(s − abstand))
+##   K2      steht die Kamera über einem Durchlass (alle 0,2 m über seine
+##           Tiefe), dann mindestens K2_MIN über seinem Boden:
+##           hoehe + (Boden − Kurve)(s + abstand) − (Boden − Kurve)(s)
+##   K1      kein sichtbares Netz hat einen Punkt über |q| ≤ K1_Q zwischen
+##           K1_UNTEN und K1_OBEN über der Decke (0 ≤ s ≤ KURVE_ENDE). Die
+##           Dreiecke werden im Raster K1_RASTER abgetastet; Kisten und
+##           Früchte zählen mit ihrer Oberkante, Teilchen nicht.
+## Werte aus der Kamera des Levels (`hoehe`, `abstand`).
+func freiraumprobe() -> PackedStringArray:
+	var zeilen := PackedStringArray()
+	var kamera := _kamera as KorridorKamera
+	var hoehe := kamera.hoehe if kamera != null else 5.6
+	var abstand := kamera.abstand if kamera != null else -21.0
+	var stellen := 0
+	var tiefste := INF
+	var s := 0.0
+	while s <= M_ENDE + 0.001:
+		var ueber := hoehe - (_kurve_y(s) - _kurve_y(s - abstand))
+		tiefste = minf(tiefste, ueber)
+		if ueber < KAMERA_UEBER_FIGUR:
+			zeilen.append("ABWEICHUNG Kamera bei s %.1f nur %.2f m über der Figur (mindestens %.2f)"
+					% [s, ueber, KAMERA_UEBER_FIGUR])
+		stellen += 1
+		s += 0.5
+	var k2_tiefste := INF
+	for d: Dictionary in DURCHLAESSE:
+		var stirn: float = d["s"]
+		var tiefe: float = d["tiefe"]
+		var si := stirn
+		while si <= stirn + tiefe + 0.001:
+			var ueber := hoehe + _ueber_kurve(si + abstand) - _ueber_kurve(si)
+			k2_tiefste = minf(k2_tiefste, ueber)
+			if ueber < K2_MIN:
+				zeilen.append("ABWEICHUNG K2 %s: Kamera bei s %.1f nur %.2f m über dem Boden (mindestens %.1f)"
+						% [String(d["name"]), si, ueber, K2_MIN])
+			stellen += 1
+			si += 0.2
+	var k1 := _freiraum_k1()
+	zeilen.append_array(k1["zeilen"] as PackedStringArray)
+	print("  Freiraum: Kamera mindestens %.3f m über der Figur, über Durchlässen mindestens %.2f m; K1 %d Netze, %d Punkte, %d Objekte"
+			% [tiefste, k2_tiefste, int(k1["netze"]), int(k1["punkte"]), int(k1["objekte"])])
+	zeilen.append("GEPRUEFT %d" % stellen)
+	return zeilen
+
+
+## K1 (siehe `freiraumprobe`): je Netz eine Zeile mit der Spanne, in der es
+## in den freien Raum ragt.
+func _freiraum_k1() -> Dictionary:
+	var funde := {}
+	var netze := 0
+	var punkte := 0
+	var objekte_n := 0
+	var laenge := verlauf.get_baked_length()
+	for wurzel: Node in [geometrie, deko, objekte]:
+		for knoten in wurzel.find_children("*", "GeometryInstance3D", true, false):
+			var g := knoten as GeometryInstance3D
+			if not g.is_visible_in_tree() or _k1_spielobjekt(g) != null:
+				continue
+			var dreiecke := PackedVector3Array()
+			if g is MeshInstance3D and (g as MeshInstance3D).mesh != null:
+				var faces := (g as MeshInstance3D).mesh.get_faces()
+				for p in faces:
+					dreiecke.append(to_local(g.global_transform * p))
+			elif g is MultiMeshInstance3D and (g as MultiMeshInstance3D).multimesh != null:
+				var mm := (g as MultiMeshInstance3D).multimesh
+				if mm.mesh == null:
+					continue
+				var faces := mm.mesh.get_faces()
+				for k in mm.instance_count:
+					var lage := g.global_transform * mm.get_instance_transform(k)
+					for p in faces:
+						dreiecke.append(to_local(lage * p))
+			else:
+				continue
+			netze += 1
+			for i in range(0, dreiecke.size() - 2, 3):
+				for p in _dreieck_raster(dreiecke[i], dreiecke[i + 1], dreiecke[i + 2]):
+					punkte += 1
+					_k1_pruefen(p, String(g.name), laenge, funde)
+	# Kisten und Früchte mit ihrer Oberkante (ein Punkt je Objekt).
+	for kind in objekte.get_children():
+		if kind is Kiste:
+			objekte_n += 1
+			_k1_pruefen((kind as Node3D).position + Vector3.UP * 0.5, "Kiste", laenge, funde)
+		elif kind is Frucht:
+			objekte_n += 1
+			_k1_pruefen((kind as Node3D).position + Vector3.UP * 0.35, "Frucht", laenge, funde)
+	var zeilen := PackedStringArray()
+	for name_f: String in funde:
+		var f: Vector3 = funde[name_f]
+		zeilen.append("ABWEICHUNG K1 %s bei s %.1f–%.1f: bis %.2f m über dem Weg (frei %.1f–%.1f über |q| ≤ %.1f)"
+				% [name_f, f.x, f.y, f.z, K1_UNTEN, K1_OBEN, K1_Q])
+	return {"zeilen": zeilen, "netze": netze, "punkte": punkte, "objekte": objekte_n}
+
+
+## Kiste oder Frucht, zu der ein Netz gehört (die zählen über ihre Lage).
+func _k1_spielobjekt(knoten: Node) -> Node:
+	var n := knoten
+	while n != null and n != objekte:
+		if n is Kiste or n is Frucht:
+			return n
+		n = n.get_parent()
+	return null
+
+
+## Punkte eines Dreiecks, höchstens K1_RASTER auseinander, dazu der
+## Schwerpunkt.
+static func _dreieck_raster(a: Vector3, b: Vector3, c: Vector3) -> PackedVector3Array:
+	var laengste := maxf(a.distance_to(b), maxf(b.distance_to(c), c.distance_to(a)))
+	var n := maxi(ceili(laengste / K1_RASTER), 1)
+	var liste := PackedVector3Array()
+	for i in n + 1:
+		for j in n + 1 - i:
+			liste.append(a + (b - a) * (float(i) / float(n)) + (c - a) * (float(j) / float(n)))
+	liste.append((a + b + c) / 3.0)
+	return liste
+
+
+## Liegt `p` (Level-Koordinaten) im freien Raum K1? Funde je Name als
+## Vector3(s von, s bis, größte Höhe).
+func _k1_pruefen(p: Vector3, name_: String, laenge: float, funde: Dictionary) -> void:
+	var s := verlauf.get_closest_offset(p)
+	if s <= 0.001 or s >= laenge - 0.001:
 		return
-	var s_spieler := verlauf.get_closest_offset(to_local(_laeufer.global_position))
-	if _neu_stellen:
-		_neu_stellen = false
-		_keiler_s = s_spieler - VORSPRUNG
-		_keiler_stellen(s_spieler, 0.0)
-		_keiler.reset_physics_interpolation()
+	var mitte := verlauf.sample_baked(s)
+	var quer := Vector2(p.x - mitte.x, p.z - mitte.z).length()
+	if quer > K1_Q:
 		return
-	# Er läuft immer – und fällt nie weiter zurück als HOECHSTABSTAND.
-	_keiler_s = maxf(_keiler_s + KEILER_TEMPO * delta, s_spieler - HOECHSTABSTAND)
-	var abstand := s_spieler - _keiler_s
-	var naehe := 1.0 - clampf(abstand / HOECHSTABSTAND, 0.0, 1.0)
-	_keiler_stellen(s_spieler, delta)
-	_keiler.aktualisiere(delta, 1.0, naehe)
-	if s_spieler >= M_ENDE - AUSLAUF:
-		_auf_ziel()
+	var h := p.y - boden_bei(s)
+	if h <= K1_UNTEN or h >= K1_OBEN:
 		return
-	if abstand <= TODESABSTAND and _laeufer.invuln <= 0.0:
-		_laeufer.sterben()
-
-
-## Der Keiler auf der Kurve, seitlich ein Stück zur Figur hin.
-func _keiler_stellen(s_spieler: float, _delta: float) -> void:
-	var s := maxf(_keiler_s, 0.0)
-	var mitte := verlauf.sample_baked(clampf(s_spieler, 0.0, verlauf.get_baked_length()))
-	var quer := LevelWerkzeuge.richtung(verlauf, s_spieler).cross(Vector3.UP).normalized()
-	var seitlich := (to_local(_laeufer.global_position) - mitte).dot(quer) if _laeufer != null else 0.0
-	var ort := verlauf.sample_baked(clampf(s, 0.0, verlauf.get_baked_length()))
-	var quer_k := LevelWerkzeuge.richtung(verlauf, s).cross(Vector3.UP).normalized()
-	_keiler.global_position = to_global(ort + quer_k * seitlich * 0.4)
-	_keiler.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
-
-
-func _auf_ziel() -> void:
-	_fertig = true
-	_laeufer.gesperrt = true
-	GameState.zeige_nachricht("Entkommen!", 3.0)
-	_auf_level_geschafft()
+	if funde.has(name_):
+		var f: Vector3 = funde[name_]
+		funde[name_] = Vector3(minf(f.x, s), maxf(f.y, s), maxf(f.z, h))
+	else:
+		funde[name_] = Vector3(s, s, h)

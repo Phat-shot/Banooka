@@ -27,6 +27,11 @@ class_name KorridorLevel
 ## Helfer `*_auf()` stellen Kisten, Früchte, Gegner und Portale auf die
 ## Wegdecke statt auf die Kurve. NULL-PFAD: Die Level 02–25 setzen `weg`
 ## nie – für sie läuft jede dieser Funktionen genau wie vorher.
+##
+## Hindernisse auf der Wegdecke (Raum 1): `duckdurchlass`, `huerde` und
+## `findling_hindernis` – Körper auf Ebene 16, Stolperzone auf Wunsch,
+## Optik als Callable, sonst ein grauer Platzhalter. Neue Funktionen, die
+## kein älteres Level aufruft.
 
 const KISTE := preload("res://scenes/crates/Kiste.tscn")
 const FRUCHT := preload("res://scenes/fruits/Frucht.tscn")
@@ -936,12 +941,19 @@ func gegner_auf(szene: PackedScene, s: float, q: float, weite: float,
 
 
 ## Start- und Zielportal auf der Wegdecke, an den Strecken `start` und `ziel`.
-func portale_auf(start: float, ziel: float) -> void:
+## `saeule`: Höhe der Lichtsäule über dem Zielportal (`saeulen_hoehe`, 0 =
+## keine); kleiner 0 lässt die Vorgabe des Portals. Ein Level mit
+## Rückblick (Level 05) setzt 0: Die Säule stand 14 m hoch mitten über dem
+## Weg, und die Kamera fuhr 21 m vor der Figur durch sie hindurch.
+func portale_auf(start: float, ziel: float, saeule := -1.0) -> void:
 	var a := STARTPORTAL.instantiate() as Node3D
 	a.position = weg_punkt(start, 0.0, 0.1)
 	a.rotation.y = LevelWerkzeuge.drehung(verlauf, start)
 	objekte.add_child(a)
 	var z := ZIELPORTAL.instantiate() as Node3D
+	# VOR dem Einhängen: Das Portal baut seine Säule in `_ready()`.
+	if saeule >= 0.0:
+		z.set("saeulen_hoehe", saeule)
 	z.position = weg_punkt(ziel, 0.0, 0.1)
 	z.rotation.y = LevelWerkzeuge.drehung(verlauf, ziel)
 	objekte.add_child(z)
@@ -1095,6 +1107,145 @@ func _durchlass_schnitt(si: float, q_von: float, q_bis: float, unten: float,
 func _durchlass_stolpern(koerper: Node3D, dauer: float) -> void:
 	if koerper is Spieler:
 		(koerper as Spieler).stolpern(dauer)
+
+
+## Hürde (Entwurf L05 §1 Nr. 12): ein Riegel quer über den Weg, über den man
+## springt. `s` ist ihre Mitte. Körper HUERDE_HOEHE × HUERDE_TIEFE, die
+## Stolperzone HUERDE_ZONE_LAENGE lang und vom Boden bis HUERDE_ZONE_HOEHE,
+## beide mittig um `s`. Gemessen (Messbank L05): Wer springt, hat ein
+## stolperfreies Absprungfenster von 1,95 m; wer hineinslidet, stolpert
+## immer – Hürde heißt springen, Durchlass heißt sliden.
+##
+## Muster wie `duckdurchlass`: Körper auf Ebene 16 (die Figur stößt an, der
+## Kamerastrahl geht hindurch), Höhen über `boden_bei` je Querschnitt.
+## `optionen`: q_von, q_bis (Vorgabe halbe Wegbreite + 1 m, bis an die
+## Leitlinie), hoch, tiefe, stolperzone (Dauer in s; > 0 legt die Zone an,
+## Vorgabe 0), optik: Callable(s, tiefe) -> Node3D, sonst ein grauer
+## Platzhalter in der Form des Körpers. Metadaten "strecke", "tiefe",
+## "hoch" für Proben.
+const HUERDE_HOEHE := 0.7
+const HUERDE_TIEFE := 0.6
+const HUERDE_ZONE_LAENGE := 1.0
+const HUERDE_ZONE_HOEHE := 0.8
+
+
+func huerde(s: float, optionen := {}) -> StaticBody3D:
+	var halb := breite_bei(s) * 0.5
+	var q_von: float = optionen.get("q_von", -(halb + 1.0))
+	var q_bis: float = optionen.get("q_bis", halb + 1.0)
+	var hoch: float = optionen.get("hoch", HUERDE_HOEHE)
+	var tiefe: float = optionen.get("tiefe", HUERDE_TIEFE)
+	var schnitte := _hindernis_schnitte(s - tiefe * 0.5, s + tiefe * 0.5, q_von, q_bis, 0.0, hoch)
+	var koerper := _hindernis_koerper("Huerde", schnitte)
+	koerper.set_meta("strecke", s)
+	koerper.set_meta("tiefe", tiefe)
+	koerper.set_meta("hoch", hoch)
+	var dauer: float = optionen.get("stolperzone", 0.0)
+	if dauer > 0.0:
+		koerper.add_child(_stolperzone(s - HUERDE_ZONE_LAENGE * 0.5,
+				s + HUERDE_ZONE_LAENGE * 0.5, q_von, q_bis, 0.0, HUERDE_ZONE_HOEHE, dauer))
+	var optik: Callable = optionen.get("optik", Callable())
+	var sicht: Node3D = null
+	if optik.is_valid():
+		sicht = optik.call(s, tiefe) as Node3D
+	_hindernis_optik(koerper, sicht, schnitte)
+	geometrie.add_child(koerper)
+	return koerper
+
+
+## Findling als Hindernis (Entwurf L05 §5 D, §1 Nr. 17): ein Block auf dem
+## Weg, um den man herumläuft. `s` ist seine Mitte längs, `q` quer, `breite`
+## seine Ausdehnung quer. Körper auf Ebene 16 wie `duckdurchlass` und
+## `huerde`, über `boden_bei` je Querschnitt, damit er auch am Hang satt
+## aufsitzt.
+##
+## Die Stolperzone liegt wie beim Durchlass nur an der Stirn (STOLPER_VOR
+## davor bis STOLPER_NACH dahinter), über die Breite des Blocks und vom
+## Boden bis 0,1 m unter seine Oberkante: Wer frontal hineinläuft, stolpert;
+## wer daneben vorbeiläuft oder oben landet, nicht.
+## `optionen`: tiefe (Vorgabe FINDLING_TIEFE), hoch (FINDLING_HOEHE),
+## stolperzone (Dauer, Vorgabe 0), optik: Callable(s, q, breite) -> Node3D,
+## sonst ein grauer Platzhalter. Metadaten "strecke", "quer", "breite",
+## "tiefe", "hoch".
+const FINDLING_TIEFE := 1.6
+const FINDLING_HOEHE := 1.4
+
+
+func findling_hindernis(s: float, q: float, breite: float, optionen := {}) -> StaticBody3D:
+	var tiefe: float = optionen.get("tiefe", FINDLING_TIEFE)
+	var hoch: float = optionen.get("hoch", FINDLING_HOEHE)
+	var q_von := q - breite * 0.5
+	var q_bis := q + breite * 0.5
+	var schnitte := _hindernis_schnitte(s - tiefe * 0.5, s + tiefe * 0.5, q_von, q_bis, 0.0, hoch)
+	var koerper := _hindernis_koerper("Findling", schnitte)
+	koerper.set_meta("strecke", s)
+	koerper.set_meta("quer", q)
+	koerper.set_meta("breite", breite)
+	koerper.set_meta("tiefe", tiefe)
+	koerper.set_meta("hoch", hoch)
+	var dauer: float = optionen.get("stolperzone", 0.0)
+	if dauer > 0.0:
+		var stirn := s - tiefe * 0.5
+		koerper.add_child(_stolperzone(stirn - STOLPER_VOR, stirn + STOLPER_NACH, q_von, q_bis,
+				0.0, maxf(hoch - 0.1, 0.2), dauer))
+	var optik: Callable = optionen.get("optik", Callable())
+	var sicht: Node3D = null
+	if optik.is_valid():
+		sicht = optik.call(s, q, breite) as Node3D
+	_hindernis_optik(koerper, sicht, schnitte)
+	geometrie.add_child(koerper)
+	return koerper
+
+
+## Querschnitte eines Hindernisses von `von` bis `bis`, höchstens DUCK_SCHRITT
+## auseinander (Höhen über `boden_bei` je Schnitt, wie beim Durchlass).
+func _hindernis_schnitte(von: float, bis: float, q_von: float, q_bis: float,
+		unten: float, oben: float) -> Array[PackedVector3Array]:
+	var anzahl := maxi(ceili((bis - von) / DUCK_SCHRITT), 1)
+	var schnitte: Array[PackedVector3Array] = []
+	for i in anzahl + 1:
+		schnitte.append(_durchlass_schnitt(lerpf(von, bis, float(i) / float(anzahl)),
+				q_von, q_bis, unten, oben))
+	return schnitte
+
+
+## Körper auf Ebene 16 aus den Querschnitten (je zwei benachbarte ein Prisma).
+func _hindernis_koerper(name_: String, schnitte: Array[PackedVector3Array]) -> StaticBody3D:
+	var koerper := StaticBody3D.new()
+	koerper.name = name_
+	koerper.collision_layer = LevelWerkzeuge.SPIELERGRENZE
+	koerper.collision_mask = 0
+	for i in schnitte.size() - 1:
+		koerper.add_child(Wegdaten.prisma(schnitte[i], schnitte[i + 1]))
+	return koerper
+
+
+## Stolperzone von `von` bis `bis` (Höhen über `boden_bei`), wie die des
+## Durchlasses: Maske 2, nicht abfragbar, `Spieler.stolpern(dauer)`.
+func _stolperzone(von: float, bis: float, q_von: float, q_bis: float, unten: float,
+		oben: float, dauer: float) -> Area3D:
+	var zone := Area3D.new()
+	zone.name = "Stolperzone"
+	zone.collision_layer = 0
+	zone.collision_mask = 2
+	zone.monitorable = false
+	zone.add_child(Wegdaten.prisma(_durchlass_schnitt(von, q_von, q_bis, unten, oben),
+			_durchlass_schnitt(bis, q_von, q_bis, unten, oben)))
+	zone.body_entered.connect(_durchlass_stolpern.bind(dauer))
+	return zone
+
+
+## Hängt die Optik an den Körper; ohne Optik ein grauer Platzhalter in der
+## Form der Querschnitte (wie beim Durchlass).
+func _hindernis_optik(koerper: StaticBody3D, sicht: Node3D,
+		schnitte: Array[PackedVector3Array]) -> void:
+	if sicht == null:
+		var netz := MeshInstance3D.new()
+		netz.name = "Platzhalter"
+		netz.mesh = Wegdaten.schnittnetz(schnitte)
+		netz.material_override = Materialbibliothek.einfarbig(Color(0.52, 0.52, 0.5))
+		sicht = netz
+	koerper.add_child(sicht)
 
 
 ## Meldet einen Knoten für die Zeit nach einem Tod an: `LevelBasis` ruft

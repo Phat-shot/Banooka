@@ -34,7 +34,9 @@ extends Node
 ##
 ## Ein Fall (Dictionary aus `sprungfaelle()`):
 ##   name      Bezeichnung in der Ausgabe
-##   start     Vector2(s, q): hier wird die Figur abgesetzt
+##   start     Vector2(s, q): hier wird die Figur abgesetzt (auch vor s 0,
+##             auf einem Startboden – die Strecke zählt dort negativ,
+##             `_strecke`)
 ##   kante     s der Absprungkante (Ende des Bodens, Rand des Steins)
 ##   von       erste Absprungstelle (s); die Reihe läuft von der Kante in
 ##             Schritten von 0,25 m bis hierher zurück, dazu eine Stelle
@@ -398,7 +400,7 @@ func _versuch(fall: Dictionary, art: String, absprung: float, doppel_t: float) -
 	# >= 0: gelandet, der Stick bleibt noch so viele Bilder gehalten.
 	var halt_rest := -1
 	for f in VERSUCH_MAX:
-		var s := _verlauf.get_closest_offset(_spieler.global_position)
+		var s := _strecke(_spieler.global_position)
 		var hin := fern
 		if fern == Vector3.INF:
 			hin = LevelWerkzeuge.punkt_frei(_verlauf, s + 3.0, start.y)
@@ -489,6 +491,23 @@ func _versuch(fall: Dictionary, art: String, absprung: float, doppel_t: float) -
 			return "x"
 	InputHub.zuruecksetzen()
 	return "?"
+
+
+## Strecke der Figur für Anlauf und Absprung. Hinter dem Anfang der Kurve
+## kennt `get_closest_offset` keine Strecke und klemmt auf 0 – dort zählt
+## der Abstand vor dem Anfang negativ (in Richtung des Kurvenanfangs). So
+## misst die Probe auch einen Anlauf auf einem Startboden VOR s 0 (Level 05,
+## Geheimnis G1 direkt am Kurvenanfang); vorher sprang die Figur dort bei
+## jeder Absprungstelle sofort, weil 0 ≥ jede negative Stelle ist. Wo
+## `get_closest_offset` mehr als 0 liefert, ist es genau dieser Wert, die
+## Fälle aller anderen Level messen also wie bisher.
+func _strecke(ort: Vector3) -> float:
+	var s := _verlauf.get_closest_offset(ort)
+	if s > 0.0:
+		return s
+	var vor := ort - _verlauf.sample_baked(0.0)
+	vor.y = 0.0
+	return minf(vor.dot(LevelWerkzeuge.richtung(_verlauf, 0.0)), 0.0)
 
 
 ## Figur still setzen (nur Fälle mit `art`, siehe Kopf unter RUHE).
