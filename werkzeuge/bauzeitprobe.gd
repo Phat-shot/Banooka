@@ -20,6 +20,12 @@ extends Node
 ##                      (statisch oder auf der Platte) spart.
 ##   BAUZEIT_ZEILEN     wie viele der teuersten Schritte gedruckt werden
 ##                      (Vorgabe 12)
+##   BAUZEIT_WEGDECKE   1 = nach dem Aufbau je Stoff der Wegdecke (Shader
+##                      `wegboden`) eine Zeile WEGDECKE mit Lücken und
+##                      Kronenlicht-Stützstellen. Zusammen mit mehreren
+##                      Szenen zeigt das, ob ein Zwischenspeicher Stoffe
+##                      zwischen Leveln teilt (Baukasten Raum 1, Paket G3:
+##                      `L01Boden` speichert je Art, `Wegdecke` je Schlüssel).
 ##
 ## `aufbau` reicht bis `aufbau_fertig`; im Portalraum sind das seit dem
 ## Rundgang auch die Bilder bis zum Ausblenden des Ladeschirms (vorher
@@ -90,6 +96,40 @@ func _messe(pfad: String, runde: int, zeilen: int) -> void:
 		return float(a["ms"]) > float(b["ms"]))
 	for i in mini(zeilen, liste.size()):
 		print("   %8.1f ms  %s" % [float(liste[i]["ms"]), String(liste[i]["text"])])
+	if OS.get_environment("BAUZEIT_WEGDECKE") == "1":
+		_wegdecke_zeigen(szene, pfad.get_file(), runde)
 	szene.queue_free()
 	await get_tree().process_frame
 	await get_tree().process_frame
+
+
+## Je Stoff der Wegdecke (ShaderMaterial mit `wegboden.gdshader`) unter
+## `szene` eine Zeile: Anzahl und Lage der Lücken, Zahl der Kronenlicht-
+## Stützstellen und ihre Stärken. Jeder Stoff einmal, nach Knotenpfad.
+func _wegdecke_zeigen(szene: Node, datei: String, runde: int) -> void:
+	var gesehen := {}
+	var stapel: Array[Node] = [szene]
+	while not stapel.is_empty():
+		var k: Node = stapel.pop_back()
+		for kind in k.get_children():
+			stapel.append(kind)
+		var mi := k as MeshInstance3D
+		if mi == null:
+			continue
+		var m := mi.material_override as ShaderMaterial
+		if m == null or m.shader == null or m.shader.resource_path != "res://shaders/wegboden.gdshader" \
+				or gesehen.has(m):
+			continue
+		gesehen[m] = true
+		var anzahl := int(m.get_shader_parameter("luecken_anzahl"))
+		var luecken: PackedVector3Array = m.get_shader_parameter("luecken")
+		var teile := PackedStringArray()
+		for i in mini(anzahl, luecken.size()):
+			teile.append("%.1f-%.1f" % [luecken[i].x, luecken[i].y])
+		var kronen := int(m.get_shader_parameter("kronen_anzahl"))
+		var stellen: PackedVector2Array = m.get_shader_parameter("kronen_stellen")
+		var staerken := PackedStringArray()
+		for i in mini(kronen, stellen.size()):
+			staerken.append("%.2f" % stellen[i].y)
+		print("WEGDECKE %s runde %d %s: Lücken %d [%s], Kronenlicht %d [%s]" % [datei, runde,
+				szene.get_path_to(mi), anzahl, ", ".join(teile), kronen, ", ".join(staerken)])

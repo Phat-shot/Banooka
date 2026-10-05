@@ -39,15 +39,33 @@ extends KorridorLevel
 ## `foto_stelle()` stellt die Figur für Fotos auf die Wegdecke statt 1 m
 ## über die Kurve – auf den Terrassen schwebte sie sonst oder steckte im Boden.
 ##
+## Station 31 „Themenbühne" (Paket G3): drei Themen hintereinander – Wald,
+## Sumpf, Schnee, je 40 m (Schnee bis zum Ziel) –, jedes mit allem, was
+## die Raum-1-Level aus den Stoffbausteinen brauchen: Wegdecke ohne
+## Bordstein (`Wegdecke`, je Thema ein Stoff), rechts eine Felskante über
+## dem Abgrund, die in ein Erdufer über einem Bach übergeht und wieder
+## zurück (`Kanten.profil_ab`/`profil_ufer`, gemischt), links eine Böschung
+## (`profil_boeschung`), eine Lücke von 3 m mit Stirnwänden (`profil_
+## stirn`), Kerbtal und Rinne in den Seiten (`in_luecke`) und Steinen an den
+## Lippen (`Wegdecke.lippen`), darunter Gelände (`GelaendeBau`), im Ufer ein
+## Bach (`Bachband`), über dem Sumpf Nebeltafeln und hinter ihm ferne Kronen
+## mit eigenem Nebel (`Nebelstoff`). Kanten und Gelände liegen im
+## Bauspeicher (Schlüssel "werkstatt_…"): Beim zweiten Laden sind es je ein
+## Schritt „… wird geladen". Keine Kollision außer Decke, Schulter und
+## Leitlinie links; wer rechts über die Kante oder in eine Lücke fällt,
+## stirbt 4 m unter der Decke, im Bach an seinem Spiegel.
+##
 ## ZWEI WEGDATEN. `weg` beschreibt den ganzen Prüfstand (die alte Strecke
-## samt Station 30), damit `breite_bei`, `boden_bei` & Co. überall
-## stimmen. Gebaut wird aus `weg` aber nur Station 30 (`_weg_30`): Der alte
-## Boden bis 450 bleibt der Korridor mit Bordstein, auf dem die Stationen
-## 1–29 stehen. Für die alten Stationen ändert `weg` nichts – ihre Stellen
+## samt Station 30 und 31), damit `breite_bei`, `boden_bei` & Co. überall
+## stimmen. Gebaut wird aus `weg` aber nur Station 30 (`_weg_30`) und 31
+## (`_weg_31`, eigene Lücken für den Stoff der Decke): Der alte Boden bis
+## 450 bleibt der Korridor mit Bordstein, auf dem die Stationen 1–29
+## stehen. Für die alten Stationen ändert `weg` nichts – ihre Stellen
 ## liegen weit von jeder Kante, Breite und Klemmung bleiben dieselben.
 
-## Bis 556,7 m reicht die Kurve; Station 31 (G3) verlängert sie.
-const M_ENDE := 554.0
+## Bis 693,6 m reicht die Kurve (Station 31 hat sie verlängert, siehe
+## `_verlauf_anlegen`).
+const M_ENDE := 690.0
 const ABSTURZ := -8.0
 const WEGBREITE := 12.0
 ## Bis hier reicht der alte Boden (Korridor mit Bordstein), danach Station 30.
@@ -86,6 +104,9 @@ const HUERDE_30 := 543.5
 ## 526 lagen beide aus der Ferne übereinander (Verfolger bei 486).
 const SCHILD_SPRUNGBAHN := 509.0
 
+## Ende von Station 30, Anfang der Themenbühne (Station 31).
+const M_STATION_31 := 554.0
+
 const STATION_30 := [
 	{"name": "30A", "von": M_STATION_30, "bis": 458.0, "breite": WEGBREITE,
 			"breite_ende": 8.0},
@@ -95,15 +116,56 @@ const STATION_30 := [
 			"stoff": "fels"},
 	{"name": "30E", "von": 492.0, "bis": LUECKE_3_VON, "breite": 8.0},
 	{"name": "30F", "von": LUECKE_3_BIS, "bis": LUECKE_5_VON, "breite": 8.0},
-	{"name": "30G", "von": LUECKE_5_BIS, "bis": M_ENDE, "breite": 8.0},
+	{"name": "30G", "von": LUECKE_5_BIS, "bis": M_STATION_31, "breite": 8.0},
 ]
 
 ## Links eine Leitlinie (Ebene 16) 0,6 m außerhalb der Wegkante, dazwischen
 ## die Schulter; rechts bleibt die Kante offen.
 const LEITLINIEN_30 := [
 	{"name": "Links 30", "aussen": -1.0, "hoehe": 6.0, "unten": 3.0,
-			"schulter": Vector2(M_STATION_30, M_ENDE), "punkte": [
-				Vector2(M_STATION_30, -6.4), Vector2(458.0, -4.6), Vector2(M_ENDE, -4.6)]},
+			"schulter": Vector2(M_STATION_30, M_STATION_31), "punkte": [
+				Vector2(M_STATION_30, -6.4), Vector2(458.0, -4.6), Vector2(M_STATION_31, -4.6)]},
+]
+
+## Station 31: die drei Themen in Bau-Reihenfolge (Schlüssel, Name). Jedes
+## beginnt bei `M_STATION_31 + THEMA_LAENGE · k`, das letzte reicht bis
+## `M_ENDE`.
+const THEMEN_31 := [["wald", "Wald"], ["sumpf", "Sumpf"], ["schnee", "Schnee"]]
+const THEMA_LAENGE := 40.0
+const WEGBREITE_31 := 8.0
+## Innerhalb eines Themas (m ab seinem Anfang): die Lücke …
+const LUECKE_31 := Vector2(12.0, 15.0)
+## … und das Ufer rechts: blendet 19–23 ein, 35–39 wieder aus (dazwischen
+## Erdufer über dem Bach, sonst Felskante über dem Abgrund).
+const UFER_31 := Vector4(19.0, 23.0, 35.0, 39.0)
+## Höhen relativ zur Decke (die Kurve liegt flach, die Decke auf y 0):
+## Grund der Lücke, Fuß der Felskante, Fuß des Ufers, Bachspiegel, Krone
+## der Böschung. Die Felskante ist 14 m hoch: Das Profil aus Level 01 legt
+## seine Simse 7,2–9,3 m und 11–15 m unter die Kante (saum.gd:723-724) und
+## kippt unter gut 13 m Wandhöhe in sich zusammen.
+const GRUND_31 := -4.5
+const FUSS_31 := -14.0
+const UFER_FUSS_31 := -1.6
+const SPIEGEL_31 := -1.35
+const KRONE_31 := 2.5
+## Fußlinie der Böschung (|q|) und Leitlinie links (Ebene 16).
+const BOESCHUNG_Q_31 := 4.4
+const LEITLINIE_Q_31 := -4.6
+## Mitte und Breite des Baches rechts: Die Kante zum Weg liegt im Ufer, die
+## andere findet das gezeichnete Gelände.
+const BACH_Q_31 := 8.6
+const BACH_BREITE_31 := 7.2
+## Wer hier fällt, stirbt so tief unter der Decke – höher als der Grund der
+## Lücke (−4,5), also bevor die Figur durch den gezeichneten Boden fiele.
+const TOD_UNTER_31 := 4.0
+## Das Gelände der Themenbühne: Welt-X von–bis (die Strecke läuft hier
+## fast genau nach −Z, die Themen stoßen an Linien gleicher Z aneinander).
+const GELAENDE_X_31 := Vector2(386.0, 476.0)
+
+const LEITLINIEN_31 := [
+	{"name": "Links 31", "aussen": -1.0, "hoehe": 6.0, "unten": 3.0,
+			"schulter": Vector2(M_STATION_31, M_ENDE), "punkte": [
+				Vector2(M_STATION_31, LEITLINIE_Q_31), Vector2(M_ENDE, LEITLINIE_Q_31)]},
 ]
 
 ## Stirn und Tiefe des Duckdurchlasses, Dauer des Stolperns an seiner Stirn
@@ -126,8 +188,11 @@ const LANDUNG_SPIEL := 0.45
 
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 
-## Nur Station 30, zum Bauen (siehe Kopf, ZWEI WEGDATEN).
+## Nur Station 30 bzw. 31, zum Bauen (siehe Kopf, ZWEI WEGDATEN).
 var _weg_30: Wegdaten
+var _weg_31: Wegdaten
+## Station 31: das Gelände je Thema (für das Ufer des Baches).
+var _felder_31: Array[GelaendeFeld] = []
 
 ## Die Schlucht am Ende (Station 14–18): eine Wand zu beiden Seiten, an der
 ## die Bauteile aus Level 01 wachsen. Gut einen Meter Luft neben dem Weg,
@@ -145,9 +210,15 @@ func absturz_hoehe() -> float:
 	return ABSTURZ
 
 
+## Der Verlauf entsteht VOR der Liste (wie in Level 01): Die Bausteine der
+## Themenbühne lesen schon beim Zusammenstellen Weg und Bauspeicher.
 func _bauschritte() -> Array:
-	return [
-		{"text": "Prüfstand wird vermessen", "tun": _verlauf_anlegen},
+	_verlauf_anlegen()
+	# Die Stoffe der Wegdecke liegen je Schlüssel im Zwischenspeicher von
+	# `Wegdecke`; beim Verlassen räumen, sonst hielte er Lücken eines
+	# Prüfstands, der nicht mehr steht.
+	tree_exiting.connect(func() -> void: Wegdecke.vergessen("werkstatt_"), CONNECT_ONE_SHOT)
+	var schritte: Array = [
 		{"text": "Boden", "tun": _boden_bauen},
 		{"text": "Absturzzone", "tun": _absturz_spannen},
 		{"text": "Ferne Hügel", "tun": _horizont_bauen},
@@ -163,17 +234,26 @@ func _bauschritte() -> Array:
 		{"text": "Zaun, Saum, Wald", "tun": _waldrand_setzen},
 		{"text": "Weltenbaum im Kleinen", "tun": _weltenbaum_setzen},
 		{"text": "Unterbau aus Wegdaten", "tun": _station_30_setzen},
+	]
+	schritte.append_array(_station_31_schritte())
+	schritte.append_array([
 		{"text": "Portale", "tun": _portale},
 		{"text": "Schilder", "tun": _schilder_setzen},
-	]
+	])
+	return schritte
 
 
 ## Eine leichte Kurve, kein gerader Strich: Bauteile, die sich mit dem Weg
-## mitdrehen, verraten ihren Fehler nur auf einer Kurve. Die letzten drei
-## Punkte tragen Station 30. Ein angehängter Punkt ändert nur das letzte
-## Kurvenstück: Punkte und Drehung sind bis s 449,5 bitgleich mit der
-## Kurve ohne sie (gemessen alle 0,5 m), die Stationen 1–29 stehen also,
-## wo sie standen.
+## mitdrehen, verraten ihren Fehler nur auf einer Kurve. Die Punkte bis
+## (416, −170) tragen Station 30, die letzten sechs die Themenbühne
+## (Station 31), die fast genau nach −Z läuft – so stoßen die Gelände der
+## Themen an Linien gleicher Z aneinander, ohne sich zu überdecken.
+## Ein angehängter Punkt ändert nur das letzte Kurvenstück: Bis s 528,5 ist
+## die Kurve bitgleich mit der ohne Station 31 (gemessen alle 0,5 m), von
+## dort bis 556,7 (Sprungbahn von Station 30) weicht sie höchstens 3,0 cm
+## und 0,42° ab. Der erste neue Punkt liegt dafür nur 10 m weiter in
+## derselben Richtung: Je weiter er läge, desto stärker änderte er das
+## letzte Stück (15 cm bei 24 m).
 ##
 ## Die Wegdaten entstehen hier, vor allen Bauschritten (siehe Kopf).
 func _verlauf_anlegen() -> void:
@@ -198,25 +278,55 @@ func _verlauf_anlegen() -> void:
 		Vector3(384, 0, -126),
 		Vector3(402, 0, -146),
 		Vector3(416, 0, -170),
+		Vector3(421, 0, -179),
+		Vector3(427, 0, -196),
+		Vector3(431, 0, -220),
+		Vector3(432, 0, -248),
+		Vector3(430, 0, -276),
+		Vector3(431, 0, -304),
 	])
+	var station_31 := _station_31_abschnitte()
 	var alle: Array = STRECKE.duplicate()
 	alle.append_array(STATION_30)
+	alle.append_array(station_31)
 	weg = Wegdaten.new(verlauf, {"abschnitte": alle})
 	_weg_30 = Wegdaten.new(verlauf, {"abschnitte": STATION_30, "leitlinien": LEITLINIEN_30})
 	# Unter der ganzen Station eine Todeszone „Boden − 6": rechts über die
 	# offene Kante, unter jeder Terrasse auf ihrer eigenen Höhe. Sie liegt
 	# über den alten Absturzzonen (Kurve − 8), fängt also zuerst.
-	_weg_30.todeszonen = Wegdaten.zonen_unter_boden(_weg_30, M_STATION_30, M_ENDE,
+	_weg_30.todeszonen = Wegdaten.zonen_unter_boden(_weg_30, M_STATION_30, M_STATION_31,
 			-30.0, 30.0, 6.0)
+	_weg_31 = Wegdaten.new(verlauf, {"abschnitte": station_31, "leitlinien": LEITLINIEN_31})
+	# Station 31: „Boden − 4" überall (rechts über die Kante, in den Lücken),
+	# dazu je Thema der Bach auf Höhe seines Spiegels.
+	var zonen := Wegdaten.zonen_unter_boden(_weg_31, M_STATION_31, M_ENDE, -30.0, 30.0,
+			TOD_UNTER_31, 12.0)
+	for k in THEMEN_31.size():
+		var a := M_STATION_31 + THEMA_LAENGE * float(k)
+		zonen.append({"name": "Bach 31", "von": a + UFER_31.y - 1.0, "bis": a + UFER_31.z + 1.0,
+				"q_von": WEGBREITE_31 * 0.5 + 0.8, "q_bis": 20.0, "oben_y": SPIEGEL_31 - 0.1,
+				"unten_y": SPIEGEL_31 - 6.0})
+	_weg_31.todeszonen = zonen
 
 
+## Der alte Boden (Station 1–29) und Warnpfosten an den Lücken – nur bis
+## Station 30: An der Themenbühne zeigen Steine die Lippen (Wegdecke).
 func _boden_bauen() -> void:
 	LevelWerkzeuge.korridor(geometrie, verlauf, STRECKE, {
 		"oben": Materialbibliothek.waldweg(),
 		"kante": Materialbibliothek.moos(),
 		"klippe": Materialbibliothek.fels(),
 	}, {"tiefe": 4.0, "schritt": 1.2, "kante_hoehe": 0.24, "kante_breite": 0.7})
-	luecken_markieren()
+	# Wie `luecken_markieren()`, aber nicht in Station 31.
+	var liste := abschnitte()
+	for i in liste.size() - 1:
+		var a: Dictionary = liste[i]
+		var naechster: Dictionary = liste[i + 1]
+		if float(naechster["von"]) >= M_STATION_31:
+			break
+		if naechster["von"] - a["bis"] > 0.5:
+			warnbalken(a["bis"] - 0.5, a.get("breite_ende", a["breite"]))
+			warnbalken(naechster["von"] + 0.5, naechster["breite"])
 
 
 func _absturz_spannen() -> void:
@@ -757,6 +867,342 @@ class Nachtodtafel extends Label3D:
 		text = "30 nach_tod\n%d× – zuletzt %s" % [anzahl, zuletzt]
 
 
+## Station 31: die Abschnitte – je Thema einer vor und einer hinter der
+## Lücke, mit dem Thema als "stoff" (danach wählt die Decke ihren Stoff).
+## Im Wald liegt Kronenlicht auf der Decke.
+func _station_31_abschnitte() -> Array:
+	var liste: Array = []
+	for k in THEMEN_31.size():
+		var thema: String = THEMEN_31[k][0]
+		var a := M_STATION_31 + THEMA_LAENGE * float(k)
+		var b := a + THEMA_LAENGE if k < THEMEN_31.size() - 1 else M_ENDE
+		var licht := 0.5 if thema == "wald" else 0.0
+		liste.append({"name": "31 %s A" % thema, "von": a, "bis": a + LUECKE_31.x,
+				"breite": WEGBREITE_31, "stoff": thema, "kronenlicht": licht})
+		liste.append({"name": "31 %s B" % thema, "von": a + LUECKE_31.y, "bis": b,
+				"breite": WEGBREITE_31, "stoff": thema, "kronenlicht": licht})
+	return liste
+
+
+## Station 31: die Bauschritte. Je Thema vier Kanten (rechts, links, die
+## Stirn vor und hinter der Lücke) und das Gelände, jeweils mit Bauspeicher;
+## davor die Decke samt Grenzen, danach Lippen, Bäche, Nebel und Kronen.
+func _station_31_schritte() -> Array:
+	_felder_31.clear()
+	var schritte: Array = [{"text": "Themenbühne: Wegdecke und Grenzen",
+			"tun": _station_31_decke}]
+	for k in THEMEN_31.size():
+		var thema: String = THEMEN_31[k][0]
+		var name: String = THEMEN_31[k][1]
+		var a := M_STATION_31 + THEMA_LAENGE * float(k)
+		var b := a + THEMA_LAENGE if k < THEMEN_31.size() - 1 else M_ENDE
+		var stoff := Kanten.stoff(_thema_kante(thema))
+		var karten := thema != "schnee"
+		schritte.append_array(Kanten.seite_schritte(geometrie, _weg_31, 1.0,
+				PackedVector2Array([Vector2(a, WEGBREITE_31 * 0.5), Vector2(b, WEGBREITE_31 * 0.5)]),
+				_profil_rechts_31.bind(a), stoff, "Kante %s rechts" % name,
+				"werkstatt_kante_%s_rechts" % thema,
+				{"karten": karten, "saat": 3101 + k}))
+		schritte.append_array(Kanten.seite_schritte(geometrie, _weg_31, -1.0,
+				PackedVector2Array([Vector2(a, -BOESCHUNG_Q_31), Vector2(b, -BOESCHUNG_Q_31)]),
+				_profil_links_31.bind(a), stoff, "Kante %s links" % name,
+				"werkstatt_kante_%s_links" % thema))
+		# Die Stirnen quer über den Weg: links in die Böschung hinein, rechts
+		# bis in den Fels unter der Lippe (dort steht am Rand der Lücke noch
+		# die ganze Kante, wie saum.gd:1766-1782). Rechts 0,4 statt 0,55 m
+		# vor dem Wegrand: Die Narbe der rechten Kante beginnt 0,45 m hinter
+		# ihrer Lippe – mit 0,55 blieb dazwischen ein Streifen von 10 cm ohne
+		# Fläche unter der Decke (Lippenprobe), durch den man dort, wo die
+		# Decke an der Lippe ausfranst, ins Leere sähe.
+		for ende in 2:
+			var s := a + (LUECKE_31.x if ende == 0 else LUECKE_31.y)
+			var vorwaerts := 1.0 if ende == 0 else -1.0
+			var kante := _weg_31.boden_bei(s - 0.01 * vorwaerts)
+			schritte.append_array(Kanten.seite_schritte(geometrie, _weg_31, -vorwaerts,
+					PackedVector2Array([Vector2(s, -BOESCHUNG_Q_31 - 0.4),
+							Vector2(s, WEGBREITE_31 * 0.5 - 0.4)]),
+					_profil_stirn_31.bind(kante), stoff,
+					"Stirn %s %d" % [name, ende + 1], "werkstatt_stirn_%s_%d" % [thema, ende + 1],
+					{"karten": karten, "karten_maske": true, "saat": 3111 + k * 2 + ende,
+					"kante": func(_s: float) -> float: return kante}))
+		schritte.append_array(GelaendeBau.schritte(geometrie,
+				GelaendeBau.schluessel("werkstatt_" + thema), _feld_31.bind(a, b),
+				GelaendeBau.stoff(_thema_gelaende(thema)), "Gelände " + name))
+	schritte.append({"text": "Themenbühne: Lippen, Bäche, Nebel", "tun": _station_31_wasser})
+	return schritte
+
+
+## Decke (je Thema ein Stoff, eine Kollision), Leitlinie, Schulter und
+## Todeszonen der Themenbühne.
+func _station_31_decke() -> void:
+	_weg_31.decke_bauen(geometrie, func(a: Dictionary) -> Material:
+		var thema := String(a.get("stoff", "wald"))
+		return Wegdecke.stoff(_thema_weg(thema), _weg_31, _weg_31.abschnitte,
+				"werkstatt_" + thema))
+	_weg_31.leitlinien_bauen(geometrie)
+	_weg_31.schultern_bauen(geometrie)
+	_weg_31.todeszonen_bauen(geometrie)
+
+
+## Rechts: Felskante über dem Abgrund, dazwischen Erdufer über dem Bach
+## (gemischt wie in Level 01 an C4); in der Lücke ein Kerbtal.
+func _profil_rechts_31(_i: int, probe: Dictionary, a: float) -> GelaendeSaum.Profil:
+	var s: float = probe["s"]
+	var bogen: float = probe["bogen"]
+	var kante := _weg_31.boden_bei(s)
+	var ov := Kanten.ueberhang_lippe(bogen)
+	var u := s - a
+	var ufer := smoothstep(UFER_31.x, UFER_31.y, u) * (1.0 - smoothstep(UFER_31.z, UFER_31.w, u))
+	var p: GelaendeSaum.Profil
+	if ufer <= 0.0:
+		p = Kanten.profil_ab(s, bogen, float(probe["q"]), kante, kante + FUSS_31, ov)
+	elif ufer >= 1.0:
+		p = Kanten.profil_ufer(bogen, kante, kante + UFER_FUSS_31, ov)
+	else:
+		p = Kanten.profil_ab(s, bogen, float(probe["q"]), kante, kante + FUSS_31, ov).gemischt(
+				Kanten.profil_ufer(bogen, kante, kante + UFER_FUSS_31, ov), ufer)
+	if _weg_31.ist_luecke(s):
+		var mitte := a + (LUECKE_31.x + LUECKE_31.y) * 0.5
+		var rand := clampf((absf(s - mitte) - 0.25) / 1.25, 0.0, 1.0)
+		Kanten.in_luecke(p, kante + GRUND_31, 0, p.anzahl() - 1, 1.2, rand, true)
+	return p
+
+
+## Links: Böschung bis zur Krone; vor und hinter der Lücke eine Rinne, in
+## ihr ein V bis auf den Grund (wie die Kerbe in Level 01).
+func _profil_links_31(_i: int, probe: Dictionary, a: float) -> GelaendeSaum.Profil:
+	var s: float = probe["s"]
+	var bogen: float = probe["bogen"]
+	var kante := _weg_31.boden_bei(s)
+	var krone := kante + KRONE_31 + 0.8 * Kanten.welle(s * 0.04, 41.0)
+	var von := a + LUECKE_31.x
+	var bis := a + LUECKE_31.y
+	var abseits := maxf(von - s, s - bis)
+	var rinne := 1.0 - smoothstep(0.0, 2.2, abseits) if abseits > 0.0 else 0.0
+	var p := Kanten.profil_boeschung(bogen, absf(float(probe["q"])), kante,
+			_weg_31.wegrand(s), krone, rinne)
+	if _weg_31.ist_luecke(s):
+		var rand := clampf((absf(s - (von + bis) * 0.5) - 0.2) / 1.3, 0.0, 1.0)
+		Kanten.in_luecke(p, kante + GRUND_31, 0, p.anzahl() - 1, 2.2, rand)
+	return p
+
+
+## Die Stirn an einer Lippe: Fels bis auf den Grund, die Narbe folgt der
+## Wegmaske.
+func _profil_stirn_31(_i: int, probe: Dictionary, kante: float) -> GelaendeSaum.Profil:
+	var halb := (LUECKE_31.y - LUECKE_31.x) * 0.5
+	return Kanten.profil_stirn(probe, kante, kante + GRUND_31, halb, false, 0.45, _weg_31)
+
+
+## Das Gelände eines Themas (von `a` bis `b`): ein Rechteck über die ganze
+## Breite der Bühne zwischen den Z der beiden Enden, zwei Stücke. Die Höhe
+## ist EINE Funktion für alle Themen (`_hoehe_31`), so schließen die Felder
+## an ihren Grenzen ohne Stufe; nur der Stoff wechselt.
+func _feld_31(a: float, b: float) -> GelaendeFeld:
+	var z_a := verlauf.sample_baked(a).z
+	var z_b := verlauf.sample_baked(b).z
+	var feld := GelaendeFeld.new()
+	feld.bereich = Rect2(GELAENDE_X_31.x, z_b, GELAENDE_X_31.y - GELAENDE_X_31.x, z_a - z_b)
+	feld.stuecke = Vector2i(2, 1)
+	feld.hoehe = _hoehe_31
+	feld.abstand = func(x: float, z: float) -> float:
+		var sq := _sq_31(x, z)
+		return clampf(1.0 + (absf(sq.y) - 6.0) * 0.12, 1.0, 4.0)
+	feld.faerben = _faerben_31
+	feld.zusatz = func(_p: Vector3, _n: Vector3, mulde: float) -> Vector2:
+		return Vector2(clampf(1.0 - mulde * 0.25, 0.65, 1.0), 0.0)
+	_felder_31.append(feld)
+	return feld
+
+
+## (s, q) eines Weltpunkts zur Kurve der Werkstatt.
+func _sq_31(x: float, z: float) -> Vector2:
+	var p := Vector3(x, 0.0, z)
+	var s := verlauf.get_closest_offset(p)
+	var mitte := verlauf.sample_baked(s)
+	var rechts := LevelWerkzeuge.richtung(verlauf, s).cross(Vector3.UP).normalized()
+	var d := p - mitte
+	d.y = 0.0
+	return Vector2(s, d.dot(rechts))
+
+
+## Höhe des Geländes der Themenbühne. Es bleibt UNTER allem, was die Kanten
+## zeichnen: rechts unter dem Fuß der Felskante bzw. als Bett des Baches mit
+## einem Ufer gegenüber, links unter der Böschung, deren Krone es hinten
+## zudeckt; unter der Decke 1,5 m tief, unter der Lücke unter ihrem Grund.
+## Vor der Bühne (Station 30) liegt es tief und aus dem Weg.
+func _hoehe_31(x: float, z: float) -> float:
+	var sq := _sq_31(x, z)
+	var s := sq.x
+	var q := sq.y
+	if s < M_STATION_31 - 0.5:
+		return -9.0
+	var k := clampi(int(floor((s - M_STATION_31) / THEMA_LAENGE)), 0, THEMEN_31.size() - 1)
+	var a := M_STATION_31 + THEMA_LAENGE * float(k)
+	var u := s - a
+	var rand := WEGBREITE_31 * 0.5
+	var y := -1.5
+	if q > rand:
+		var r := q - rand
+		var fels := FUSS_31 - 0.5 if r > 2.8 else FUSS_31 - 3.0
+		var ufer := smoothstep(UFER_31.x, UFER_31.y, u) * (1.0 - smoothstep(UFER_31.z, UFER_31.w, u))
+		# Bett, gegenüber ein Wiesenufer 1 m unter der Decke, dahinter fällt
+		# es wieder auf den Fuß der Felskante ab (sonst stünde es von der
+		# Seite gesehen vor dem Weg).
+		var bett := -2.4 if r < 1.5 else -2.2
+		if r > 8.5:
+			bett = lerpf(-2.2, -1.0, smoothstep(8.5, 11.0, r))
+		if r > 13.0:
+			bett = lerpf(-1.0, fels, smoothstep(13.0, 18.0, r))
+		y = lerpf(fels, bett, ufer)
+	elif q < -rand:
+		var l := -q - rand
+		var krone := KRONE_31 + 0.8 * Kanten.welle(s * 0.04, 41.0)
+		if l < 8.5:
+			y = lerpf(-1.5, krone - 0.6, clampf((l - 0.4) / 8.1, 0.0, 1.0))
+		else:
+			y = lerpf(krone - 0.6, krone + 1.2, clampf((l - 8.5) / 9.5, 0.0, 1.0)) \
+					+ maxf(l - 18.0, 0.0) * 0.05
+	# Unter der Lücke und ihren Rinnen: unter dem Grund.
+	var luecke := LUECKE_31.x - 1.0 <= u and u <= LUECKE_31.y + 1.0
+	if luecke and q < rand + 3.0:
+		var grund := GRUND_31 - 0.5 + maxf(-q - rand, 0.0) * 1.6
+		y = minf(y, grund)
+	return y
+
+
+## Gewichte der vier Böden (R Wiese, G Waldboden, B Fels, A Schlamm): Fels,
+## wo es steil ist, Schlamm am Bach, Waldboden oben auf der Krone, sonst
+## Wiese.
+func _faerben_31(p: Vector3, n: Vector3) -> Color:
+	var fels := 1.0 - smoothstep(0.62, 0.82, n.y)
+	var schlamm := (1.0 - smoothstep(-1.1, -0.5, p.y)) * (1.0 - fels)
+	var oben := smoothstep(1.4, 2.6, p.y) * (1.0 - fels)
+	var wiese := maxf(1.0 - fels - schlamm - oben, 0.0)
+	return Color(wiese, oben, fels, schlamm)
+
+
+## Lippen, Bäche, Nebeltafeln und ferne Kronen der Themenbühne (nach dem
+## Gelände: Das Bachband sucht sein Ufer im gezeichneten Feld).
+func _station_31_wasser() -> void:
+	var umgebung: Environment = null
+	var welt := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if welt != null:
+		umgebung = welt.environment
+	for k in THEMEN_31.size():
+		var thema: String = THEMEN_31[k][0]
+		var a := M_STATION_31 + THEMA_LAENGE * float(k)
+		var lippen := _thema_weg(thema).duplicate()
+		lippen["name"] = thema
+		lippen["luecken"] = [{"name": "31 " + thema, "von": a + LUECKE_31.x,
+				"bis": a + LUECKE_31.y}]
+		Wegdecke.lippen(geometrie, _weg_31, lippen)
+		# Der Bach im Ufer: Spiegelpunkte alle 2 m, rund an beiden Enden.
+		var punkte := PackedVector3Array()
+		var breiten := PackedFloat32Array()
+		var s := a + UFER_31.y + 0.5
+		while s <= a + UFER_31.z + 0.01:
+			var p := LevelWerkzeuge.punkt_frei(verlauf, s, BACH_Q_31)
+			p.y = _weg_31.boden_bei(s) + SPIEGEL_31
+			punkte.append(p)
+			breiten.append(BACH_BREITE_31)
+			s += 2.0
+		var feld := _felder_31[k]
+		var bach := Bachband.bauen(geometrie, [{"name": "Bach " + thema, "punkte": punkte,
+				"breite": breiten}], Bachband.stoff(_thema_bach(thema)),
+				{"hoehe": feld.hoehe_bei})
+		bach.name = "Bach " + thema
+	# Über dem Sumpf Dunst; die Farbe ist das Nebellicht, etwas heller.
+	var a_sumpf := M_STATION_31 + THEMA_LAENGE
+	var tafeln: Array = []
+	for i in 3:
+		var p := LevelWerkzeuge.punkt_frei(verlauf, a_sumpf + 25.0 + 4.0 * float(i),
+				BACH_Q_31 + 0.6 * float(i % 2))
+		p.y = SPIEGEL_31 + 0.75
+		tafeln.append({"mitte": p, "mass": Vector2(6.5, 2.2), "phase": 0.3 * float(i),
+				"kraft": 1.0})
+	var licht := Color(0.6, 0.66, 0.62)
+	if umgebung != null:
+		licht = umgebung.fog_light_color.lightened(0.22)
+	GelaendeBau.nebeltafeln(geometrie, tafeln, licht)
+	# Hinter dem Sumpf ferne Kronen im eigenen, halben Nebel: Sie stehen
+	# dunkel vor dem Dunst, statt in ihm zu verschwinden.
+	var kronen_stoff := Nebelstoff.nebelarm(Kronenwolke.stoff(Farben.LAUB_DUNKEL, false),
+			umgebung)
+	for i in 4:
+		var krone := Kronenwolke.fern({"radius": 3.2, "saat": 3141 + i})
+		var lage := _lage(a_sumpf + 6.0 + 9.0 * float(i), -30.0 - 3.0 * float(i % 2),
+				KRONE_31 + 4.0)
+		_netz_setzen(krone, kronen_stoff, lage, false, "Ferne Krone %d" % i)
+
+
+## Thema der Wegdecke (`Wegdecke.stoff`): Wald wie Level 01 (leer), Sumpf
+## mit Moorboden, Schnee mit Schnee in der Spur und Firn statt Rasen.
+func _thema_weg(thema: String) -> Dictionary:
+	match thema:
+		"sumpf":
+			var moor := Materialbibliothek.moorboden()
+			return {"boden_farbe": moor.albedo_texture, "boden_normal": moor.normal_texture,
+					"boden_kachel": 0.3, "lippen_korn": moor.albedo_texture,
+					"uniforms": {"erde_ton": Color(1.15, 1.1, 0.95)}}
+		"schnee":
+			var schnee := Materialbibliothek.schnee()
+			var firn := Materialbibliothek.firn()
+			return {"boden_farbe": schnee.albedo_texture, "boden_normal": schnee.normal_texture,
+					"boden_kachel": 0.22, "rasen": firn.albedo_texture, "rasen_kachel": 0.3,
+					"lippen_korn": firn.albedo_texture, "lippen_pilze": false,
+					"uniforms": {"erde_ton": Color(1.0, 1.0, 1.0)}}
+	return {}
+
+
+## Thema der Kanten (`Kanten.stoff`): Wald wie Level 01, Sumpf mit Moor-
+## erde und Algen, Schnee mit Frostgestein, Firn und Schnee statt Moos.
+func _thema_kante(thema: String) -> Dictionary:
+	match thema:
+		"sumpf":
+			return {"erde": Materialbibliothek.moorboden().albedo_texture,
+					"moos": Materialbibliothek.algen().albedo_texture,
+					"uniforms": {"erde_ton": Color(0.7, 0.68, 0.58)}}
+		"schnee":
+			return {"fels": Materialbibliothek.frostgestein().albedo_texture,
+					"kalk": Materialbibliothek.frostgestein().albedo_texture,
+					"erde": Materialbibliothek.firn().albedo_texture,
+					"moos": Materialbibliothek.schnee().albedo_texture,
+					"rasen": Materialbibliothek.firn().albedo_texture, "rasen_kachel": 0.3,
+					"uniforms": {"moos_ton": Color(1.5, 1.5, 1.55), "erde_ton": Color(1.0, 1.0, 1.0)}}
+	return {}
+
+
+## Thema des Geländes (`GelaendeBau.stoff`).
+func _thema_gelaende(thema: String) -> Dictionary:
+	match thema:
+		"sumpf":
+			var moor := Materialbibliothek.moorboden().albedo_texture
+			return {"waldboden": moor, "erde": moor,
+					"uniforms": {"waldboden_ton": Color(0.75, 0.8, 0.65)}}
+		"schnee":
+			var schnee := Materialbibliothek.schnee().albedo_texture
+			var firn := Materialbibliothek.firn().albedo_texture
+			return {"waldboden": schnee, "fels": Materialbibliothek.frostgestein().albedo_texture,
+					"erde": firn, "rasen": firn, "rasen_kachel": 0.3,
+					"uniforms": {"waldboden_ton": Color(1.0, 1.0, 1.0),
+							"moos_ton": Color(1.0, 1.0, 1.0)}}
+	return {}
+
+
+## Thema des Baches (`Bachband.stoff`): Wald wie Level 01, im Sumpf
+## braun-trüb, im Schnee kalt und dunkel.
+func _thema_bach(thema: String) -> Dictionary:
+	match thema:
+		"sumpf":
+			return {"farbe_tief": Color(0.08, 0.08, 0.04), "farbe_hell": Color(0.2, 0.18, 0.1),
+					"farbe_schaum": Color(0.62, 0.62, 0.5)}
+		"schnee":
+			return {"farbe_tief": Color(0.04, 0.09, 0.14), "farbe_hell": Color(0.12, 0.22, 0.3),
+					"himmel_farbe": Color(0.78, 0.86, 0.94)}
+	return {}
+
+
 ## Lage am Weg: Strecke, Querabstand (rechts positiv), Höhe und eine
 ## Drehung um die Hochachse, ausgerichtet nach der Wegrichtung (+X zeigt
 ## nach rechts, -Z den Weg entlang).
@@ -889,6 +1335,11 @@ func _schilder_setzen() -> void:
 		374.0: "26 Totholzzaun", 388.0: "27 GelaendeSaum",
 		402.0: "28 Waldsetzer", 432.0: "29 Weltenbaum (1:8)",
 		452.0: "30 Unterbau (Wegdaten)", SCHILD_SPRUNGBAHN: "30 Sprungbahn",
+		# Am Anfang jedes Themas: So steht das Schild schon hinter der
+		# Verfolgerkamera, wenn die Figur an die Lücke kommt.
+		M_STATION_31 + 0.3: "31 Themenbühne: Wald",
+		M_STATION_31 + THEMA_LAENGE + 0.3: "31 Sumpf",
+		M_STATION_31 + THEMA_LAENGE * 2.0 + 0.3: "31 Schnee",
 	}
 	for strecke: float in stationen:
 		var quer := -WEGBREITE * 0.5 + 0.8

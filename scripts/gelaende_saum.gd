@@ -41,7 +41,9 @@ class_name GelaendeSaum
 ## STOFF: `shaders/fels_schichten.gdshader` (`stoff()`), Scheitelformat dort
 ## beschrieben: COLOR = (Verdeckung, Erde, Moos, Rasen), UV2 = (Kronenlicht,
 ## Tiefe unter der Wegkante). Keine Schatten: Die Kanten sind Gelände, und
-## jede Schattenstufe kostete je Stück einen weiteren Zeichenaufruf.
+## jede Schattenstufe kostete je Stück einen weiteren Zeichenaufruf. Andere
+## Texturen (Sumpf, Schnee) über `stoff_variante(thema)`, je Aufruf ein
+## eigener Stoff.
 ##
 ## ABFRAGE: `flaeche_punkt(s, seite, hoehe)` liefert einen Punkt auf der
 ## zuletzt gebauten Fläche einer Seite (für Wasserfälle, die an der Wand
@@ -761,6 +763,46 @@ static func stoff() -> ShaderMaterial:
 	_stoff.set_shader_parameter("erde", Materialbibliothek.waldboden().albedo_texture)
 	_stoff.set_shader_parameter("moos", Riesenstamm.moostextur())
 	return _stoff
+
+
+## Eine Fassung von `stoff()` mit anderen Texturen und Uniforms – für Kanten
+## außerhalb des Waldes (Baukasten Raum 1, Paket G3: Sumpf, Schnee). `stoff()`
+## bleibt, wie es ist; Level 01 ruft diese Funktion nie.
+##
+## `thema` (jeder Schlüssel freiwillig, ohne Angabe gilt der Wert von
+## `stoff()`): "fels", "kalk", "erde", "moos" (Texturen), "rasen" (Textur
+## für `wald_rasen`, die Grasnarbe; null = die der Wegmaske), "rasen_kachel"
+## (Wiederholungen je Meter), "uniforms" {Name: Wert} für alles Übrige des
+## Shaders (Töne, Kacheln, Schichten).
+##
+## Jeder Aufruf liefert einen NEUEN Stoff, keinen geteilten: Der Zustand
+## gehört dem Level, das ihn hält (sonst bekäme ein zweites Level die Töne
+## des ersten – der Fehler aus scenes/levels/level01/boden.gd:44). Mit
+## leerem Thema stimmen alle Uniforms mit `stoff()` überein
+## (`werkzeuge/baukastenprobe.gd`).
+static func stoff_variante(thema: Dictionary) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = STOFF_SHADER
+	Wegmaske.einrichten(m)
+	var fels: Texture2D = thema["fels"] if thema.has("fels") \
+			else Materialbibliothek.wurzelfels().albedo_texture
+	var kalk: Texture2D = thema["kalk"] if thema.has("kalk") \
+			else Materialbibliothek.fels().albedo_texture
+	var erde: Texture2D = thema["erde"] if thema.has("erde") \
+			else Materialbibliothek.waldboden().albedo_texture
+	var moos: Texture2D = thema["moos"] if thema.has("moos") else Riesenstamm.moostextur()
+	m.set_shader_parameter("fels", fels)
+	m.set_shader_parameter("kalk", kalk)
+	m.set_shader_parameter("erde", erde)
+	m.set_shader_parameter("moos", moos)
+	if thema.get("rasen") != null:
+		m.set_shader_parameter("wald_rasen", thema["rasen"])
+	if thema.has("rasen_kachel"):
+		m.set_shader_parameter("wald_rasen_kachel", float(thema["rasen_kachel"]))
+	var uniforms: Dictionary = thema.get("uniforms", {})
+	for name: String in uniforms:
+		m.set_shader_parameter(name, uniforms[name])
+	return m
 
 
 ## Stoff der Wurzel- und Halmkarten: Atlas mit Alpha-Scissor, beidseitig,
