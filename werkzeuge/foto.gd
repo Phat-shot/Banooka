@@ -36,6 +36,9 @@ extends Node
 ##                 die Tasten kosten allein rund 70 Draw-Calls.
 ##   FOTO_ZEITMODUS 1 = Zeitmodus an (Zeitkisten im Level, Uhr im HUD)
 ##   FOTO_STATUS   1 = Statustafel aufgeklappt zeigen
+##   FOTO_SAAT     Zahl = fester Startwert für den Zufall (Phasen von
+##                 Früchten und Gegnern); schaufenster.sh setzt 1, damit
+##                 zwei Läufe desselben Stands pixelgleich werden
 ##   FOTO_SEITLICH seitlicher Versatz der Figur vom Wegmittelpunkt in Metern
 ##                 (nur verfolger/seite/nah) – zeigt, wie stark die Kamera
 ##                 seitliche Bewegungen mitnimmt
@@ -109,6 +112,15 @@ func _ready() -> void:
 	var nummer := pfad.get_file().get_basename().to_lower().trim_prefix("level")
 	if nummer.is_valid_int():
 		Spielfluss.aktuelles_level = int(nummer)
+
+	# FOTO_SAAT=<Zahl>: fester Startwert für den Zufall. Godot mischt ihn
+	# bei jedem Start neu, und Früchte wie Gegner würfeln in `_ready()` ihre
+	# Phase (frucht.gd, gegner.gd: `randf()`) – zwei Läufe DESSELBEN Stands
+	# zeigten Früchte, Spinne und Käfer deshalb an anderer Stelle, kein
+	# einziges Bild war pixelgleich. Vor dem Laden: Die Würfe beim
+	# Instanziieren gehören schon dazu.
+	if OS.get_environment("FOTO_SAAT").is_valid_int():
+		seed(int(OS.get_environment("FOTO_SAAT")))
 
 	_szene = load(pfad).instantiate()
 	add_child(_szene)
