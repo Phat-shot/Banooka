@@ -55,17 +55,29 @@ extends KorridorLevel
 ## Leitlinie links; wer rechts über die Kante oder in eine Lücke fällt,
 ## stirbt 4 m unter der Decke, im Bach an seinem Spiegel.
 ##
+## Station 32 „Bewuchs" (Paket G4): ein Waldweg ohne Bordstein zwischen
+## zwei Leitlinien, links ein Hang mit Laub- und Nadelbäumen und Birken,
+## rechts eine Wiese mit Weidenhainen, einer Lichtung und einer Mulde –
+## gepflanzt von `Baumfabrik.hain` nach den Regeln eines `Waldrahmen`
+## (Auge aus der echten Kamera, Freiraum über dem Weg, ein Sichtkegel zum
+## Zielportal, Kisten frei), dazu Totholz, Felsen und Treibholz am Fuß der
+## Bäume, Sträucher am Rand der Haine (die neuen Rollen M19–M24 aus
+## `Fremdmodelle`), ferne Kronen auf dem Hangkamm mit der Himmelsprobe
+## (`einsinken`) und Rasen, Streu und Rahmenfarne aus `Rasenbau`. Alles
+## steht auf einem eigenen Gelände (`GelaendeBau`, im Bauspeicher).
+##
 ## ZWEI WEGDATEN. `weg` beschreibt den ganzen Prüfstand (die alte Strecke
-## samt Station 30 und 31), damit `breite_bei`, `boden_bei` & Co. überall
-## stimmen. Gebaut wird aus `weg` aber nur Station 30 (`_weg_30`) und 31
-## (`_weg_31`, eigene Lücken für den Stoff der Decke): Der alte Boden bis
-## 450 bleibt der Korridor mit Bordstein, auf dem die Stationen 1–29
-## stehen. Für die alten Stationen ändert `weg` nichts – ihre Stellen
-## liegen weit von jeder Kante, Breite und Klemmung bleiben dieselben.
+## samt Station 30 bis 32), damit `breite_bei`, `boden_bei` & Co. überall
+## stimmen. Gebaut wird aus `weg` aber nur Station 30 (`_weg_30`), 31
+## (`_weg_31`, eigene Lücken für den Stoff der Decke) und 32 (`_weg_32`):
+## Der alte Boden bis 450 bleibt der Korridor mit Bordstein, auf dem die
+## Stationen 1–29 stehen. Für die alten Stationen ändert `weg` nichts –
+## ihre Stellen liegen weit von jeder Kante, Breite und Klemmung bleiben
+## dieselben.
 
-## Bis 693,6 m reicht die Kurve (Station 31 hat sie verlängert, siehe
-## `_verlauf_anlegen`).
-const M_ENDE := 690.0
+## Bis 822,7 m reicht die Kurve (Station 31 und 32 haben sie verlängert,
+## siehe `_verlauf_anlegen`).
+const M_ENDE := 818.0
 const ABSTURZ := -8.0
 const WEGBREITE := 12.0
 ## Bis hier reicht der alte Boden (Korridor mit Bordstein), danach Station 30.
@@ -106,6 +118,8 @@ const SCHILD_SPRUNGBAHN := 509.0
 
 ## Ende von Station 30, Anfang der Themenbühne (Station 31).
 const M_STATION_31 := 554.0
+## Ende der Themenbühne, Anfang von Station 32 (Bewuchs).
+const M_STATION_32 := 690.0
 
 const STATION_30 := [
 	{"name": "30A", "von": M_STATION_30, "bis": 458.0, "breite": WEGBREITE,
@@ -129,7 +143,7 @@ const LEITLINIEN_30 := [
 
 ## Station 31: die drei Themen in Bau-Reihenfolge (Schlüssel, Name). Jedes
 ## beginnt bei `M_STATION_31 + THEMA_LAENGE · k`, das letzte reicht bis
-## `M_ENDE`.
+## `M_STATION_32`.
 const THEMEN_31 := [["wald", "Wald"], ["sumpf", "Sumpf"], ["schnee", "Schnee"]]
 const THEMA_LAENGE := 40.0
 const WEGBREITE_31 := 8.0
@@ -164,9 +178,38 @@ const GELAENDE_X_31 := Vector2(386.0, 476.0)
 
 const LEITLINIEN_31 := [
 	{"name": "Links 31", "aussen": -1.0, "hoehe": 6.0, "unten": 3.0,
-			"schulter": Vector2(M_STATION_31, M_ENDE), "punkte": [
-				Vector2(M_STATION_31, LEITLINIE_Q_31), Vector2(M_ENDE, LEITLINIE_Q_31)]},
+			"schulter": Vector2(M_STATION_31, M_STATION_32), "punkte": [
+				Vector2(M_STATION_31, LEITLINIE_Q_31), Vector2(M_STATION_32, LEITLINIE_Q_31)]},
 ]
+
+const WEGBREITE_32 := 8.0
+## Leitlinien beidseits (Ebene 16), die Schulter dazwischen.
+const LEITLINIE_Q_32 := 5.0
+const LEITLINIEN_32 := [
+	{"name": "Links 32", "aussen": -1.0, "hoehe": 6.0, "unten": 3.0,
+			"schulter": Vector2(M_STATION_32, M_ENDE), "punkte": [
+				Vector2(M_STATION_32, -LEITLINIE_Q_32), Vector2(M_ENDE, -LEITLINIE_Q_32)]},
+	{"name": "Rechts 32", "aussen": 1.0, "hoehe": 6.0, "unten": 3.0,
+			"schulter": Vector2(M_STATION_32, M_ENDE), "punkte": [
+				Vector2(M_STATION_32, LEITLINIE_Q_32), Vector2(M_ENDE, LEITLINIE_Q_32)]},
+]
+## Der Hang links: so hoch (über der Decke) steht sein Kamm, so weit vom
+## Wegrand beginnt er und so weit liegt der Kamm. Rechts die Mulde: Mitte
+## und Tiefe (m) und die Strecke, über die sie reicht.
+const HANG_HOCH_32 := 7.0
+const HANG_AB_32 := 3.0
+const HANG_KAMM_32 := 46.0
+const MULDE_Q_32 := 24.0
+const MULDE_TIEF_32 := 1.4
+const MULDE_S_32 := Vector2(724.0, 776.0)
+## Die Lichtung rechts (s von, s bis, q von, q bis): Dort wächst kein Baum,
+## der Blick geht über die Wiese in die Mulde.
+const LICHTUNG_32 := Vector4(742.0, 756.0, 6.0, 30.0)
+## Kisten auf dem Weg (s, q): Bäume, Waldboden und Rasen halten Abstand.
+const KISTEN_32 := [Vector2(708.0, -1.6), Vector2(708.0, 1.6), Vector2(764.0, 0.0)]
+## Ferne Kronen auf dem Hangkamm: so weit quer, alle so viele Meter.
+const FERNE_Q_32 := Vector2(-58.0, -44.0)
+const FERNE_SCHRITT_32 := 7.0
 
 ## Stirn und Tiefe des Duckdurchlasses, Dauer des Stolperns an seiner Stirn
 ## (wie `STOLPER_DAUER` in Level 05).
@@ -188,11 +231,17 @@ const LANDUNG_SPIEL := 0.45
 
 const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
 
-## Nur Station 30 bzw. 31, zum Bauen (siehe Kopf, ZWEI WEGDATEN).
+## Nur Station 30, 31 bzw. 32, zum Bauen (siehe Kopf, ZWEI WEGDATEN).
 var _weg_30: Wegdaten
 var _weg_31: Wegdaten
+var _weg_32: Wegdaten
 ## Station 31: das Gelände je Thema (für das Ufer des Baches).
 var _felder_31: Array[GelaendeFeld] = []
+## Station 32: das Gelände (Bäume und Rasen stehen auf seiner gezeichneten
+## Höhe) und der Rahmen des Waldes (Bauschritt Haine, danach verworfen).
+var _feld_32: GelaendeFeld
+var _rahmen_32: Waldrahmen
+var _rasen_32: Rasenbau
 
 ## Die Schlucht am Ende (Station 14–18): eine Wand zu beiden Seiten, an der
 ## die Bauteile aus Level 01 wachsen. Gut einen Meter Luft neben dem Weg,
@@ -236,6 +285,7 @@ func _bauschritte() -> Array:
 		{"text": "Unterbau aus Wegdaten", "tun": _station_30_setzen},
 	]
 	schritte.append_array(_station_31_schritte())
+	schritte.append_array(_station_32_schritte())
 	schritte.append_array([
 		{"text": "Portale", "tun": _portale},
 		{"text": "Schilder", "tun": _schilder_setzen},
@@ -284,12 +334,26 @@ func _verlauf_anlegen() -> void:
 		Vector3(432, 0, -248),
 		Vector3(430, 0, -276),
 		Vector3(431, 0, -304),
+		# Station 32: erst 10 m geradeaus weiter, dann eine weite Rechts-
+		# kurve – das Auge des Waldrahmens muss auch in der Kurve stimmen.
+		# Die Kurve bis s 666 bleibt bitgleich, bis 690 (Ende der
+		# Themenbühne) weicht sie höchstens 2,7 cm und 0,31° ab (gemessen
+		# alle 0,5 m).
+		Vector3(431.36, 0, -314),
+		Vector3(433, 0, -338),
+		Vector3(439, 0, -362),
+		Vector3(450, 0, -384),
+		Vector3(465, 0, -402),
+		Vector3(482, 0, -416),
 	])
 	var station_31 := _station_31_abschnitte()
+	var station_32 := _station_32_abschnitte()
 	var alle: Array = STRECKE.duplicate()
 	alle.append_array(STATION_30)
 	alle.append_array(station_31)
+	alle.append_array(station_32)
 	weg = Wegdaten.new(verlauf, {"abschnitte": alle})
+	_weg_32 = Wegdaten.new(verlauf, {"abschnitte": station_32, "leitlinien": LEITLINIEN_32})
 	_weg_30 = Wegdaten.new(verlauf, {"abschnitte": STATION_30, "leitlinien": LEITLINIEN_30})
 	# Unter der ganzen Station eine Todeszone „Boden − 6": rechts über die
 	# offene Kante, unter jeder Terrasse auf ihrer eigenen Höhe. Sie liegt
@@ -299,7 +363,7 @@ func _verlauf_anlegen() -> void:
 	_weg_31 = Wegdaten.new(verlauf, {"abschnitte": station_31, "leitlinien": LEITLINIEN_31})
 	# Station 31: „Boden − 4" überall (rechts über die Kante, in den Lücken),
 	# dazu je Thema der Bach auf Höhe seines Spiegels.
-	var zonen := Wegdaten.zonen_unter_boden(_weg_31, M_STATION_31, M_ENDE, -30.0, 30.0,
+	var zonen := Wegdaten.zonen_unter_boden(_weg_31, M_STATION_31, M_STATION_32, -30.0, 30.0,
 			TOD_UNTER_31, 12.0)
 	for k in THEMEN_31.size():
 		var a := M_STATION_31 + THEMA_LAENGE * float(k)
@@ -875,7 +939,7 @@ func _station_31_abschnitte() -> Array:
 	for k in THEMEN_31.size():
 		var thema: String = THEMEN_31[k][0]
 		var a := M_STATION_31 + THEMA_LAENGE * float(k)
-		var b := a + THEMA_LAENGE if k < THEMEN_31.size() - 1 else M_ENDE
+		var b := a + THEMA_LAENGE if k < THEMEN_31.size() - 1 else M_STATION_32
 		var licht := 0.5 if thema == "wald" else 0.0
 		liste.append({"name": "31 %s A" % thema, "von": a, "bis": a + LUECKE_31.x,
 				"breite": WEGBREITE_31, "stoff": thema, "kronenlicht": licht})
@@ -895,7 +959,7 @@ func _station_31_schritte() -> Array:
 		var thema: String = THEMEN_31[k][0]
 		var name: String = THEMEN_31[k][1]
 		var a := M_STATION_31 + THEMA_LAENGE * float(k)
-		var b := a + THEMA_LAENGE if k < THEMEN_31.size() - 1 else M_ENDE
+		var b := a + THEMA_LAENGE if k < THEMEN_31.size() - 1 else M_STATION_32
 		var stoff := Kanten.stoff(_thema_kante(thema))
 		var karten := thema != "schnee"
 		schritte.append_array(Kanten.seite_schritte(geometrie, _weg_31, 1.0,
@@ -1249,6 +1313,384 @@ func _kronenpunkt(kronen: Array, strecke: float, seite: float) -> Vector3:
 			seite * (float(beste["innen"]) + 1.0), float(beste["oben"]) + 0.6)
 
 
+# ======================================================= Station 32
+
+## Laubfarbe der Kronen (wie der nahe Talwald in Level 01).
+const LAUB_32 := Color(0.19, 0.41, 0.15)
+## Woraus die Haine wachsen (`Baumfabrik.hain`): am Hang Laub- und
+## Nadelbäume aus M3 und Birken (M20), auf der Wiese Weiden (M19) und
+## Birken. Ohne Modelle der prozedurale Rückfall in derselben Höhe.
+const ARTEN_HANG_32 := [
+	{"rolle": "M3", "hoehe": 12.0, "unten": 0.36, "gewicht": 2.0},
+	{"rolle": "M20", "hoehe": 11.0, "unten": 0.42, "gewicht": 2.0,
+			"ton": Color(1.06, 1.08, 0.92)},
+	{"rolle": "M3", "nadel": true, "hoehe": 14.0, "unten": 0.14, "gewicht": 1.0},
+]
+const ARTEN_WIESE_32 := [
+	{"rolle": "M19", "hoehe": 9.0, "unten": 0.3, "gewicht": 3.0},
+	{"rolle": "M20", "hoehe": 10.0, "unten": 0.45, "gewicht": 1.0},
+]
+## Tönungen der Haine (wie wald.gd:178-179: neutral, oliv-gelb, blaugrün).
+const HAINTOENE_32 := [Color(1.0, 1.0, 1.0), Color(1.0, 0.95, 0.66), Color(0.78, 0.94, 1.0)]
+
+## Füße der gesetzten Bäume (Welt-XZ), damit der Rasen sie ausspart.
+var _fuesse_32 := PackedVector2Array()
+
+
+## Station 32: ein Abschnitt Waldweg, ohne Kronenlicht – mit dem Schatten
+## der Kronen (0,5 wie im Wald der Themenbühne) lag die Decke als dunkles
+## Band zwischen dem hellen Gelände: Hier steht der Weg im Offenen.
+func _station_32_abschnitte() -> Array:
+	return [{"name": "32 Bewuchs", "von": M_STATION_32, "bis": M_ENDE,
+			"breite": WEGBREITE_32, "stoff": "wald"}]
+
+
+## Station 32: Decke samt Grenzen und Kisten, das Gelände (Bauspeicher),
+## die Haine und der Rasen – in dieser Reihenfolge: Die Kisten stehen vor
+## dem Wald, der Wald vor dem Rasen (der seine Stämme ausspart).
+func _station_32_schritte() -> Array:
+	var schritte: Array = [{"text": "Bewuchs: Wegdecke, Grenzen, Kisten",
+			"tun": _station_32_decke}]
+	schritte.append_array(GelaendeBau.schritte(geometrie,
+			GelaendeBau.schluessel("werkstatt_bewuchs"), _feld_32_anlegen,
+			GelaendeBau.stoff({}), "Gelände Bewuchs"))
+	schritte.append({"text": "Bewuchs: Haine", "tun": _station_32_haine})
+	# Der Rasen in drei Schritten (je Seite einer, dann die Netze): in einem
+	# lag er bei gut einer Sekunde.
+	schritte.append({"text": "Bewuchs: Rasen links", "tun": _station_32_rasen.bind(-1.0)})
+	schritte.append({"text": "Bewuchs: Rasen rechts", "tun": _station_32_rasen.bind(1.0)})
+	schritte.append({"text": "Bewuchs: Rasen wird ausgerollt", "tun": _station_32_rasen_fertig})
+	return schritte
+
+
+func _station_32_decke() -> void:
+	_weg_32.decke_bauen(geometrie, func(_a: Dictionary) -> Material:
+		return Wegdecke.stoff(_thema_weg("wald"), _weg_32, _weg_32.abschnitte,
+				"werkstatt_bewuchs"))
+	_weg_32.leitlinien_bauen(geometrie)
+	_weg_32.schultern_bauen(geometrie)
+	for k: Vector2 in KISTEN_32:
+		kiste_auf(Kiste.Art.NORMAL, k.x, k.y)
+
+
+## Das Gelände von Station 32: ein Rechteck um die Kurve (70 m Rand), drei
+## mal drei Stücke; an den Wegkanten je eine Punktreihe, damit es dort genau
+## an die Decke stößt.
+func _feld_32_anlegen() -> GelaendeFeld:
+	var a := Vector2(INF, INF)
+	var b := Vector2(-INF, -INF)
+	var s := M_STATION_32
+	while s <= M_ENDE + 4.0:
+		var p := verlauf.sample_baked(s)
+		a = Vector2(minf(a.x, p.x), minf(a.y, p.z))
+		b = Vector2(maxf(b.x, p.x), maxf(b.y, p.z))
+		s += 4.0
+	# Oben (Z) schließt das Feld bündig an die Themenbühne an.
+	var z_oben := verlauf.sample_baked(M_STATION_32).z
+	var feld := GelaendeFeld.new()
+	feld.bereich = Rect2(a.x - 70.0, a.y - 70.0, b.x - a.x + 140.0, z_oben - (a.y - 70.0))
+	feld.stuecke = Vector2i(3, 3)
+	feld.hoehe = _hoehe_32
+	feld.abstand = func(x: float, z: float) -> float:
+		var sq := _sq_31(x, z)
+		return clampf(1.0 + (absf(sq.y) - 6.0) * 0.12, 1.0, 4.0)
+	feld.faerben = _faerben_32
+	# UV2.x Verdeckung: am Wegrand wie der Rand der Decke ab 0,78 (wie
+	# gelaende.gd:2082-2087) – ohne lag die Decke als dunkles Band im
+	# hellen Gelände.
+	feld.zusatz = func(p: Vector3, _n: Vector3, mulde: float) -> Vector2:
+		var rand := WEGBREITE_32 * 0.5
+		var u := absf(_sq_31(p.x, p.z).y)
+		var ao := clampf(1.0 - mulde * 0.25, 0.65, 1.0)
+		ao = minf(ao, lerpf(1.0, Wegmaske.RAND_VERDECKUNG, 1.0 - smoothstep(rand, rand + 2.5, u)))
+		return Vector2(ao, 0.0)
+	for seite: float in [-1.0, 1.0]:
+		var linie := PackedVector2Array()
+		s = M_STATION_32 + 0.5
+		while s <= M_ENDE + 3.0:
+			var p := LevelWerkzeuge.punkt_frei(verlauf, s, seite * (WEGBREITE_32 * 0.5 + 0.05))
+			linie.append(Vector2(p.x, p.z))
+			s += 1.0
+		feld.kanten.append({"punkte": linie, "abstand": 1.0, "reihen": PackedFloat32Array([0.0])})
+	_feld_32 = feld
+	return feld
+
+
+## Höhe des Geländes von Station 32: unter der Decke knapp darunter, an der
+## Wegkante bündig, links ein Hang bis zum Kamm (`HANG_HOCH_32`) mit
+## sanften Wellen, rechts eine Wiese mit einer Mulde, weiter draußen leicht
+## ansteigend.
+func _hoehe_32(x: float, z: float) -> float:
+	var sq := _sq_31(x, z)
+	var s := sq.x
+	var q := sq.y
+	var aussen := absf(q) - WEGBREITE_32 * 0.5
+	if aussen <= 0.05:
+		return -0.06
+	var y: float
+	if q < 0.0:
+		y = lerpf(0.0, HANG_HOCH_32, smoothstep(HANG_AB_32, HANG_KAMM_32, aussen)) \
+				+ 0.8 * sin(s * 0.07 + 1.3) * smoothstep(6.0, 20.0, aussen) \
+				- maxf(aussen - HANG_KAMM_32, 0.0) * 0.12
+	else:
+		var mulde_s := smoothstep(MULDE_S_32.x, MULDE_S_32.x + 12.0, s) \
+				* (1.0 - smoothstep(MULDE_S_32.y - 12.0, MULDE_S_32.y, s))
+		var mulde_q := 1.0 - smoothstep(0.0, 9.0, absf(q - MULDE_Q_32))
+		y = 0.25 * sin(s * 0.11) * smoothstep(3.0, 9.0, aussen) \
+				- MULDE_TIEF_32 * mulde_s * mulde_q + 2.5 * smoothstep(34.0, 70.0, aussen)
+	return lerpf(-0.03, y, smoothstep(0.05, 1.6, aussen))
+
+
+## Gewichte der Böden (R Wiese, G Waldboden, B Fels, A Schlamm): Fels, wo
+## es steil ist, Waldboden oben am Hang, Schlamm in der Mulde.
+func _faerben_32(p: Vector3, n: Vector3) -> Color:
+	var fels := 1.0 - smoothstep(0.7, 0.86, n.y)
+	var wald := smoothstep(1.2, 3.0, p.y) * (1.0 - fels)
+	var schlamm := (1.0 - smoothstep(-1.0, -0.6, p.y)) * (1.0 - fels)
+	var wiese := maxf(1.0 - fels - wald - schlamm, 0.0)
+	return Color(wiese, wald, fels, schlamm)
+
+
+## Walddichte von Station 32 (0..1): am Hang dicht, auf der Wiese in
+## Flecken (für die Hainwahl und den Rasen).
+func _wald_32(x: float, z: float) -> float:
+	var sq := _sq_31(x, z)
+	var aussen := absf(sq.y) - WEGBREITE_32 * 0.5
+	if sq.y < 0.0:
+		return 0.9 * smoothstep(4.0, 14.0, aussen)
+	var flecken := 0.5 + 0.5 * sin(sq.x * 0.075 + 0.6) * cos(sq.y * 0.12)
+	return flecken * smoothstep(4.0, 12.0, aussen)
+
+
+## Die Haine von Station 32 (Muster `L01Wald._talwald_nah`): Hainmitten
+## mindestens 18 m auseinander auf einem Raster von 7 m, 9–40 m vom Weg,
+## wo `_wald_32` Wald trägt; je Hain 3–7 Bäume. Dazu Waldboden am Fuß der
+## Bäume (M21 Felsen, M23 Treibholz und Stumpf), Sträucher am Rand der
+## Haine (M24), Totholz auf der Wiese (M22) und ferne Kronen auf dem Kamm,
+## die nach der Himmelsprobe einsinken. Alle Regeln aus dem `Waldrahmen`:
+## Freiraum über dem Weg, ein Sichtkegel zum Zielportal, Kisten frei, die
+## Lichtung rechts gesperrt.
+func _station_32_haine() -> void:
+	var kamera := get_node_or_null("CorridorCamera") as KorridorKamera
+	_rahmen_32 = Waldrahmen.new(weg, kamera, kisten_orte(),
+			{"von": M_STATION_32 - 6.0, "bis": M_ENDE + 4.0})
+	var rahmen := _rahmen_32
+	rahmen.sperren.append(LICHTUNG_32)
+	rahmen.kegel_entlang(M_STATION_32 + 4.0, M_ENDE - 34.0, 4.0,
+			weg_punkt(M_ENDE - 4.0, 0.0, 2.0), 4.0, 10.0)
+	var hoehe := _feld_32.hoehe_bei
+	var modelle := not Fremdmodelle.rolle("M3").is_empty()
+	var ws := Waldsetzer.new(deko, "Bewuchs 32", 48.0)
+	ws.art("stamm", {"stoff": Baumfabrik.borke_welt() if modelle else Riesenstamm.borkenstoff(),
+			"sicht": 90.0, "verschmelzen": true})
+	ws.art("krone", {"stoff": Kronenwolke.stoff(LAUB_32), "sicht": 90.0,
+			"verschmelzen": true, "karten": true})
+	ws.art("fern", {"stoff": Kronenwolke.stoff(LAUB_32, false), "sicht_von": 90.0,
+			"sicht": 200.0, "verschmelzen": true, "rand": 8.0})
+	var umgebung: Environment = null
+	var welt := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if welt != null:
+		umgebung = welt.environment
+	ws.art("fernwald", {"stoff": Nebelstoff.nebelarm(Kronenwolke.stoff(Farben.LAUB_DUNKEL, false),
+			umgebung), "sicht": 220.0, "verschmelzen": true, "rand": 10.0})
+	var boden_modelle: Array[Dictionary] = []
+	boden_modelle.append_array(Fremdmodelle.rolle_netze("M21", {}, 20.0))
+	boden_modelle.append_array(Fremdmodelle.rolle_netze("M23", {}, 20.0))
+	var boden_arten: Array = []
+	for k in boden_modelle.size():
+		boden_arten.append(ws.fremd("boden%d" % k, boden_modelle[k],
+				{"sicht": 70.0, "schatten": false, "zelle": 96.0}))
+	var straeucher := Fremdmodelle.rolle_netze("M24", {}, 20.0)
+	var strauch_arten: Array = []
+	for k in straeucher.size():
+		strauch_arten.append(ws.fremd("strauch%d" % k, straeucher[k],
+				{"sicht": 70.0, "schatten": false, "zelle": 96.0}))
+	var rng := PropWerkzeug.zufall(3201)
+	var busch := Baumfabrik.indiziert(Kronenwolke.netz({"radius": 1.9, "hoehe": 2.6,
+			"variante": 1, "karten": 18, "ballen": 3, "saat": 8301}))
+	var bereich := _feld_32.bereich
+	var mitten: Array[Vector2] = []
+	_fuesse_32 = PackedVector2Array()
+	var x := bereich.position.x
+	while x < bereich.end.x:
+		var z := bereich.position.y
+		while z < bereich.end.y:
+			var mitte := Vector2(x + rng.randf_range(0.0, 7.0), z + rng.randf_range(0.0, 7.0))
+			z += 7.0
+			var d := rahmen.wegabstand(mitte.x, mitte.y)
+			if d > 40.0 or d < 9.0:
+				continue
+			var sq := _sq_31(mitte.x, mitte.y)
+			if sq.x < M_STATION_32 + 2.0 or sq.x > M_ENDE - 2.0:
+				continue
+			var w := _wald_32(mitte.x, mitte.y)
+			if w < 0.3:
+				continue
+			var frei := true
+			for m in mitten:
+				if m.distance_squared_to(mitte) < 18.0 * 18.0:
+					frei = false
+					break
+			if not frei:
+				continue
+			mitten.append(mitte)
+			var dicht := smoothstep(0.3, 0.9, w)
+			var arten: Array = ARTEN_HANG_32 if sq.y < 0.0 else ARTEN_WIESE_32
+			_fuesse_32.append_array(Baumfabrik.hain(ws, rahmen, rng, mitte, arten, {
+				"hoehe": hoehe, "busch": busch, "nah": 6.0, "weit": 44.0,
+				"anzahl": roundi(lerpf(3.0, 7.0, dicht) * rng.randf_range(0.8, 1.15)),
+				"weite": lerpf(4.5, 8.5, dicht),
+				"ton": HAINTOENE_32[rng.randi_range(0, HAINTOENE_32.size() - 1)]}))
+			if not straeucher.is_empty():
+				_straeucher_32(ws, rng, mitte, lerpf(4.5, 8.5, dicht), straeucher, strauch_arten)
+		x += 7.0
+	rahmen.zaehle("haine", mitten.size())
+	for p in _fuesse_32:
+		if Baumfabrik.streu(p, 37) < 0.4:
+			Baumfabrik.bodenstueck(ws, rahmen, p, boden_modelle, boden_arten, hoehe, 6.0, 44.0)
+	_totholz_32(ws, rng)
+	_fernwald_32(ws, rng)
+	var zz := ws.fertig()
+	rahmen.zaehle("knoten", int(zz["knoten"]))
+	rahmen.zaehle("dreiecke", int(zz["dreiecke"]))
+	if debug:
+		print("Bewuchs 32: ", rahmen.zahlen)
+
+
+## Ein, zwei Sträucher (M24) am Rand eines Hains, nicht im Freiraum über
+## dem Weg und nicht an einem Stamm.
+func _straeucher_32(ws: Waldsetzer, rng: RandomNumberGenerator, mitte: Vector2, weite: float,
+		modelle: Array[Dictionary], arten: Array) -> void:
+	var rahmen := _rahmen_32
+	for i in rng.randi_range(1, 2):
+		var w := rng.randf() * TAU
+		var ort := mitte + Vector2(cos(w), sin(w)) * (weite + rng.randf_range(1.5, 3.5))
+		if not rahmen.platz(ort, 6.5, 44.0) or not rahmen.staemme.frei(ort, 1.2):
+			continue
+		var y := _feld_32.hoehe_bei(ort.x, ort.y)
+		if is_nan(y):
+			continue
+		var k := rng.randi_range(0, modelle.size() - 1)
+		var modell: Dictionary = modelle[k]
+		var gross := rng.randf_range(0.8, 1.3)
+		var lage := Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * gross),
+				Vector3(ort.x, y - 0.05, ort.y))
+		if not rahmen.weg_frei(lage * (modell["huelle"] as AABB)):
+			continue
+		var namen: Array[String] = []
+		namen.assign(arten[k])
+		ws.setze_fremd(namen, modell, lage, Baumfabrik.ton(rng, Vector2(0.82, 1.0), 0.04))
+		rahmen.staemme.dazu(ort, 1.2)
+		rahmen.zaehle("straeucher")
+
+
+## Totholz auf der Wiese (M22, ohne Modelle der Rückfall aus wald.gd:2154):
+## höchstens fünf Stämme 12–40 m vom Weg, wo kaum Wald steht.
+func _totholz_32(ws: Waldsetzer, rng: RandomNumberGenerator) -> void:
+	var tot: Array[ArrayMesh] = []
+	var namen := Fremdmodelle.rolle("M22")
+	for k in namen.size():
+		var m := Fremdmodelle.baum(namen[k], {"hoehe": 8.0 - 1.5 * float(k % 2), "moos": 0.3})
+		if not m.is_empty():
+			tot.append(m["stamm"])
+	if tot.is_empty():
+		tot = [Riesenstamm.netz({"hoehe": 11.0, "radius": 0.42, "oben": "bruch", "aeste": 3,
+					"ast_start": 0.45, "ast_laenge": 3.0, "moos": 0.35, "saat": 8201})]
+	var bereich := _feld_32.bereich
+	var gesetzt := 0
+	for versuch in 300:
+		if gesetzt >= 5:
+			break
+		var p := Vector2(rng.randf_range(bereich.position.x, bereich.end.x),
+				rng.randf_range(bereich.position.y, bereich.end.y))
+		var sq := _sq_31(p.x, p.y)
+		if sq.y <= 0.0 or sq.x < M_STATION_32 + 4.0 or sq.x > M_ENDE - 4.0:
+			continue
+		if not _rahmen_32.platz(p, 12.0, 40.0) or _wald_32(p.x, p.y) > 0.4:
+			continue
+		var y := _feld_32.hoehe_bei(p.x, p.y)
+		if is_nan(y):
+			continue
+		var vorher := int(_rahmen_32.zahlen.get("totholz", 0))
+		Baumfabrik.totholz(ws, _rahmen_32, tot, Vector3(p.x, y, p.y), rng)
+		if int(_rahmen_32.zahlen.get("totholz", 0)) > vorher:
+			gesetzt += 1
+
+
+## Ferne Kronen auf dem Hangkamm (links, q −58 … −44): `Baumfabrik.fernbaum`,
+## jede nach der Himmelsprobe des Rahmens eingesunken (ein Waldsaum auf dem
+## Kamm statt Scheiben vor dem Himmel) oder weggelassen.
+func _fernwald_32(ws: Waldsetzer, rng: RandomNumberGenerator) -> void:
+	var rahmen := _rahmen_32
+	var hoehe := _feld_32.hoehe_bei
+	var s := M_STATION_32 + 4.0
+	while s < M_ENDE - 4.0:
+		var p := LevelWerkzeuge.punkt_frei(verlauf, s + rng.randf_range(-2.0, 2.0),
+				rng.randf_range(FERNE_Q_32.x, FERNE_Q_32.y))
+		s += FERNE_SCHRITT_32
+		var y: float = hoehe.call(p.x, p.z)
+		if is_nan(y):
+			continue
+		var k := rng.randi_range(0, 2)
+		var netz: ArrayMesh = Baumfabrik.vorrat(rahmen, "fern%d" % k,
+				func() -> ArrayMesh: return Baumfabrik.fernbaum(k))
+		var groesse := rng.randf_range(0.85, 1.25)
+		var tief := rahmen.einsinken(Vector3(p.x, y, p.z), netz.get_aabb().end.y * groesse, hoehe)
+		if tief < 0.0:
+			rahmen.zaehle("fern_ballon")
+			continue
+		if tief > 0.0:
+			rahmen.zaehle("fern_gesunken")
+		var ton := Baumfabrik.ton(rng, Vector2(0.85, 1.0), 0.04)
+		if k == 2:
+			ton = ton * Baumfabrik.NADEL_TON
+		ws.setze("fernwald", netz, Baumfabrik.lage(Vector3(p.x, y - tief, p.z), rng.randf() * TAU,
+				groesse, groesse), ton)
+		rahmen.zaehle("fern")
+
+
+## Rasen, Streu und Rahmenfarne von Station 32 (`Rasenbau`) auf einer
+## Seite: auf der Decke nach der Wegmaske, links bis 14 m auf den Hang,
+## rechts bis 18 m über die Wiese; Stämme und Kisten bleiben frei. Der
+## erste Aufruf legt den Bau an.
+func _station_32_rasen(seite: float) -> void:
+	if _rasen_32 == null:
+		var kamera := get_node_or_null("CorridorCamera") as KorridorKamera
+		_rasen_32 = Rasenbau.new(deko, weg, _feld_32.hoehe_bei, {
+			"kisten": kisten_orte(), "kamera": kamera, "wald": _wald_32, "saat": 3202,
+			"name": "Rasen 32",
+			"kronenlicht": func(s: float) -> float:
+				return Wegdecke.kronenlicht_bei(_weg_32.abschnitte, s),
+		})
+		for p in _fuesse_32:
+			var sq := _rasen_32.strecke_quer(Vector3(p.x, 0.0, p.y))
+			_rasen_32.kreis(sq.x, sq.y, 0.7)
+	var rasen := _rasen_32
+	rasen.decke(M_STATION_32, M_ENDE, seite)
+	rasen.boden(M_STATION_32, M_ENDE, seite, WEGBREITE_32 * 0.5, 14.0 if seite < 0.0 else 18.0,
+			Rasenbau.DICHTE_SCHULTER,
+			Rasenbau.Bereich.SCHULTER if seite < 0.0 else Rasenbau.Bereich.WIESE)
+	rasen.rahmenfarne(M_STATION_32 + 2.0, M_ENDE - 6.0, seite, null, 6.4, 8.0)
+	if seite > 0.0:
+		# Blütengruppen an der rechten Wegkante, gesetzt statt gewürfelt.
+		for i in 10:
+			rasen.streu(M_STATION_32 + 6.0 + 11.0 * float(i), 5.6 + 1.2 * float(i % 3), "bluete")
+	else:
+		# Pilze an den Füßen der Hangbäume.
+		for p in _fuesse_32:
+			var sq := rasen.strecke_quer(Vector3(p.x, 0.0, p.y))
+			if sq.y < 0.0 and sq.y > -16.0:
+				rasen.streu(sq.x + 0.9, sq.y + 0.6, "pilz", 1.1)
+
+
+## Die Netze des Rasens; danach sind Rasen und Waldrahmen fertig.
+func _station_32_rasen_fertig() -> void:
+	if _rasen_32 != null:
+		_rasen_32.fertig()
+	_rasen_32 = null
+	_rahmen_32 = null
+
+
 # ======================================================= Probenhaken
 
 ## Die Sprungfälle der Werkstatt (Paket G2): jede Art der Sprungprobe
@@ -1340,6 +1782,7 @@ func _schilder_setzen() -> void:
 		M_STATION_31 + 0.3: "31 Themenbühne: Wald",
 		M_STATION_31 + THEMA_LAENGE + 0.3: "31 Sumpf",
 		M_STATION_31 + THEMA_LAENGE * 2.0 + 0.3: "31 Schnee",
+		M_STATION_32 + 0.3: "32 Bewuchs (Waldrahmen, Rasenbau)",
 	}
 	for strecke: float in stationen:
 		var quer := -WEGBREITE * 0.5 + 0.8

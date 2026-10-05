@@ -18,7 +18,8 @@ extends Node3D
 ## Rollen M1–M18 heute bekommen (ohne natur2: die Kenney-Rückfälle), dazu
 ## ein selbstgebautes Prüfmodell für den Weg über texturierte, unbeleuchtete
 ## und ausgeschnittene Materialien.
-## Dazu die Modellbäume der Rollen M1–M3 und M17 so, wie `Fremdmodelle.baum()`
+## Dazu die Modellbäume der Rollen M1–M3, M17 und – für Raum 1 – M19, M20
+## und M22 so, wie `Fremdmodelle.baum()`
 ## sie für den Wald liefert (Höhe, Fuß, Kronenformat, Dreiecke). Drei Bilder:
 ## Übersicht, Streuung (als MultiMesh, aus der Spielkamera) und Nahaufnahme
 ## der harten Flächen.
@@ -379,10 +380,12 @@ const BAUM_FERN_MAX := 700
 
 ## Prüft jeden Modellbaum der Rollen M1–M3 und M17 so, wie Level 01 und der
 ## Portalraum ihn bekommen (`Fremdmodelle.baum`): Höhe, Fuß im Boden, Laub
-## im Format der `Kronenwolke` (Höhe in UV2, Blattkarten), Dreiecke.
+## im Format der `Kronenwolke` (Höhe in UV2, Blattkarten), Dreiecke. Ebenso
+## die Bäume der Raum-1-Rollen M19 (Weiden), M20 (Birken) und M22 (kahles
+## Totholz, wie M17 ohne Krone).
 func _baeume_pruefen() -> void:
 	var gezeigt := {}
-	for kennung: String in ["M1", "M2", "M3", "M17"]:
+	for kennung: String in ["M1", "M2", "M3", "M17", "M19", "M20", "M22"]:
 		for name in Fremdmodelle.rolle(kennung):
 			if gezeigt.has(name):
 				continue
@@ -412,7 +415,7 @@ func _baeume_pruefen() -> void:
 			if dr_fern > BAUM_FERN_MAX:
 				mangel.append("Fernfassung %d Dreiecke" % dr_fern)
 			var karten := 0
-			if kennung != "M17":
+			if kennung != "M17" and kennung != "M22":
 				if krone == null:
 					mangel.append("ohne Krone")
 				else:

@@ -40,6 +40,16 @@ extends Node
 ##                  (bach, nebeltafel, Lippen, Nebelzeilen). Das Bachband
 ##                  (Abtasten, Band, Kappen) an Probeläufen. `nebelarm` gegen
 ##                  `L01Weltenbaum._nebelarm` mit der Umgebung von Level 01.
+##   Bewuchs (G4)   Waldrahmen gegen L01Wald (statische Merker nach
+##                  `_bahn_anlegen`/`_kegel_anlegen` mit Level 01): Auge
+##                  (9,5/6) alle 0,5 m, Wegabstand, nächste Probe und quer auf
+##                  einem Raster, `weg_frei`, `stamm_frei`, `kegel_frei` (beide
+##                  Kegellisten) und `kiste_frei` an festen Hüllen und Füßen
+##                  entlang des Wegs; die Netze `fernbaum` und `tannenkrone`
+##                  Feld für Feld. Dazu, nicht bitgleich, sondern auf
+##                  ±0,3 m: `auge()` gegen den Ort einer echten
+##                  `KorridorKamera` nach `sofort_ausrichten()` auf der Kurve
+##                  von Level 01, mit 9,5/6 und mit −21/5,6 (Level 05).
 ##
 ## Ausgabe: je Prüfung eine Zeile mit der Zahl der Vergleiche, die ersten
 ## Abweichungen im Wortlaut, am Ende
@@ -64,6 +74,7 @@ func _ready() -> void:
 	print("=== Baukastenprobe ===")
 	_teil_wegdaten()
 	_teil_stoffe()
+	_teil_bewuchs()
 	print("=== Baukastenprobe: %d Vergleiche, %d Abweichungen ===" % [_vergleiche, _abweichungen])
 	get_tree().quit(1 if _abweichungen > 0 else 0)
 
@@ -604,6 +615,189 @@ func _stoff_pruefe(was: String, a: Material, b: Material, text_endet := false) -
 			continue
 		_pruefe("%s %s" % [was, name], va, vb)
 	_pruefe(was + " Meta", ma.get_meta("nebel_anteil", -1.0), mb.get_meta("nebel_anteil", -1.0))
+
+
+# ============================================================ Bewuchs (G4)
+
+## So weit darf `Waldrahmen.auge()` vom Ort der echten Kamera abweichen (m).
+const AUGE_TOLERANZ := 0.3
+
+
+func _teil_bewuchs() -> void:
+	print("--- Bewuchs gegen wald.gd ---")
+	var l01 := Level01.new()
+	l01.call("_verlauf_anlegen")
+	var weg := Wegdaten.new(l01.verlauf, {
+		"abschnitte": Level01.ABSCHNITTE, "begehbares": Level01.BEGEHBARES,
+		"leitlinien": Level01.LEITLINIEN, "todeszonen": Level01.TODESZONEN,
+		"raender": Level01.RAENDER,
+	})
+	L01Wald._bahn_anlegen(l01)
+	L01Wald._kegel_anlegen(l01)
+	var rahmen := Waldrahmen.new(weg, null, [], {"von": -18.0, "bis": 292.0,
+			"feld": L01Wald.FELD})
+	var laenge := l01.verlauf.get_baked_length()
+
+	# --- Auge mit 9,5/6: wald.gd verlängert die Kurve vor dem Anfang
+	# geradeaus, der Rahmen klemmt wie die Kamera – verglichen wird, wo die
+	# Kamerastation auf der Kurve liegt.
+	_anfang()
+	var s := 9.5
+	var stellen := 0
+	while s <= laenge:
+		stellen += 1
+		_pruefe("auge s %.1f" % s, L01Wald._auge(l01, s), rahmen.auge(s))
+		s += SCHRITT
+	_zeile("Auge 9,5/6 an %d Stellen (9,5 … %.1f)" % [stellen, laenge])
+
+	# --- Wegabstand, nächste Probe, quer: Raster über das Feld von wald.gd.
+	_anfang()
+	var feld: Rect2 = L01Wald.FELD
+	var punkte := 0
+	var x := feld.position.x + 0.7
+	while x < feld.end.x:
+		var z := feld.position.y + 1.3
+		while z < feld.end.y:
+			punkte += 1
+			var wo := "x %.1f z %.1f" % [x, z]
+			_pruefe("wegabstand " + wo, L01Wald._wegabstand(x, z), rahmen.wegabstand(x, z))
+			var i := L01Wald._naechste(x, z)
+			_pruefe("naechste " + wo, i, rahmen.naechste(x, z))
+			if i >= 0:
+				_pruefe("quer " + wo, L01Wald._quer(i, x, z), rahmen.quer(i, x, z))
+			z += 3.7
+		x += 3.7
+	_zeile("Wegabstand, nächste Probe, quer an %d Punkten" % punkte)
+
+	# --- Regeln an festen Hüllen und Füßen entlang des Wegs ---
+	var huellen: Array[AABB] = []
+	var fuesse: Array[Vector3] = []
+	var groessen: Array[Vector3] = [Vector3(6.0, 5.0, 6.0), Vector3(10.0, 4.0, 8.0),
+			Vector3(3.0, 8.0, 3.0)]
+	s = -10.0
+	while s <= 290.0:
+		for q: float in [-14.0, -9.0, -6.5, -4.0, 0.0, 4.0, 6.5, 9.0, 14.0]:
+			var p := weg.weg_punkt(s, q)
+			fuesse.append(p)
+			for h: float in [-3.0, 2.0, 6.0, 9.0, 12.0]:
+				for g in groessen:
+					huellen.append(AABB(p + Vector3(0.0, h, 0.0) - g * 0.5, g))
+		s += 3.0
+	_anfang()
+	for h in huellen:
+		_pruefe("weg_frei %s" % str(h), L01Wald._weg_frei(h), rahmen.weg_frei(h))
+	_zeile("weg_frei an %d Hüllen" % huellen.size())
+	_anfang()
+	for p in fuesse:
+		for r: float in [0.4, 0.9]:
+			var spitze := p + Vector3(0.6, 12.0, -0.4)
+			_pruefe("stamm_frei %s r %.1f" % [str(p), r], L01Wald._stamm_frei(p, spitze, r, r * 2.0),
+					rahmen.stamm_frei(p, spitze, r, r * 2.0))
+	_zeile("stamm_frei an %d Füßen" % fuesse.size())
+	_anfang()
+	rahmen.kegel.assign(L01Wald._kegel)
+	for h in huellen:
+		_pruefe("kegel_frei %s" % str(h), L01Wald._kegel_frei(h, false), rahmen.kegel_frei(h))
+	rahmen.kegel.assign(L01Wald._kegel_ohne_krone)
+	for h in huellen:
+		_pruefe("kegel_frei ohne Krone %s" % str(h), L01Wald._kegel_frei(h, true),
+				rahmen.kegel_frei(h))
+	_zeile("kegel_frei an %d Hüllen, %d bzw. %d Kegel" % [huellen.size(),
+			L01Wald._kegel.size(), L01Wald._kegel_ohne_krone.size()])
+	_anfang()
+	var kisten: Array[Vector3] = []
+	for e: Dictionary in Level01.KISTEN:
+		kisten.append(weg.weg_punkt(float(e["s"]), float(e["q"])))
+	L01Wald._kisten = kisten
+	rahmen.kisten = kisten.duplicate()
+	for p in fuesse:
+		_pruefe("kiste_frei %s" % str(p), L01Wald._kistenfrei(p, 2.0), rahmen.kiste_frei(p, 2.0))
+	_zeile("kiste_frei an %d Füßen, %d Kisten" % [fuesse.size(), kisten.size()])
+
+	# --- Netze: Fernbäume und Tannenkronen Feld für Feld ---
+	_anfang()
+	L01Wald._netze.clear()
+	for k in 3:
+		_netz_pruefe("fernbaum %d" % k, L01Wald._fernbaum(k), Baumfabrik.fernbaum(k))
+	for werte: Array in [[3.2, 13.9, 7, 11, 30, 1209], [2.9, 12.6, 5, 7, 0, 3103],
+			[3.0, 12.04, 6, 11, 26, 2204]]:
+		_netz_pruefe("tannenkrone %s" % str(werte),
+				L01Wald._tannenkrone(werte[0], werte[1], werte[2], werte[3], werte[4], werte[5]),
+				Baumfabrik.tannenkrone(werte[0], werte[1], werte[2], werte[3], werte[4], werte[5]))
+	L01Wald._netze.clear()
+	_zeile("Netze: 3 Fernbäume, 3 Tannenkronen")
+	L01Wald._vergessen(0)
+
+	# --- Auge gegen die echte Kamera ---
+	_auge_gegen_kamera(l01, weg, 9.5, 6.0, 6.0)
+	# Wie Level05.tscn: Rückblick, der Blickpunkt 5 m hinter der Figur.
+	_auge_gegen_kamera(l01, weg, -21.0, 5.6, -5.0)
+	l01.free()
+
+
+## Stellt eine `KorridorKamera` auf die Kurve von Level 01, setzt eine Figur
+## mitten auf die Decke und vergleicht nach `sofort_ausrichten()` den Ort
+## der Kamera mit `Waldrahmen.auge()` – alle 2 m über die ganze Kurve.
+## `vorlauf`: Blickpunkt der Kamera (ändert ihren Ort nicht, nur die
+## Blickrichtung – mit 6 m hinter einem Rückblick stünde er unter ihr).
+## Keine Kollision in der Welt: Der Sichtstrahl der Kamera trifft nichts.
+func _auge_gegen_kamera(l01: Level01, weg: Wegdaten, abstand: float, hoehe: float,
+		vorlauf: float) -> void:
+	_anfang()
+	var kurve := Path3D.new()
+	kurve.name = "Kurve"
+	kurve.curve = l01.verlauf
+	add_child(kurve)
+	var figur := Node3D.new()
+	figur.name = "Figur"
+	figur.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	add_child(figur)
+	var kamera := (load("res://scenes/camera/CorridorCamera.tscn") as PackedScene).instantiate() \
+			as KorridorKamera
+	kamera.abstand = abstand
+	kamera.hoehe = hoehe
+	kamera.blick_vorlauf = vorlauf
+	kamera.kurve_pfad = NodePath("../Kurve")
+	kamera.ziel_pfad = NodePath("../Figur")
+	add_child(kamera)
+	var rahmen := Waldrahmen.new(weg, kamera, [])
+	var laenge := l01.verlauf.get_baked_length()
+	var groesste := 0.0
+	var wo := 0.0
+	var stellen := 0
+	var s := 0.0
+	while s <= laenge:
+		figur.global_position = weg.weg_punkt(s)
+		kamera.sofort_ausrichten()
+		var d := kamera.global_position.distance_to(rahmen.auge(s))
+		_vergleiche += 1
+		_teil_vergleiche += 1
+		stellen += 1
+		if d > groesste:
+			groesste = d
+			wo = s
+		if d > AUGE_TOLERANZ:
+			_abweichung("auge %.1f/%.1f s %.1f: Kamera %s, Rahmen %s (%.3f m)" % [abstand, hoehe,
+					s, str(kamera.global_position), str(rahmen.auge(s)), d])
+		s += 2.0
+	_zeile("Auge %.1f/%.1f gegen die Kamera an %d Stellen, größte %.3f m (s %.0f)" % [
+			abstand, hoehe, stellen, groesste, wo])
+	kamera.free()
+	figur.free()
+	kurve.free()
+
+
+## Zwei Netze Feld für Feld (alle Flächen) samt eigener Hülle.
+func _netz_pruefe(was: String, a: Mesh, b: Mesh) -> void:
+	_pruefe(was + " Flächen", a.get_surface_count(), b.get_surface_count())
+	for f in mini(a.get_surface_count(), b.get_surface_count()):
+		var fa := a.surface_get_arrays(f)
+		var fb := b.surface_get_arrays(f)
+		for k in fa.size():
+			_pruefe("%s Fläche %d Feld %d" % [was, f, k], fa[k], fb[k])
+	_pruefe(was + " Hülle", a.get_aabb(), b.get_aabb())
+	if a is ArrayMesh and b is ArrayMesh:
+		_pruefe(was + " eigene Hülle", (a as ArrayMesh).custom_aabb, (b as ArrayMesh).custom_aabb)
 
 
 # ============================================================ Vergleich

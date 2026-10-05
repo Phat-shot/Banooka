@@ -364,8 +364,9 @@ const _NAMEN_KLASSE := {
 	"Berry": "bluete", "Cyan": "bluete", "Yellow": "bluete", "Pink": "bluete",
 }
 
-## Die Rollen aus dem Levelplan (Level 01, Abschnitt 9) und welche Modelle
-## sie tragen dürfen, in drei Stufen: `primaer` (Stylized Nature MegaKit),
+## Die Rollen aus dem Levelplan (Level 01, Abschnitt 9; M19–M24 für Raum 1
+## aus dem Baukasten, Paket G4) und welche Modelle sie tragen dürfen, in
+## drei Stufen: `primaer` (Stylized Nature MegaKit),
 ## `ersatz` (Ultimate Nature Pack bzw. das volle Kenney-Paket) und `kenney`
 ## (liegt schon im Spiel). Die erste Stufe, von der etwas vorhanden ist,
 ## gewinnt – so mischen sich innerhalb einer Rolle nicht zwei Stile. Ist
@@ -463,6 +464,50 @@ const ROLLEN := {
 		"ersatz": [],
 		"kenney": ["mushroom_red", "mushroom_redGroup", "mushroom_tan", "mushroom_tanGroup"],
 		"optionen": {}},
+	# --- Raum 1 (Level 02–05, Baukasten Paket G4) -------------------------
+	# Eigene Rollen statt neuer Namen in M1–M18: `rolle()` sucht exakte
+	# Kennungen, die Rollen von Level 01 und dem Portalraum liefern also
+	# dieselben Modelle wie zuvor (Wächter W). Alle aus dem Ultimate Nature
+	# Pack (`unp/`, CC0); welches Level welche Rolle nimmt, steht in
+	# natur2/LIESMICH.md. Höhen sind typische Werte zum Weiterskalieren.
+	"M19": {"name": "Weiden (Ufer, Vorhang über dem Wasser)", "hoehe": 9.0,
+		"primaer": [],
+		"ersatz": ["unp/Willow_1", "unp/Willow_3", "unp/Willow_5"],
+		"kenney": [],
+		"optionen": {"wind": 0.1}},
+	# Birkenrinde heißt im Paket „White" (Klasse borke über `_NAMEN_KLASSE`).
+	"M20": {"name": "Birken", "hoehe": 11.0,
+		"primaer": [],
+		"ersatz": ["unp/BirchTree_1", "unp/BirchTree_2", "unp/BirchTree_3", "unp/BirchTree_4",
+			"unp/BirchTree_5"],
+		"kenney": [],
+		"optionen": {"wind": 0.08}},
+	# Ohne Moos aus der Datei: Schnee (L02), Sandstein (L05) und Waldstein
+	# (L04) legt das Level über `moos`, `moos_ton` und `toenung` darauf.
+	"M21": {"name": "Felsen ohne Moos", "groesse": 1.6,
+		"primaer": [],
+		"ersatz": ["unp/Rock_1", "unp/Rock_2", "unp/Rock_3", "unp/Rock_4", "unp/Rock_5",
+			"unp/Rock_6", "unp/Rock_7"],
+		"kenney": [],
+		"optionen": {"moos": 0.15, "fuss_dunkel": 0.5, "formen": 1, "max_dreiecke": 700}},
+	"M22": {"name": "Totholz, kahl und knorrig", "hoehe": 8.0,
+		"primaer": [],
+		"ersatz": ["unp/CommonTree_Dead_3", "unp/CommonTree_Dead_4", "unp/CommonTree_Dead_5"],
+		"kenney": [],
+		"optionen": {"moos": 0.2}},
+	# Treibholz und Stumpf ohne Moosdecke; das Grün am Stumpf ist Moos.
+	"M23": {"name": "Treibholz, Stumpf", "groesse": 2.4,
+		"primaer": [],
+		"ersatz": ["unp/WoodLog", "unp/TreeStump"],
+		"kenney": [],
+		"optionen": {"moos": 0.15, "klassen": {"Green": "moos"}}},
+	# Bewusst erst für Raum 1: In Level 01 lasen sich die Büsche als
+	# gestapelte Kuppeln (natur2/LIESMICH.md); Level 05 will sie im Tobel.
+	"M24": {"name": "Sträucher, Beerensträucher", "hoehe": 1.3,
+		"primaer": [],
+		"ersatz": ["unp/Bush_1", "unp/Bush_2", "unp/BushBerries_1", "unp/BushBerries_2"],
+		"kenney": [],
+		"optionen": {"wind": 0.03}},
 }
 
 ## Welche Materialklasse zu welcher Fläche gehört. Harte Flächen werfen
