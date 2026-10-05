@@ -1,7 +1,8 @@
 extends Node
 ## Sprungprobe: Tragen die Pflichtsprünge eines Levels? (Plan P14)
 ##
-## Aufruf (macht `pruefe.sh` in Stufe 4 für jedes Level, das mitmacht):
+## Aufruf (macht `pruefe.sh` in Stufe 4 für jedes Level, das mitmacht, und
+## im vollen Lauf für die Werkstatt):
 ##   godot --headless --fixed-fps 60 --path . res://werkzeuge/Sprungprobe.tscn \
 ##       -- res://scenes/levels/Level01.tscn
 ## Mit `--fixed-fps 60` ist jedes Bild genau ein Physikschritt: Die Probe
@@ -72,7 +73,14 @@ extends Node
 ##                 "+<s>" nennt die Landung. Wer zu kurz springt, landet davor
 ##                 und läuft hinein ("s")
 ##   ueberlauf     kein Sprung: von `start` bis `bis` laufen und lebend
-##                 ankommen (Wechten, Bruchplatten). Ein Versuch, kein Fenster
+##                 ankommen (Wechten, Bruchplatten). Ein Versuch, kein Fenster.
+##                 Angekommen ist nur, wer dort nicht tiefer als `tief_erlaubt`
+##                 unter dem Boden am Ziel steht – der wird vor dem Lauf unter
+##                 (`bis`, Querlage von `start`) gemessen wie beim Absetzen,
+##                 mit einem Strahl von 4 m über der Kurve: `bis` also nicht
+##                 unter eine Brücke legen, sonst gilt deren Oberseite. Wer
+##                 durchbricht und unten weiterläuft, ist "x"; ein Weg, der
+##                 bergab führt, zählt dagegen nicht als Sturz
 ##   bewegt        wie einfach, aber gelandet ist erst, wer danach `halt`
 ##                 Bilder mit gehaltenem Stick auf dem Boden bleibt – auf
 ##                 einem Floß rutscht man sonst nach der Landung über den Rand
@@ -87,7 +95,8 @@ extends Node
 ##                     Entwürfe rechnen mit 0,05 m
 ##   fenster_min       Vorgabe FENSTER_MIN (1,25)
 ##   tief_erlaubt      so tief unter dem Absprung zählt eine Landung noch
-##                     (Vorgabe ZU_TIEF, 1,5): Fangleisten unter einer Lücke
+##                     (Vorgabe ZU_TIEF, 1,5): Fangleisten unter einer Lücke.
+##                     Bei ueberlauf: so tief unter dem Boden am Ziel
 ##   pflicht           false: Kür. Mängel stehen als "KÜR" da und zählen nicht
 ##   darf_nicht_tragen true: FEHLER, sobald irgendeine Stelle trägt (die Lücke,
 ##                     über die man nur mit dem Doppelsprung kommt); kein Fenster
@@ -101,11 +110,18 @@ extends Node
 ##
 ## RUHE. Vor jedem Versuch ruft die Probe `pruefruhe()` des Levels, wenn es
 ## eine hat: Sie hält an, was von selbst läuft (Keiler, Taktgefahren, eine
-## Stromuhr auf festem Wert). Jede Art außer `einfach` setzt dazu die Figur
-## still (`_beruhigen`): Nach einem Tod ist sie 1,2 s unverwundbar, und
-## `Spieler.stolpern()` übergeht einen Unverwundbaren – der nächste Versuch
-## an einer Hürde liefe sonst glatt durch und zählte als sauber. `einfach`
-## lässt das wie bisher, damit Level 01 Zeile für Zeile gleich misst.
+## Stromuhr auf festem Wert). Der Aufruf kommt ein Bild nach dem Ende des
+## vorigen Versuchs, also NACH dem `nach_tod` eines Todes – was ein Level
+## dort neu startet, hält `pruefruhe` gleich wieder an. Was `nach_tod` erst
+## Bilder später anstößt (Timer, await), kommt danach und muss von
+## `pruefruhe` selbst abgefangen werden. Mehrmals hintereinander gerufen
+## werden darf `pruefruhe` ohnehin (LevelCheck tut das).
+## Jeder Fall mit Feld `art` – auch `"art": "einfach"` – setzt dazu die
+## Figur still (`_beruhigen`): Nach einem Tod ist sie 1,2 s unverwundbar,
+## `Spieler.stolpern()` übergeht einen Unverwundbaren, `schaden_nehmen()`
+## ebenso – der nächste Versuch an einer Hürde liefe sonst glatt durch, ein
+## Sprung in Stacheln zählte als Landung. Fälle ohne `art` (Level 01)
+## lassen das wie bisher und messen Zeile für Zeile gleich.
 
 const SCHRITT := 0.25
 const FENSTER_MIN := 1.25
@@ -335,11 +351,19 @@ func _versuch(fall: Dictionary, art: String, absprung: float, doppel_t: float) -
 		doppel_bild = maxi(roundi(doppel_t * Engine.physics_ticks_per_second), 2)
 
 	if _level.has_method("pruefruhe"):
+		# Erst ein Bild abwarten: Nach einem Tod läuft der Rücksetzer des
+		# Levels aufgeschoben (`LevelBasis._auf_zuruecksetzen`), also erst
+		# NACH dem Ende des vorigen Versuchs – und `nach_tod` darf die Ruhe
+		# wieder aufheben. Ohne das Bild hob `nach_tod` die Ruhe nach jedem
+		# Tod wieder auf, bevor der Versuch begann (gemessen: im selben
+		# Physikbild nach `pruefruhe`). Nur in diesem Zweig, damit Level 01
+		# Bild für Bild gleich läuft.
+		await get_tree().physics_frame
 		_level.call("pruefruhe")
 	InputHub.zuruecksetzen()
 	GameState.leben = 50
 	_spieler.set("can_djump", false)
-	if art != "einfach":
+	if fall.has("art"):
 		_beruhigen()
 	_spieler.velocity = Vector3.ZERO
 	_spieler.global_position = _abstellen(start)
@@ -359,6 +383,10 @@ func _versuch(fall: Dictionary, art: String, absprung: float, doppel_t: float) -
 		richtung.y = 0.0
 		fern = a + richtung.normalized() * 60.0
 	_tot = false
+	# Überlauf: der Boden am Ziel, gemessen, bevor unterwegs etwas bricht.
+	var y_ziel := NAN
+	if art == "ueberlauf":
+		y_ziel = _abstellen(Vector2(ziel_s, start.y)).y
 	var gesprungen := false
 	var in_luft := false
 	var y_start := _spieler.global_position.y
@@ -452,6 +480,9 @@ func _versuch(fall: Dictionary, art: String, absprung: float, doppel_t: float) -
 				return "+%.1f" % slide_ende
 			if art == "huerde":
 				return "+%.1f" % s_land
+			if _spieler.global_position.y < y_ziel - tief:
+				# Unter dem Ziel angekommen: durchgebrochen, unten weiter.
+				return "x"
 			return "+%.1f" % _verlauf.get_closest_offset(_spieler.global_position)
 		if _spieler.global_position.y < y_start - maxf(4.0, tief + 1.0):
 			InputHub.zuruecksetzen()
@@ -460,7 +491,7 @@ func _versuch(fall: Dictionary, art: String, absprung: float, doppel_t: float) -
 	return "?"
 
 
-## Figur still setzen (nur die neuen Arten, siehe Kopf unter RUHE).
+## Figur still setzen (nur Fälle mit `art`, siehe Kopf unter RUHE).
 func _beruhigen() -> void:
 	for feld: String in ["invuln", "_stolpern", "sliding", "spinning"]:
 		_spieler.set(feld, 0.0)

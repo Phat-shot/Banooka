@@ -478,6 +478,7 @@ func _pruefe_absturz() -> void:
 		GameState.leben = 3
 	print("  Absturzzone: %d von %d Stichproben fehlgeschlagen" % [misslungen, stellen.size()])
 
+
 ## Ruhe für die Proben, wenn das Level sie anbietet (siehe Kopf, RUHE).
 func _pruefruhe() -> void:
 	if _level.has_method("pruefruhe"):

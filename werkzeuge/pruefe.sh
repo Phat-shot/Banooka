@@ -112,12 +112,22 @@ echo "$GLATT" | grep -E "^---|Zittern|ZITTERT|STUFT|Versetzen|Knoten:|Abweichung
 # kommen aus den Daten des Levels. `--fixed-fps 60` macht die echte Figur
 # schneller als Echtzeit und jeden Lauf gleich. FEHLER, wenn der Absprung
 # an einer Kante nicht trägt oder ein Absprungfenster unter 1,25 m liegt.
-SPRUNG=""
+# Dazu im vollen Lauf (ohne PRUEF_LEVEL) der Prüfstand: Seine Sprungbahn
+# misst jede Art der Probe gegen die Zahlen der Raum-1-Entwürfe (Baukasten
+# G2). Ändert ein Bauteil Station 30, fällt ein Bruch dieser Zahlen sonst
+# niemandem auf. Rund eine Minute.
+SPRUNG_SZENEN=""
 for NR in ${NUMMERN//,/ }; do
-	SKRIPT="$ZIEL/scenes/levels/level${NR}.gd"
+	SPRUNG_SZENEN="$SPRUNG_SZENEN level${NR}.gd:Level${NR}"
+done
+[ -z "${PRUEF_LEVEL:-}" ] && SPRUNG_SZENEN="$SPRUNG_SZENEN werkstatt.gd:Werkstatt"
+SPRUNG=""
+for PAAR in $SPRUNG_SZENEN; do
+	SKRIPT="$ZIEL/scenes/levels/${PAAR%%:*}"
+	SZENE="${PAAR#*:}"
 	[ -f "$SKRIPT" ] && grep -q "^func sprungfaelle" "$SKRIPT" || continue
 	TEIL="$(timeout 600 "$GODOT" --headless --fixed-fps 60 --path "$ZIEL" \
-		res://werkzeuge/Sprungprobe.tscn -- "res://scenes/levels/Level${NR}.tscn" 2>&1 \
+		res://werkzeuge/Sprungprobe.tscn -- "res://scenes/levels/${SZENE}.tscn" 2>&1 \
 		| grep -Ev "$RAUSCHEN")"
 	SPRUNG="$SPRUNG
 $TEIL"
@@ -125,8 +135,8 @@ $TEIL"
 	# Ohne Schlusszeile ist die Probe abgebrochen (Zeitlimit, Absturz).
 	if ! echo "$TEIL" | grep -qE "=== Sprungprobe: [0-9]+ Fälle"; then
 		SPRUNG="$SPRUNG
-FEHLER Sprungprobe Level${NR} ohne Schlusszeile"
-		echo "FEHLER Sprungprobe Level${NR} ohne Schlusszeile"
+FEHLER Sprungprobe ${SZENE} ohne Schlusszeile"
+		echo "FEHLER Sprungprobe ${SZENE} ohne Schlusszeile"
 	fi
 done
 

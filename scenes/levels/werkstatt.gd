@@ -81,6 +81,10 @@ const LUECKE_5_VON := 529.0
 const LUECKE_5_BIS := 534.0
 ## Vorderkante der Stolperzone der Messhürde.
 const HUERDE_30 := 543.5
+## Schild der Sprungbahn: vor der ersten Lücke und RECHTS über der offenen
+## Wegkante. Links hängt über 512 die Nachtodtafel; mit dem Schild links bei
+## 526 lagen beide aus der Ferne übereinander (Verfolger bei 486).
+const SCHILD_SPRUNGBAHN := 509.0
 
 const STATION_30 := [
 	{"name": "30A", "von": M_STATION_30, "bis": 458.0, "breite": WEGBREITE,
@@ -815,6 +819,10 @@ func _kronenpunkt(kronen: Array, strecke: float, seite: float) -> Vector3:
 ## darüber ist Kür (Messbank 0,80 m), Slide und Doppelsprung zusammen,
 ## Hürde ≥ 1,5 m (Entwurf L05, Paket P1), Überlauf über die Bruchplatten
 ## (Station 1), Landung auf dem Fließband (Station 7) mit zehn Bildern Halt.
+## Das Fließband liegt auf festem Boden: Der Fall zeigt nur, dass `bewegt`
+## läuft. Einen bewegten Träger über einer echten Lücke misst erst das Floß
+## im Paket von Level 03.
+## Die Fälle laufen in `pruefe.sh` mit (Stufe 4, voller Lauf).
 func sprungfaelle() -> Array[Dictionary]:
 	var drei := LUECKE_3_VON
 	var fuenf := LUECKE_5_VON
@@ -880,9 +888,12 @@ func _schilder_setzen() -> void:
 		338.0: "23 Farnwerk", 350.0: "24 Rasensaum", 362.0: "25 Bodenstreu",
 		374.0: "26 Totholzzaun", 388.0: "27 GelaendeSaum",
 		402.0: "28 Waldsetzer", 432.0: "29 Weltenbaum (1:8)",
-		452.0: "30 Unterbau (Wegdaten)", 526.0: "30 Sprungbahn",
+		452.0: "30 Unterbau (Wegdaten)", SCHILD_SPRUNGBAHN: "30 Sprungbahn",
 	}
 	for strecke: float in stationen:
+		var quer := -WEGBREITE * 0.5 + 0.8
+		if strecke == SCHILD_SPRUNGBAHN:
+			quer = -quer
 		var schild := Label3D.new()
 		schild.text = String(stationen[strecke])
 		schild.font_size = 96
@@ -891,6 +902,5 @@ func _schilder_setzen() -> void:
 		schild.outline_size = 24
 		schild.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		schild.no_depth_test = true
-		schild.position = LevelWerkzeuge.punkt(verlauf, strecke,
-				-WEGBREITE * 0.5 + 0.8, 3.4)
+		schild.position = LevelWerkzeuge.punkt(verlauf, strecke, quer, 3.4)
 		deko.add_child(schild)
