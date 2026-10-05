@@ -17,11 +17,30 @@ extends KorridorLevel
 ##
 ## Station 1–13 zeigen die Spielbauteile aus `korridor_level.gd`, 14–19
 ## die Schlucht, 20–29 die Bauteile aus Level 01 (Stämme, Kronen, Steine,
-## Bewuchs, Zaun, Saum, Waldsetzer, Weltenbaum im Kleinen).
+## Bewuchs, Zaun, Saum, Waldsetzer, Weltenbaum im Kleinen). 30–33 gehören
+## dem Baukasten für Raum 1 (Plan `baukasten.md` §1.7), die neuen Level
+## hängen ab 34 an.
+##
+## Station 30 „Unterbau": der Weg aus `Wegdaten` (scripts/gemeinsam/
+## wegdaten.gd) – Terrassen ±1,2 m mit Stufenkollision, Decke ohne
+## Bordstein, Leitlinie auf Ebene 16 mit Schulter links, rechts eine offene
+## Kante über einer Todeszone „Boden − 6", eine Kiste auf der oberen
+## Terrasse (`kiste_auf`), ein Käfer auf der unteren (`gegner_auf`), ein
+## Duckdurchlass und eine Tafel, die jeden Aufruf aus der Gruppe
+## `LevelBasis.NACH_TOD` anschreibt.
+##
+## ZWEI WEGDATEN. `weg` beschreibt den ganzen Prüfstand (die alte Strecke
+## samt Station 30), damit `breite_bei`, `boden_bei` & Co. überall
+## stimmen. Gebaut wird aus `weg` aber nur Station 30 (`_weg_30`): Der alte
+## Boden bis 450 bleibt der Korridor mit Bordstein, auf dem die Stationen
+## 1–29 stehen. Für die alten Stationen ändert `weg` nichts – ihre Stellen
+## liegen weit von jeder Kante, Breite und Klemmung bleiben dieselben.
 
-const M_ENDE := 450.0
+const M_ENDE := 530.0
 const ABSTURZ := -8.0
 const WEGBREITE := 12.0
+## Bis hier reicht der alte Boden (Korridor mit Bordstein), danach Station 30.
+const M_STATION_30 := 450.0
 
 ## Abstand zwischen zwei Stationen. Groß genug, dass nichts vom Nachbarn
 ## überdeckt wird.
@@ -30,8 +49,45 @@ const SCHRITT := 14.0
 const STRECKE := [
 	{"von": 0.0, "bis": 26.0, "breite": WEGBREITE},
 	# Lücke 26–34: darüber liegen die Bruchplatten
-	{"von": 34.0, "bis": M_ENDE, "breite": WEGBREITE},
+	{"von": 34.0, "bis": M_STATION_30, "breite": WEGBREITE},
 ]
+
+## Station 30: die Abschnitte im Schema von Level 01. Die Kurve liegt flach
+## (y 0), die Terrassen entstehen über "hoehe". Ohne "hoehe" folgt die
+## Decke der Kurve. A verjüngt den alten Weg (12 m) auf 8 m.
+##   458  Stufe +1,2 hinauf (springen)
+##   470  Stufe −1,2 hinab: zurück UNTER die obere Terrasse geht es nicht
+##   480  Stufe −1,2 hinab auf die untere Terrasse (Fels)
+##   492  Stufe +1,2 hinauf
+##   505  Duckdurchlass, 1,6 m tief
+const STATION_30 := [
+	{"name": "30A", "von": M_STATION_30, "bis": 458.0, "breite": WEGBREITE,
+			"breite_ende": 8.0},
+	{"name": "30B", "von": 458.0, "bis": 470.0, "breite": 8.0, "hoehe": 1.2},
+	{"name": "30C", "von": 470.0, "bis": 480.0, "breite": 8.0, "hoehe": 0.0},
+	{"name": "30D", "von": 480.0, "bis": 492.0, "breite": 8.0, "hoehe": -1.2,
+			"stoff": "fels"},
+	{"name": "30E", "von": 492.0, "bis": M_ENDE, "breite": 8.0},
+]
+
+## Links eine Leitlinie (Ebene 16) 0,6 m außerhalb der Wegkante, dazwischen
+## die Schulter; rechts bleibt die Kante offen.
+const LEITLINIEN_30 := [
+	{"name": "Links 30", "aussen": -1.0, "hoehe": 6.0, "unten": 3.0,
+			"schulter": Vector2(M_STATION_30, M_ENDE), "punkte": [
+				Vector2(M_STATION_30, -6.4), Vector2(458.0, -4.6), Vector2(M_ENDE, -4.6)]},
+]
+
+## Stirn und Tiefe des Duckdurchlasses, Dauer des Stolperns an seiner Stirn
+## (wie `STOLPER_DAUER` in Level 05).
+const DURCHLASS_30 := 505.0
+const DURCHLASS_30_TIEFE := 1.6
+const DURCHLASS_30_STOLPERN := 0.45
+
+const PANZERKAEFER := preload("res://scenes/enemies/Panzerkaefer.tscn")
+
+## Nur Station 30, zum Bauen (siehe Kopf, ZWEI WEGDATEN).
+var _weg_30: Wegdaten
 
 ## Die Schlucht am Ende (Station 14–18): eine Wand zu beiden Seiten, an der
 ## die Bauteile aus Level 01 wachsen. Gut einen Meter Luft neben dem Weg,
@@ -39,10 +95,6 @@ const STRECKE := [
 const SCHLUCHT := [
 	{"von": 212.0, "bis": 268.0, "abstand": WEGBREITE * 0.5 + 1.2, "hoehe": 8.0},
 ]
-
-
-func abschnitte() -> Array:
-	return STRECKE
 
 
 func ende() -> float:
@@ -70,13 +122,20 @@ func _bauschritte() -> Array:
 		{"text": "Bewuchs", "tun": _bewuchs_setzen},
 		{"text": "Zaun, Saum, Wald", "tun": _waldrand_setzen},
 		{"text": "Weltenbaum im Kleinen", "tun": _weltenbaum_setzen},
+		{"text": "Unterbau aus Wegdaten", "tun": _station_30_setzen},
 		{"text": "Portale", "tun": _portale},
 		{"text": "Schilder", "tun": _schilder_setzen},
 	]
 
 
 ## Eine leichte Kurve, kein gerader Strich: Bauteile, die sich mit dem Weg
-## mitdrehen, verraten ihren Fehler nur auf einer Kurve.
+## mitdrehen, verraten ihren Fehler nur auf einer Kurve. Die letzten drei
+## Punkte tragen Station 30. Ein angehängter Punkt ändert nur das letzte
+## Kurvenstück: Punkte und Drehung sind bis s 449,5 bitgleich mit der
+## Kurve ohne sie (gemessen alle 0,5 m), die Stationen 1–29 stehen also,
+## wo sie standen.
+##
+## Die Wegdaten entstehen hier, vor allen Bauschritten (siehe Kopf).
 func _verlauf_anlegen() -> void:
 	verlauf = LevelWerkzeuge.kurve_aus_punkten([
 		Vector3(0, 0, 4),
@@ -96,7 +155,19 @@ func _verlauf_anlegen() -> void:
 		Vector3(318, 0, -85),
 		Vector3(342, 0, -96),
 		Vector3(364, 0, -110),
+		Vector3(384, 0, -126),
+		Vector3(402, 0, -146),
+		Vector3(416, 0, -170),
 	])
+	var alle: Array = STRECKE.duplicate()
+	alle.append_array(STATION_30)
+	weg = Wegdaten.new(verlauf, {"abschnitte": alle})
+	_weg_30 = Wegdaten.new(verlauf, {"abschnitte": STATION_30, "leitlinien": LEITLINIEN_30})
+	# Unter der ganzen Station eine Todeszone „Boden − 6": rechts über die
+	# offene Kante, unter jeder Terrasse auf ihrer eigenen Höhe. Sie liegt
+	# über den alten Absturzzonen (Kurve − 8), fängt also zuerst.
+	_weg_30.todeszonen = Wegdaten.zonen_unter_boden(_weg_30, M_STATION_30, M_ENDE,
+			-30.0, 30.0, 6.0)
 
 
 func _boden_bauen() -> void:
@@ -513,6 +584,103 @@ func _weltenbaum_setzen() -> void:
 			"Weltenbaum Krone")
 
 
+# =================================================== Baukasten Raum 1
+
+## Station 30: der Unterbau aus `Wegdaten` und die Helfer `*_auf` aus
+## `KorridorLevel` (Paket G1). Abnahme (Plan G1): Der Rückweg unter die
+## obere Terrasse ist gesperrt (Stufenkollision und zwei Meter dicke
+## Schulter); der Duckdurchlass sperrt die aufrechte Kapsel und lässt Slide
+## und Krabbeln durch, ein Doppelsprung kommt nicht darüber; ein Tod
+## schreibt `nach_tod(false)` an die Tafel.
+func _station_30_setzen() -> void:
+	# Die untere Terrasse in Fels, der Rest fällt auf den Waldweg zurück
+	# (null): zwei Stoffe, also zwei Netze und eine Kollision.
+	_weg_30.decke_bauen(geometrie, func(a: Dictionary) -> Material:
+		if String(a.get("stoff", "")) == "fels":
+			return Materialbibliothek.fels()
+		return null)
+	_weg_30.leitlinien_bauen(geometrie)
+	_weg_30.schultern_bauen(geometrie)
+	_weg_30.todeszonen_bauen(geometrie)
+
+	# Auf der oberen Terrasse (+1,2): zwei Kisten über die Decke gesetzt.
+	kiste_auf(Kiste.Art.NORMAL, 464.0, -2.0)
+	kiste_auf(Kiste.Art.FRUCHT_MEHRFACH, 464.0, 2.0)
+	# Auf der unteren Terrasse (−1,2) ein Käfer, der längs patrouilliert: Die
+	# Weite klemmt am Strang 480–492, nicht an der Kurve.
+	gegner_auf(PANZERKAEFER, 486.0, 0.0, 3.0, false)
+	# Bogen über die Stufe hinauf, gemessen an der Decke.
+	fruechte_bogen_auf(489.5, 494.5, 5, 0.0, 2.2)
+	for i in 3:
+		frucht_auf(500.0 + 1.2 * float(i), 0.0, 0.45)
+
+	duckdurchlass(DURCHLASS_30, DURCHLASS_30_TIEFE, {
+		"stolperzone": DURCHLASS_30_STOLPERN,
+		"optik": _durchlass_optik,
+	})
+
+	var tafel := Nachtodtafel.new()
+	tafel.name = "Nachtodtafel"
+	tafel.text = "30 nach_tod\nnoch kein Aufruf"
+	tafel.font_size = 72
+	tafel.pixel_size = 0.012
+	tafel.modulate = Color(0.85, 0.95, 1.0)
+	tafel.outline_size = 18
+	tafel.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Hinter dem Durchlass und links über der Leitlinie: Näher und weiter
+	# innen stünde sie der Verfolgerkamera vor 494–500 mitten im Bild.
+	tafel.position = weg_punkt(512.0, -5.6, 3.0)
+	deko.add_child(tafel)
+	nach_tod_melden(tafel)
+
+
+## Optik des Duckdurchlasses an Station 30, nach dem Entwurf von Level 05
+## (§1 Nr. 2): ein massiver Riegel 0,95–1,40 m, darüber Latten mit viel
+## Luft dazwischen, eine Kappe bis 4,4 m und zwei Pfosten außen. Alles ohne
+## Kollision – die trägt der Körper.
+func _durchlass_optik(s: float, tiefe: float) -> Node3D:
+	var wurzel := Node3D.new()
+	wurzel.name = "Durchlassoptik"
+	var mitte := s + tiefe * 0.5
+	var lage := Transform3D(Basis(Vector3.UP, LevelWerkzeuge.drehung(verlauf, mitte)),
+			weg_punkt(mitte))
+	var holz := Materialbibliothek.kistenholz(Farben.HOLZ_DUNKEL)
+	var breite := breite_bei(mitte) + 2.0
+	_kasten(wurzel, holz, lage, Vector3(breite, 0.45, tiefe), Vector3(0.0, 1.175, 0.0))
+	_kasten(wurzel, holz, lage, Vector3(breite, 0.2, tiefe), Vector3(0.0, 4.3, 0.0))
+	for k in 6:
+		var q := lerpf(-breite * 0.5 + 0.6, breite * 0.5 - 0.6, float(k) / 5.0)
+		_kasten(wurzel, holz, lage, Vector3(0.14, 2.8, 0.14), Vector3(q, 2.8, 0.0))
+	for seite: float in [-1.0, 1.0]:
+		_kasten(wurzel, holz, lage, Vector3(0.3, 5.9, 0.3),
+				Vector3(seite * breite * 0.5, 4.4 - 2.95, 0.0))
+	return wurzel
+
+
+func _kasten(eltern: Node3D, stoff: Material, lage: Transform3D, groesse: Vector3,
+		versatz: Vector3) -> void:
+	var netz := MeshInstance3D.new()
+	var form := BoxMesh.new()
+	form.size = groesse
+	netz.mesh = form
+	netz.material_override = stoff
+	netz.transform = lage * Transform3D(Basis(), versatz)
+	eltern.add_child(netz)
+
+
+## Station 30: zählt die Aufrufe aus der Gruppe `LevelBasis.NACH_TOD` und
+## schreibt den letzten an – ein Tod muss hier „nach_tod(false)" zeigen,
+## ein Game Over „nach_tod(true)".
+class Nachtodtafel extends Label3D:
+	var anzahl := 0
+	var zuletzt := ""
+
+	func nach_tod(von_vorn: bool) -> void:
+		anzahl += 1
+		zuletzt = "nach_tod(%s)" % str(von_vorn)
+		text = "30 nach_tod\n%d× – zuletzt %s" % [anzahl, zuletzt]
+
+
 ## Lage am Weg: Strecke, Querabstand (rechts positiv), Höhe und eine
 ## Drehung um die Hochachse, ausgerichtet nach der Wegrichtung (+X zeigt
 ## nach rechts, -Z den Weg entlang).
@@ -582,6 +750,7 @@ func _schilder_setzen() -> void:
 		338.0: "23 Farnwerk", 350.0: "24 Rasensaum", 362.0: "25 Bodenstreu",
 		374.0: "26 Totholzzaun", 388.0: "27 GelaendeSaum",
 		402.0: "28 Waldsetzer", 432.0: "29 Weltenbaum (1:8)",
+		452.0: "30 Unterbau (Wegdaten)",
 	}
 	for strecke: float in stationen:
 		var schild := Label3D.new()

@@ -27,6 +27,14 @@ const RUNDGANG_BLICKE: Array[float] = [40.0, -40.0]
 const SCHATTEN_WEB := 60.0
 const SCHATTEN_HANDY := 50.0
 
+## Gruppe der Knoten, die nach jedem Zurücksetzen (Tod, Game Over)
+## `nach_tod(von_vorn: bool)` bekommen – siehe `_zuruecksetzen`. Für alles,
+## was der Bauplan aus Kisten und Gegnern nicht kennt: eine Bruchstelle, die
+## heilt, ein Verfolger, der neu steht. Anmelden über
+## `KorridorLevel.nach_tod_melden()`. In Level 01 und allen älteren Leveln
+## ist die Gruppe leer, der Aufruf tut dort nichts.
+const NACH_TOD := "nach_tod"
+
 ## Jede so-und-so-vielte Holzkiste wird im Zeitmodus zur Zeitkiste.
 const ZEITKISTE_ABSTAND := 3
 ## Die Zahlen, die der Reihe nach auf den Zeitkisten stehen.
@@ -307,6 +315,33 @@ func zielzeit() -> float:
 	return 0.0
 
 
+## Haken: Woher die Strecke der Figur kommt, wenn sie sich nicht aus ihrem
+## Ort ergibt – ein Callable, das `s` liefert. Vorgabe leer. Gedacht für
+## Level, deren Weg sich kreuzt (Level 04: die Strecke des Reiters); NICHT
+## automatisch über die Eigenschaft `strecke`, die auch die Figuren in
+## Level 06 und 17 haben (Baukasten §4 Nr. 4). Die Kamera bindet es erst
+## mit dem Kameraplan an (Paket G6); bis dahin liest es nur
+## `strecke_der_figur()`.
+func kamera_strecke_quelle() -> Callable:
+	return Callable()
+
+
+## Strecke der Figur auf dem Verlauf, für alles, was nach `s` schaltet
+## (Stimmung, Kamera): erst `kamera_strecke_quelle()`, dann die geführte
+## Strecke der Kamera, falls sie eine anbietet (`strecke()`), zuletzt der
+## nächste Punkt der Kurve. Die Nähe allein ist an einer Kreuzung oder
+## über einer Wendel mehrdeutig – darum diese Reihenfolge.
+func strecke_der_figur() -> float:
+	var quelle := kamera_strecke_quelle()
+	if quelle.is_valid():
+		return float(quelle.call())
+	if _kamera != null and _kamera.has_method("strecke"):
+		return float(_kamera.call("strecke"))
+	if verlauf == null or _spieler == null or not is_instance_valid(_spieler):
+		return 0.0
+	return verlauf.get_closest_offset(to_local(_spieler.global_position))
+
+
 ## Richtzeit, auf die sich die drei Stufen des Zeitlaufs beziehen.
 ##
 ## Die Ableitung aus der Streckenlänge ist grob, aber sie ist ehrlich
@@ -565,6 +600,10 @@ func _zuruecksetzen(von_vorn: bool) -> void:
 	GameState.kisten_geaendert.emit(GameState.kisten_zerbrochen, GameState.kisten_gesamt)
 	if debug and wieder > 0:
 		print("Level zurückgesetzt: %d Objekte wieder aufgestellt" % wieder)
+	# Zuletzt alles, was sich für die Zeit nach dem Tod angemeldet hat (siehe
+	# NACH_TOD). Eine leere Gruppe ruft niemanden.
+	if is_inside_tree():
+		get_tree().call_group(NACH_TOD, "nach_tod", von_vorn)
 
 
 func _aufstellen(eintrag: Dictionary) -> Node3D:
