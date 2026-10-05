@@ -50,6 +50,22 @@ extends Node
 ##                  ±0,3 m: `auge()` gegen den Ort einer echten
 ##                  `KorridorKamera` nach `sofort_ausrichten()` auf der Kurve
 ##                  von Level 01, mit 9,5/6 und mit −21/5,6 (Level 05).
+##   Stimmung (G5)  `Stimmungsregler` mit `L01Stimmung.ZONEN` und Licht und
+##                  Umgebung aus Level01.tscn gegen `L01Stimmung.Regler`:
+##                  Grundwerte; `mischung` alle 0,5 m von −8 bis 300 gegen
+##                  das Original, wie es gebaut ist, außerhalb seiner Wendel
+##                  (die Zylinderzone kennt der Baukasten nicht – s 220 des
+##                  Plans liegt in ihr); dann mit abgeschalteter Wendel
+##                  (`wendel` ist eine Kopie am Regler) an s 10/60/130/220
+##                  und wieder alle 0,5 m. Dazu, gegen Sollwerte statt gegen ein
+##                  Original: die Zusätze (Lücke ohne Zone = Szene,
+##                  `nebel_beginn`, `sonne_energie`, `rahmen`) und die
+##                  Kostenregel – der Regler auf einem Probelevel ohne Aufbau,
+##                  Bild für Bild von Hand getaktet: Steht die Figur, zittert
+##                  sie unter `SCHWELLE_S` oder läuft sie im Inneren einer
+##                  Zone, schreibt er nichts; über eine Naht schreibt er
+##                  (Gegenprobe). Und: Die Strecke kommt aus
+##                  `kamera_strecke_quelle()`, wenn das Level eine nennt.
 ##
 ## Ausgabe: je Prüfung eine Zeile mit der Zahl der Vergleiche, die ersten
 ## Abweichungen im Wortlaut, am Ende
@@ -75,6 +91,7 @@ func _ready() -> void:
 	_teil_wegdaten()
 	_teil_stoffe()
 	_teil_bewuchs()
+	_teil_stimmung()
 	print("=== Baukastenprobe: %d Vergleiche, %d Abweichungen ===" % [_vergleiche, _abweichungen])
 	get_tree().quit(1 if _abweichungen > 0 else 0)
 
@@ -798,6 +815,287 @@ func _netz_pruefe(was: String, a: Mesh, b: Mesh) -> void:
 	_pruefe(was + " Hülle", a.get_aabb(), b.get_aabb())
 	if a is ArrayMesh and b is ArrayMesh:
 		_pruefe(was + " eigene Hülle", (a as ArrayMesh).custom_aabb, (b as ArrayMesh).custom_aabb)
+
+
+# ============================================================ Stimmung (G5)
+
+## Die Stellen, an denen der Plan den Vergleich verlangt (baukasten.md §1.7).
+const STIMMUNG_STELLEN: Array[float] = [10.0, 60.0, 130.0, 220.0]
+## Ein Bild der Kostenprobe (60 Bilder je Sekunde, wie `--fixed-fps 60`).
+const TAKT := 1.0 / 60.0
+## Boden der Wendel über jeder Höhe von Level 01: Sie wiegt dann überall 0.
+const WENDEL_AUS := 1.0e6
+
+
+## Ein Level, das nichts baut: Der Stimmungsregler braucht nur Verlauf,
+## Figur und `strecke_der_figur()`. `_ready` bleibt leer – in Godot 4 ruft
+## ein überschriebenes `_ready` das der Basisklasse nicht (kein Aufbau,
+## kein Ladeschirm, kein Spielstand).
+class Probelevel:
+	extends LevelBasis
+
+	## Strecke, die das Level statt der Nähe nennt (wie Level 04), oder leer.
+	var quelle := Callable()
+
+	func _ready() -> void:
+		pass
+
+	func kamera_strecke_quelle() -> Callable:
+		return quelle
+
+
+func _teil_stimmung() -> void:
+	print("--- Stimmung gegen stimmung.gd ---")
+	# Licht und Umgebung so, wie Level01.tscn sie mitbringt; die Szene kommt
+	# nicht in den Baum (kein `_ready`), nur ihre Kurve wird angelegt – die
+	# Wendel des Originals misst an der Wegdecke.
+	var szene := (load("res://scenes/levels/Level01.tscn") as PackedScene).instantiate() as Level01
+	szene.call("_verlauf_anlegen")
+	var welt_l01 := szene.get_node("WorldEnvironment") as WorldEnvironment
+	var umgebung := welt_l01.environment
+	var sonne := szene.get_node("Sonne") as DirectionalLight3D
+	var oben := szene.get_node("Himmelslicht") as DirectionalLight3D
+
+	# Das Original, wie `L01Stimmung._regler_anlegen` es baut (ohne die
+	# Stoffe, `mischung` liest sie nicht); `_ready` von Hand – es kopiert nur
+	# die Umgebung und liest die Grundwerte.
+	var original := L01Stimmung.Regler.new()
+	original.level = szene
+	original.welt = welt_l01
+	original.oben = oben
+	original.sonne = sonne
+	original._ready()
+	var welt := WorldEnvironment.new()
+	welt.environment = umgebung
+	var kopie := Stimmungsregler.new()
+	kopie.level = szene
+	kopie.welt = welt
+	kopie.oben = oben
+	kopie.sonne = sonne
+	kopie.zonen = L01Stimmung.ZONEN.duplicate(true)
+	kopie._ready()
+
+	_anfang()
+	_pruefe("grund", original.grund(), kopie.grund())
+	_zeile("Grundwerte")
+
+	# --- Original wie gebaut: alle 0,5 m außerhalb der Wendel ---
+	_anfang()
+	var stellen := 0
+	var in_wendel := 0
+	var s := VON
+	while s <= BIS + 0.001:
+		if original._zylinder(s) > 0.0:
+			in_wendel += 1
+		else:
+			stellen += 1
+			_pruefe("mischung s %.1f" % s, original.mischung(s), kopie.mischung(s))
+		s += SCHRITT
+	_zeile("mischung mit Wendel an %d Stellen je %.1f m (%d in der Wendel)" % [stellen,
+			SCHRITT, in_wendel])
+	var wendel_stellen := PackedStringArray()
+	for stelle in STIMMUNG_STELLEN:
+		wendel_stellen.append("s %.0f: %.2f" % [stelle, original._zylinder(stelle)])
+	print("    Gewicht der Wendel an den Stellen des Plans: " + ", ".join(wendel_stellen))
+
+	# --- Original nur mit ZONEN: Die Wendel ist eine Kopie am Regler (für
+	# Prüfwerkzeuge verstellbar, stimmung.gd:276-279); ihr Boden über jede
+	# Höhe gelegt, wiegt sie überall 0 und das Original mischt nur ZONEN.
+	original.wendel["unten_y"] = WENDEL_AUS
+	_anfang()
+	for stelle in STIMMUNG_STELLEN:
+		_pruefe("Wendel aus s %.0f" % stelle, 0.0, original._zylinder(stelle))
+		_pruefe("mischung s %.0f" % stelle, original.mischung(stelle), kopie.mischung(stelle))
+	_zeile("mischung nur ZONEN an s 10/60/130/220 (Plan)")
+	_anfang()
+	stellen = 0
+	s = VON
+	while s <= BIS + 0.001:
+		stellen += 1
+		_pruefe("mischung nur ZONEN s %.1f" % s, original.mischung(s), kopie.mischung(s))
+		s += SCHRITT
+	_zeile("mischung nur ZONEN an %d Stellen je %.1f m" % [stellen, SCHRITT])
+	original.free()
+	kopie.free()
+	welt.free()
+
+	_stimmung_zusaetze(szene, umgebung, sonne)
+	_stimmung_kosten(szene, umgebung, sonne, oben)
+	szene.free()
+
+
+## Die Zusätze gegen Sollwerte: eine einzelne Zone mitten im Weg, die nur
+## einen Faktor, einen Nebelbeginn, eine Sonnenenergie und eine Rahmen-
+## stärke nennt.
+func _stimmung_zusaetze(szene: Level01, umgebung: Environment, sonne: DirectionalLight3D) -> void:
+	_anfang()
+	var welt := WorldEnvironment.new()
+	welt.environment = umgebung
+	var rahmen := Bildrahmen.new()
+	rahmen.staerke = 0.3
+	var regler := Stimmungsregler.new()
+	regler.level = szene
+	regler.welt = welt
+	regler.sonne = sonne
+	regler.rahmen = rahmen
+	regler.zonen = [{"name": "Mitte", "von": 100.0, "bis": 140.0, "nebel_faktor": 2.0,
+			"nebel_beginn": 20.0, "sonne_energie": 0.5, "rahmen": 0.1}]
+	regler._ready()
+	var g := regler.grund()
+	var beginn: float = g["nebelbeginn"]
+	var ende: float = g["nebelende"]
+	# Außerhalb jeder Zone: die Szene, genau.
+	var aussen := regler.mischung(50.0)
+	var soll_aussen := {"nebelfarbe": g["nebelfarbe"], "umgebungsfarbe": g["umgebungsfarbe"],
+			"nebelende": ende, "kurve": g["kurve"], "licht": g["licht"], "oben": g["oben"],
+			"sonne": g["sonne"], "sonne_farbe": g["sonne_farbe"], "nebelbeginn": beginn,
+			"rahmen": 0.3, "rahmen_licht": 0.0}
+	_pruefe("Lücke s 50 = Szene", soll_aussen, aussen)
+	# Im Inneren: die Zone; was sie nicht nennt, von der Szene.
+	var innen := regler.mischung(120.0)
+	var soll_innen := soll_aussen.duplicate()
+	soll_innen["nebelende"] = beginn + (ende - beginn) / 2.0
+	soll_innen["nebelbeginn"] = 20.0
+	soll_innen["sonne"] = 0.5
+	soll_innen["rahmen"] = 0.1
+	_pruefe("Zone s 120", soll_innen, innen)
+	# Am freien Rand halb Zone, halb Szene.
+	var rand := regler.mischung(100.0)
+	_pruefe_wahr("Rand s 100: Sonne halb und halb",
+			is_equal_approx(float(rand["sonne"]), (0.5 + float(g["sonne"])) * 0.5),
+			"%.6f" % float(rand["sonne"]))
+	_pruefe_wahr("Rand s 100: Rahmen halb und halb",
+			is_equal_approx(float(rand["rahmen"]), 0.2), "%.6f" % float(rand["rahmen"]))
+	_zeile("Zusätze: Lücke = Szene, Zone, freier Rand")
+	regler.free()
+	rahmen.free()
+	welt.free()
+
+
+## Die Kostenregel (stimmung.gd:259-263): Der Regler hängt an einem
+## Probelevel mit der Kurve von Level 01 und einer Figur, getaktet von Hand
+## (`_process` mit `TAKT`), und regelt alles, was er regeln kann – Umgebung,
+## Sonne, Licht von oben, Bildrahmen, einen Nebelstoff und eine Nebeltafel.
+func _stimmung_kosten(szene: Level01, umgebung: Environment, sonne: DirectionalLight3D,
+		oben: DirectionalLight3D) -> void:
+	_anfang()
+	var level := Probelevel.new()
+	level.name = "Probelevel"
+	add_child(level)
+	_pruefe("Probelevel ohne Aufbau (deko leer)", true, level.deko == null)
+	level.verlauf = szene.verlauf
+	var welt := WorldEnvironment.new()
+	welt.name = "WorldEnvironment"
+	welt.environment = umgebung
+	level.add_child(welt)
+	var figur := Node3D.new()
+	figur.name = "Figur"
+	figur.add_to_group("spieler")
+	level.add_child(figur)
+	level._spieler = figur
+	var sonne_ := sonne.duplicate() as DirectionalLight3D
+	level.add_child(sonne_)
+	var oben_ := oben.duplicate() as DirectionalLight3D
+	level.add_child(oben_)
+	var rahmen := Bildrahmen.einsetzen(level, 0.3)
+	var stoff := Nebelstoff.nebelarm(Kronenwolke.stoff(Farben.LAUB_DUNKEL, false), umgebung) \
+			as ShaderMaterial
+	var tafel := ShaderMaterial.new()
+	tafel.shader = GelaendeBau.NEBEL_SHADER
+	var regler := Stimmungsregler.anlegen(level, L01Stimmung.ZONEN, {"sonne": sonne_,
+			"oben": oben_, "rahmen": rahmen, "nebelstoffe": [stoff], "nebeltafeln": [tafel]})
+	regler.set_process(false)
+	var neue_umgebung := welt.environment
+	_pruefe_wahr("eigene Umgebung (Kopie)", neue_umgebung != umgebung)
+
+	# Erstes Bild: springt auf die Mischung und schreibt jeden Wert einmal.
+	figur.position = szene.weg_punkt(60.0, 0.0, 0.9)
+	regler._process(TAKT)
+	var erst := regler.geschrieben
+	_pruefe("erstes Bild: Schreibzugriffe (10 Werte)", 10, erst)
+	var m60 := regler.mischung(60.0)
+	_pruefe_wahr("erstes Bild: Nebelende = Mischung",
+			is_equal_approx(neue_umgebung.fog_depth_end, float(m60["nebelende"])),
+			"%.3f / %.3f" % [neue_umgebung.fog_depth_end, float(m60["nebelende"])])
+	_pruefe_wahr("erstes Bild: Nebelstoff folgt",
+			is_equal_approx(float(stoff.get_shader_parameter("nebel_bis")),
+			neue_umgebung.fog_depth_end))
+	var tafelfarbe: Color = tafel.get_shader_parameter("farbe")
+	_pruefe_wahr("erstes Bild: Nebeltafel folgt", tafelfarbe.is_equal_approx(
+			neue_umgebung.fog_light_color.lightened(Stimmungsregler.NEBELTAFEL_HELLER)))
+	_pruefe_wahr("erstes Bild: Rahmen", is_equal_approx(rahmen.staerke, 0.3))
+
+	# Steht die Figur: nichts.
+	var vorher := regler.geschrieben
+	for i in 120:
+		regler._process(TAKT)
+	var stehend := regler.geschrieben - vorher
+	_pruefe("2 s stehend: neue Schreibzugriffe", 0, stehend)
+	# Zittert sie um 5 mm (unter SCHWELLE_S): nichts.
+	vorher = regler.geschrieben
+	for i in 120:
+		figur.position = szene.weg_punkt(60.0 + 0.005 * float(i % 2), 0.0, 0.9)
+		regler._process(TAKT)
+	var zitternd := regler.geschrieben - vorher
+	_pruefe("2 s Zittern um 5 mm: neue Schreibzugriffe", 0, zitternd)
+	# Läuft sie im Inneren des Hangwegs (60 → 72 m mit 6 m/s): gemischt
+	# wird, aber die Werte bleiben – nichts geschrieben.
+	vorher = regler.geschrieben
+	for i in 121:
+		figur.position = szene.weg_punkt(60.0 + 0.1 * float(i), 0.0, 0.9)
+		regler._process(TAKT)
+	var in_zone := regler.geschrieben - vorher
+	_pruefe("2 s Lauf im Hangweg 60 → 72: neue Schreibzugriffe", 0, in_zone)
+	# Gegenprobe: über die Naht Hangweg → Fallklamm (98–110) schreibt er.
+	vorher = regler.geschrieben
+	for i in 601:
+		figur.position = szene.weg_punkt(72.0 + 0.1 * float(i), 0.0, 0.9)
+		regler._process(TAKT)
+	var naht := regler.geschrieben - vorher
+	_pruefe_wahr("Lauf 72 → 132 über die Naht schreibt", naht > 0, "%d" % naht)
+	# Wieder stehen: einschwingen lassen, dann nichts mehr.
+	var bilder := 0
+	while not regler._ruhig and bilder < 600:
+		regler._process(TAKT)
+		bilder += 1
+	vorher = regler.geschrieben
+	for i in 120:
+		regler._process(TAKT)
+	var danach := regler.geschrieben - vorher
+	_pruefe("2 s stehend nach dem Lauf: neue Schreibzugriffe", 0, danach)
+	# Eingeschwungen schreibt er den genauen Zielwert (kein Rest bis
+	# SCHWELLE): Umgebung, Sonne und Rahmen stehen auf der Mischung (bis auf
+	# float32 in der Umgebung).
+	var m132 := regler.mischung(level.strecke_der_figur())
+	_pruefe_wahr("eingeschwungen nach %d Bildern: Umgebungslicht = Mischung" % bilder,
+			is_equal_approx(neue_umgebung.ambient_light_energy, float(m132["licht"])),
+			"%.7f / %.7f" % [neue_umgebung.ambient_light_energy, float(m132["licht"])])
+	_pruefe_wahr("eingeschwungen: Nebelfarbe = Mischung",
+			neue_umgebung.fog_light_color.is_equal_approx(m132["nebelfarbe"] as Color),
+			str(neue_umgebung.fog_light_color))
+	_pruefe("eingeschwungen: Rahmen = Mischung", float(m132["rahmen"]), rahmen.staerke)
+	print("    Schreibzugriffe: erstes Bild %d; je 2 s stehend +%d, zitternd +%d, Lauf in der "
+			% [erst, stehend, zitternd] + "Zone +%d; Lauf über die Naht +%d; eingeschwungen "
+			% [in_zone, naht] + "nach %d Bildern, danach 2 s stehend +%d" % [bilder, danach])
+
+	# Die Strecke aus `kamera_strecke_quelle()`: Die Figur steht im Hangweg,
+	# das Level nennt s 130 (Fallklamm) – es gilt die Quelle.
+	figur.position = szene.weg_punkt(60.0, 0.0, 0.9)
+	level.quelle = func() -> float: return 130.0
+	regler.neu_rechnen()
+	regler._process(TAKT)
+	_pruefe("Quelle s 130 statt Nähe s 60", regler.mischung(130.0), regler._stand)
+	_zeile("Kostenregel: stehen, zittern, laufen, Naht; Quelle")
+	level.free()
+
+
+## Eine Bedingung als Vergleich (für Sollwerte, die nicht bitgleich sein
+## können: Werte, die durch die Umgebung (float32) gegangen sind).
+func _pruefe_wahr(was: String, ok: bool, wert: String = "") -> void:
+	_vergleiche += 1
+	_teil_vergleiche += 1
+	if not ok:
+		_abweichung(was + ("" if wert.is_empty() else ": " + wert))
 
 
 # ============================================================ Vergleich

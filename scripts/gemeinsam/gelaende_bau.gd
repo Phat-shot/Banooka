@@ -25,7 +25,8 @@ class_name GelaendeBau
 ## NEBELTAFELN. `nebeltafeln()` baut Dunst über einem Wasser als EIN Netz
 ## (ein Zeichenaufruf) mit dem Shader `shaders/nebeltafel.gdshader`, einer
 ## wörtlichen Abschrift von `L01Gelaende.NEBEL_SHADER_CODE`. Der Stoff ist
-## eigen je Aufruf; ein Stimmungsregler setzt darin "farbe" und "staerke".
+## eigen je Aufruf; der `Stimmungsregler` (Option "nebeltafeln") setzt
+## darin "farbe" nach dem Nebellicht.
 
 const GELAENDE_SHADER := preload("res://shaders/gelaende.gdshader")
 const NEBEL_SHADER := preload("res://shaders/nebeltafel.gdshader")

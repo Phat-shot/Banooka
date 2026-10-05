@@ -66,6 +66,19 @@ extends KorridorLevel
 ## (`einsinken`) und Rasen, Streu und Rahmenfarne aus `Rasenbau`. Alles
 ## steht auf einem eigenen Gelände (`GelaendeBau`, im Bauspeicher).
 ##
+## Dazu die STIMMUNG (Paket G5): ein `Stimmungsregler` mit drei Zonen nach
+## der Strecke (`STIMMUNG_32`) – Hain (Dunst, gedämpftes Licht, Rahmen),
+## Lichtung (warm, Sonnenenergie absolut, Schein von oben) und Kühle (blaue
+## Ferne). Die Zonen decken nur Station 32: Davor gilt die Szene, und der
+## Hain blendet an seinem freien Anfang in sie über – der Fall, den Level 01
+## nicht kennt (dort decken die Zonen den ganzen Weg). Der Bildrahmen kommt
+## mit Stärke 0 dazu und ist damit vor Station 32 gar nicht da (er zeichnet
+## erst ab einer Stärke über 0). Der Nebel
+## der Werkstatt ist exponentiell (Werkstatt.tscn, `fog_mode` 0): Nebelende,
+## -beginn und -kurve wirken hier nur im Nebelstoff der fernen Kronen;
+## sichtbar regelt er Nebel- und Umgebungsfarbe, Umgebungslicht, Sonne und
+## Rahmen.
+##
 ## ZWEI WEGDATEN. `weg` beschreibt den ganzen Prüfstand (die alte Strecke
 ## samt Station 30 bis 32), damit `breite_bei`, `boden_bei` & Co. überall
 ## stimmen. Gebaut wird aus `weg` aber nur Station 30 (`_weg_30`), 31
@@ -210,6 +223,22 @@ const KISTEN_32 := [Vector2(708.0, -1.6), Vector2(708.0, 1.6), Vector2(764.0, 0.
 ## Ferne Kronen auf dem Hangkamm: so weit quer, alle so viele Meter.
 const FERNE_Q_32 := Vector2(-58.0, -44.0)
 const FERNE_SCHRITT_32 := 7.0
+## Die Stimmung von Station 32 (`Stimmungsregler`, Schema dort). Der Hain
+## beginnt frei (Übergang aus der Szene 691–701), die beiden Nähte tragen
+## beidseits dieselbe Breite, die Kühle reicht über das Ende der Kurve.
+const STIMMUNG_32 := [
+	{"name": "32 Hain", "von": 696.0, "bis": 734.0, "rand_von": 10.0, "rand_bis": 10.0,
+			"nebel_faktor": 2.4, "licht_faktor": 0.78, "nebelfarbe": Color(0.42, 0.56, 0.58),
+			"umgebungsfarbe": Color(0.40, 0.52, 0.46), "sonne_faktor": 0.7, "rahmen": 0.32},
+	{"name": "32 Lichtung", "von": 734.0, "bis": 766.0, "rand_von": 10.0, "rand_bis": 10.0,
+			"licht_faktor": 1.2, "nebelfarbe": Color(0.86, 0.80, 0.64),
+			"umgebungsfarbe": Color(0.70, 0.64, 0.48), "sonne_farbe": Color(1.0, 0.86, 0.62),
+			"sonne_energie": 1.45, "nebel_beginn": 30.0, "rahmen": 0.12, "rahmen_licht": 0.08},
+	{"name": "32 Kühle", "von": 766.0, "bis": 830.0, "rand_von": 10.0, "nebel_faktor": 1.4,
+			"licht_faktor": 0.9, "nebelfarbe": Color(0.56, 0.62, 0.78),
+			"umgebungsfarbe": Color(0.52, 0.56, 0.72), "sonne_faktor": 0.85, "kurve": 1.4,
+			"rahmen": 0.24},
+]
 
 ## Stirn und Tiefe des Duckdurchlasses, Dauer des Stolperns an seiner Stirn
 ## (wie `STOLPER_DAUER` in Level 05).
@@ -242,6 +271,9 @@ var _felder_31: Array[GelaendeFeld] = []
 var _feld_32: GelaendeFeld
 var _rahmen_32: Waldrahmen
 var _rasen_32: Rasenbau
+## Stoffe mit eigenem Nebel aus Station 32 (ferne Kronen) für den
+## Stimmungsregler; nur bis zu seinem Bauschritt gehalten.
+var _nebelstoffe_32: Array[ShaderMaterial] = []
 
 ## Die Schlucht am Ende (Station 14–18): eine Wand zu beiden Seiten, an der
 ## die Bauteile aus Level 01 wachsen. Gut einen Meter Luft neben dem Weg,
@@ -1360,6 +1392,7 @@ func _station_32_schritte() -> Array:
 	schritte.append({"text": "Bewuchs: Rasen links", "tun": _station_32_rasen.bind(-1.0)})
 	schritte.append({"text": "Bewuchs: Rasen rechts", "tun": _station_32_rasen.bind(1.0)})
 	schritte.append({"text": "Bewuchs: Rasen wird ausgerollt", "tun": _station_32_rasen_fertig})
+	schritte.append({"text": "Stimmung: Zonen", "tun": _station_32_stimmung})
 	return schritte
 
 
@@ -1491,8 +1524,10 @@ func _station_32_haine() -> void:
 	var welt := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if welt != null:
 		umgebung = welt.environment
-	ws.art("fernwald", {"stoff": Nebelstoff.nebelarm(Kronenwolke.stoff(Farben.LAUB_DUNKEL, false),
-			umgebung), "sicht": 220.0, "verschmelzen": true, "rand": 10.0})
+	var fernwald := Nebelstoff.nebelarm(Kronenwolke.stoff(Farben.LAUB_DUNKEL, false), umgebung)
+	if fernwald is ShaderMaterial:
+		_nebelstoffe_32.append(fernwald as ShaderMaterial)
+	ws.art("fernwald", {"stoff": fernwald, "sicht": 220.0, "verschmelzen": true, "rand": 10.0})
 	var boden_modelle: Array[Dictionary] = []
 	boden_modelle.append_array(Fremdmodelle.rolle_netze("M21", {}, 20.0))
 	boden_modelle.append_array(Fremdmodelle.rolle_netze("M23", {}, 20.0))
@@ -1691,6 +1726,16 @@ func _station_32_rasen_fertig() -> void:
 	_rahmen_32 = null
 
 
+## Der Stimmungsregler von Station 32 (siehe Kopf): mit der Sonne der
+## Szene, einem Bildrahmen, der auf 0 steht, und dem Nebelstoff der fernen
+## Kronen. Licht von oben hat die Werkstatt keins.
+func _station_32_stimmung() -> void:
+	var rahmen := Bildrahmen.einsetzen(self, 0.0, Color(0.03, 0.045, 0.03))
+	Stimmungsregler.anlegen(self, STIMMUNG_32, {"sonne": get_node_or_null("Sonne"),
+			"rahmen": rahmen, "nebelstoffe": _nebelstoffe_32})
+	_nebelstoffe_32 = []
+
+
 # ======================================================= Probenhaken
 
 ## Die Sprungfälle der Werkstatt (Paket G2): jede Art der Sprungprobe
@@ -1784,6 +1829,9 @@ func _schilder_setzen() -> void:
 		M_STATION_31 + THEMA_LAENGE * 2.0 + 0.3: "31 Schnee",
 		M_STATION_32 + 0.3: "32 Bewuchs (Waldrahmen, Rasenbau)",
 	}
+	# Stimmung: je Zone ein Schild an ihrem Anfang.
+	for zone: Dictionary in STIMMUNG_32:
+		stationen[float(zone["von"])] = "Stimmung: " + String(zone["name"])
 	for strecke: float in stationen:
 		var quer := -WEGBREITE * 0.5 + 0.8
 		if strecke == SCHILD_SPRUNGBAHN:
