@@ -29,7 +29,7 @@
 #   l01nah    Level01, nah 53.5 (Rasen und Lippe aus der Nähe; hinter den
 #             Kisten bei 52, auf denen die Figur sonst stünde)
 #
-# Nur auf Wunsch (SCHAUFENSTER_TEILE=wache), nicht im vollen Satz:
+# Nur auf Wunsch (SCHAUFENSTER_TEILE=wache usw.), nicht im vollen Satz:
 #   wache     Level01 verfolger 4,101,212,275.5 und seite 186, Hub
 #             verfolger 14 – sechs Bilder aus drei Läufen, alle Stellen aus
 #             den Teilen oben. Der Wächter beim Neubau von Raum 1: Level 01
@@ -40,6 +40,14 @@
 #             Seite, Portalraum). Die Bildnamen tragen den Lauf vorn
 #             (l01_, l01seite_, hub_) – verfolger_00_… aus Level 01 und
 #             Portalraum wären sonst nicht auseinanderzuhalten.
+#   l05       Level05, verfolger 8,60,140,218,280,296 – die Messtore des
+#             Neubaus (Entwurf L05 §9.3, §12 P1: Start mit schlafendem
+#             Keiler, Hohlweg, Terrassen, Fluderjoche, Wehr, Ziel)
+#   l05seite  Level05, seite 40,150,240 (Lösswände und Hohlwegkrone,
+#             Terrassenhang, Tobel mit Südwand – die Nähte von Saum und
+#             Gelände)
+#   Mit l05 und l05seite vergleicht jedes Paket des Neubaus von Level 05
+#   seinen Stand mit dem des vorigen (VORHER=<Commit des Vorpakets>).
 #
 # Ausgabe unter <Ziel>/<seite>/ – seite ist "jetzt" oder mit VORHER "vorher":
 #   <teil>/*.png      die Aufnahmen; ein Lauf des Teils ersetzt sie alle
@@ -132,7 +140,7 @@ done
 ALLE_TEILE=(splash hub l01 l01seite l01nah)
 # Nur über SCHAUFENSTER_TEILE: Ohne Angabe bleibt es beim bisherigen
 # Satz, ohne drei Läufe mehr.
-WUNSCH_TEILE=(wache)
+WUNSCH_TEILE=(wache l05 l05seite)
 teil_daten() {
 	case "$1" in
 	splash)   echo "res://scenes/ui/Splash.tscn|70|verfolger|0,2" ;;
@@ -144,6 +152,8 @@ teil_daten() {
 			"res://scenes/levels/Level01.tscn||verfolger|4,101,212,275.5|l01_" \
 			"res://scenes/levels/Level01.tscn||seite|186|l01seite_" \
 			"res://scenes/hub/Hub.tscn||verfolger|14|hub_" ;;
+	l05)      echo "res://scenes/levels/Level05.tscn||verfolger|8,60,140,218,280,296" ;;
+	l05seite) echo "res://scenes/levels/Level05.tscn||seite|40,150,240" ;;
 	*)        return 1 ;;
 	esac
 }

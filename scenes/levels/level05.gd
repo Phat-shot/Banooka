@@ -18,11 +18,12 @@ class_name Level05
 ##     265 – 300  E Mühlbach       Wehrkrone, L6 Wehrbruch (Doppelsprung)
 ##     300 – 332  Auslauf          nur Kulisse, die Kamera steht bei s + 21
 ##
-## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Dies ist der ROHBAU
-## (Pakete P1a/P1b): Verlauf, Weg, Bauteile, Spielobjekte, Jagd und Proben
-## als Graubox, voll spielbar. Gelände, Saum, Eiche, Wegbauten-Optik, Wasser,
-## Wald, Rasen und Stimmung folgen in eigenen Paketen; bis dahin stehen die
-## Bauteile als graue Platzhalter in der Form ihrer Kollision.
+## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Gebaut sind der
+## ROHBAU (Pakete P1a/P1b: Verlauf, Weg, Bauteile, Spielobjekte, Jagd und
+## Proben, voll spielbar) und der BODEN (P3: Wegdecke mit Lippen, Gelände,
+## Saum). Eiche, Wegbauten-Optik, Wasser, Wald, Rasen und Stimmung folgen in
+## eigenen Paketen; bis dahin stehen die Bauteile als graue Platzhalter in
+## der Form ihrer Kollision.
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
@@ -32,8 +33,30 @@ class_name Level05
 ## (`boden_bei`, `breite_bei`, `weg_punkt`, `ist_luecke` …) gehen über `weg`.
 ##
 ## MODULE unter `scenes/levels/level05/`, je eine Klasse mit
-## `bauschritte(level: Level05)`: bisher `L05Jagd` (der Keiler: Schlaf,
-## Wecken, Jagd, Hopser, Durchlass-Bruch und Heilen, Ufer; P1b).
+## `bauschritte(level: Level05)`: `L05Gelaende` (Hang, Kuppe, Kamm,
+## Mühlwiese; P3), `L05Saum` (Lösswände, Ufer, Wehrwände, Stirnen und
+## Setzstufen; P3) und `L05Jagd` (der Keiler: Schlaf, Wecken, Jagd, Hopser,
+## Durchlass-Bruch und Heilen, Ufer; P1b).
+##
+## BODEN (P3, Entwurf §5, §8, §9.2–9.4). Die Wegdecke trägt den Stoff aus
+## `Wegdecke` (Waldweg in Löss, `wegdecke_thema`), an L1–L6 vier bis sechs
+## Lippensteine und Leuchtpilze (`lippen_thema`). Die Ränder stehen als
+## Züge in ZUEGE: Saum und Gelände lesen daraus dieselbe Form (siehe dort
+## und die Köpfe der Module). Den Startboden zeichnet das Gelände, die
+## Seiten der Wehrkörper der Saum (OHNE_OPTIK). Beim Verlassen räumt das
+## Level die Zwischenspeicher von `Wegdecke` und `GelaendeSaum`.
+##
+## STOFFE. Gelände und Saum bekommen ihren Stoff beim Zusammenstellen der
+## Schritte LEER und füllen ihn in ihrem ersten Schritt
+## (`L05Gelaende.stoff_uebertragen`); die Texturen der Bibliothek entstehen
+## davor in eigenen Schritten (wie L01Saum). WARUM: `GelaendeBau.schritte`
+## und `Kanten.linien_schritte` nehmen den Stoff beim Zusammenstellen an.
+## Mit fertigen Stoffen dauerte „Bauschritte zusammenstellen" kalt 1252 ms
+## (gemessen, ohne Kopf; P1b: 3,6 ms) – die Texturen von Erde, Waldboden,
+## Fels, Sandstein, Wegmaske und Rasen in einem Bild, Entwurf §9.4: kein
+## Schritt über 400 ms. Der Löss (`Materialbibliothek.waldweg`) allein
+## braucht kalt rund 480 ms und lässt sich ohne geteilten Code nicht teilen
+## (in P1b steckte er in „Der Hohlweg wird gelegt", 623 ms).
 ##
 ## PROBEN (Opt-in, je im Kopf des Werkzeugs beschrieben): `pruefprofil` und
 ## `freiraumprobe` (LevelCheck), `sprungfaelle` (Sprungprobe), `jagdfaelle`
@@ -122,6 +145,20 @@ class_name Level05
 ##   * Der Spieltest-Bot bekommt neben `duckstellen` die `lauflinie`: Ohne
 ##     sie lief er frontal auf die Findlinge und wurde dort gefangen
 ##     (werkzeuge/spieltest.gd, Kopf).
+##   P3 (Boden):
+##   * Der Suhlgraben steht im Stoff der Decke als Lücke (7 von 8): Seine
+##     Sohle zeichnet der Saum als Schlamm der Suhle; die Kollision bleibt die
+##     Decke (siehe `wegdecke_thema`).
+##   * Der Rasen der Decke bleibt der der Wegmaske, nur die Erde ist in Löss
+##     getönt: Saum und Gelände tragen denselben Rasen (Naht an der Kante).
+##   * Freiraum K3 prüft, ob Gelände und Saum die Kronen der Eiche verdecken
+##     (Strahlen zu Mitte und Rand, `_freiraum_k3`), nicht einen Kegel von
+##     ±6°: Ganz unten im Tal liegt die Krone nur 8° über der Kamera, und
+##     ihr eigener Fuß auf der Kuppe läge im Kegel. Den Kegel für Bäume
+##     prüft der Waldrahmen (Paket P7).
+##   * K1 tastet nur Dreiecke ab, die den freien Raum erreichen können
+##     (K1_WEIT): Gelände und Saum hätten die Probe sonst um Minuten
+##     verlängert, ohne ein anderes Ergebnis zu liefern.
 
 const M_ENDE := 300.0
 ## Bis hier reicht die Kurve: Die Kamera steht 21 m weiter auf dem Verlauf
@@ -171,13 +208,23 @@ const BREITEN := [
 
 ## Die tödlichen Lücken. "tod_y": Oberkante ihrer Todeszone (Welt-Y), 2 m
 ## unter der unteren Lippe, am Wehr 2,6 (unter dem Weißwasser, §7.3).
+## "grund_y": der gezeichnete Grund (Saum, Gelände), tiefer als die Zone:
+## Im Hohlweg und an den Terrassen ein dunkler Spalt 4–5 m unter der
+## unteren Lippe, in D auf dem Bett des Tobelbachs (die Rinnen münden
+## dort), im Wehrbruch unter dem Wasser. "erdig": Löss und Erde statt Fels.
 const LUECKEN := [
-	{"name": "L1 Wasserriss", "von": 75.0, "bis": 78.0, "tod_y": 20.2},
-	{"name": "L2 Terrasse", "von": 136.3, "bis": 139.7, "tod_y": 14.1},
-	{"name": "L3 Terrasse", "von": 160.3, "bis": 163.7, "tod_y": 11.7},
-	{"name": "L4 Seitenrinne", "von": 194.0, "bis": 197.5, "tod_y": 9.0},
-	{"name": "L5 Mühlrinne", "von": 228.5, "bis": 231.5, "tod_y": 7.25},
-	{"name": "L6 Wehrbruch", "von": 284.0, "bis": 289.0, "tod_y": 2.6},
+	{"name": "L1 Wasserriss", "von": 75.0, "bis": 78.0, "tod_y": 20.2, "grund_y": 17.2,
+			"erdig": true},
+	{"name": "L2 Terrasse", "von": 136.3, "bis": 139.7, "tod_y": 14.1, "grund_y": 12.1,
+			"erdig": true},
+	{"name": "L3 Terrasse", "von": 160.3, "bis": 163.7, "tod_y": 11.7, "grund_y": 9.7,
+			"erdig": true},
+	{"name": "L4 Seitenrinne", "von": 194.0, "bis": 197.5, "tod_y": 9.0, "grund_y": 7.9,
+			"erdig": true},
+	{"name": "L5 Mühlrinne", "von": 228.5, "bis": 231.5, "tod_y": 7.25, "grund_y": 6.0,
+			"erdig": true},
+	{"name": "L6 Wehrbruch", "von": 284.0, "bis": 289.0, "tod_y": 2.6, "grund_y": 1.0,
+			"erdig": false},
 ]
 
 ## Absätze: waagerecht auf der Kurvenhöhe ihrer Mitte (Welt-Y), Rampen von
@@ -209,6 +256,16 @@ const TERRASSEN := [
 ## Suhlgraben (von, bis, Welt-Y der Sohle): 0,8 m tief, nicht tödlich,
 ## Rampe rechts hinaus (BEGEHBARES "Grabenrampe").
 const SUHLGRABEN := Vector3(23.5, 28.1, 25.2)
+
+## Wegdecke (Entwurf §9.2): Schlüssel im Zwischenspeicher von `Wegdecke` (je
+## Level, beim Verlassen geräumt), Löss-Ton der Erde in der Spur (der
+## Waldweg der Bibliothek ist dunkelbraun; Löss ist gelblich-ocker und
+## heller) und Zahl der Steine je Lippe (§8.4).
+const WEG_SCHLUESSEL := "l05_"
+const LOESS_WEG := Color(1.12, 1.0, 0.78)
+const LIPPEN_STEINE := Vector2i(4, 6)
+## Begehbares ohne eigene Optik (siehe `_begehbar_optik`).
+const OHNE_OPTIK: Array[String] = ["Startboden", "Wehrkörper vorn", "Wehrkörper hinten"]
 
 # =========================================================== Bauteile
 
@@ -306,6 +363,81 @@ const LEITLINIEN := [
 ]
 ## Die Sturzprobe fällt neben dem Weg in „Boden − UNTER_BODEN".
 const UNTER_BODEN := 8.0
+
+# =========================================================== Rand und Gelände
+
+## Ränder des Weges, aus denen Saum (`L05Saum`) und Gelände (`L05Gelaende`)
+## dieselbe Form lesen. Ein ZUG ist ein Stück Rand auf einer Seite mit einer
+## Linie in (s, q) und einer Art:
+##   "auf"  eine Böschung hinauf. Die Linie ist ihr Fuß – die Leitlinie, an
+##          die die Figur stößt (Entwurf §7.2: „Leitlinien am Böschungsfuß")
+##   "ab"   ein Ufer oder eine Wehrwand hinab. Die Linie ist die Lippe,
+##          0,4 m außerhalb der Leitlinie: Bis dorthin reicht die Schulter
+##          (Kollision Ebene 1, `Wegdaten.schultern_bauen`), und „die Lippe IST
+##          die Kollisionskante" (Kanten, Kopf)
+## Stützstellen [s, h, Winkel der Wand (Grad), Überhang der Grasnarbe (m),
+## Fels (0 Löss und Erde … 1 Schichtfels)], linear dazwischen:
+##   auf  h = Krone über der geglätteten Decke (`decke_glatt`): Die Krone
+##        folgt dem Hang, nicht den Terrassen und Absätzen der Decke
+##   ab   h = Grund (Bett, Teich) unter der geglätteten Decke
+## Seiten (Entwurf §5, §8.1): q < 0 ist im Rückblick BILDRECHTS – Schatten und
+## Wasser: Lössböschung 3–3,5 m im Hohlweg, im Tobel das Ufer zum Bach, am
+## Wehr die Wand zum Unterwasser. q > 0 ist BILDLINKS – der Sonnenhang:
+## Löss 4–5 m im Hohlweg, Sandstein im Tobel, am Wehr die Wand zum
+## Mühlteich. In A eine niedrige Erdböschung um die Suhle, in C eine Erd-
+## böschung über den Terrassen. Löss 78–84° (Entwurf: 70–85°), Narbe
+## 0,3–0,45 m Überhang (0,2–0,45). Wo ein Zug endet, läuft seine Höhe gegen
+## null, der nächste beginnt flach: kein Deckel steht im Bild.
+const ZUEGE := [
+	{"name": "Böschung links", "seite": -1.0, "art": "auf", "von": -4.0, "bis": 182.0,
+			"punkte": [
+				[-4.0, 0.05, 40.0, 0.1, 0.0], [1.0, 0.75, 45.0, 0.2, 0.0],
+				[6.0, 0.7, 45.0, 0.2, 0.0], [10.0, 0.18, 30.0, 0.1, 0.0],
+				[23.0, 0.18, 30.0, 0.1, 0.0], [27.0, 0.8, 50.0, 0.2, 0.0],
+				[31.0, 2.0, 70.0, 0.3, 0.0], [35.0, 3.1, 80.0, 0.35, 0.0],
+				[50.0, 3.4, 82.0, 0.4, 0.0], [68.0, 3.0, 80.0, 0.35, 0.0],
+				[90.0, 3.5, 83.0, 0.42, 0.0], [110.0, 3.2, 80.0, 0.38, 0.0],
+				[118.0, 2.6, 72.0, 0.32, 0.0], [124.0, 2.2, 62.0, 0.3, 0.0],
+				[150.0, 2.0, 60.0, 0.3, 0.0], [172.0, 1.8, 58.0, 0.28, 0.0],
+				[178.0, 1.0, 50.0, 0.2, 0.0], [182.0, 0.05, 35.0, 0.1, 0.0]]},
+	{"name": "Ufer links", "seite": -1.0, "art": "ab", "von": 179.0, "bis": 300.0,
+			"punkte": [
+				[179.0, 0.15, 50.0, 0.1, 0.0], [184.0, 1.6, 55.0, 0.25, 0.1],
+				[190.0, 2.8, 62.0, 0.3, 0.15], [220.0, 3.0, 64.0, 0.3, 0.2],
+				[255.0, 2.8, 62.0, 0.3, 0.2], [268.0, 2.7, 64.0, 0.28, 0.25],
+				[276.0, 2.8, 76.0, 0.2, 0.6], [280.0, 2.8, 85.0, 0.12, 0.9],
+				[294.0, 2.6, 85.0, 0.12, 0.9], [298.0, 1.2, 70.0, 0.15, 0.5],
+				[300.0, 0.3, 50.0, 0.1, 0.2]]},
+	{"name": "Böschung rechts", "seite": 1.0, "art": "auf", "von": -4.0, "bis": 279.0,
+			"punkte": [
+				[-4.0, 0.05, 40.0, 0.1, 0.0], [2.0, 0.9, 45.0, 0.2, 0.0],
+				[24.0, 1.1, 50.0, 0.25, 0.0], [28.0, 2.2, 65.0, 0.3, 0.0],
+				[33.0, 4.1, 80.0, 0.35, 0.0], [45.0, 4.6, 82.0, 0.4, 0.0],
+				[58.0, 4.4, 80.0, 0.38, 0.0], [70.0, 4.0, 78.0, 0.32, 0.0],
+				[80.0, 4.6, 80.0, 0.38, 0.0], [95.0, 5.0, 84.0, 0.45, 0.0],
+				[108.0, 4.5, 80.0, 0.4, 0.0], [117.0, 3.6, 76.0, 0.35, 0.0],
+				[123.0, 2.8, 66.0, 0.3, 0.0], [150.0, 2.5, 64.0, 0.3, 0.0],
+				[176.0, 2.8, 66.0, 0.3, 0.1], [183.0, 4.0, 72.0, 0.3, 0.5],
+				[195.0, 4.8, 75.0, 0.3, 0.8], [215.0, 5.6, 76.0, 0.3, 0.85],
+				[235.0, 5.2, 74.0, 0.3, 0.8], [255.0, 4.4, 72.0, 0.3, 0.7],
+				[265.0, 3.0, 64.0, 0.25, 0.4], [272.0, 1.2, 50.0, 0.2, 0.1],
+				[279.0, -0.5, 40.0, 0.1, 0.0]]},
+	{"name": "Teichwand rechts", "seite": 1.0, "art": "ab", "von": 277.0, "bis": 297.0,
+			"punkte": [
+				[277.0, 0.1, 45.0, 0.1, 0.2], [281.0, 1.4, 84.0, 0.12, 0.9],
+				[292.0, 1.4, 84.0, 0.12, 0.9], [297.0, 0.1, 45.0, 0.1, 0.3]]},
+]
+## Die geglättete Decke (`decke_glatt`): Mittel über ±DECKE_GLATT m, als
+## Tabelle in Schritten von GLATT_SCHRITT ab GLATT_VON.
+const DECKE_GLATT := 8.0
+const GLATT_VON := -60.0
+const GLATT_BIS := 460.0
+const GLATT_SCHRITT := 0.5
+## Die Hauereiche (Entwurf §8.2; die Optik baut Paket P4). Hier nur, was
+## Gelände und Freiraumprobe (K3) brauchen: Ort des Fußes auf der Kuppe und
+## die beiden Schirmkronen als Vector3(q, Y der Mitte, Radius).
+const EICHE := {"s": -6.0, "boden_y": 27.0,
+		"kronen": [Vector3(-11.0, 55.0, 7.5), Vector3(11.0, 55.0, 7.5)]}
 
 # =========================================================== Spiel
 
@@ -481,6 +613,20 @@ const K2_MIN := 5.3
 const KAMERA_UEBER_FIGUR := 3.45
 ## K1: Dreiecke werden in Punkten höchstens so weit auseinander abgetastet.
 const K1_RASTER := 1.0
+## K1: Ein Dreieck, dessen Schwerpunkt weiter als K1_WEIT + sein Umkreis von
+## der Kurve liegt, kann keinen Punkt im freien Raum haben: Dort liegt jeder
+## Punkt höchstens √(K1_Q² + (K1_OBEN + 0,64)²) ≈ 10,5 m von ihr (0,64 =
+## größter Abstand Decke–Kurve, §3). Gelände und Saum haben zigtausend
+## Dreiecke weit vom Weg; ohne diese Vorprüfung tastete die Probe sie alle ab.
+const K1_WEIT := 10.6
+## K3 (Entwurf §7.1): von jeder Stelle K3_VON … M_ENDE (alle K3_SCHRITT m)
+## Strahlen von der Kamera zu Mitte und Rand (K3_RAND · Radius) jeder Krone
+## der Eiche, abgetastet alle K3_TAKT m bis K3_VOR · Radius vor der Krone.
+const K3_VON := 6.0
+const K3_SCHRITT := 2.0
+const K3_RAND := 0.6
+const K3_TAKT := 1.0
+const K3_VOR := 1.2
 
 ## Jagdprobe (`jagdfaelle`): wo der Mensch, der durchläuft, slidet und
 ## springt – je in der Mitte der Fenster, die die Sprungprobe gemessen hat
@@ -537,6 +683,10 @@ var jagd: L05Jagd
 var durchlass_koerper: Array[StaticBody3D] = []
 ## Meldungen, die nur einmal kommen.
 var _gemeldet := {}
+## Das Gelände (Modul `L05Gelaende`); gesetzt von seinem ersten Bauschritt.
+var gelaende: L05Gelaende
+## Die geglättete Decke als Tabelle (`decke_glatt`), angelegt mit dem Verlauf.
+var _glatt := PackedFloat32Array()
 
 
 func ende() -> float:
@@ -550,16 +700,33 @@ func absturz_hoehe() -> float:
 
 # =========================================================== Aufbau
 
-## Gerüst nach Entwurf §9.4. Was ein späteres Paket baut (Hang, Böschungen,
-## Wasser, Eiche, Wald, Rasen, Licht), fehlt hier noch; die Reihenfolge der
-## übrigen Schritte bleibt.
+## Gerüst nach Entwurf §9.4: Hang (Gelände), Hohlweg (Decke, Kollision,
+## Lippen), Böschungen, Stufen und Ufer (Saum), Wegbauten, Spiel, Keiler.
+## Was ein späteres Paket baut (Wasser, Eiche, Wald, Rasen, Licht), fehlt
+## noch; die Reihenfolge der übrigen Schritte bleibt.
 func _bauschritte() -> Array:
 	_verlauf_anlegen()
+	# Beim Verlassen räumen (Baukasten §0 Nr. 3): Die Stoffe der Wegdecke
+	# liegen je Schlüssel im Zwischenspeicher von `Wegdecke`, und
+	# `GelaendeSaum` hält Flächen in statischen Merkern.
+	tree_exiting.connect(func() -> void:
+		Wegdecke.vergessen(WEG_SCHLUESSEL)
+		GelaendeSaum.vergessen(), CONNECT_ONE_SHOT)
+	# Zuerst die Texturen der Bibliothek, die Decke, Gelände und Saum teilen
+	# (siehe STOFFE im Kopf).
 	var schritte: Array = [
-		{"text": "Der Hohlweg wird gelegt", "tun": _weg_bauen},
+		{"text": "Löss wird gesiebt", "tun": func() -> void: Materialbibliothek.waldweg()},
+		{"text": "Spur und Rasen werden ausgelegt", "tun": func() -> void:
+			Wegmaske.textur()
+			Wegmaske.rasen_textur()},
+	]
+	schritte.append_array(L05Gelaende.bauschritte(self))
+	schritte.append({"text": "Der Hohlweg wird gelegt", "tun": _weg_bauen})
+	schritte.append_array(L05Saum.bauschritte(self))
+	schritte.append_array([
 		{"text": "Wurzelbögen und Hürden", "tun": _wegbauten_setzen},
 		{"text": "Kisten, Früchte, Rastplätze", "tun": _spiel_setzen},
-	]
+	])
 	schritte.append_array(L05Jagd.bauschritte(self))
 	return schritte
 
@@ -574,6 +741,7 @@ func _verlauf_anlegen() -> void:
 		"leitlinien": LEITLINIEN,
 	})
 	weg.todeszonen = _todeszonen_rechnen()
+	_glatt_rechnen()
 
 
 ## Die Kurve (siehe Kopf, VERLAUF): erst der Grundriss durch KURVE (flach),
@@ -758,20 +926,55 @@ func _todeszonen_rechnen() -> Array[Dictionary]:
 	return zonen
 
 
+## Die Decke mit dem Stoff des Hohlwegs (EIN Stoff, also EIN Netz),
+## Schultern, Leitlinien, Begehbares, Todeszonen und die Steine an den
+## Lippen der sechs Lücken.
 func _weg_bauen() -> void:
-	# Platzhalterstoff (Waldweg); die Wegdecke des Hohlwegs folgt (P3).
-	weg.decke_bauen(geometrie, Callable())
+	var stoff := Wegdecke.stoff(wegdecke_thema(), weg, weg.abschnitte, WEG_SCHLUESSEL + "waldweg")
+	weg.decke_bauen(geometrie, func(_a: Dictionary) -> Material: return stoff)
 	weg.schultern_bauen(geometrie)
 	weg.leitlinien_bauen(geometrie)
-	weg.begehbares_bauen(geometrie, _begehbar_platzhalter)
+	weg.begehbares_bauen(geometrie, _begehbar_optik)
 	weg.todeszonen_bauen(geometrie)
+	Wegdecke.lippen(geometrie, weg, lippen_thema())
 
 
-## Grauer Platzhalter in der Form der Kollision, ohne Schatten: Schatten
-## werfen nur Stämme, Kisten, Figur und Keiler (Entwurf §10) – jeder
-## Schattenwerfer kostet je Schattenstufe einen Zeichenaufruf mehr. Die
-## Optik kommt mit den Wegbauten (P5).
-func _begehbar_platzhalter(e: Dictionary) -> Node3D:
+## Thema der Wegdecke (Entwurf §9.2 und Schritt 2 von §9.4): der Waldweg der
+## Bibliothek, die Erde in Löss getönt (`erde_ton`). Der Rasen (`wald_rasen`)
+## bleibt der der Wegmaske: Saum und Gelände tragen denselben, nur so bleibt
+## die Naht an der Wegkante unsichtbar. Lücken: die sechs der Wegdaten und
+## der Suhlgraben (`luecken_zusatz`) – zusammen 7, der Shader fasst 8. Den
+## Graben führt der Stoff als Lücke, obwohl dort Decke liegt: Die helle Spur
+## bricht an seinen Kanten krümelig ab wie an einer Lippe, und seine Sohle
+## zeichnet der Saum (Schlamm der Suhle, `L05Saum`), nicht die Decke.
+func wegdecke_thema() -> Dictionary:
+	return {"uniforms": {"erde_ton": LOESS_WEG},
+			"luecken_zusatz": [Vector3(SUHLGRABEN.x, SUHLGRABEN.y, 1.0)]}
+
+
+## Thema der Lippen (Entwurf §8.4): je Lippe vier bis sechs helle Steine
+## bündig an der Kante und Leuchtpilze an den Ecken, an L1–L6. Der
+## Suhlgraben bekommt keine (§5 A): Harmlose Gräben tragen keine Steine.
+func lippen_thema() -> Dictionary:
+	var luecken: Array[Dictionary] = []
+	for l: Dictionary in LUECKEN:
+		luecken.append({"name": "L05 " + String(l["name"]), "von": l["von"], "bis": l["bis"]})
+	return {"luecken": luecken, "lippen_steine": LIPPEN_STEINE, "name": "L05"}
+
+
+## Optik des Begehbaren: grauer Platzhalter in der Form der Kollision, ohne
+## Schatten (Schatten werfen nur Stämme, Kisten, Figur und Keiler, Entwurf
+## §10 – jeder Schattenwerfer kostet je Schattenstufe einen Zeichenaufruf
+## mehr); die Optik kommt mit den Wegbauten (P5). Ohne eigene Optik bleiben
+## (OHNE_OPTIK) der Startboden – den Boden dort zeichnet das Gelände – und
+## die Wehrkörper unter der Wehrkrone, deren Seiten der Saum als Wehrwände
+## zeichnet: Ihre Oberseite lag mit der Schulter des Saums in einer Ebene
+## und flimmerte.
+func _begehbar_optik(e: Dictionary) -> Node3D:
+	if OHNE_OPTIK.has(String(e["name"])):
+		var leer := Node3D.new()
+		leer.name = "OhneOptik"
+		return leer
 	var sicht := weg.platzhalter(e)
 	_ohne_schatten(sicht)
 	return sicht
@@ -787,6 +990,110 @@ static func _ohne_schatten(wurzel: Node) -> void:
 ## Für LevelCheck (Oberseiten des Begehbaren) und Kisten auf Begehbarem.
 func begehbar(name_: String) -> Dictionary:
 	return weg.begehbar(name_)
+
+
+# =========================================================== Rand und Gelände
+
+## Welt-Y der Decke, über ±DECKE_GLATT m gemittelt (Lücken überbrückt, vor dem
+## Anfang die Decke von A, hinter M_ENDE die Kurve): Darauf liegen Kronen und
+## Betten der Ränder (ZUEGE), damit sie dem Hang folgen und nicht den Stufen
+## der Terrassen und Absätze.
+func decke_glatt(s: float) -> float:
+	var f := clampf((s - GLATT_VON) / GLATT_SCHRITT, 0.0, float(_glatt.size() - 1))
+	var i := mini(floori(f), _glatt.size() - 2)
+	return lerpf(_glatt[i], _glatt[i + 1], f - float(i))
+
+
+func _glatt_rechnen() -> void:
+	var n := int(round((GLATT_BIS - GLATT_VON) / GLATT_SCHRITT)) + 1
+	# Summen von vorn: das Mittel eines Fensters ohne innere Schleife.
+	var summen := PackedFloat64Array()
+	summen.resize(n + 1)
+	summen[0] = 0.0
+	for i in n:
+		var s := GLATT_VON + GLATT_SCHRITT * float(i)
+		var y := _kurve_y(s) if s > M_ENDE else weg.boden_bei(s)
+		summen[i + 1] = summen[i] + y
+	var fenster := int(round(DECKE_GLATT / GLATT_SCHRITT))
+	_glatt.resize(n)
+	for i in n:
+		var a := maxi(i - fenster, 0)
+		var b := mini(i + fenster, n - 1)
+		_glatt[i] = (summen[b + 1] - summen[a]) / float(b - a + 1)
+
+
+## Werte eines Zuges (ZUEGE) an der Stelle `s`: [h, Winkel, Überhang, Fels];
+## vor dem ersten und hinter dem letzten Punkt wie dort.
+static func zug_werte(zug: Dictionary, s: float) -> PackedFloat32Array:
+	var punkte: Array = zug["punkte"]
+	var a: Array = punkte[0]
+	if s <= float(a[0]):
+		return PackedFloat32Array([a[1], a[2], a[3], a[4]])
+	for i in range(1, punkte.size()):
+		var b: Array = punkte[i]
+		if s <= float(b[0]):
+			var t := (s - float(a[0])) / maxf(float(b[0]) - float(a[0]), 0.001)
+			return PackedFloat32Array([lerpf(a[1], b[1], t), lerpf(a[2], b[2], t),
+					lerpf(a[3], b[3], t), lerpf(a[4], b[4], t)])
+		a = b
+	return PackedFloat32Array([a[1], a[2], a[3], a[4]])
+
+
+## Die Züge einer Seite (−1/+1), die `s` enthalten.
+func zuege_bei(seite: float, s: float) -> Array[Dictionary]:
+	var liste: Array[Dictionary] = []
+	for z: Dictionary in ZUEGE:
+		if float(z["seite"]) == seite and s >= float(z["von"]) and s <= float(z["bis"]):
+			liste.append(z)
+	return liste
+
+
+## Die Linie eines Zuges als [Vector2(s, q)]: die Leitlinie seiner Seite
+## zwischen "von" und "bis", bei "ab" 0,4 m weiter außen (die Lippe am Ende
+## der Schulter). Vor dem Anfang und hinter dem Ende der Leitlinie (M_ENDE)
+## mit ihrem ersten bzw. letzten Abstand.
+static func zug_linie(zug: Dictionary) -> PackedVector2Array:
+	var seite: float = zug["seite"]
+	var punkte := leitlinie_punkte(seite)
+	var von: float = zug["von"]
+	var bis: float = zug["bis"]
+	var aussen := seite * (0.4 if String(zug["art"]) == "ab" else 0.0)
+	var linie := PackedVector2Array([Vector2(von, leitlinie_q(punkte, von) + aussen)])
+	for p: Vector2 in punkte:
+		if p.x > von + 0.01 and p.x < bis - 0.01:
+			linie.append(Vector2(p.x, p.y + aussen))
+	linie.append(Vector2(bis, leitlinie_q(punkte, bis) + aussen))
+	return linie
+
+
+## Punkte der Leitlinie einer Seite ("Links" q < 0, "Rechts" q > 0).
+static func leitlinie_punkte(seite: float) -> Array:
+	var name_l := "Links" if seite < 0.0 else "Rechts"
+	for e: Dictionary in LEITLINIEN:
+		if String(e["name"]) == name_l:
+			return e["punkte"]
+	return []
+
+
+## q der Leitlinie an `s`, vor und hinter ihr wie an ihren Enden.
+static func leitlinie_q(punkte: Array, s: float) -> float:
+	var erster: Vector2 = punkte[0]
+	var letzter: Vector2 = punkte[punkte.size() - 1]
+	return Wegdaten.polylinie_q(punkte, clampf(s, erster.x, letzter.x))
+
+
+## Die Lücke, in der `s` liegt (Eintrag aus LUECKEN), sonst {}.
+static func luecke_bei(s: float) -> Dictionary:
+	for l: Dictionary in LUECKEN:
+		if s > float(l["von"]) and s < float(l["bis"]):
+			return l
+	return {}
+
+
+## Gezeichnete Höhe des Geländes an (x, z) in Level-Koordinaten (Entwurf
+## §9.1, für Eiche, Wald und Rasen); NAN, solange es nicht steht.
+func gelaende_hoehe(x: float, z: float) -> float:
+	return gelaende.hoehe(x, z) if gelaende != null else NAN
 
 
 ## Durchlässe, Hürden, Findlinge als graue Platzhalter in der Form ihrer
@@ -1308,8 +1615,62 @@ func freiraumprobe() -> PackedStringArray:
 	zeilen.append_array(k1["zeilen"] as PackedStringArray)
 	print("  Freiraum: Kamera mindestens %.3f m über der Figur, über Durchlässen mindestens %.2f m; K1 %d Netze, %d Punkte, %d Objekte"
 			% [tiefste, k2_tiefste, int(k1["netze"]), int(k1["punkte"]), int(k1["objekte"])])
+	var k3 := _freiraum_k3(hoehe, abstand)
+	zeilen.append_array(k3["zeilen"] as PackedStringArray)
+	stellen += int(k3["stellen"])
 	zeilen.append("GEPRUEFT %d" % stellen)
 	return zeilen
+
+
+## K3 (siehe `freiraumprobe`): Verdecken Gelände oder Saum die Kronen der
+## Eiche? Getestet gegen `L05Gelaende.sicht_oberkante` (gezeichnetes Feld,
+## Kronen der Böschungen). Die Bäume (Paket P7) prüft der Waldrahmen mit
+## seinem Kegel. Ohne Gelände: nichts zu prüfen.
+func _freiraum_k3(hoehe: float, abstand: float) -> Dictionary:
+	var zeilen := PackedStringArray()
+	if gelaende == null:
+		return {"zeilen": zeilen, "stellen": 0}
+	var eiche_s: float = EICHE["s"]
+	var kronen: Array = EICHE["kronen"]
+	var ziele: Array[Vector3] = []
+	var radien: Array[float] = []
+	for k: Vector3 in kronen:
+		var mitte := LevelWerkzeuge.punkt_frei(verlauf, eiche_s, k.x)
+		mitte.y = k.y
+		var r := k.z * K3_RAND
+		for d: Vector3 in [Vector3.ZERO, Vector3(r, 0.0, 0.0), Vector3(-r, 0.0, 0.0),
+				Vector3(0.0, r, 0.0), Vector3(0.0, -r, 0.0)]:
+			ziele.append(mitte + d)
+			radien.append(k.z)
+	var stellen := 0
+	var verdeckt := 0
+	var knappste := INF
+	var s := K3_VON
+	while s <= M_ENDE + 0.001:
+		var auge := verlauf.sample_baked(clampf(s - abstand, 0.0, verlauf.get_baked_length()))
+		auge.y += hoehe
+		for i in ziele.size():
+			var strahl := ziele[i] - auge
+			var bis := strahl.length() - K3_VOR * radien[i]
+			var richtung := strahl.normalized()
+			var t := K3_TAKT
+			var frei := true
+			while t < bis:
+				var p := auge + richtung * t
+				var luft := p.y - gelaende.sicht_oberkante(p.x, p.z)
+				knappste = minf(knappste, luft)
+				if luft < 0.0:
+					frei = false
+					break
+				t += K3_TAKT
+			if not frei:
+				verdeckt += 1
+				zeilen.append("ABWEICHUNG K3 bei s %.1f: Strahl %d zur Eichenkrone verdeckt" % [s, i])
+		stellen += 1
+		s += K3_SCHRITT
+	print("  Freiraum K3: %d Stellen, %d Strahlen je Stelle, %d verdeckt, knappster Abstand %.2f m"
+			% [stellen, ziele.size(), verdeckt, knappste])
+	return {"zeilen": zeilen, "stellen": stellen}
 
 
 ## K1 (siehe `freiraumprobe`): je Netz eine Zeile mit der Spanne, in der es
@@ -1343,7 +1704,16 @@ func _freiraum_k1() -> Dictionary:
 				continue
 			netze += 1
 			for i in range(0, dreiecke.size() - 2, 3):
-				for p in _dreieck_raster(dreiecke[i], dreiecke[i + 1], dreiecke[i + 2]):
+				var a := dreiecke[i]
+				var b := dreiecke[i + 1]
+				var c := dreiecke[i + 2]
+				var schwer := (a + b + c) / 3.0
+				var umkreis := maxf(schwer.distance_to(a), maxf(schwer.distance_to(b),
+						schwer.distance_to(c)))
+				var naechst := verlauf.sample_baked(verlauf.get_closest_offset(schwer))
+				if schwer.distance_to(naechst) - umkreis > K1_WEIT:
+					continue
+				for p in _dreieck_raster(a, b, c):
 					punkte += 1
 					_k1_pruefen(p, String(g.name), laenge, funde)
 	# Kisten und Früchte mit ihrer Oberkante (ein Punkt je Objekt).

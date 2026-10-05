@@ -1,0 +1,571 @@
+extends RefCounted
+class_name L05Gelaende
+## Level 05, Modul „Gelände": der Hauerhang als Höhenfeld ohne Kollision
+## (Entwurf §9.1) – Kuppe, Suhle, Hohlwegkrone, Terrassenhang, Tobelmulde,
+## Mühlwiese, die Talhänge und ein grober Ring bis zur Weltkante.
+##
+## WAS HIER ENTSTEHT (Seiten wie im Rückblick: q < 0 bildrechts, q > 0
+## bildlinks):
+## * Talboden: die geglättete Decke (`Level05.decke_glatt`); das Tal fällt
+##   mit dem Weg von 26 auf 2 m.
+## * Kuppe: um die Eiche (s −6) r 40 m, 3 m hoch – ihr Scheitel trägt den
+##   Fuß der Eiche auf Y 27 (Entwurf §8.2). Hinter ihr ein flacher Sattel,
+##   dann ein Kamm (SUEDKAMM), der das Tal oben schließt: Ohne ihn zeigte
+##   der Himmel vom Start aus unter dem Horizont seine Bodenfarbe (Jury
+##   JT10, Weltkante). Er steht vom Start aus 3° über dem Horizont, von unten
+##   im Tal 4°, immer unter der Krone der Eiche; dahinter fällt das Land.
+##   Weiter weg darf er nicht: `far` ist 380 m (Level05.tscn), und von der
+##   letzten Kamera aus liegt sein Grat schon 369 m weit.
+## * Westhang (q < 0): ab q −25 steigt er zum Kamm (Entwurf: „Westhang
+##   −25 m"), davor eine flache Hangschulter. Im Tobel (D) steht statt der
+##   Schulter die Südwand: vom Bett des Baches 11 m hoch, steiler als 60° –
+##   Fels nach dem Stoff, Schatten nach der Sonne.
+## * Sonnenhang (q > 0): steigt flacher vom Hohlweg zum Kamm.
+## * Hohlwegkrone: hinter jeder Böschung des Saums eine Krone auf ihrer
+##   Höhe; das Feld liegt bis 1 m hinter der Wandkrone UNTER der Krone des
+##   Saums und tritt bis 2,6 m dahinter über sie (Naht vergraben, gleicher
+##   Rasen). Unter Decke, Schulter und Wänden liegt es 0,9 m tief, in Lücken
+##   unter deren Grund.
+## * Ufer und Wehr: hinter einer Wand hinab das Bett (Bach, Teich,
+##   Unterwasser) knapp unter dem Fuß des Saums, der sich darunter
+##   einsteckt; im Tobel 3 m breit, dann die Südwand.
+## * Suhle: neben dem Weg in A (bildrechts) eine schlammige Mulde hinter
+##   einem niedrigen Rand. Mühlwiese in E: flache Wiese um Teich (bildlinks)
+##   und Unterwasser (bildrechts), das hinter dem Wehr nach Nordwesten
+##   abfließt. Hinter dem Ende der Decke (s 300) läuft der Weg als
+##   ausgetretene Spur in der Wiese aus.
+## * Ring: Die Talhänge laufen zu Kämmen (Westen 38 m, Osten 31 m über dem
+##   Tal), die nach Süden flacher werden; hinter den Kämmen fällt das Land
+##   wieder. Von jeder Kamera aus liegen die sichtbaren Kämme innerhalb von
+##   `far` (380 m, Level05.tscn) – Kammpunkte hinter dieser Weite verdeckt
+##   der nähere Hang. Dahinter übernimmt der Himmel (Paket P8: Hügel ≥ 4°).
+##
+## FORM DES WEGES: Was hier unter Saum und Weg liegen muss, rechnet das Feld
+## mit denselben Formeln wie der Saum (`L05Saum.form_auf`/`form_ab`) und
+## setzt an den Knicken eigene Punktreihen (`GelaendeFeld.kanten`): Ein
+## Raster allein träfe die Krone nur auf ±1 m.
+##
+## BAU über `GelaendeBau.schritte` (Bauspeicher "l05_gelaende_voll" bzw.
+## "…_handy"; der Handyweg setzt die Punkte 1,4-mal weiter auseinander).
+## Neun Stücke, also höchstens neun Zeichenaufrufe (Entwurf §10: 12), keine
+## Schatten.
+##
+## (s, q) eines Weltpunkts: über die Tabelle der Kurve, die vor dem Anfang
+## und hinter dem Ende geradeaus weiterläuft (`projektion`, Newton auf der
+## Tangente). Der Weg ist sanft gekrümmt (Radius über 400 m), also ist die
+## Projektion im ganzen Feld eindeutig und stetig.
+
+## Das Feld in Welt-XZ und seine Stücke.
+const FELD := Rect2(-262.0, -352.0, 524.0, 472.0)
+const STUECKE := Vector2i(3, 3)
+## Tabelle der Kurve (flach) über s, und wie weit sie vor dem Anfang und
+## hinter dem Ende geradeaus reicht.
+const S_MIN := -240.0
+const S_MAX := 520.0
+const S_SCHRITT := 0.5
+## Punktabstände: am Weg, bis 40 m, bis 90 m, darüber (m); Handyweg × HANDY.
+const ABSTAND_NAH := 1.6
+const ABSTAND_MITTE := 3.0
+const ABSTAND_WEIT := 6.0
+const ABSTAND_FERN := 14.0
+const HANDY := 1.4
+## So tief liegt das Feld unter Decke, Schulter und Wänden (m).
+const UNTER := 0.9
+## Krone: von der Wandkrone aus (m) – bis KRONE_UNTEN unter der Krone des
+## Saums, ab KRONE_OBEN über ihr (um KRONE_DECKT).
+const KRONE_UNTEN := 1.0
+const KRONE_OBEN := 2.6
+const KRONE_DECKT := 0.3
+## Bett vor einer Wand hinab: so breit, so tief unter dem Bett des Saums.
+const BETT_BREITE := 3.0
+const BETT_UNTER := 0.15
+## Kuppe um die Eiche: Radius, Höhe über ihrem Fuß.
+const KUPPE_R := 40.0
+const KUPPE_H := 3.0
+## Hinter der Kuppe (m hinter s 0): Sattel (von, bis, 0,6 m tief) und der
+## Kamm, der das Tal oben schließt (Anstieg von, bis, Höhe über A). Sein
+## Grat liegt bei z ≈ +52: von der letzten Kamera (s 317) 369 m entfernt,
+## knapp innerhalb von `far` (380); vom Start aus steht er 3° über dem
+## Horizont, von unten im Tal 4° – unter der Krone der Eiche (≥ 6,9°).
+const SATTEL := Vector2(14.0, 30.0)
+const SUEDKAMM := Vector3(28.0, 52.0, 10.5)
+## Am Ende der Decke steigt das Feld auf so vielen Metern bis unter sie.
+const ENDE_RAMPE := 1.2
+## Punktreihen quer über die Lücken: so weit innerhalb und außerhalb der
+## Lippen, so weit zu beiden Seiten (m).
+const LUECKE_REIHE := 0.12
+const LUECKE_QUER := 14.0
+## Suhle (A, q < 0): von, bis (s), Anfang hinter der Krone des Saums und
+## Mitte (|q|), Tiefe unter der Decke von A.
+const SUHLE := Vector4(8.0, 24.0, 10.0, 14.0)
+const SUHLE_TIEF := 0.4
+## Mühlteich (E, q > 0): Mitte (s, q), Halbachsen, Grund (Welt-Y).
+const TEICH := Rect2(284.0, 17.0, 13.0, 11.0)
+const TEICH_GRUND := 2.7
+## Unterwasser (E, q < 0): Lauf (s, q) und Grund (Welt-Y), Breite (m).
+const UNTERWASSER: Array[Vector2] = [Vector2(282.0, -5.0), Vector2(288.0, -9.0),
+		Vector2(296.0, -16.0), Vector2(308.0, -21.0), Vector2(330.0, -24.0), Vector2(380.0, -26.0)]
+const UNTERWASSER_GRUND := 1.3
+const UNTERWASSER_BREITE := 9.0
+## Spur hinter dem Ende der Decke: so weit läuft sie in der Wiese aus.
+const AUSLAUF := 14.0
+
+var level: Level05
+## Das Feld (gesetzt mit dem ersten Bauschritt; `hoehe` liest es danach).
+var feld: GelaendeFeld
+var _anzahl := 0
+var _px := PackedFloat32Array()
+var _pz := PackedFloat32Array()
+var _tx := PackedFloat32Array()
+var _tz := PackedFloat32Array()
+var _rauschen := FastNoiseLite.new()
+var _rauschen_fein := FastNoiseLite.new()
+## Zwischenablage für die Abfragen desselben Punkts (Höhe, Farbe, Zusatz).
+var _letzt := Vector2(INF, INF)
+var _letzt_sq := Vector2.ZERO
+
+
+## Bauschritte: Das Modell entsteht sofort (der Saum und spätere Pakete lesen
+## `hoehe`), das Feld in den Schritten von `GelaendeBau`. Der Stoff geht leer
+## hinein und wird im ersten Schritt gefüllt (Level05, Kopf: STOFFE) – auch
+## vor „Der Hang wird geladen".
+static func bauschritte(level_: Level05) -> Array:
+	var g := L05Gelaende.new(level_)
+	level_.gelaende = g
+	var stoff := ShaderMaterial.new()
+	var schritte: Array = [{"text": "Waldboden und Fels für den Hang", "tun": func() -> void:
+		stoff_uebertragen(stoff, GelaendeBau.stoff(thema()))}]
+	schritte.append_array(GelaendeBau.schritte(level_.geometrie, GelaendeBau.schluessel("l05"),
+			g._feld_anlegen, stoff, "Der Hang", g._vorbereiten))
+	return schritte
+
+
+## Shader und alle gesetzten Parameter von `quelle` auf `ziel` – für einen
+## Stoff, der schon beim Zusammenstellen der Schritte vergeben ist, aber erst
+## in einem Schritt entsteht (Level05, Kopf: STOFFE).
+static func stoff_uebertragen(ziel: ShaderMaterial, quelle: ShaderMaterial) -> void:
+	ziel.shader = quelle.shader
+	for u: Dictionary in quelle.shader.get_shader_uniform_list():
+		var name := String(u["name"])
+		var wert: Variant = quelle.get_shader_parameter(name)
+		if wert != null:
+			ziel.set_shader_parameter(name, wert)
+
+
+## Stoff des Geländes: die Böden von Level 01 (Wiese mit dem Rasen der
+## Wegmaske wie Decke und Saum, Waldboden, Fels, Schlamm); der Sandstein der
+## Felsbänke etwas röter wie am Sonnenhang des Tobels.
+static func thema() -> Dictionary:
+	return {"uniforms": {"sandstein_ton": Vector3(1.12, 0.9, 0.72),
+			"waldboden_ton": Color(0.42, 0.5, 0.34)}}
+
+
+func _init(level_: Level05) -> void:
+	level = level_
+	_rauschen.seed = 5501
+	_rauschen.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_rauschen.frequency = 0.012
+	_rauschen.fractal_octaves = 3
+	_rauschen_fein.seed = 5502
+	_rauschen_fein.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_rauschen_fein.frequency = 0.07
+	_rauschen_fein.fractal_octaves = 2
+	_anzahl = int(round((S_MAX - S_MIN) / S_SCHRITT)) + 1
+	for i in _anzahl:
+		var s := S_MIN + S_SCHRITT * float(i)
+		var p := LevelWerkzeuge.punkt_frei(level.verlauf, s, 0.0)
+		var r := LevelWerkzeuge.punkt_frei(level.verlauf, s, 1.0) - p
+		_px.append(p.x)
+		_pz.append(p.z)
+		# Tangente aus der Rechten: r = t × oben ⇒ t = (r.z, −r.x)
+		var t := Vector2(r.z, -r.x).normalized()
+		_tx.append(t.x)
+		_tz.append(t.y)
+
+
+# ================================================================ Abfragen
+
+## Gezeichnete Höhe an (x, z) (nach dem Bau), sonst die des Modells.
+func hoehe(x: float, z: float) -> float:
+	if feld != null and feld.fertig():
+		return feld.hoehe_bei(x, z)
+	return _hoehe(x, z)
+
+
+## Was die Kamera an (x, z) höchstens verdeckt: Gelände oder die Krone des
+## Saums (für die Freiraumprobe K3, `Level05.freiraumprobe`).
+func sicht_oberkante(x: float, z: float) -> float:
+	var y := hoehe(x, z)
+	var sq := projektion(x, z)
+	var seite := -1.0 if sq.y < 0.0 else 1.0
+	var u := absf(sq.y)
+	for zug: Dictionary in level.zuege_bei(seite, sq.x):
+		var l := absf(_linie_q(zug, sq.x))
+		if String(zug["art"]) == "auf":
+			var m := L05Saum.form_auf(level, zug, sq.x)
+			if u >= l - 0.1 and u <= l + float(m["lauf"]) + L05Saum.KRONE_WEIT:
+				y = maxf(y, float(m["krone"]) + L05Saum.KRONE_STEIGT)
+		elif u <= l + 0.5:
+			y = maxf(y, level.weg.boden_bei(sq.x))
+	return y
+
+
+## (s, q) eines Weltpunkts (Level-Koordinaten).
+func projektion(x: float, z: float) -> Vector2:
+	if x == _letzt.x and z == _letzt.y:
+		return _letzt_sq
+	# Erste Schätzung über z (die Kurve läuft überall nach −Z), dann Newton
+	# auf der Tangente.
+	var lo := 0
+	var hi := _anzahl - 1
+	while hi - lo > 1:
+		var mitte := (lo + hi) >> 1
+		if _pz[mitte] > z:
+			lo = mitte
+		else:
+			hi = mitte
+	var s := S_MIN + S_SCHRITT * float(lo)
+	for _k in 14:
+		var c := _punkt(s)
+		var t := _tangente(s)
+		var ds := (x - c.x) * t.x + (z - c.y) * t.y
+		s = clampf(s + ds, S_MIN, S_MAX)
+		if absf(ds) < 0.005:
+			break
+	var c := _punkt(s)
+	var t := _tangente(s)
+	# Rechts = (−t.z, t.x) (wie LevelWerkzeuge: q > 0 rechts in Laufrichtung)
+	var q := (x - c.x) * -t.y + (z - c.y) * t.x
+	_letzt = Vector2(x, z)
+	_letzt_sq = Vector2(s, q)
+	return _letzt_sq
+
+
+func _punkt(s: float) -> Vector2:
+	var f := clampf((s - S_MIN) / S_SCHRITT, 0.0, float(_anzahl - 1))
+	var i := mini(floori(f), _anzahl - 2)
+	var t := f - float(i)
+	return Vector2(lerpf(_px[i], _px[i + 1], t), lerpf(_pz[i], _pz[i + 1], t))
+
+
+func _tangente(s: float) -> Vector2:
+	var f := clampf((s - S_MIN) / S_SCHRITT, 0.0, float(_anzahl - 1))
+	var i := mini(floori(f), _anzahl - 2)
+	var t := f - float(i)
+	return Vector2(lerpf(_tx[i], _tx[i + 1], t), lerpf(_tz[i], _tz[i + 1], t)).normalized()
+
+
+## Weltpunkt (x, z) zu (s, q).
+func _welt(s: float, q: float) -> Vector2:
+	var c := _punkt(s)
+	var t := _tangente(s)
+	return c + Vector2(-t.y, t.x) * q
+
+
+# ================================================================ Feld
+
+func _feld_anlegen() -> GelaendeFeld:
+	feld = GelaendeFeld.new()
+	feld.bereich = FELD
+	feld.stuecke = STUECKE
+	feld.hoehe = _hoehe
+	feld.abstand = _abstand
+	feld.faerben = _faerben
+	feld.zusatz = _zusatz
+	feld.zusatz2 = _zusatz2
+	return feld
+
+
+## Erster Bauschritt (vor `punkte_setzen`): Punktreihen an den Knicken unter
+## dem Saum (siehe Kopf, FORM DES WEGES).
+func _vorbereiten(f: GelaendeFeld) -> void:
+	var kanten: Array = []
+	for zug: Dictionary in Level05.ZUEGE:
+		# Je Reihe: Abstand und ob er ab dem Knick (Wandkrone bzw. Fuß) zählt
+		# oder ab der Linie.
+		var reihen: Array[Vector2] = []
+		if String(zug["art"]) == "auf":
+			reihen.assign([Vector2(KRONE_UNTEN - 0.5, 1.0), Vector2(KRONE_UNTEN, 1.0),
+					Vector2(KRONE_UNTEN + 0.8, 1.0), Vector2(KRONE_OBEN, 1.0)])
+		else:
+			reihen.assign([Vector2(-0.2, 0.0), Vector2(0.6, 1.0), Vector2(0.6 + BETT_BREITE, 1.0),
+					Vector2(2.6 + BETT_BREITE, 1.0)])
+		for r in reihen:
+			var punkte := PackedVector2Array()
+			var s: float = zug["von"]
+			while s <= float(zug["bis"]) + 0.001:
+				var u := absf(_linie_q(zug, s)) + r.y * _knick(zug, s) + r.x
+				punkte.append(_welt(s, float(zug["seite"]) * u))
+				s += 1.0
+			kanten.append({"punkte": punkte, "abstand": 1.0, "reihen": PackedFloat32Array([0.0])})
+	# Quer über jede Lücke knapp innerhalb und außerhalb ihrer Lippen: Sonst
+	# spannte das Feld Dreiecke von unter der Decke (0,9 m tief) über den
+	# Spalt, und zwischen den Stirnen stand ein heller Boden statt des Grunds.
+	for l: Dictionary in Level05.LUECKEN:
+		for s_kante: float in [float(l["von"]) - LUECKE_REIHE, float(l["von"]) + LUECKE_REIHE,
+				float(l["bis"]) - LUECKE_REIHE, float(l["bis"]) + LUECKE_REIHE]:
+			var punkte := PackedVector2Array()
+			var q := -LUECKE_QUER
+			while q <= LUECKE_QUER + 0.001:
+				punkte.append(_welt(s_kante, q))
+				q += 0.8
+			kanten.append({"punkte": punkte, "abstand": 0.8, "reihen": PackedFloat32Array([0.0])})
+	f.kanten = kanten
+
+
+## Wo die Form eines Zuges an `s` ansetzt (von der Linie aus): bei „auf" die
+## Wandkrone, bei „ab" der Fuß der Wand.
+func _knick(zug: Dictionary, s: float) -> float:
+	if String(zug["art"]) == "auf":
+		return float(L05Saum.form_auf(level, zug, s)["lauf"])
+	return float(L05Saum.form_ab(level, zug, s)["fuss"])
+
+
+func _linie_q(zug: Dictionary, s: float) -> float:
+	var q := Level05.leitlinie_q(Level05.leitlinie_punkte(float(zug["seite"])), s)
+	if String(zug["art"]) == "ab":
+		q += float(zug["seite"]) * 0.4
+	return q
+
+
+func _abstand(x: float, z: float) -> float:
+	var u := absf(projektion(x, z).y)
+	var a := ABSTAND_NAH
+	if u > 40.0:
+		a = ABSTAND_FERN if u > 90.0 else ABSTAND_WEIT
+	elif u > 16.0:
+		a = ABSTAND_MITTE
+	# Hinter dem Start (Kuppe, Eiche) wie am Weg.
+	var sq := projektion(x, z)
+	if sq.x < 0.0 and sq.x > -60.0 and u < 50.0:
+		a = minf(a, ABSTAND_MITTE)
+	return a * (HANDY if Effekte.reduziert else 1.0)
+
+
+# ================================================================ Höhe
+
+## Das Höhenmodell (siehe Kopf).
+func _hoehe(x: float, z: float) -> float:
+	var sq := projektion(x, z)
+	var s := sq.x
+	var q := sq.y
+	var u := absf(q)
+	var seite := -1.0 if q < 0.0 else 1.0
+	var weit := _weit(x, z, s, u, seite)
+	var y := weit
+	# Am Weg und an seinem Auslauf; hinter dem Start (Querwand bei s −4) gibt
+	# es keinen Weg mehr, dort ist alles Kuppe und Kamm.
+	if u < 60.0 and s >= -4.0:
+		y = _nah(s, q, u, seite, weit)
+	return y
+
+
+## Das Land fern vom Weg: Talboden, Hänge, Kuppe, Sattel und Hochfläche.
+func _weit(x: float, z: float, s: float, u: float, seite: float) -> float:
+	var boden := level.decke_glatt(s)
+	var hang := _hang(s, u, seite)
+	# Hinter dem Start: ein flacher Sattel hinter der Kuppe, dann der Kamm,
+	# der das Tal oben schließt, dahinter fällt das Land (siehe Kopf).
+	if s < 0.0:
+		var hinten := -s
+		boden = 26.0 - 0.6 * smoothstep(SATTEL.x, SATTEL.y, hinten) \
+				+ SUEDKAMM.z * smoothstep(SUEDKAMM.x, SUEDKAMM.y, hinten) \
+				- 9.0 * smoothstep(SUEDKAMM.y + 8.0, SUEDKAMM.y + 68.0, hinten)
+		hang *= 1.0 - 0.45 * smoothstep(0.0, 90.0, hinten)
+	var y := boden + hang
+	# Kuppe um die Eiche
+	var eiche_s: float = Level05.EICHE["s"]
+	var d := Vector2(s - eiche_s, u).length()
+	if d < KUPPE_R:
+		var k := 1.0 - (d / KUPPE_R) * (d / KUPPE_R)
+		y = maxf(y, float(Level05.EICHE["boden_y"]) - KUPPE_H + KUPPE_H * k * k)
+	# Buckel: am Weg flach, in der Ferne Kuppen und Rinnen
+	var stark := lerpf(0.25, 3.0, smoothstep(28.0, 130.0, u))
+	y += stark * _rauschen.get_noise_2d(x, z) + 0.12 * _rauschen_fein.get_noise_2d(x, z)
+	return y
+
+
+## Anstieg der Talhänge über dem Talboden je Seite (m), siehe Kopf.
+func _hang(s: float, u: float, seite: float) -> float:
+	var r: float
+	if seite < 0.0:
+		var normal := 2.0 * smoothstep(8.0, 25.0, u) + 30.0 * smoothstep(25.0, 150.0, u) \
+				+ 6.0 * smoothstep(140.0, 215.0, u)
+		# Tobel: die Südwand direkt hinter dem Bach.
+		var tobel := 11.0 * smoothstep(11.0, 20.0, u) + 22.0 * smoothstep(24.0, 150.0, u) \
+				+ 5.0 * smoothstep(140.0, 215.0, u)
+		var w := smoothstep(176.0, 190.0, s) * (1.0 - smoothstep(262.0, 276.0, s))
+		r = lerpf(normal, tobel, w)
+	else:
+		r = 24.0 * smoothstep(30.0, 175.0, u) + 7.0 * smoothstep(150.0, 220.0, u)
+	# Hinter den Kämmen fällt es wieder.
+	r -= 16.0 * smoothstep(222.0, 262.0, u)
+	return r
+
+
+## Am Weg (|q| < 60): Decke, Ränder, Lücken, Suhle, Teich, Unterwasser;
+## `weit` ist das Land dahinter.
+func _nah(s: float, q: float, u: float, seite: float, weit: float) -> float:
+	var y := weit
+	var zuege := level.zuege_bei(seite, s)
+	# Wo die Decke gezeichnet ist (0 … M_ENDE), liegt das Feld unter ihr; davor
+	# (Startboden, ohne eigene Optik) und dahinter (Wiese) IST es der Boden:
+	# 2 cm unter der Kollision bzw. auf der Kurve, die am Ende der Decke deren
+	# Höhe hat.
+	var deck_da := s >= 0.0 and s <= Level05.M_ENDE
+	var deck := level.weg.boden_bei(s)
+	var flach := deck - 0.02
+	if s > Level05.M_ENDE:
+		flach = level.verlauf.sample_baked(clampf(s, 0.0, level.verlauf.get_baked_length())).y - 0.02
+	var unter := deck - UNTER if deck_da else flach
+	var luecke := Level05.luecke_bei(s)
+	if not luecke.is_empty():
+		unter = float(luecke["grund_y"]) - 0.6
+	# Am Ende der Decke steigt das Feld unter ihr bis knapp unter sie: Dahinter
+	# IST es der Boden, und eine Stufe von 0,9 m stünde dort im Bild.
+	if deck_da and s > Level05.M_ENDE - ENDE_RAMPE:
+		unter = lerpf(unter, deck - 0.04, smoothstep(Level05.M_ENDE - ENDE_RAMPE, Level05.M_ENDE, s))
+	var l_weg := absf(Level05.leitlinie_q(Level05.leitlinie_punkte(seite), s))
+	if zuege.is_empty():
+		# FLACH: bündig an der Wegkante, dann ins Land.
+		var rand := level.weg.wegrand(s) if deck_da else 0.0
+		y = flach + maxf(weit - flach, 0.0) * smoothstep(rand + 1.0, rand + 9.0, u)
+		if deck_da and u < l_weg + 0.6:
+			y = unter if not luecke.is_empty() else flach
+	else:
+		var zug: Dictionary = zuege[0]
+		if zuege.size() > 1:
+			# Wo zwei Züge sich überlappen, gilt der, dessen Ende weiter weg ist.
+			var b: Dictionary = zuege[1]
+			var rest_a := minf(s - float(zug["von"]), float(zug["bis"]) - s)
+			var rest_b := minf(s - float(b["von"]), float(b["bis"]) - s)
+			if rest_b > rest_a:
+				zug = b
+		var l := absf(_linie_q(zug, s))
+		if String(zug["art"]) == "auf":
+			var m := L05Saum.form_auf(level, zug, s)
+			var krone: float = m["krone"]
+			var o := u - l - float(m["lauf"])
+			if u < l - 0.05 and not deck_da:
+				y = flach
+			elif o < KRONE_UNTEN - 0.5:
+				y = minf(unter, deck - UNTER) if u >= l - 0.05 else unter
+			elif o < KRONE_UNTEN:
+				y = lerpf(unter, krone - 0.45, (o - KRONE_UNTEN + 0.5) / 0.5)
+			elif o < KRONE_OBEN:
+				y = lerpf(krone - 0.45, krone + KRONE_DECKT, (o - KRONE_UNTEN) / (KRONE_OBEN - KRONE_UNTEN))
+			else:
+				y = maxf(krone + KRONE_DECKT, weit)
+		else:
+			var m := L05Saum.form_ab(level, zug, s)
+			var bett: float = m["bett"]
+			# Wo der Zug ausläuft (das Bett kommt bis an die Decke), wird auch
+			# die Grube hinter seiner Wand flach: Der Saum ist dort winzig und
+			# deckte sie nicht mehr.
+			var f: float = m["f"]
+			var o := u - l - float(m["fuss"])
+			if u < l - 0.2:
+				y = unter
+			elif o < 0.6:
+				y = bett - 0.6 * f if luecke.is_empty() else minf(bett - 0.6 * f, unter)
+			elif o < 0.6 + BETT_BREITE:
+				y = bett - BETT_UNTER * f
+			else:
+				var hoch := maxf(weit, bett - BETT_UNTER * f)
+				y = lerpf(bett - BETT_UNTER * f, hoch, smoothstep(0.6 + BETT_BREITE, 2.6 + BETT_BREITE, o))
+	# Mulden: Suhle, Teich, Unterwasser (nur graben, nie aufschütten), und
+	# die Spur hinter dem Ende der Decke.
+	y = minf(y, _mulden(s, q, u, seite, deck))
+	return y
+
+
+## Höhe der Mulden an (s, q), INF wo keine ist.
+func _mulden(s: float, q: float, u: float, seite: float, deck: float) -> float:
+	var y := INF
+	if seite < 0.0 and s > SUHLE.x - 6.0 and s < SUHLE.y + 6.0:
+		var innen := smoothstep(SUHLE.x - 6.0, SUHLE.x, s) * (1.0 - smoothstep(SUHLE.y, SUHLE.y + 6.0, s))
+		var quer := smoothstep(SUHLE.z, SUHLE.z + 1.5, u) * (1.0 - smoothstep(SUHLE.w + 2.0, SUHLE.w + 6.0, u))
+		if innen * quer > 0.0:
+			y = minf(y, 26.0 + 0.4 - (SUHLE_TIEF + 0.4) * innen * quer)
+	if seite > 0.0:
+		var e := Vector2((s - TEICH.position.x) / TEICH.size.x,
+				(u - TEICH.position.y) / TEICH.size.y).length()
+		if e < 1.9:
+			y = minf(y, TEICH_GRUND + 2.9 * smoothstep(0.85, 1.9, e))
+	if seite < 0.0 and s > UNTERWASSER[0].x - 4.0:
+		var d := _abstand_lauf(Vector2(s, q), UNTERWASSER)
+		var halb := UNTERWASSER_BREITE * 0.5
+		if d < halb + 6.0:
+			y = minf(y, UNTERWASSER_GRUND + 3.4 * smoothstep(halb - 1.5, halb + 6.0, d))
+	return y
+
+
+## Abstand eines Punkts (s, q) von einem Lauf aus Punkten (s, q).
+static func _abstand_lauf(p: Vector2, lauf: Array[Vector2]) -> float:
+	var beste := INF
+	for i in lauf.size() - 1:
+		var a := lauf[i]
+		var b := lauf[i + 1]
+		var ab := b - a
+		var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+		beste = minf(beste, p.distance_to(a + ab * t))
+	return beste
+
+
+# ================================================================ Farbe
+
+## Gewichte der vier Böden (R Wiese, G Waldboden, B Fels, A Schlamm): Fels,
+## wo es steil ist; Schlamm in Betten und Mulden; Waldboden am Hohlweg und
+## am Westhang (Buchenwald, Paket P7); Wiese in A und E und am Sonnenhang.
+func _faerben(p: Vector3, n: Vector3) -> Color:
+	var sq := projektion(p.x, p.z)
+	var s := sq.x
+	var u := absf(sq.y)
+	var fels := 1.0 - smoothstep(0.6, 0.8, n.y)
+	var boden := level.decke_glatt(s)
+	var nass := (1.0 - smoothstep(-2.0, -0.9, p.y - boden)) * smoothstep(5.5, 7.0, u)
+	if sq.y < 0.0 and s > SUHLE.x - 2.0 and s < SUHLE.y + 2.0 and u > SUHLE.z:
+		nass = maxf(nass, 1.0 - smoothstep(-0.25, 0.1, p.y - 26.0))
+	nass *= 1.0 - fels
+	var wald := smoothstep(28.0, 40.0, s) * (1.0 - smoothstep(255.0, 270.0, s))
+	# Die fernen Hänge tragen Wald (Paket P7), nur Kuppe, Kamm und Mühlwiese
+	# bleiben Wiese.
+	var wiese_zone := maxf(1.0 - smoothstep(-20.0, 0.0, s), smoothstep(262.0, 280.0, s))
+	wald = maxf(wald, smoothstep(40.0, 80.0, u) * (1.0 - wiese_zone))
+	# Am Weg Wiese: Dort tritt das Feld über die Krone des Saums (dessen Narbe
+	# trägt denselben Rasen), und die Kronen des Hohlwegs bleiben Rasen
+	# (Entwurf §9.1: Rasensaum auf den Kronen).
+	wald *= smoothstep(18.0, 30.0, u) * (1.0 - fels) * (1.0 - nass)
+	# Wo der Weg hinter s 300 in der Wiese ausläuft: ausgetretene Erde.
+	var spur := 0.0
+	if s > Level05.M_ENDE - 0.5 and s < Level05.M_ENDE + AUSLAUF:
+		spur = (1.0 - smoothstep(1.2, 2.8, u)) * (1.0 - smoothstep(Level05.M_ENDE + 3.0,
+				Level05.M_ENDE + AUSLAUF, s))
+	var schlamm := maxf(nass, spur * 0.85)
+	var wiese := maxf(1.0 - fels - wald - schlamm, 0.0)
+	return Color(wiese, wald, fels, schlamm)
+
+
+## UV2: Verdeckung (Mulden, die Wegkante wie die Decke 0,78) und Kronenlicht
+## (keines – das Dach kommt mit dem Wald).
+func _zusatz(p: Vector3, _n: Vector3, mulde: float) -> Vector2:
+	var sq := projektion(p.x, p.z)
+	var ao := clampf(1.0 - mulde * 0.25, 0.65, 1.0)
+	var rand := level.weg.wegrand(sq.x) if sq.x >= -4.0 and sq.x <= Level05.M_ENDE else 0.0
+	ao = minf(ao, lerpf(0.78, 1.0, smoothstep(rand + 0.5, rand + 4.0, absf(sq.y))))
+	return Vector2(ao, 0.0)
+
+
+## UV1: Tönung – kühl auf der Schattenseite, im Tobel und an Wasser, warm am
+## Sonnenhang; am Weg 0 wie die Decke.
+func _zusatz2(p: Vector3, n: Vector3) -> Vector2:
+	var sq := projektion(p.x, p.z)
+	var u := absf(sq.y)
+	var weg_nah := smoothstep(6.0, 14.0, u)
+	var t := 0.45 if sq.y > 0.0 else -0.45
+	var tobel := smoothstep(178.0, 190.0, sq.x) * (1.0 - smoothstep(262.0, 276.0, sq.x))
+	if sq.y < 0.0:
+		t -= 0.35 * tobel
+	t -= 0.4 * (1.0 - smoothstep(-1.6, -0.6, p.y - level.decke_glatt(sq.x)))
+	t += 0.15 * (n.y - 0.8)
+	return Vector2(clampf(t * weg_nah, -1.0, 1.0), 0.0)

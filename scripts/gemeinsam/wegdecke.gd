@@ -19,6 +19,11 @@ class_name Wegdecke
 ##                  Schnee legt hier Firn hin
 ##   rasen_kachel   Wiederholungen des Rasens je Meter
 ##   uniforms       {Name: Wert} für alles Übrige (`erde_ton`, `borke_ton` …)
+##   luecken_zusatz [Vector3(von, bis, erdig)], die der Shader zusätzlich als
+##                  Lücke führt, obwohl die Wegdaten dort Decke haben – ein
+##                  harmloser Graben, dessen Sohle der Saum zeichnet (Level
+##                  05: Suhlgraben). Ohne den Schlüssel: nur die Lücken der
+##                  Wegdaten, wie bisher
 ## Lücken (höchstens `LUECKEN_MAX` je Stoff, wegboden.gdshader:79) kommen
 ## aus `weg.luecken()`, erdig außer hinter einem Wurzelrücken; Kronenlicht
 ## (höchstens `KRONEN_MAX` Stützstellen, :69) aus "kronenlicht" der
@@ -107,6 +112,8 @@ static func stoff(thema: Dictionary, weg: Wegdaten, abschnitte: Array,
 	for l: Vector2 in weg.luecken():
 		var holz := String(weg.abschnitt_bei(l.x - 0.01).get("stoff", "")) == "wurzelruecken"
 		luecken.append(Vector3(l.x, l.y, 0.0 if holz else 1.0))
+	for zusatz: Vector3 in thema.get("luecken_zusatz", []):
+		luecken.append(zusatz)
 	if luecken.size() > LUECKEN_MAX:
 		push_warning("Wegdecke %s: %d Lücken, der Shader fasst %d" % [schluessel,
 				luecken.size(), LUECKEN_MAX])
@@ -194,6 +201,12 @@ static func kronenlicht_bei(abschnitte: Array, s: float) -> float:
 ##                  baut ein Level je Thema nur seine eigenen Lücken
 ##   lippen_korn    Textur für das Korn der Steine (Vorgabe: Waldweg)
 ##   lippen_pilze   false = keine Leuchtpilze an den Ecken (Schnee)
+##   lippen_steine  Vector2i(min, max): so viele Steine je Lippe, genau
+##                  (`_steine_gezaehlt`). Ohne den Schlüssel würfelt jede
+##                  Lippe zwei, drei Gruppen zu ein bis drei Steinen, von
+##                  denen sich überdeckende entfallen – zwei bis neun, wie
+##                  in Level 01. Level 05 verlangt vier bis sechs (Entwurf
+##                  §8.4): weniger lesen sich aus 14 m nicht als Lippe
 ##   name           hängt an den Namen des Sammelknotens an
 static func lippen(eltern: Node3D, weg: Wegdaten, thema: Dictionary) -> Node3D:
 	var wurzel := Node3D.new()
@@ -233,11 +246,13 @@ static func _luecke(weg: Wegdaten, luecke: Dictionary, thema: Dictionary) -> Mes
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var holz := String(davor.get("stoff", danach.get("stoff", ""))) == "wurzelruecken"
 	var pilze := bool(thema.get("lippen_pilze", true))
+	var steine: Vector2i = thema.get("lippen_steine", Vector2i.ZERO)
 	for lippe: Array in [[davor, von, -1.0], [danach, bis, 1.0]]:
 		var eintrag: Dictionary = lippe[0]
 		if eintrag.is_empty():
 			continue
-		_lippe(st, weg, eintrag, float(lippe[1]), float(lippe[2]), mitte, holz, pilze, rng)
+		_lippe(st, weg, eintrag, float(lippe[1]), float(lippe[2]), mitte, holz, pilze, rng,
+				steine)
 	var netz := st.commit()
 	if netz.get_surface_count() == 0:
 		return null
@@ -254,10 +269,12 @@ static func _luecke(weg: Wegdaten, luecke: Dictionary, thema: Dictionary) -> Mes
 
 
 ## Eine Lippe: `innen` = -1, wenn der feste Boden vor der Kante liegt (die
-## Lippe am Anfang der Lücke), +1 dahinter.
+## Lippe am Anfang der Lücke), +1 dahinter. `steine` (min, max) ≠ 0: genau
+## so viele Steine (Thema "lippen_steine"); sonst würfelt die Lippe wie in
+## Level 01.
 static func _lippe(st: SurfaceTool, weg: Wegdaten, eintrag: Dictionary, s_lippe: float,
 		innen: float, mitte: Vector3, holz: bool, pilze: bool,
-		rng: RandomNumberGenerator) -> void:
+		rng: RandomNumberGenerator, steine: Vector2i = Vector2i.ZERO) -> void:
 	var von: float = eintrag["von"]
 	var bis: float = eintrag["bis"]
 	var t := inverse_lerp(von, bis, s_lippe) if bis > von else 0.0
@@ -272,6 +289,12 @@ static func _lippe(st: SurfaceTool, weg: Wegdaten, eintrag: Dictionary, s_lippe:
 	var spur_halb := 0.66 * halb
 	var links := maxf(spur - spur_halb, -halb + 0.45)
 	var rechts := minf(spur + spur_halb, halb - 0.45)
+	if steine != Vector2i.ZERO:
+		_steine_gezaehlt(st, rahmen, links, rechts, halb, rng.randi_range(steine.x, steine.y),
+				holz, rng)
+		if pilze:
+			_pilze(st, rahmen, halb, rng)
+		return
 	var gruppen := rng.randi_range(2, 3)
 	var belegt: Array[Vector3] = []   # (a, q, Radius) der gelegten Steine
 	for g in gruppen:
@@ -305,7 +328,12 @@ static func _lippe(st: SurfaceTool, weg: Wegdaten, eintrag: Dictionary, s_lippe:
 				_stein(st, rahmen, q, breite_q, tiefe, zurueck, rng)
 	if not pilze:
 		return
-	# Leuchtpilze an beiden Ecken, außerhalb der Spur im Rasen.
+	_pilze(st, rahmen, halb, rng)
+
+
+## Leuchtpilze an beiden Ecken einer Lippe, außerhalb der Spur im Rasen.
+static func _pilze(st: SurfaceTool, rahmen: Dictionary, halb: float,
+		rng: RandomNumberGenerator) -> void:
 	for seite: float in [-1.0, 1.0]:
 		var q_ecke := seite * (halb - rng.randf_range(0.35, 0.8))
 		var zahl := rng.randi_range(3, 6)
@@ -316,6 +344,54 @@ static func _lippe(st: SurfaceTool, weg: Wegdaten, eintrag: Dictionary, s_lippe:
 			var ort := _ort(rahmen, a, q, 0.0)
 			var kipp := Vector3(rng.randf_range(-0.3, 0.3), 0.0, rng.randf_range(-0.3, 0.3))
 			_pilz(st, ort, rng.randf_range(0.05, 0.1), kipp, rng)
+
+
+## Genau `zahl` Steine an einer Lippe (Thema "lippen_steine"): in zwei, drei
+## Gruppen über die Spur verteilt wie in `_lippe`, je Gruppe zuerst ein
+## großer, dann kleinere daneben. Läge ein Stein auf einem schon gelegten,
+## wird er neu gewürfelt (höchstens zwölfmal) – in `_lippe` entfiele er, und
+## aus den zwei bis neun Steinen dort wurden an manchen Lippen zwei. Rückgabe:
+## die Zahl der gelegten Steine.
+static func _steine_gezaehlt(st: SurfaceTool, rahmen: Dictionary, links: float,
+		rechts: float, halb: float, zahl: int, holz: bool, rng: RandomNumberGenerator) -> int:
+	var gruppen := rng.randi_range(2, 3)
+	var mitten: Array[Vector2] = []   # (q, a) je Gruppe
+	for g in gruppen:
+		mitten.append(Vector2(
+				lerpf(links, rechts, (float(g) + rng.randf_range(0.25, 0.75)) / float(gruppen)),
+				0.0 if rng.randf() < 0.65 else rng.randf_range(0.1, 0.45)))
+	var belegt: Array[Vector3] = []   # (a, q, Radius) der gelegten Steine
+	var gelegt := 0
+	for k in zahl:
+		var mitte_g := mitten[k % gruppen]
+		var gross := k < gruppen
+		for versuch in 12:
+			var breite_q := rng.randf_range(0.5, 0.85) if gross else rng.randf_range(0.22, 0.4)
+			var tiefe := breite_q * rng.randf_range(0.75, 1.15)
+			var q := mitte_g.x
+			var zurueck := mitte_g.y
+			if not gross or versuch > 0:
+				var seite := -1.0 if rng.randf() < 0.5 else 1.0
+				q = mitte_g.x + seite * rng.randf_range(0.35, 0.6 + 0.1 * float(versuch))
+				zurueck = mitte_g.y + rng.randf_range(0.0, 0.5)
+			q = clampf(q, -halb + 0.4, halb - 0.4)
+			var r_hier := maxf(breite_q, tiefe) * 0.5
+			var mitte_a := VOR + zurueck + tiefe * 0.5
+			var frei := true
+			for b_ in belegt:
+				if Vector2(b_.x - mitte_a, b_.y - q).length() < b_.z + r_hier + 0.04:
+					frei = false
+					break
+			if not frei:
+				continue
+			belegt.append(Vector3(mitte_a, q, r_hier))
+			if holz:
+				_splitter(st, rahmen, q, breite_q, tiefe, zurueck, rng)
+			else:
+				_stein(st, rahmen, q, breite_q, tiefe, zurueck, rng)
+			gelegt += 1
+			break
+	return gelegt
 
 
 ## Ort im Netz: `a` Meter von der Lippe in den festen Boden, `q` quer,

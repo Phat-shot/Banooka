@@ -574,6 +574,108 @@ static func seite_schritte(eltern: Node3D, weg: Wegdaten, seite: float,
 	]
 
 
+## Wie `seite_schritte`, aber für MEHRERE Linien in GEMEINSAMEN Stücken: Je
+## 30 m entsteht ein Netz für alles, was dort steht (beide Seiten, Stirnen,
+## Stufen), statt eines Knotens mit eigenen Stücken je Linie. WARUM: Ein Level
+## mit zwei Seiten in je zwei Zügen und zwanzig Stirnen und Stufen (Level 05)
+## käme mit `seite_schritte` auf einen Knoten je Linie – im Rückblick sieht
+## die Kamera die ganze Strecke, also fast alle zugleich, je einen
+## Zeichenaufruf (bis 40, Entwurf L05 §10: 30). Gemeinsame Stücke kosten
+## höchstens einen je Stück.
+##   linien    [Dictionary] je Linie:
+##               seite, linie, profil   wie bei `seite_schritte`
+##               gruppe   Text des Vermessungsschritts (Linien derselben
+##                        Gruppe werden in EINEM Schritt vermessen; Vorgabe
+##                        `name`)
+##               stand    Wörterbuch für "flaeche" wie `optionen["stand"]`
+##             und je Linie die Optionen von `seite_schritte`: schritt,
+##             feste_s, kante, kronen, deckel, karten, karten_maske, saat,
+##             halm_ton, wurzel_ton
+##   optionen  für das gemeinsame Netz: sicht, fern_ab, sicht_karten, rand
+## Bauspeicher wie `seite_schritte` (ein Eintrag für alle Linien). Die
+## Bauschritte: je Gruppe „… wird vermessen", dann „<name> wird gebaut" –
+## oder, aus dem Speicher, EIN Schritt „<name> wird geladen".
+static func linien_schritte(eltern: Node3D, weg: Wegdaten, linien: Array, stoff: Material,
+		name: String, speicher: String, optionen: Dictionary = {}) -> Array:
+	if not speicher.is_empty():
+		var gesichert: Variant = Bauspeicher.gespeichert(speicher)
+		if gesichert is Dictionary:
+			var d: Dictionary = gesichert
+			return [{"text": name + " wird geladen", "tun": func() -> void:
+					_linien_laden(eltern, name, stoff, d, linien)}]
+	var bau := {}
+	var gruppen := {}
+	var reihenfolge: Array[String] = []
+	for i in linien.size():
+		var gruppe := String((linien[i] as Dictionary).get("gruppe", name))
+		if not gruppen.has(gruppe):
+			gruppen[gruppe] = []
+			reihenfolge.append(gruppe)
+		(gruppen[gruppe] as Array).append(i)
+	var schritte: Array = []
+	for gruppe in reihenfolge:
+		var nummern: Array = gruppen[gruppe]
+		schritte.append({"text": gruppe + " wird vermessen", "tun": func() -> void:
+			for i: int in nummern:
+				var l: Dictionary = linien[i]
+				var b := {}
+				_vermessen(weg, float(l["seite"]), l["linie"], l["profil"], l, b)
+				bau[i] = b})
+	schritte.append({"text": name + " wird gebaut", "tun": func() -> void:
+		_linien_bauen(eltern, weg, name, stoff, speicher, optionen, linien, bau)})
+	return schritte
+
+
+## Schritt 2 von `linien_schritte`: alle Gitter in gemeinsame Stücke, Deckel
+## und Karten je Linie; Netze einhängen und ablegen.
+static func _linien_bauen(eltern: Node3D, weg: Wegdaten, name: String, stoff: Material,
+		speicher: String, optionen: Dictionary, linien: Array, bau: Dictionary) -> void:
+	var st := Stuecke.new(name)
+	var flaechen := {}
+	for i in linien.size():
+		var l: Dictionary = linien[i]
+		var b: Dictionary = bau[i]
+		var proben: Array[Dictionary] = b["proben"]
+		var g: Dictionary = b["g"]
+		var norm: Array[PackedVector3Array] = b["norm"]
+		if (g["reihen"] as Array).size() >= 2:
+			_gitter_in_stuecke(st, name, g, norm)
+			if bool(l.get("deckel", true)):
+				_deckel_an_enden(st, name, g)
+			if bool(l.get("karten", false)):
+				_lippenkarten(st, name, proben, g, weg, l)
+		if l.has("stand"):
+			var flaeche := {"s": g["s"], "boden": g["boden"], "reihen": g["reihen"]}
+			(l["stand"] as Dictionary)["flaeche"] = flaeche
+			flaechen[i] = flaeche
+	var netze := st.netze(float(optionen.get("sicht", SICHT)),
+			float(optionen.get("fern_ab", FERN_AB)),
+			float(optionen.get("sicht_karten", SICHT_KARTEN)),
+			float(optionen.get("rand", SICHT_RAND)))
+	_knoten_bauen(eltern, name, stoff, netze)
+	if not speicher.is_empty():
+		Bauspeicher.ablegen(speicher, {"netze": netze, "flaechen": flaechen})
+	bau.clear()
+
+
+## `linien_schritte` aus dem Speicher: Netze einhängen, Flächen in die
+## `stand`-Wörterbücher der Linien.
+static func _linien_laden(eltern: Node3D, name: String, stoff: Material, d: Dictionary,
+		linien: Array) -> void:
+	var netze: Array[Dictionary] = []
+	netze.assign(d["netze"])
+	_knoten_bauen(eltern, name, stoff, netze)
+	var flaechen: Dictionary = d.get("flaechen", {})
+	for i: int in flaechen:
+		if i >= linien.size() or not (linien[i] as Dictionary).has("stand"):
+			continue
+		var f: Dictionary = flaechen[i]
+		var reihen: Array[PackedVector3Array] = []
+		reihen.assign(f["reihen"])
+		((linien[i] as Dictionary)["stand"] as Dictionary)["flaeche"] = {"s": f["s"],
+				"boden": f["boden"], "reihen": reihen}
+
+
 ## Strecken, an denen jede Kante einen Querschnitt braucht: beide Ränder
 ## jeder Lücke (und je einer knapp innerhalb), beide Seiten jeder Stufe und
 ## jeder Abschnittsanfang (wie saum.gd:464-474).
