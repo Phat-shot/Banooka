@@ -40,9 +40,42 @@ extends Node
 ##                 der Teil von `Wegmaskenprobe` ohne Bildschirm)
 ##   "naht"        Nähte des Geländes an den FLACH-Kanten: Das Level liefert
 ##                 die Abweichungen über `nahtprobe()` (`_pruefe_naht`)
+##   "freiraum"    Freiraum über der Kamerabahn: Das Level liefert die
+##                 Abweichungen über `freiraumprobe()` (`_pruefe_freiraum`)
 ## Das Level muss dafür `breite_bei(s)` und `boden_bei(s)` anbieten; für
 ## die Oberseiten des Begehbaren `BEGEHBARES` und `begehbar(name)` wie
 ## Level 01.
+##
+## KAMERAMASKE (Baukasten Raum 1 §1.7, Teil von G6; Level 05): Sichtprobe
+## und Kamera-Abgleich schicken den Strahl auf den Ebenen, die die Kamera
+## des Levels selbst prüft (`KorridorKamera.sicht_maske`), nicht mehr fest
+## auf 1|8. WARUM: Ein Level mit `sicht_maske = 8` (Level 05, Rückblick)
+## lässt die echte Kamera an Kisten und Terrassen vorbei; das Modell mit
+## 1|8 holte sie dort heran, und Abgleich (Grenze 0,2 m) wie Sichtprobe
+## meldeten falsche FEHLER. Level 01 lässt die Vorgabe 1|8 stehen und
+## prüft damit genau wie vorher. `SICHT_MASKE` bleibt der Rückfall ohne
+## KorridorKamera. Weicht die Maske von 1|8 ab, steht sie im Protokoll.
+## GEGENPROBE (Level 01, 05.10.2026, nur lokal): Die Checkpoint-Kiste aus
+## dem ABGLEICH unten steht seit dem Neubau am Außenrand (s 232, q 3,3);
+## dort trifft kein Strahl mehr, der Abgleich nimmt s 216 links, und
+## `sicht_maske = 8` allein änderte nichts. Mit der Kiste zurück auf q 0
+## und `sicht_maske = 8` meldete die feste Maske 3 FEHLER: Abgleich s 228
+## Mitte 13,942 m (Modell 13,9 m herangeholt, die echte Kamera nicht) und
+## zweimal Sichtschlauch, die Kamera „vor die Figur". Mit der Maske der
+## Kamera: 0 Fehler, Abgleich an derselben Stelle 0,000 m.
+##
+## FREIRAUM (Opt-in "freiraum", dieselbe Arbeitsteilung wie "naht"): Mit
+## `sicht_maske = 8` sieht die Sichtprobe Ebene 1 nicht mehr – was dort in
+## der Kamerabahn steht, fände sie nicht. corridor_camera.gd verlangt dafür
+## eine Freiraumprobe (Kommentar zu `sicht_maske`); die Regeln kennt nur das
+## Level (Level 05: K1/K2), die Probe deshalb auch. `freiraumprobe()` liefert
+## je Abweichung eine Zeile "ABWEICHUNG …" (jede ist ein FEHLER) und zuletzt
+## "GEPRUEFT n". Fehlt die Zeile oder ist n 0, ist das ebenfalls ein FEHLER:
+## Eine Probe, die nichts geprüft hat, belegt keinen Freiraum.
+## GEGENPROBE (Level 05 alter Stand, 05.10.2026, nur lokal): ohne
+## `freiraumprobe()` 1 Fehler, mit einer ABWEICHUNG 1, nur „GEPRUEFT 120"
+## 0, leere Liste 1, vierzehn ABWEICHUNGEN 14 (zwölf einzeln, „… und 2
+## weitere"); ohne den Schlüssel wie vorher 0.
 ##
 ## RUHE (Opt-in, Baukasten Raum 1 §1.7): Hat das Level `pruefruhe()`, ruft
 ## die Prüfung es vor den Opt-in-Proben (Sichtprobe samt Kamera-Abgleich)
@@ -85,7 +118,9 @@ const UEBER_MIR := 0.6
 const BODEN_MASKE := 1 | LevelWerkzeuge.SPIELERGRENZE
 
 # --- Opt-in-Proben (siehe Kopf) ---
-## Der Kamerastrahl, wie `KorridorKamera._freie_sicht` ihn schickt.
+## Der Kamerastrahl, wie `KorridorKamera._freie_sicht` ihn schickt – nur
+## noch der Rückfall ohne KorridorKamera. Sonst gilt die `sicht_maske` der
+## Kamera im Level (`_sicht_maske`), deren Vorgabe genau dieser Wert ist.
 const SICHT_MASKE := 1 | LevelWerkzeuge.SICHTSPERRE
 ## Abstand der Probestellen entlang des Weges.
 const SICHT_SCHRITT := 2.0
@@ -575,6 +610,8 @@ func _opt_in_proben() -> void:
 		_pruefe_wegmaske()
 	if bool(profil.get("naht", false)):
 		_pruefe_naht()
+	if bool(profil.get("freiraum", false)):
+		_pruefe_freiraum()
 	if not (sicht or gefaelle or zonen or rand):
 		return
 	if not _level.has_method("breite_bei") or not _level.has_method("boden_bei"):
@@ -595,6 +632,11 @@ func _opt_in_proben() -> void:
 		else:
 			var modelle := _kamera_modelle(stellen)
 			if sicht:
+				# Nur wenn die Kamera nicht die Vorgabe prüft – Level 01
+				# behält so sein Protokoll Zeile für Zeile.
+				if _sicht_maske() != SICHT_MASKE:
+					print("  Sichtstrahl: Maske %d aus der Kamera statt der Vorgabe %d (Bitwerte)"
+							% [_sicht_maske(), SICHT_MASKE])
 				var anlauf := _anlaufstellen()
 				var anlauf_modelle := _kamera_modelle(anlauf)
 				_pruefe_sicht(stellen, modelle, anlauf, anlauf_modelle)
@@ -639,19 +681,53 @@ func _pruefe_naht() -> void:
 		_fehler += 1
 		return
 	var zeilen: PackedStringArray = _level.call("nahtprobe")
+	var ergebnis := _abweichungen_melden(zeilen, "Naht")
+	print("  Naht: %s Geländepunkte an FLACH-Kanten geprüft, %d Abweichungen"
+			% [ergebnis["geprueft"], ergebnis["probleme"]])
+
+
+## Freiraum über der Kamerabahn (Opt-in "freiraum", siehe Kopf): Das Level
+## liefert über `freiraumprobe()` je Abweichung eine Zeile "ABWEICHUNG …"
+## und zuletzt "GEPRUEFT n" – dieselbe Form wie `nahtprobe()`. Anders als
+## dort ist auch eine Probe ohne geprüfte Stelle ein FEHLER: Bei
+## `sicht_maske = 8` ist sie die einzige Wache über Ebene 1 in der
+## Kamerabahn, und eine leere Liste (Daten vergessen, falscher Bereich)
+## sähe sonst aus wie freier Raum.
+func _pruefe_freiraum() -> void:
+	if not _level.has_method("freiraumprobe"):
+		print("  FEHLER  pruefprofil() meldet \"freiraum\", aber das Level hat kein freiraumprobe()")
+		_fehler += 1
+		return
+	var zeilen: PackedStringArray = _level.call("freiraumprobe")
+	var ergebnis := _abweichungen_melden(zeilen, "Freiraum")
+	var geprueft: String = ergebnis["geprueft"]
+	if not geprueft.is_valid_int() or geprueft.to_int() <= 0:
+		print("  FEHLER  Freiraum: freiraumprobe() meldet kein \"GEPRUEFT n\" mit n > 0 (%s)"
+				% geprueft)
+		_fehler += 1
+	print("  Freiraum: %s Stellen der Kamerabahn geprüft, %d Abweichungen"
+			% [geprueft, ergebnis["probleme"]])
+
+
+## Gemeinsam für Naht und Freiraum: Jede Zeile "ABWEICHUNG …" ist ein
+## FEHLER – die ersten zwölf stehen einzeln da, der Rest als Zahl –,
+## "GEPRUEFT n" sagt, wie viel das Level geprüft hat. Ergebnis:
+## {"probleme": Zahl der Abweichungen, "geprueft": n als Text, "?" ohne die
+## Zeile}.
+func _abweichungen_melden(zeilen: PackedStringArray, titel: String) -> Dictionary:
 	var probleme := 0
 	var geprueft := "?"
 	for zeile in zeilen:
 		if zeile.begins_with("ABWEICHUNG"):
 			probleme += 1
 			if probleme <= 12:
-				print("  FEHLER  Naht: " + zeile.trim_prefix("ABWEICHUNG").strip_edges())
+				print("  FEHLER  %s: %s" % [titel, zeile.trim_prefix("ABWEICHUNG").strip_edges()])
 		elif zeile.begins_with("GEPRUEFT"):
 			geprueft = zeile.trim_prefix("GEPRUEFT").strip_edges()
 	if probleme > 12:
-		print("  FEHLER  Naht: … und %d weitere" % (probleme - 12))
+		print("  FEHLER  %s: … und %d weitere" % [titel, probleme - 12])
 	_fehler += probleme
-	print("  Naht: %s Geländepunkte an FLACH-Kanten geprüft, %d Abweichungen" % [geprueft, probleme])
+	return {"probleme": probleme, "geprueft": geprueft}
 
 
 func _korridorkamera(wurzel: Node) -> KorridorKamera:
@@ -659,6 +735,12 @@ func _korridorkamera(wurzel: Node) -> KorridorKamera:
 		if k is KorridorKamera:
 			return k as KorridorKamera
 	return null
+
+
+## Die Ebenen des Kamerastrahls: die `sicht_maske` der Kamera im Level, ohne
+## KorridorKamera der feste Rückfall SICHT_MASKE (siehe Kopf, KAMERAMASKE).
+func _sicht_maske() -> int:
+	return _kamera.sicht_maske if _kamera != null else SICHT_MASKE
 
 
 func _verlauf() -> Curve3D:
@@ -761,11 +843,11 @@ func _kamera_modell(fuss: Vector3) -> Dictionary:
 
 
 ## Wie `KorridorKamera._freie_sicht`: Strahl vom Blickpunkt zur Wunschlage
-## auf 1|8, die Figur ausgenommen. Treffer näher als SICHT_MINDEST zählen
-## nicht. Ergebnis: {"kamera": wo sie stünde, "treffer": der Strahltreffer
-## oder {}}.
+## auf den Ebenen der Kamera (`_sicht_maske`), die Figur ausgenommen.
+## Treffer näher als SICHT_MINDEST zählen nicht. Ergebnis: {"kamera": wo
+## sie stünde, "treffer": der Strahltreffer oder {}}.
 func _freie_sicht(blick: Vector3, wunsch: Vector3) -> Dictionary:
-	var frage := PhysicsRayQueryParameters3D.create(blick, wunsch, SICHT_MASKE)
+	var frage := PhysicsRayQueryParameters3D.create(blick, wunsch, _sicht_maske())
 	if _spieler != null:
 		frage.exclude = [_spieler.get_rid()]
 	var treffer := _raum.intersect_ray(frage)
@@ -820,6 +902,9 @@ func _boden_am_blick(blick: Vector3) -> Dictionary:
 ## Figur +4,4, und die Kiste reicht bei 17 % bis Figur +1,7. Kisten gehören
 ## dort auf ebene Absätze (Level 01, Wendel).
 ## Nahe Treffer (unter SICHT_MINDEST) ignoriert die Kamera, die Probe auch.
+## Getroffen wird nur, was die Maske der Kamera enthält (`_sicht_maske`):
+## Bei `sicht_maske = 8` fallen Kisten und Ebene 1 heraus – den Raum dort
+## bewacht dann die Freiraumprobe des Levels.
 ##
 ## Zu den Querlagen kommt der Anlauf auf jede Kiste (`_anlaufstellen`).
 func _pruefe_sicht(stellen: Array[Dictionary], modelle: Array[Dictionary],
