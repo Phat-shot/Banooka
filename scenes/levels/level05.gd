@@ -387,7 +387,11 @@ const UNTER_BODEN := 8.0
 ## Mühlteich. In A eine niedrige Erdböschung um die Suhle, in C eine Erd-
 ## böschung über den Terrassen. Löss 78–84° (Entwurf: 70–85°), Narbe
 ## 0,3–0,45 m Überhang (0,2–0,45). Wo ein Zug endet, läuft seine Höhe gegen
-## null, der nächste beginnt flach: kein Deckel steht im Bild.
+## null, der nächste beginnt flach: kein Deckel steht im Bild. Am Ende der
+## Decke (M_ENDE) enden beide Seiten mit einer Kante von 5 cm: Endete ein Zug
+## früher (die Teichwand stand bis P3 nur bis 297), fehlte dort der Saum über
+## der Schulter, und das Feld darunter (0,9 m tief) stand als schwarzes Loch
+## neben dem Wegende im Schlussbild.
 const ZUEGE := [
 	{"name": "Böschung links", "seite": -1.0, "art": "auf", "von": -4.0, "bis": 182.0,
 			"punkte": [
@@ -422,10 +426,11 @@ const ZUEGE := [
 				[235.0, 5.2, 74.0, 0.3, 0.8], [255.0, 4.4, 72.0, 0.3, 0.7],
 				[265.0, 3.0, 64.0, 0.25, 0.4], [272.0, 1.2, 50.0, 0.2, 0.1],
 				[279.0, -0.5, 40.0, 0.1, 0.0]]},
-	{"name": "Teichwand rechts", "seite": 1.0, "art": "ab", "von": 277.0, "bis": 297.0,
+	{"name": "Teichwand rechts", "seite": 1.0, "art": "ab", "von": 277.0, "bis": M_ENDE,
 			"punkte": [
 				[277.0, 0.1, 45.0, 0.1, 0.2], [281.0, 1.4, 84.0, 0.12, 0.9],
-				[292.0, 1.4, 84.0, 0.12, 0.9], [297.0, 0.1, 45.0, 0.1, 0.3]]},
+				[292.0, 1.4, 84.0, 0.12, 0.9], [297.0, 0.1, 45.0, 0.1, 0.3],
+				[M_ENDE, 0.05, 40.0, 0.1, 0.2]]},
 ]
 ## Die geglättete Decke (`decke_glatt`): Mittel über ±DECKE_GLATT m, als
 ## Tabelle in Schritten von GLATT_SCHRITT ab GLATT_VON.

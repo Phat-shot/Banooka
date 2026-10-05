@@ -46,8 +46,14 @@
 #   l05seite  Level05, seite 40,150,240 (Lösswände und Hohlwegkrone,
 #             Terrassenhang, Tobel mit Südwand – die Nähte von Saum und
 #             Gelände)
-#   Mit l05 und l05seite vergleicht jedes Paket des Neubaus von Level 05
-#   seinen Stand mit dem des vorigen (VORHER=<Commit des Vorpakets>).
+#   l05nah    Level05, nah 76,138,196,230,286,299 – Lippen, Stirnen und
+#             Ufer der Lücken L1, L2, L4, L5, L6 und das Wegende aus der
+#             Nähe. Die Seitkamera steht hinter der Krone des Sonnenhangs
+#             und zeigt vom Hohlweg wenig; was Saum, Wegbauten und Wasser an
+#             den Lücken ändern, zeigt erst dieser Teil.
+#   Mit l05, l05seite und l05nah vergleicht jedes Paket des Neubaus von
+#   Level 05 seinen Stand mit dem des vorigen (VORHER=<Commit des
+#   Vorpakets>).
 #
 # Ausgabe unter <Ziel>/<seite>/ – seite ist "jetzt" oder mit VORHER "vorher":
 #   <teil>/*.png      die Aufnahmen; ein Lauf des Teils ersetzt sie alle
@@ -140,7 +146,7 @@ done
 ALLE_TEILE=(splash hub l01 l01seite l01nah)
 # Nur über SCHAUFENSTER_TEILE: Ohne Angabe bleibt es beim bisherigen
 # Satz, ohne drei Läufe mehr.
-WUNSCH_TEILE=(wache l05 l05seite)
+WUNSCH_TEILE=(wache l05 l05seite l05nah)
 teil_daten() {
 	case "$1" in
 	splash)   echo "res://scenes/ui/Splash.tscn|70|verfolger|0,2" ;;
@@ -154,6 +160,7 @@ teil_daten() {
 			"res://scenes/hub/Hub.tscn||verfolger|14|hub_" ;;
 	l05)      echo "res://scenes/levels/Level05.tscn||verfolger|8,60,140,218,280,296" ;;
 	l05seite) echo "res://scenes/levels/Level05.tscn||seite|40,150,240" ;;
+	l05nah)   echo "res://scenes/levels/Level05.tscn||nah|76,138,196,230,286,299" ;;
 	*)        return 1 ;;
 	esac
 }

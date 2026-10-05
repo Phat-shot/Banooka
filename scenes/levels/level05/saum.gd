@@ -66,8 +66,16 @@ const KRONE_STEIGT := 0.06
 ## Welle der Kronenhöhe entlang der Seite (m) und ihr Maßstab (1/m).
 const KRONE_WELLE := 0.35
 const KRONE_WELLE_DICHTE := 0.045
-## Stirnen der Lücken: Verdeckung unter der Narbe mal DUNKEL.
+## Stirnen der Lücken: Verdeckung unter der Narbe mal DUNKEL. Gerendert
+## (Modus „unshaded", linear; Gegenprobe Tafel sRGB 0,5 → 0,216 statt 0,214)
+## liegt die Albedo mitten auf allen zwölf Flanken bei 0,002–0,004, im 95.
+## Perzentil höchstens 0,006 (Entwurf §8.4: ≤ 0,1) – seit das Gelände dort
+## hinter der Stirn liegt (`L05Gelaende.LUECKE_HINTER`).
 const DUNKEL := 0.45
+## Ein Querschnitt gilt erst so weit hinter einer Lippe als in der Lücke (m;
+## siehe `_luecke`). Kleiner als der Querschnitt knapp innerhalb der Lippe
+## (`Kanten.feste_strecken`: 2 × EPS = 1 cm).
+const LUECKE_SPIEL := 0.002
 ## Löss der Wände (Ton der Erde im Stoff der Kanten) und Rotocker des
 ## Sandsteins am Sonnenhang (Ton der warmen Schichtbänke).
 const LOESS := Color(1.15, 1.0, 0.74)
@@ -79,13 +87,22 @@ const SANDSTEIN := Color(1.12, 0.86, 0.68)
 ## Bauspeicher nach dem Stoff EIN Schritt „Saum wird geladen".
 static func bauschritte(level: Level05) -> Array:
 	var linien: Array = []
+	var feste := Kanten.feste_strecken(level.weg)
 	for i in Level05.ZUEGE.size():
 		var zug: Dictionary = Level05.ZUEGE[i]
 		var auf := String(zug["art"]) == "auf"
-		linien.append({"seite": float(zug["seite"]), "linie": Level05.zug_linie(zug),
+		var linie := Level05.zug_linie(zug)
+		# Dazu je ein Querschnitt an jeder Ecke der Linie: Ohne ihn lief das
+		# Gitter als Sehne über die Ecke der Nische hinter G2 (die Leitlinie
+		# knickt dort um 68°), und in der Ecke blieb ein Fleck Schulter ohne
+		# Saum, unter dem nur das Feld lag (0,9 m tief; Nahtprobe P3).
+		var feste_zug := feste.duplicate()
+		for p: Vector2 in linie:
+			feste_zug.append(p.x)
+		linien.append({"seite": float(zug["seite"]), "linie": linie,
 				"profil": (_profil_auf if auf else _profil_ab).bind(level, zug),
 				"gruppe": String(zug["name"]), "schritt": SCHRITT, "karten": true,
-				"saat": 5101 + i})
+				"saat": 5101 + i, "feste_s": feste_zug})
 	linien.append_array(_querlinien(level))
 	# Der Stoff geht leer hinein und wird im ersten Schritt gefüllt (Level05,
 	# Kopf: STOFFE): Sandstein und Moos kosten kalt gut 0,1 s.
@@ -198,17 +215,28 @@ static func _profil_auf(_i: int, probe: Dictionary, level: Level05,
 			true)
 	p.punkt(seite * (rand - 0.35), deck - 0.03, Kanten.farbe(0.78, 0.0, 0.05, 1.0), 0.0, 0.0,
 			1.0, 0.0, true)
-	if level.weg.ist_luecke(s):
-		_auf_in_luecke(p, s)
+	var l := _luecke(s)
+	if not l.is_empty():
+		_auf_in_luecke(p, l)
 	return p
 
 
-## In einer Lücke: Fuß, Schulter und was unter der Decke lag, auf den Grund
-## der Lücke – die Wand der Seite läuft bis dorthin hinab, dunkel.
-static func _auf_in_luecke(p: GelaendeSaum.Profil, s: float) -> void:
+## Die Lücke, in der der Querschnitt an `s` liegt, sonst {} – erst
+## LUECKE_SPIEL hinter der Lippe. WARUM: Die Proben kommen als Vector2 (32
+## Bit) an; die Lippe 136,3 etwa als 136,300003, also schon IN der Lücke. Der
+## Querschnitt an der Lippe lag dann auf dem Grund, und die Schulter tauchte
+## zwischen ihm und dem Querschnitt davor 0,7 m vor der Stirn ab: ein Schlitz
+## von 0,25 × 0,8 m hinter der Narbe der Stirn (L2, L3; P3-Prüfung).
+static func _luecke(s: float) -> Dictionary:
 	var l := Level05.luecke_bei(s)
-	if l.is_empty():
-		return
+	if l.is_empty() or s <= float(l["von"]) + LUECKE_SPIEL or s >= float(l["bis"]) - LUECKE_SPIEL:
+		return {}
+	return l
+
+
+## In einer Lücke `l`: Fuß, Schulter und was unter der Decke lag, auf den
+## Grund der Lücke – die Wand der Seite läuft bis dorthin hinab, dunkel.
+static func _auf_in_luecke(p: GelaendeSaum.Profil, l: Dictionary) -> void:
 	var grund: float = l["grund_y"]
 	for j in range(12, p.anzahl()):
 		var tiefe := 0.1 if j == 13 else -0.03
@@ -261,7 +289,7 @@ static func _profil_ab(_i: int, probe: Dictionary, level: Level05,
 	p.punkt(fuss + 0.25 * f, bett + 0.04, Kanten.farbe(0.42, 0.6, 0.5, 0.0), 2.0, 0.1)
 	p.punkt(fuss + 1.0 * f, bett - 0.35 * f, Kanten.farbe(0.38, 0.7, 0.4, 0.0), 2.5, 0.1)
 	p.punkt(fuss + 2.2 * f, bett - 1.4 * f, Kanten.farbe(0.34, 0.8, 0.3, 0.0), 3.0, 0.1)
-	var l := Level05.luecke_bei(s)
+	var l := _luecke(s)
 	if not l.is_empty():
 		_ab_in_luecke(p, s, l)
 	return p
