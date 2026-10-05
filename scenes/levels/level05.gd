@@ -40,11 +40,12 @@ class_name Level05
 ##
 ## BODEN (P3, Entwurf §5, §8, §9.2–9.4). Die Wegdecke trägt den Stoff aus
 ## `Wegdecke` (Waldweg in Löss, `wegdecke_thema`), an L1–L6 vier bis sechs
-## Lippensteine und Leuchtpilze (`lippen_thema`). Die Ränder stehen als
-## Züge in ZUEGE: Saum und Gelände lesen daraus dieselbe Form (siehe dort
-## und die Köpfe der Module). Den Startboden zeichnet das Gelände, die
-## Seiten der Wehrkörper der Saum (OHNE_OPTIK). Beim Verlassen räumt das
-## Level die Zwischenspeicher von `Wegdecke` und `GelaendeSaum`.
+## Lippensteine und Leuchtpilze (`lippen_thema`); hinter M_ENDE läuft die
+## Spur in einem Streifen ohne Kollision aus (`_auslauf_bauen`). Die Ränder
+## stehen als Züge in ZUEGE: Saum und Gelände lesen daraus dieselbe Form
+## (siehe dort und die Köpfe der Module). Den Startboden zeichnet das
+## Gelände, die Seiten der Wehrkörper der Saum (OHNE_OPTIK). Beim Verlassen
+## räumt das Level die Zwischenspeicher von `Wegdecke` und `GelaendeSaum`.
 ##
 ## STOFFE. Gelände und Saum bekommen ihren Stoff beim Zusammenstellen der
 ## Schritte LEER und füllen ihn in ihrem ersten Schritt
@@ -264,6 +265,10 @@ const SUHLGRABEN := Vector3(23.5, 28.1, 25.2)
 const WEG_SCHLUESSEL := "l05_"
 const LOESS_WEG := Color(1.12, 1.0, 0.78)
 const LIPPEN_STEINE := Vector2i(4, 6)
+## Auslauf der Decke hinter M_ENDE (`_auslauf_bauen`): so lang (m), in
+## Stücken von AUSLAUF_SCHRITT Metern.
+const AUSLAUF_LAENGE := 10.0
+const AUSLAUF_SCHRITT := 0.5
 ## Begehbares ohne eigene Optik (siehe `_begehbar_optik`).
 const OHNE_OPTIK: Array[String] = ["Startboden", "Wehrkörper vorn", "Wehrkörper hinten"]
 
@@ -387,8 +392,11 @@ const UNTER_BODEN := 8.0
 ## Mühlteich. In A eine niedrige Erdböschung um die Suhle, in C eine Erd-
 ## böschung über den Terrassen. Löss 78–84° (Entwurf: 70–85°), Narbe
 ## 0,3–0,45 m Überhang (0,2–0,45). Wo ein Zug endet, läuft seine Höhe gegen
-## null, der nächste beginnt flach: kein Deckel steht im Bild. Am Ende der
-## Decke (M_ENDE) enden beide Seiten mit einer Kante von 5 cm: Endete ein Zug
+## null, der nächste beginnt flach, und in der Überlappung gibt der eine
+## seine Form an den anderen ab (`L05Saum.uebergabe`): Die Böschung sinkt
+## mit Platte und Kronenband unter Ufer und Gelände, kein Deckel steht im
+## Bild. Am Ende der Decke (M_ENDE) enden beide Seiten mit einer Kante von
+## 5 cm, das Feld dahinter liegt eben knapp darunter: Endete ein Zug
 ## früher (die Teichwand stand bis P3 nur bis 297), fehlte dort der Saum über
 ## der Schulter, und das Feld darunter (0,9 m tief) stand als schwarzes Loch
 ## neben dem Wegende im Schlussbild.
@@ -942,6 +950,47 @@ func _weg_bauen() -> void:
 	weg.begehbares_bauen(geometrie, _begehbar_optik)
 	weg.todeszonen_bauen(geometrie)
 	Wegdecke.lippen(geometrie, weg, lippen_thema())
+	_auslauf_bauen(stoff)
+
+
+## Der AUSLAUF der Decke: hinter M_ENDE läuft die Spur über AUSLAUF_LAENGE
+## Meter in die Wiese aus – ein Streifen ohne Kollision im Stoff der Decke,
+## auf der Kurve, der sich wie eine Zunge rundet (`auslauf_halb`). Die
+## Wegmaske rechnet quer in halben Breiten (UV2.x), also wird die helle Spur
+## mit ihm schmal und endet rund; seine Ränder sind Rasen wie der des Felds.
+## (Linear verjüngt stand die Spur als lange, gerade Spitze im Schlussbild.)
+## WARUM: Vorher endete die Decke an M_ENDE auf ganzer Breite mit einem
+## geraden Strich, und dahinter begann die dunkelbraune „ausgetretene Spur"
+## des Felds (Schlamm) – eine harte Materialkante quer durch das Schlussbild
+## (Prüfung P3, Runde 2). Der Shader kennt kein Ende der Spur; seine Lücken
+## (8 Plätze, 7 belegt) brächen sie nur krümelig ab wie an einer Lippe.
+## Das Feld liegt darunter 2 cm tiefer (`L05Gelaende`, flach bis über den
+## Rand, `auslauf_halb`).
+func _auslauf_bauen(stoff: Material) -> void:
+	var stuecke: Array[Dictionary] = []
+	var s := M_ENDE
+	while s < M_ENDE + AUSLAUF_LAENGE - 0.001:
+		var bis := minf(s + AUSLAUF_SCHRITT, M_ENDE + AUSLAUF_LAENGE)
+		stuecke.append({"name": "Auslauf", "von": s, "bis": bis,
+				"breite": auslauf_halb(s) * 2.0, "breite_ende": auslauf_halb(bis) * 2.0})
+		s = bis
+	var netz := LevelWerkzeuge.korridor(geometrie, verlauf, stuecke, {"oben": stoff}, {
+		"nur_decke": true, "uv_quer": true, "schritt": AUSLAUF_SCHRITT, "quer_teilung": 4,
+		"kollision": false,
+	})
+	netz.name = "Wegauslauf"
+	for kind in netz.get_children():
+		kind.name = "Auslauf"
+	_ohne_schatten(netz)
+
+
+## Halbe Breite des Auslaufs an `s` (0 außerhalb): an M_ENDE die der Decke,
+## dann als Viertelellipse bis auf 5 cm am Ende.
+static func auslauf_halb(s: float) -> float:
+	if s < M_ENDE or s > M_ENDE + AUSLAUF_LAENGE:
+		return 0.0
+	var t := (s - M_ENDE) / AUSLAUF_LAENGE
+	return maxf(breite_nach_tabelle(M_ENDE) * 0.5 * sqrt(maxf(1.0 - t * t, 0.0)), 0.05)
 
 
 ## Thema der Wegdecke (Entwurf §9.2 und Schritt 2 von §9.4): der Waldweg der

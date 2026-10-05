@@ -26,15 +26,19 @@ class_name L05Gelaende
 ##   Saums und tritt bis 2,6 m dahinter über sie (Naht vergraben, gleicher
 ##   Rasen). Unter Decke, Schulter und Wänden liegt es 0,9 m tief, in Lücken
 ##   unter deren Grund – und schon 1,2 m vor ihren Lippen, hinter der
-##   dunklen Flanke der Stirn (LUECKE_HINTER).
+##   dunklen Flanke der Stirn (LUECKE_HINTER). Keine Mulde gräbt unter diese
+##   Krone: Erst hinter ihr fällt das Land, als Kronenrücken (RUECKEN_*).
+##   Wo ein Zug an den nächsten übergibt, mischt das Feld beide Formen
+##   (`L05Saum.uebergabe`).
 ## * Ufer und Wehr: hinter einer Wand hinab das Bett (Bach, Teich,
 ##   Unterwasser) knapp unter dem Fuß des Saums, der sich darunter
 ##   einsteckt; im Tobel 3 m breit, dann die Südwand.
 ## * Suhle: neben dem Weg in A (bildrechts) eine schlammige Mulde hinter
 ##   einem niedrigen Rand. Mühlwiese in E: flache Wiese um Teich (bildlinks)
 ##   und Unterwasser (bildrechts), das hinter dem Wehr nach Nordwesten
-##   abfließt. Hinter dem Ende der Decke (s 300) läuft der Weg als
-##   ausgetretene Spur in der Wiese aus, die Ränder über 3 m mit ihm.
+##   abfließt. Hinter dem Ende der Decke (s 300) laufen die Ränder über 3 m
+##   in die Wiese aus; die Spur zeichnet dort der Auslauf der Decke
+##   (`Level05.auslauf_halb`), das Feld liegt flach knapp unter ihm.
 ## * Ring: Die Talhänge laufen zu Kämmen (Westen 38 m, Osten 31 m über dem
 ##   Tal), die nach Süden flacher werden; hinter den Kämmen fällt das Land
 ##   wieder. Von jeder Kamera aus liegen die sichtbaren Kämme innerhalb von
@@ -81,6 +85,11 @@ const UNTER := 0.9
 const KRONE_UNTEN := 1.0
 const KRONE_OBEN := 2.6
 const KRONE_DECKT := 0.3
+## Hinter der Krone darf eine Mulde (Teich, Suhle) das Feld erst so weit
+## hinter dem Ende der Platte (`L05Saum`, "weit") senken, dann höchstens so
+## steil (m je m, gut 31°; siehe `_zug_y`).
+const RUECKEN_AB := 0.4
+const RUECKEN_NEIGUNG := 0.6
 ## Bett vor einer Wand hinab: so breit, so tief unter dem Bett des Saums.
 const BETT_BREITE := 3.0
 const BETT_UNTER := 0.15
@@ -100,6 +109,9 @@ const SUEDKAMM := Vector3(28.0, 52.0, 10.5)
 const ENDE_RAMPE := 1.2
 const ENDE_UEBERGANG := 3.0
 const ENDE_REIHE := 0.1
+## Hinter dem Ende der Decke bleibt das Feld bis so weit hinter der Leitlinie
+## eben auf der Kurve (m; Lippe und Fuß der Ufer, siehe `_nah`).
+const ENDE_LIPPE := 0.8
 ## Unter der Decke vor jeder Lippe liegt das Feld schon so weit wie in der
 ## Lücke (m): auf ihrem Grund. WARUM: Die Stirn des Saums (`L05Saum`, die
 ## dunkle Flanke, Entwurf §8.4) steht unter der Narbe 0,4–0,95 m hinter der
@@ -122,8 +134,6 @@ const UNTERWASSER: Array[Vector2] = [Vector2(282.0, -5.0), Vector2(288.0, -9.0),
 		Vector2(296.0, -16.0), Vector2(308.0, -21.0), Vector2(330.0, -24.0), Vector2(380.0, -26.0)]
 const UNTERWASSER_GRUND := 1.3
 const UNTERWASSER_BREITE := 9.0
-## Spur hinter dem Ende der Decke: so weit läuft sie in der Wiese aus.
-const AUSLAUF := 14.0
 
 var level: Level05
 ## Das Feld (gesetzt mit dem ersten Bauschritt; `hoehe` liest es danach).
@@ -218,7 +228,7 @@ func sicht_oberkante(x: float, z: float) -> float:
 		var l := absf(_linie_q(zug, sq.x))
 		if String(zug["art"]) == "auf":
 			var m := L05Saum.form_auf(level, zug, sq.x)
-			if u >= l - 0.1 and u <= l + float(m["lauf"]) + L05Saum.KRONE_WEIT:
+			if u >= l - 0.1 and u <= l + float(m["lauf"]) + float(m["weit"]):
 				y = maxf(y, float(m["krone"]) + L05Saum.KRONE_STEIGT)
 		elif u <= l + 0.5:
 			y = maxf(y, level.weg.boden_bei(sq.x))
@@ -294,10 +304,18 @@ func _feld_anlegen() -> GelaendeFeld:
 ## Erster Bauschritt (vor `punkte_setzen`): Punktreihen an den Knicken unter
 ## dem Saum (siehe Kopf, FORM DES WEGES).
 func _vorbereiten(f: GelaendeFeld) -> void:
-	var kanten: Array = []
+	# Quer über das Ende der Decke, knapp davor und dahinter: Dort knickt die
+	# Rampe der Wehrkrone (19 %) in die flache Kurve (2,5 %), und eine Sehne
+	# über den Knick stand bis 6 cm über der Decke. Diese Reihen zuerst: Ein
+	# Punkt näher als 18 cm an einem schon gesetzten fällt weg
+	# (`GelaendeFeld`), und die Reihen der Ränder enden genau an M_ENDE. Kamen
+	# sie zuerst, fehlten die Querpunkte an Lippe und Fuß der Ufer, und das
+	# Feld hinter dem Ende lag dort in der Grube des Ufers statt auf der Kurve.
+	var kanten: Array = [_querreihe(Level05.M_ENDE - ENDE_REIHE),
+			_querreihe(Level05.M_ENDE + ENDE_REIHE)]
 	for zug: Dictionary in Level05.ZUEGE:
-		# Je Reihe: Abstand und ob er ab dem Knick (Wandkrone bzw. Fuß) zählt
-		# oder ab der Linie.
+		# Je Reihe: Abstand und ob er ab dem Knick zählt (bei „auf" die
+		# Wandkrone, bei „ab" der Fuß der Wand) oder ab der Linie.
 		var reihen: Array[Vector2] = []
 		if String(zug["art"]) == "auf":
 			reihen.assign([Vector2(KRONE_UNTEN - 0.5, 1.0), Vector2(KRONE_UNTEN, 1.0),
@@ -305,43 +323,50 @@ func _vorbereiten(f: GelaendeFeld) -> void:
 		else:
 			reihen.assign([Vector2(-0.2, 0.0), Vector2(0.6, 1.0), Vector2(0.6 + BETT_BREITE, 1.0),
 					Vector2(2.6 + BETT_BREITE, 1.0)])
-		for r in reihen:
-			for stellen in _zug_stuecke(zug):
+		for stellen in _zug_stuecke(zug):
+			# Je Stelle Linie, Knick und Maßstab des Kronenbands (das sich in
+			# der Übergabe staucht, `L05Saum.form_auf` "band" – seine Reihen
+			# mit ihm).
+			var linie := PackedFloat32Array()
+			var knick := PackedFloat32Array()
+			var band := PackedFloat32Array()
+			for s in stellen:
+				linie.append(absf(_linie_q(zug, s)))
+				if String(zug["art"]) == "auf":
+					var m := L05Saum.form_auf(level, zug, s)
+					knick.append(float(m["lauf"]))
+					band.append(float(m["band"]))
+				else:
+					knick.append(float(L05Saum.form_ab(level, zug, s)["fuss"]))
+					band.append(1.0)
+			for r in reihen:
 				var punkte := PackedVector2Array()
-				for s in stellen:
-					var u := absf(_linie_q(zug, s)) + r.y * _knick(zug, s) + r.x
-					punkte.append(_welt(s, float(zug["seite"]) * u))
+				for k in stellen.size():
+					var u := linie[k] + r.y * knick[k] + r.x * band[k]
+					punkte.append(_welt(stellen[k], float(zug["seite"]) * u))
 				kanten.append({"punkte": punkte, "abstand": 1.0,
 						"reihen": PackedFloat32Array([0.0])})
 	# Quer über jede Lücke dort, wo das Feld auf ihren Grund fällt
 	# (LUECKE_HINTER vor den Lippen), knapp davor und dahinter: Sonst spannte
 	# das Feld Dreiecke von unter der Decke (0,9 m tief) über den Spalt, und
-	# zwischen den Stirnen stand ein heller Boden statt des Grunds. Ebenso
-	# quer über das Ende der Decke: Dort knickt die Rampe der Wehrkrone (19 %)
-	# in die flache Kurve (2,5 %), und eine Sehne über den Knick stand bis
-	# 6 cm über der Decke.
-	var quer: Array[float] = [Level05.M_ENDE - ENDE_REIHE, Level05.M_ENDE + ENDE_REIHE]
+	# zwischen den Stirnen stand ein heller Boden statt des Grunds.
 	for l: Dictionary in Level05.LUECKEN:
 		var von := float(l["von"]) - LUECKE_HINTER
 		var bis := float(l["bis"]) + LUECKE_HINTER
-		quer.append_array([von - LUECKE_REIHE, von + LUECKE_REIHE, bis - LUECKE_REIHE,
-				bis + LUECKE_REIHE])
-	for s_kante in quer:
-		var punkte := PackedVector2Array()
-		var q := -LUECKE_QUER
-		while q <= LUECKE_QUER + 0.001:
-			punkte.append(_welt(s_kante, q))
-			q += 0.8
-		kanten.append({"punkte": punkte, "abstand": 0.8, "reihen": PackedFloat32Array([0.0])})
+		for s_kante: float in [von - LUECKE_REIHE, von + LUECKE_REIHE, bis - LUECKE_REIHE,
+				bis + LUECKE_REIHE]:
+			kanten.append(_querreihe(s_kante))
 	f.kanten = kanten
 
 
-## Wo die Form eines Zuges an `s` ansetzt (von der Linie aus): bei „auf" die
-## Wandkrone, bei „ab" der Fuß der Wand.
-func _knick(zug: Dictionary, s: float) -> float:
-	if String(zug["art"]) == "auf":
-		return float(L05Saum.form_auf(level, zug, s)["lauf"])
-	return float(L05Saum.form_ab(level, zug, s)["fuss"])
+## Eine Punktreihe quer über den Weg an `s` (±LUECKE_QUER, alle 0,8 m).
+func _querreihe(s: float) -> Dictionary:
+	var punkte := PackedVector2Array()
+	var q := -LUECKE_QUER
+	while q <= LUECKE_QUER + 0.001:
+		punkte.append(_welt(s, q))
+		q += 0.8
+	return {"punkte": punkte, "abstand": 0.8, "reihen": PackedFloat32Array([0.0])}
 
 
 ## Die Stellen (s), an denen die Reihen eines Zuges ihre Form nehmen: jeden
@@ -460,13 +485,26 @@ func _hang(s: float, u: float, seite: float) -> float:
 ## Kurve folgend): Dort enden beide Züge, und ohne Übergang stünde quer über
 ## das Schlussbild eine Stufe von bis 0,3 m im Gras.
 func _nah(s: float, q: float, u: float, seite: float, weit: float) -> float:
-	var y := _rand(s, u, seite, weit)
+	# Mulden: Suhle, Teich, Unterwasser (nur graben, nie aufschütten; wie
+	# tief, regelt `_zug_y`).
+	var mulde := _mulden(s, q, u, seite)
+	var y := _rand(s, u, seite, weit, mulde)
 	var ende := Level05.M_ENDE
 	if s > ende and s < ende + ENDE_UEBERGANG:
-		var am_ende := _rand(ende, u, seite, weit) + _kurve_y(s) - _kurve_y(ende)
-		y = lerpf(am_ende, y, smoothstep(ende, ende + ENDE_UEBERGANG, s))
-	# Mulden: Suhle, Teich, Unterwasser (nur graben, nie aufschütten).
-	return minf(y, _mulden(s, q, u, seite))
+		var am_ende := _rand(ende, u, seite, weit, mulde) + _kurve_y(s) - _kurve_y(ende)
+		# Schulter und Lippe der Ränder laufen eben weiter: Die Gruben unter
+		# ihnen (Bett − 0,6 · f) lagen hinter dem Ende offen, und die Narben
+		# der Ufer standen dort als dunkle Zacken 5–11 cm darüber
+		# (Prüfung P3, Runde 2).
+		# Unter dem Auslauf 2 cm unter ihm, daneben auf der Kurve, also auf
+		# Höhe der Decke an M_ENDE: Die Narben der Ufer enden knapp darunter,
+		# ihre Deckel liegen im Feld.
+		var l_weg := absf(Level05.leitlinie_q(Level05.leitlinie_punkte(seite), s))
+		var eben := _kurve_y(s) - (0.02 if u < Level05.auslauf_halb(s) else 0.0)
+		am_ende = lerpf(maxf(am_ende, eben), am_ende,
+				smoothstep(l_weg + ENDE_LIPPE, l_weg + ENDE_LIPPE + 1.0, u))
+		y = minf(lerpf(am_ende, y, smoothstep(ende, ende + ENDE_UEBERGANG, s)), mulde)
+	return y
 
 
 ## Höhe der Kurve (Welt-Y) an `s`.
@@ -474,9 +512,11 @@ func _kurve_y(s: float) -> float:
 	return level.verlauf.sample_baked(clampf(s, 0.0, level.verlauf.get_baked_length())).y
 
 
-## Decke und Ränder an (s, |q| = u) ohne die Mulden (siehe `_nah`).
-func _rand(s: float, u: float, seite: float, weit: float) -> float:
-	var y := weit
+## Decke und Ränder an (s, |q| = u) samt der Mulden (Höhe `mulde`, INF ohne;
+## siehe `_nah`). Wo zwei Züge sich überlappen, gibt der frühere seine Form
+## an den nächsten ab (`L05Saum.uebergabe`): Das Feld mischt beide, so wie
+## der Saum die Böschung dort unter die Erde zieht.
+func _rand(s: float, u: float, seite: float, weit: float, mulde: float) -> float:
 	var zuege := level.zuege_bei(seite, s)
 	# Wo die Decke gezeichnet ist (0 … M_ENDE), liegt das Feld unter ihr; davor
 	# (Startboden, ohne eigene Optik) und dahinter (Wiese) IST es der Boden:
@@ -495,55 +535,83 @@ func _rand(s: float, u: float, seite: float, weit: float) -> float:
 	# IST es der Boden, und eine Stufe von 0,9 m stünde dort im Bild.
 	if deck_da and s > Level05.M_ENDE - ENDE_RAMPE:
 		unter = lerpf(unter, deck - 0.04, smoothstep(Level05.M_ENDE - ENDE_RAMPE, Level05.M_ENDE, s))
-	var l_weg := absf(Level05.leitlinie_q(Level05.leitlinie_punkte(seite), s))
 	if zuege.is_empty():
-		# FLACH: bündig an der Wegkante, dann ins Land.
-		var rand := level.weg.wegrand(s) if deck_da else 0.0
-		y = flach + maxf(weit - flach, 0.0) * smoothstep(rand + 1.0, rand + 9.0, u)
+		# FLACH: bündig an der Wegkante (hinter M_ENDE am Rand des Auslaufs),
+		# dann ins Land.
+		var l_weg := absf(Level05.leitlinie_q(Level05.leitlinie_punkte(seite), s))
+		var rand := level.weg.wegrand(s) if deck_da else Level05.auslauf_halb(s)
+		var y := flach + maxf(weit - flach, 0.0) * smoothstep(rand + 1.0, rand + 9.0, u)
 		if deck_da and u < l_weg + 0.6:
 			y = unter if not luecke.is_empty() else flach
-	else:
-		var zug: Dictionary = zuege[0]
-		if zuege.size() > 1:
-			# Wo zwei Züge sich überlappen, gilt der, dessen Ende weiter weg ist.
-			var b: Dictionary = zuege[1]
-			var rest_a := minf(s - float(zug["von"]), float(zug["bis"]) - s)
-			var rest_b := minf(s - float(b["von"]), float(b["bis"]) - s)
-			if rest_b > rest_a:
-				zug = b
-		var l := absf(_linie_q(zug, s))
-		if String(zug["art"]) == "auf":
-			var m := L05Saum.form_auf(level, zug, s)
-			var krone: float = m["krone"]
-			var o := u - l - float(m["lauf"])
-			if u < l - 0.05 and not deck_da:
-				y = flach
-			elif o < KRONE_UNTEN - 0.5:
-				y = minf(unter, deck - UNTER) if u >= l - 0.05 else unter
-			elif o < KRONE_UNTEN:
-				y = lerpf(unter, krone - 0.45, (o - KRONE_UNTEN + 0.5) / 0.5)
-			elif o < KRONE_OBEN:
-				y = lerpf(krone - 0.45, krone + KRONE_DECKT, (o - KRONE_UNTEN) / (KRONE_OBEN - KRONE_UNTEN))
-			else:
-				y = maxf(krone + KRONE_DECKT, weit)
+		return minf(y, mulde)
+	var zug: Dictionary = zuege[0]
+	if zuege.size() > 1:
+		# Überlappung: Der früher endende Zug gibt seine Form ab.
+		var b: Dictionary = zuege[1]
+		if float(b["bis"]) < float(zug["bis"]):
+			var tausch := zug
+			zug = b
+			b = tausch
+		var y_b := _zug_y(b, s, u, weit, mulde, deck, flach, unter, deck_da, luecke)
+		var ueb := L05Saum.uebergabe(zug, s)
+		if ueb <= 0.0:
+			return y_b
+		return lerpf(y_b, _zug_y(zug, s, u, weit, mulde, deck, flach, unter, deck_da, luecke), ueb)
+	return _zug_y(zug, s, u, weit, mulde, deck, flach, unter, deck_da, luecke)
+
+
+## Höhe des Felds für einen Zug an (s, |q| = u), samt Mulden.
+## AUF: unter Wand und Schulter tief, hinter der Wandkrone das Kronenband
+## (KRONE_UNTEN … KRONE_OBEN, mal "band" aus `L05Saum.form_auf`), dahinter
+## Krone + KRONE_DECKT oder das Land. Eine Mulde gräbt nie unter das Band
+## und den Kronenrücken: Erst RUECKEN_AB hinter dem Ende der Platte darf das
+## Feld mit RUECKEN_NEIGUNG fallen. WARUM: Die Teichmulde reichte bis an den
+## Weg, und die Platte der Böschung rechts stand s 255–279 bis 4,2 m frei
+## über dem Feld (Messtor 280; Prüfung P3, Runde 2).
+## AB: unter der Schulter tief, vor der Wand das Bett, dann das Land.
+func _zug_y(zug: Dictionary, s: float, u: float, weit: float, mulde: float, deck: float,
+		flach: float, unter: float, deck_da: bool, luecke: Dictionary) -> float:
+	var y: float
+	var l := absf(_linie_q(zug, s))
+	if String(zug["art"]) == "auf":
+		var m := L05Saum.form_auf(level, zug, s)
+		var krone: float = m["krone"]
+		var band: float = m["band"]
+		var o := u - l - float(m["lauf"])
+		if u < l - 0.05 and not deck_da:
+			y = flach
+		elif o < (KRONE_UNTEN - 0.5) * band:
+			y = minf(unter, deck - UNTER) if u >= l - 0.05 else unter
+		elif o < KRONE_UNTEN * band:
+			y = lerpf(unter, krone - 0.45, (o / band - KRONE_UNTEN + 0.5) / 0.5)
+		elif o < KRONE_OBEN * band:
+			y = lerpf(krone - 0.45, krone + KRONE_DECKT,
+					(o / band - KRONE_UNTEN) / (KRONE_OBEN - KRONE_UNTEN))
 		else:
-			var m := L05Saum.form_ab(level, zug, s)
-			var bett: float = m["bett"]
-			# Wo der Zug ausläuft (das Bett kommt bis an die Decke), wird auch
-			# die Grube hinter seiner Wand flach: Der Saum ist dort winzig und
-			# deckte sie nicht mehr.
-			var f: float = m["f"]
-			var o := u - l - float(m["fuss"])
-			if u < l - 0.2:
-				y = unter
-			elif o < 0.6:
-				y = bett - 0.6 * f if luecke.is_empty() else minf(bett - 0.6 * f, unter)
-			elif o < 0.6 + BETT_BREITE:
-				y = bett - BETT_UNTER * f
-			else:
-				var hoch := maxf(weit, bett - BETT_UNTER * f)
-				y = lerpf(bett - BETT_UNTER * f, hoch, smoothstep(0.6 + BETT_BREITE, 2.6 + BETT_BREITE, o))
-	return y
+			y = maxf(krone + KRONE_DECKT, weit)
+		var gegraben := minf(y, mulde)
+		if o >= KRONE_UNTEN * band and gegraben < y:
+			var ruecken := krone + KRONE_DECKT \
+					- maxf(o - float(m["weit"]) - RUECKEN_AB, 0.0) * RUECKEN_NEIGUNG
+			gegraben = maxf(gegraben, minf(y, ruecken))
+		return gegraben
+	var m := L05Saum.form_ab(level, zug, s)
+	var bett: float = m["bett"]
+	# Wo der Zug ausläuft (das Bett kommt bis an die Decke), wird auch die
+	# Grube hinter seiner Wand flach: Der Saum ist dort winzig und deckte sie
+	# nicht mehr.
+	var f: float = m["f"]
+	var o := u - l - float(m["fuss"])
+	if u < l - 0.2:
+		y = unter
+	elif o < 0.6:
+		y = bett - 0.6 * f if luecke.is_empty() else minf(bett - 0.6 * f, unter)
+	elif o < 0.6 + BETT_BREITE:
+		y = bett - BETT_UNTER * f
+	else:
+		var hoch := maxf(weit, bett - BETT_UNTER * f)
+		y = lerpf(bett - BETT_UNTER * f, hoch, smoothstep(0.6 + BETT_BREITE, 2.6 + BETT_BREITE, o))
+	return minf(y, mulde)
 
 
 ## Die Lücke an `s` samt LUECKE_HINTER Metern unter der Decke vor ihren
@@ -612,14 +680,10 @@ func _faerben(p: Vector3, n: Vector3) -> Color:
 	# trägt denselben Rasen), und die Kronen des Hohlwegs bleiben Rasen
 	# (Entwurf §9.1: Rasensaum auf den Kronen).
 	wald *= smoothstep(18.0, 30.0, u) * (1.0 - fels) * (1.0 - nass)
-	# Wo der Weg hinter s 300 in der Wiese ausläuft: ausgetretene Erde.
-	var spur := 0.0
-	if s > Level05.M_ENDE - 0.5 and s < Level05.M_ENDE + AUSLAUF:
-		spur = (1.0 - smoothstep(1.2, 2.8, u)) * (1.0 - smoothstep(Level05.M_ENDE + 3.0,
-				Level05.M_ENDE + AUSLAUF, s))
-	var schlamm := maxf(nass, spur * 0.85)
-	var wiese := maxf(1.0 - fels - wald - schlamm, 0.0)
-	return Color(wiese, wald, fels, schlamm)
+	# Hinter s 300 keine eigene Spur: Die zeichnet der Auslauf der Decke
+	# (`Level05._auslauf_bauen`) im Löss der Decke, das Feld bleibt Wiese.
+	var wiese := maxf(1.0 - fels - wald - nass, 0.0)
+	return Color(wiese, wald, fels, nass)
 
 
 ## UV2: Verdeckung (Mulden, die Wegkante wie die Decke 0,78) und Kronenlicht
@@ -627,7 +691,8 @@ func _faerben(p: Vector3, n: Vector3) -> Color:
 func _zusatz(p: Vector3, _n: Vector3, mulde: float) -> Vector2:
 	var sq := projektion(p.x, p.z)
 	var ao := clampf(1.0 - mulde * 0.25, 0.65, 1.0)
-	var rand := level.weg.wegrand(sq.x) if sq.x >= -4.0 and sq.x <= Level05.M_ENDE else 0.0
+	var rand := level.weg.wegrand(sq.x) if sq.x >= -4.0 and sq.x <= Level05.M_ENDE \
+			else Level05.auslauf_halb(sq.x)
 	ao = minf(ao, lerpf(0.78, 1.0, smoothstep(rand + 0.5, rand + 4.0, absf(sq.y))))
 	return Vector2(ao, 0.0)
 

@@ -23,6 +23,9 @@ class_name L05Saum
 ##          3–5 m unter 78–84° mit Narbe nicht; dieses Profil nimmt ihre
 ##          Teile: Narbe wie `Kanten.profil_ab`, Farben über `Kanten.farbe`,
 ##          Rauschen der Wand nur nach außen (`GelaendeSaum`: Richtung 2).
+##          Die Platte hinter der Krone endet nie über dem gezeichneten
+##          Gelände (PLATTE_UNTER), und wo der nächste Zug beginnt, sinkt das
+##          ganze Profil unter Ufer und Gelände (`uebergabe`).
 ##   ab     Ufer oder Wehrwand hinab, von der Lippe her (wie `profil_ab`,
 ##          30 Punkte dort, 16 hier): Narbe über der Lippe, Wand bis aufs
 ##          Bett, Fuß unter das Bett des Geländes. Erde und Moos am Ufer,
@@ -63,6 +66,16 @@ const SICHT := 400.0
 ## und so hoch steigt er dort (das Gelände tritt vorher über ihn).
 const KRONE_WEIT := 2.8
 const KRONE_STEIGT := 0.06
+## Übergabe (siehe `uebergabe`): Am Ende der Übergabe liegt die Krone so weit
+## unter der Decke, und von Platte und Kronenband bleibt dieser Anteil.
+const UEBERGABE_SINKT := -0.08
+const UEBERGABE_BAND := 0.11
+## Das äußere Ende der Platte liegt mindestens so tief unter dem Gelände
+## (`L05Gelaende.hoehe`): Es endet nie frei über ihm (siehe `_profil_auf`).
+const PLATTE_UNTER := 0.12
+## Stufen der Decke: Querschnitte der Seiten so weit davor und dahinter (m;
+## siehe `bauschritte`).
+const STUFE_SPIEL := 0.02
 ## Welle der Kronenhöhe entlang der Seite (m) und ihr Maßstab (1/m).
 const KRONE_WELLE := 0.35
 const KRONE_WELLE_DICHTE := 0.045
@@ -88,6 +101,17 @@ const SANDSTEIN := Color(1.12, 0.86, 0.68)
 static func bauschritte(level: Level05) -> Array:
 	var linien: Array = []
 	var feste := Kanten.feste_strecken(level.weg)
+	# Je Stufe der Decke ein Querschnitt STUFE_SPIEL davor und dahinter, jeder
+	# mit der Decke seiner Seite. WARUM: `feste_strecken` setzt sie nur 5 mm
+	# (Kanten.EPS) neben die Naht, und `GelaendeSaum.linie` verwirft Teil-
+	# strecken unter 5 mm Bogenlänge. Auf der Innenseite der Kurve sind es
+	# knapp weniger: Am Suhlgraben fehlten links beide Querschnitte (23,495
+	# und 23,5, 28,095 und 28,1), und das Gitter lief über 0,7 m von der
+	# oberen Decke auf die Sohle – davor eine Kerbe in der Schulter (0,26 m
+	# unter der Kollision), in der Grabenecke ein Keil (0,8 m über der
+	# Sohle; Prüfung P3, Runde 2).
+	for st: Vector3 in _stufen(level.weg):
+		feste.append_array([st.x - STUFE_SPIEL, st.x + STUFE_SPIEL])
 	for i in Level05.ZUEGE.size():
 		var zug: Dictionary = Level05.ZUEGE[i]
 		var auf := String(zug["art"]) == "auf"
@@ -129,21 +153,57 @@ static func thema() -> Dictionary:
 ## Gelände:
 ##   krone   Welt-Y der Krone (geglättete Decke + h + Welle)
 ##   deck    Welt-Y der Decke (in einer Lücke zwischen ihren Lippen)
-##   hoch    Krone über der Decke, mindestens 6 cm
+##   hoch    Krone über der Decke, mindestens 6 cm (in der Übergabe weniger)
 ##   lauf    wie weit die Wandkrone hinter dem Fuß liegt (m, waagerecht)
 ##   narbe   Überhang der Grasnarbe zum Weg (m)
+##   band    Maßstab des Kronenbands (1; in der Übergabe bis UEBERGABE_BAND):
+##           die Platte reicht `weit` = KRONE_WEIT · band hinter die Wand-
+##           krone, das Gelände (`L05Gelaende`) staucht seine Krone ebenso
+##   ueb     Anteil dieses Zuges in der Übergabe (`uebergabe`)
 ##   winkel, fels  aus dem Zug
+## In der Übergabe an den nächsten Zug sinkt die Krone bis UEBERGABE_SINKT
+## unter die Decke, und Platte und Kronenband schrumpfen: Am Ende des Zuges
+## liegt sein Querschnitt (und damit der Deckel des Gitters) unter Schulter,
+## Ufer und Gelände.
 static func form_auf(level: Level05, zug: Dictionary, s: float) -> Dictionary:
 	var w := Level05.zug_werte(zug, s)
 	var deck := level.weg.boden_bei(s)
 	var krone := level.decke_glatt(s) + w[0] \
 			+ KRONE_WELLE * Kanten.welle(s * KRONE_WELLE_DICHTE, 61.0 + float(zug["seite"]))
+	var ueb := uebergabe(zug, s)
 	var hoch := maxf(krone - deck, 0.06)
+	var band := 1.0
+	if ueb < 1.0:
+		krone = lerpf(deck + UEBERGABE_SINKT, krone, ueb)
+		hoch = maxf(krone - deck, lerpf(UEBERGABE_SINKT, 0.06, ueb))
+		band = lerpf(UEBERGABE_BAND, 1.0, ueb)
 	var f := clampf(hoch, 0.1, 1.0)
 	var k := 1.0 / tan(deg_to_rad(clampf(w[1], 25.0, 88.0)))
 	return {"krone": deck + hoch, "deck": deck, "hoch": hoch, "f": f, "k": k,
 			"lauf": k * (hoch - 0.55 * f), "narbe": w[2] * smoothstep(0.15, 1.2, hoch),
+			"band": band, "weit": KRONE_WEIT * band, "ueb": ueb,
 			"winkel": w[1], "fels": w[3]}
+
+
+## ÜBERGABE: Wo auf derselben Seite der nächste Zug beginnt, bevor `zug`
+## endet (Böschung links → Ufer links 179–182, Böschung rechts → Teichwand
+## 277–279), gibt `zug` die Form über diese Strecke ab: 1 bis zum Anfang des
+## nächsten, 0 an seinem Ende, dazwischen weich. Sonst 1.
+## WARUM: Vorher galt in der Überlappung im Gelände hart der Zug, dessen Ende
+## weiter weg war, und die Böschung lief mit voller Platte (2,8 m bei
+## Krone + 6 cm) bis an ihr Ende. Hinter der Mitte lag das Feld schon im Bett
+## des Ufers, und die Platte stand 1–1,9 m frei darüber, am Ende mit einem
+## dunklen Deckel (CP3 bei 178, Messtor 280; Prüfung P3, Runde 2).
+static func uebergabe(zug: Dictionary, s: float) -> float:
+	var bis: float = zug["bis"]
+	for z: Dictionary in Level05.ZUEGE:
+		if float(z["seite"]) != float(zug["seite"]):
+			continue
+		# `zug` selbst fällt heraus: Sein Anfang liegt nicht hinter sich.
+		var von: float = z["von"]
+		if von > float(zug["von"]) and von < bis and float(z["bis"]) > bis:
+			return 1.0 - smoothstep(von, bis, s)
+	return 1.0
 
 
 ## Die Form eines Zuges „ab" an `s`:
@@ -188,7 +248,17 @@ static func _profil_auf(_i: int, probe: Dictionary, level: Level05,
 	var schicht := lerpf(0.04, 0.16, fels)
 	var p := GelaendeSaum.Profil.new()
 	# --- Krone und Grasnarbe (0–5): Die Narbe tritt `ov` vor die Wandkrone.
-	p.punkt(lauf + KRONE_WEIT, krone + KRONE_STEIGT, Kanten.farbe(0.78, 0.0, 0.1, 1.0), 2.5)
+	# Die Platte endet `weit` hinter der Wandkrone, nie über dem gezeichneten
+	# Gelände: sonst stünde ihre Kante frei (in der Übergabe liegt das Feld
+	# schon im Bett des nächsten Zuges; siehe `uebergabe`).
+	var weit: float = m["weit"]
+	var ende_y := krone + KRONE_STEIGT
+	var ende := LevelWerkzeuge.punkt_frei(level.verlauf, s,
+			float(probe["q"]) + seite * (lauf + weit))
+	var feld := level.gelaende.hoehe(ende.x, ende.z)
+	if not is_nan(feld):
+		ende_y = minf(ende_y, feld - PLATTE_UNTER)
+	p.punkt(lauf + weit, ende_y, Kanten.farbe(0.78, 0.0, 0.1, 1.0), 2.5)
 	p.punkt(lauf - ov * 0.4, krone - 0.006 * f, Kanten.farbe(0.78, 0.0, 0.2, 1.0))
 	p.punkt(lauf - ov * 0.8, krone - 0.035 * f, Kanten.farbe(0.72, 0.1, 0.3, 0.95))
 	p.punkt(lauf - ov, krone - 0.12 * f, Kanten.farbe(0.5, 0.6, 0.3, 0.45))
@@ -392,18 +462,11 @@ static func _querlinien(level: Level05) -> Array:
 			linien.append(_querlinie(level, s, -vorwaerts,
 					_profil_stirn.bind(level, kante, grund, halb, erdig), kante, 5201 + nummer))
 			nummer += 1
-	# Stufen der Decke: wo zwei Abschnitte bündig aneinanderstoßen, aber nicht
-	# gleich hoch (Graben, Treppen; die Absätze haben Rampen).
-	for i in range(1, weg.abschnitte.size()):
-		var a: Dictionary = weg.abschnitte[i - 1]
-		var b: Dictionary = weg.abschnitte[i]
-		var naht: float = b["von"]
-		if absf(float(a["bis"]) - naht) > 0.01:
-			continue
-		var h_a := LevelWerkzeuge.eintrag_hoehe(weg.verlauf, a, naht)
-		var h_b := LevelWerkzeuge.eintrag_hoehe(weg.verlauf, b, naht)
-		if absf(h_a - h_b) < 0.05:
-			continue
+	# Stufen der Decke (Graben, Treppen; die Absätze haben Rampen).
+	for st: Vector3 in _stufen(weg):
+		var naht := st.x
+		var h_a := st.y
+		var h_b := st.z
 		# Die untere Decke liegt vorn (+s) oder hinten; dorthin zeigt die Wand.
 		var vorwaerts := 1.0 if h_a > h_b else -1.0
 		var graben := naht > Level05.SUHLGRABEN.x - 0.01 and naht < Level05.SUHLGRABEN.y + 0.01
@@ -413,6 +476,23 @@ static func _querlinien(level: Level05) -> Array:
 				maxf(h_a, h_b), 5301 + nummer))
 		nummer += 1
 	return linien
+
+
+## Die Stufen der Decke als Vector3(Naht, Höhe davor, Höhe dahinter): wo zwei
+## Abschnitte bündig aneinanderstoßen, aber nicht gleich hoch.
+static func _stufen(weg: Wegdaten) -> Array[Vector3]:
+	var stufen: Array[Vector3] = []
+	for i in range(1, weg.abschnitte.size()):
+		var a: Dictionary = weg.abschnitte[i - 1]
+		var b: Dictionary = weg.abschnitte[i]
+		var naht: float = b["von"]
+		if absf(float(a["bis"]) - naht) > 0.01:
+			continue
+		var h_a := LevelWerkzeuge.eintrag_hoehe(weg.verlauf, a, naht)
+		var h_b := LevelWerkzeuge.eintrag_hoehe(weg.verlauf, b, naht)
+		if absf(h_a - h_b) >= 0.05:
+			stufen.append(Vector3(naht, h_a, h_b))
+	return stufen
 
 
 ## Eine Querlinie an `s` von Seite zu Seite.
