@@ -19,6 +19,24 @@ extends Node
 ## Lücken erkennt der Bot per Strahltest nach unten, nicht aus den
 ## Leveldaten – so prüft er gleichzeitig, ob die Kollisionsgeometrie da ist.
 ##
+## DURCHLÄSSE (Opt-in, Entwurf L05 §9.3): Bietet das Level `duckstellen()`
+## an (die Stirnen seiner Duckdurchlässe als Strecken), tippt der Bot im
+## Laufmodus DUCK_VORAUS vor jeder Stirn einmal Slide. Ein Strahl fände den
+## Riegel nicht: Er beginnt erst 0,95 m über dem Boden, der Hürdenstrahl
+## (HUERDE_HOEHE 0,45) geht darunter durch – der Bot liefe aufrecht hinein
+## und stolperte. Ohne die Methode läuft der Bot wie bisher.
+##
+## LAUFLINIE (Opt-in): Bietet das Level `lauflinie()` an – Punkte
+## Vector2(s, q) einer Linie quer zum Verlauf –, hält der Bot im Laufmodus
+## diese Querlage statt der Mitte (bzw. statt des Ausweichens vor
+## Gefahren) und schaut dafür nur LINIE_VORAUS weit voraus. Level 05 braucht
+## das für die Findlingsgasse: Zwei versetzte Blöcke quer über die halbe
+## Wegbreite, die Lücke dazwischen verlangt ≥ 1 m Querversatz. Gemessen
+## ohne Linie: Der Bot lief in der Mitte frontal auf F1 und F2, sprang (der
+## Hürdenstrahl sah sie), stolperte an jedem zweimal und wurde in vier von
+## vier Anläufen bei s 248,8 gefangen. Mit 5 m Vorausschau schnitte er die
+## Gasse diagonal an F1 vorbei. Ohne die Methode läuft der Bot wie bisher.
+##
 ## Umgebungsvariablen:
 ##   TEST_ZIEL   Ausgabeverzeichnis für die PNGs (Pflicht)
 ##   TEST_DAUER  Höchstdauer in Sekunden (Vorgabe 600)
@@ -52,6 +70,15 @@ const LUECKE_VORAUS := 0.9
 ## Hindernis voraus in Kniehöhe (liegender Stamm, Stufe): so weit voraus.
 const HUERDE_VORAUS := 1.1
 const HUERDE_HOEHE := 0.45
+## Slide so weit vor der Stirn eines Durchlasses (Opt-in `duckstellen`).
+## Entwurf L05 §2.3: sauber von 3,6–3,9 bis 0,5 m vor der Stirn; 2,2 liegt
+## in der Mitte und lässt gut einen Physikschritt Verzug (0,14 m).
+const DUCK_VORAUS := 2.2
+## Näher als das an der Stirn wird nicht mehr getippt (zu spät für einen
+## sauberen Slide).
+const DUCK_SPAET := 0.5
+## Vorausschau auf der Lauflinie (Opt-in `lauflinie`, siehe Kopf).
+const LINIE_VORAUS := 1.5
 ## Liegt voraus nichts höher als so tief unter den Füßen, ist dort eine
 ## Lücke. Tiefer als jeder Stufenabsatz (Level 01: 1,6 m), flacher als ein
 ## Bruch mit Wiesenboden darunter (Level 01, G1: 2,7 m) – den erkannte der
@@ -90,6 +117,12 @@ var _letzter_angriff := -9.0
 var _doppelsprung := true
 ## Absprünge protokollieren (TEST_SPRUENGE=1).
 var _spruenge_melden := false
+## Stirnen der Durchlässe des laufenden Levels (Opt-in, siehe Kopf).
+var _duckstellen: Array[float] = []
+## Vor dieser Stirn wurde zuletzt Slide getippt – einmal je Anlauf.
+var _duck_zuletzt := -INF
+## Lauflinie des laufenden Levels (Opt-in, siehe Kopf), (s, q).
+var _lauflinie: Array[Vector2] = []
 
 
 func _ready() -> void:
@@ -311,6 +344,15 @@ func _durchlaufen(nummer: int) -> Dictionary:
 	var laenge := verlauf.get_baked_length()
 	var spieler := _spieler()
 	var schiene: bool = spieler != null and spieler.get("strecke") != null
+	_duckstellen.clear()
+	_duck_zuletzt = -INF
+	if szene.has_method("duckstellen"):
+		_duckstellen.assign(szene.call("duckstellen"))
+		_notiz("Level %02d: %d Durchlässe (duckstellen)" % [nummer, _duckstellen.size()])
+	_lauflinie.clear()
+	if szene.has_method("lauflinie"):
+		_lauflinie.assign(szene.call("lauflinie"))
+		_notiz("Level %02d: Lauflinie mit %d Punkten" % [nummer, _lauflinie.size()])
 	_notiz("Level %02d: Weg %.0f m, Kisten %d, %s"
 			% [nummer, laenge, GameState.kisten_gesamt,
 			"Schienenmodus" if schiene else "Laufmodus"])
@@ -552,12 +594,18 @@ func _fliegen(nummer: int) -> Dictionary:
 func _laufen(spieler: Node3D, szene: Node, verlauf: Curve3D, s: float,
 		laenge: float, djump: bool) -> bool:
 	var seitlich := _ausweichen(szene, verlauf, s)
-	var zielpunkt := _punkt(verlauf, minf(s + VORAUS, laenge), seitlich)
+	var vorlauf := VORAUS
+	if not _lauflinie.is_empty():
+		vorlauf = LINIE_VORAUS
+		seitlich = _linie_q(s + vorlauf)
+	var zielpunkt := _punkt(verlauf, minf(s + vorlauf, laenge), seitlich)
 	var nach := zielpunkt - spieler.global_position
 	nach.y = 0.0
 	InputHub.touch_bewegung = _eingabe(nach)
 
 	if spieler.is_on_floor():
+		if _duck_tippen(s):
+			return false
 		# Gesucht wird ab Fußhöhe, nicht ab der Kurve: In Terrassen liegt die
 		# Decke bis 1,2 m neben ihr.
 		var voraus := _punkt(verlauf, minf(s + LUECKE_VORAUS, laenge), seitlich)
@@ -586,6 +634,60 @@ func _laufen(spieler: Node3D, szene: Node, verlauf: Curve3D, s: float,
 		_tippe(KEY_SPACE)
 		return true
 	return djump
+
+
+## Querlage der Lauflinie an der Stelle `s` (linear, davor und dahinter wie
+## am ersten bzw. letzten Punkt).
+func _linie_q(s: float) -> float:
+	if s <= _lauflinie[0].x:
+		return _lauflinie[0].y
+	for i in _lauflinie.size() - 1:
+		var a := _lauflinie[i]
+		var b := _lauflinie[i + 1]
+		if s <= b.x:
+			return lerpf(a.y, b.y, (s - a.x) / (b.x - a.x))
+	return _lauflinie[_lauflinie.size() - 1].y
+
+
+## Durchlass voraus (Opt-in `duckstellen`, siehe Kopf): einmal Slide tippen,
+## sobald die Figur DUCK_VORAUS vor einer Stirn ist. Nach einem Respawn vor
+## der Stirn gilt sie wieder als offen.
+func _duck_tippen(s: float) -> bool:
+	if _duckstellen.is_empty():
+		return false
+	if s < _duck_zuletzt - DUCK_VORAUS - 1.0:
+		_duck_zuletzt = -INF
+	for stirn in _duckstellen:
+		if stirn == _duck_zuletzt:
+			continue
+		if s >= stirn - DUCK_VORAUS and s < stirn - DUCK_SPAET:
+			_duck_zuletzt = stirn
+			if _spruenge_melden:
+				_notiz("Slide bei %.1f m vor dem Durchlass bei %.1f m" % [s, stirn])
+			_slide_tippen()
+			return true
+	return false
+
+
+## Slide antippen wie mit der linken Umschalttaste. WARUM nicht
+## `_tippe(KEY_SHIFT)`: Die Input-Map legt Slide auf die LINKE Umschalttaste
+## (`location` 1, project.godot), und Godot vergleicht die Seite mit – ein
+## Ereignis ohne Seite löst „slide" nicht aus (gemessen: Ort 0 → nicht
+## gedrückt, Ort 1 → gedrückt). Die Slide-Angriffe in `_kampf` gehen deshalb
+## ins Leere; das bleibt so, sonst liefe der Bot in anderen Leveln anders.
+func _slide_tippen() -> void:
+	var e := InputEventKey.new()
+	e.keycode = KEY_SHIFT
+	e.physical_keycode = KEY_SHIFT
+	e.location = KEY_LOCATION_LEFT
+	e.pressed = true
+	Input.parse_input_event(e)
+	Input.flush_buffered_events()
+	var los := e.duplicate() as InputEventKey
+	los.pressed = false
+	_spaeter(0.08, func() -> void:
+		Input.parse_input_event(los)
+		Input.flush_buffered_events())
 
 
 ## Steht in Laufrichtung knapp voraus etwas in Kniehöhe, über das man

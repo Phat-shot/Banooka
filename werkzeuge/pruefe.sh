@@ -69,7 +69,7 @@ done
 # Wasserplattformen (tragen sie den Spieler wirklich mit?), das Hangeln und
 # die Deckungsflecken (hält der Schwarm wirklich ab, oder leuchtet der
 # Fleck nur?). Eine Regel, die keine Prüfung hat, ist eine Behauptung.
-echo "--- 4/4 Krabbeln, Böden, Hangeln, Deckung, Dunkelheit, Zeitmodus, Glätte, Sprünge, Wegmaske ---"
+echo "--- 4/4 Krabbeln, Böden, Hangeln, Deckung, Dunkelheit, Zeitmodus, Glätte, Sprünge, Jagd, Wegmaske ---"
 KRIECH="$(timeout 300 "$GODOT" --headless --path "$ZIEL" res://werkzeuge/Kriechtest.tscn 2>&1 \
 	| grep -Ev "$RAUSCHEN")"
 echo "$KRIECH" | grep -E "krabbelt|Abweichungen"
@@ -140,6 +140,33 @@ FEHLER Sprungprobe ${SZENE} ohne Schlusszeile"
 	fi
 done
 
+# Jagd (Entwurf L05 §12 P1): Hält die Flucht vor dem Verfolger, was der
+# Entwurf rechnet – Ideallauf, Respawn an jedem Rastplatz, gehaltene Taste
+# in den Durchlässen, zwei Stolperer, die Gegenprobe (zu viele Fehler sind
+# tödlich), das Ufer und das Ziel? Opt-in wie die Sprünge: nur Level, deren
+# Skript `jagdfaelle()` anbietet (heute Level 05); die echte Figur läuft
+# mit `--fixed-fps 60`. WARUM hier und nicht nur beim Bau: Die Jagd rechnet
+# allein mit der Strecke, und spätere Pakete (Gelände, Optik, Wegbauten)
+# verschieben Stufen, Lücken und Durchlässe – eine kaputte Jagd soll dann
+# sofort auffallen, nicht erst im Spiel. Rund 15 s je Level.
+JAGD=""
+for NR in ${NUMMERN//,/ }; do
+	SKRIPT="$ZIEL/scenes/levels/level${NR}.gd"
+	[ -f "$SKRIPT" ] && grep -q "^func jagdfaelle" "$SKRIPT" || continue
+	TEIL="$(timeout 600 "$GODOT" --headless --fixed-fps 60 --path "$ZIEL" \
+		res://werkzeuge/Jagdprobe.tscn -- "res://scenes/levels/Level${NR}.tscn" 2>&1 \
+		| grep -Ev "$RAUSCHEN")"
+	JAGD="$JAGD
+$TEIL"
+	echo "$TEIL" | grep -E "^JAGD|FEHLER|SCRIPT ERROR|=== Jagdprobe"
+	# Ohne Schlusszeile ist die Probe abgebrochen (Zeitlimit, Absturz).
+	if ! echo "$TEIL" | grep -qE "=== Jagdprobe: [0-9]+ Fälle"; then
+		JAGD="$JAGD
+FEHLER Jagdprobe Level${NR} ohne Schlusszeile"
+		echo "FEHLER Jagdprobe Level${NR} ohne Schlusszeile"
+	fi
+done
+
 # Wegmaske (Level 01): Rechnen CPU und GPU dieselbe Maske? Die Konstanten
 # prüft Stufe 3; hier wird die Maske wirklich gezeichnet und ausgelesen –
 # das geht nur mit einem Renderer, also über xvfb-run wie foto.sh. Ohne
@@ -164,6 +191,7 @@ if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$GLATT" | grep -qE "RUCKELT|ZITTERT|STUFT|FLIEGT|SCRIPT ERROR" \
 		|| echo "$MASKE" | grep -qE "ABWEICHUNG|SCRIPT ERROR|ABBRUCH" \
 		|| echo "$SPRUNG" | grep -qE "FEHLER|SCRIPT ERROR" \
+		|| echo "$JAGD" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| ! echo "$GLATT" | grep -qE "=== 0 Abweichungen"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1

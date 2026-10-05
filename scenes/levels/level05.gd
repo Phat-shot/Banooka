@@ -19,8 +19,8 @@ class_name Level05
 ##     300 – 332  Auslauf          nur Kulisse, die Kamera steht bei s + 21
 ##
 ## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Dies ist der ROHBAU
-## (Paket P1a): Verlauf, Weg, Bauteile, Spielobjekte, Jagd und Proben als
-## Graubox, voll spielbar. Gelände, Saum, Eiche, Wegbauten-Optik, Wasser,
+## (Pakete P1a/P1b): Verlauf, Weg, Bauteile, Spielobjekte, Jagd und Proben
+## als Graubox, voll spielbar. Gelände, Saum, Eiche, Wegbauten-Optik, Wasser,
 ## Wald, Rasen und Stimmung folgen in eigenen Paketen; bis dahin stehen die
 ## Bauteile als graue Platzhalter in der Form ihrer Kollision.
 ##
@@ -32,7 +32,13 @@ class_name Level05
 ## (`boden_bei`, `breite_bei`, `weg_punkt`, `ist_luecke` …) gehen über `weg`.
 ##
 ## MODULE unter `scenes/levels/level05/`, je eine Klasse mit
-## `bauschritte(level: Level05)`: bisher `L05Jagd` (der Keiler).
+## `bauschritte(level: Level05)`: bisher `L05Jagd` (der Keiler: Schlaf,
+## Wecken, Jagd, Hopser, Durchlass-Bruch und Heilen, Ufer; P1b).
+##
+## PROBEN (Opt-in, je im Kopf des Werkzeugs beschrieben): `pruefprofil` und
+## `freiraumprobe` (LevelCheck), `sprungfaelle` (Sprungprobe), `jagdfaelle`
+## und `jagd_zustand` (Jagdprobe), `duckstellen` und `lauflinie` (Spieltest-
+## Bot), `pruefruhe`, `foto_stelle`.
 ##
 ## KOORDINATEN wie überall: `s` Strecke auf dem Verlauf (3D-Bogenlänge),
 ## `q` quer dazu (positiv = rechts in Laufrichtung, im Rückblick also
@@ -111,6 +117,11 @@ class_name Level05
 ##     Die Säule stand bis 14 m hoch in der Kamerabahn).
 ##   * Geweckt wird nach der Strecke der Figur, nicht über die Zone des
 ##     Rastplatzes (siehe L05Jagd, Kopf).
+##   * Die Gegenprobe der Jagdprobe zögert 1,2 s statt 0,3 s vor L5: Die
+##     Kette verzeiht in der Engine mehr als gerechnet (JAGD_ZOEGERN_LANG).
+##   * Der Spieltest-Bot bekommt neben `duckstellen` die `lauflinie`: Ohne
+##     sie lief er frontal auf die Findlinge und wurde dort gefangen
+##     (werkzeuge/spieltest.gd, Kopf).
 
 const M_ENDE := 300.0
 ## Bis hier reicht die Kurve: Die Kamera steht 21 m weiter auf dem Verlauf
@@ -416,10 +427,19 @@ const RIEGEL_OBEN := 1.4
 const KAPPE_UNTEN := 4.2
 const LATTE := 0.2
 const LATTEN_ABSTAND := 1.0
+## Bruch (Platzhalter): Pfostenstümpfe bis BRUCH_STUMPF, Riegelstücke am
+## Boden bis BRUCH_RIEGEL, die Bresche ±BRUCH_BRESCHE um die Wegmitte.
+const BRUCH_STUMPF := 1.6
+const BRUCH_RIEGEL := 0.3
+const BRUCH_BRESCHE := 1.4
 
 ## Rastplätze (§6.5): Zonen auf `boden_bei`, Breite `breite_bei` + 2. Der
 ## erste ist zugleich die Stelle des Weckens (L05Jagd.WECK_S).
 const RASTPLAETZE: Array[float] = [31.0, 122.0, 178.0, 204.0, 268.0]
+## Der Checkpoint eines Rastplatzes liegt so hoch über der Decke (die Figur
+## erscheint dort und fällt auf den Weg). L05Jagd erkennt den Rastplatz
+## daran wieder.
+const RASTPLATZ_UEBER := 0.6
 ## Die Zone ist so hoch, dass auch ein Doppelsprung (Füße 3,2 + Figur 1,3)
 ## nicht darüber hinwegkommt, und so tief, dass ein Slide sie nicht
 ## überspringt.
@@ -462,8 +482,59 @@ const KAMERA_UEBER_FIGUR := 3.45
 ## K1: Dreiecke werden in Punkten höchstens so weit auseinander abgetastet.
 const K1_RASTER := 1.0
 
+## Jagdprobe (`jagdfaelle`): wo der Mensch, der durchläuft, slidet und
+## springt – je in der Mitte der Fenster, die die Sprungprobe gemessen hat
+## (P1a: Durchlass −3,75 … −0,5 vor der Stirn, Hürde −2,75 … −1,00 vor der
+## Zone, L1/L5 −1,75 … 0, L2/L3 −2,0 … 0, L4 −1,25 … +0,25 vor der Kante,
+## Wehr im Doppelsprung 281,75 … 284,25).
+const JAGD_SLIDE_VOR := 2.0
+const JAGD_HUERDE_VOR := 2.0
+const JAGD_SPRUNG_VOR := {"L1 Wasserriss": 0.75, "L2 Terrasse": 0.75, "L3 Terrasse": 0.75,
+		"L4 Seitenrinne": 0.5, "L5 Mühlrinne": 0.75}
+const JAGD_WEHR_SPRUNG := 282.75
+const JAGD_DOPPEL_NACH := 0.33
+## Fehler (Entwurf §2.4/§2.5, jagd.py): gehaltene Taste bis Stirn + 6
+## (Messbank l05_messung) – losgelassen spätestens JAGD_LOSLASSEN_VOR vor
+## dem nächsten Slide, sonst krabbelt die Figur weiter und der nächste Slide
+## kommt nie (player.gd: kein Slide aus dem Krabbeln; D3 + 6 = 220 ist genau
+## der Slide vor D4); nach dem Stolpern 0,25 s Reaktion bis zum Slide;
+## Zögern 1,5 m vor der Kante.
+## GEGENPROBE: Der Entwurf (§2.5, jagd.py) rechnete „Stolpern D3 + D4, dazu
+## 0,3 s Zögern vor L5" mit 3,2 m Rest und „drei Fehler je 0,7 s" als
+## gefangen. In der Engine bleibt mehr: Der Slide nach dem Stolpern holt den
+## Vorsprung des Slides doch noch (13,5 gegen 7,4 m/s), jagd.py zog ihn
+## ab. Gemessen (Jagdprobe, Zögern vor L5 nach zwei Stolperern): 0,3 s →
+## 6,66 m, 0,7 s → 3,97 m, 0,8 s → 3,23 m, 0,9 s → 2,49 m, ab 1,0 s
+## gefangen. Die Gegenprobe zögert deshalb JAGD_ZOEGERN_LANG = 1,2 s –
+## sicher über der Schwelle, damit sie wirklich zeigt, dass die Probe einen
+## Fang erkennt.
+const JAGD_HALTEN_BIS := 6.0
+const JAGD_LOSLASSEN_VOR := 0.3
+const JAGD_REAKTION := 0.25
+const JAGD_ZOEGERN := 0.3
+const JAGD_ZOEGERN_LANG := 1.2
+const JAGD_ZOEGERN_VOR := 1.5
+## Am Ufer (Entwurf §5 E): hier stehen bleiben – gefangen; hier über der
+## Lücke gehalten – sicher.
+const JAGD_STEHEN_S := 283.5
+const JAGD_SCHWEBEN_S := 284.5
+## Hier endet ein Lauf (hinter dem Wehr, vor dem Zielportal).
+const JAGD_ENDE_S := 292.0
+## Lauflinie (s, q): in A rechts an den Kisten auf q 0 vorbei, durch das
+## Gatter und über die Grabenrampe (q 3,0–5,5) aus dem Suhlgraben; in der
+## Findlingsgasse rechts an F1 vorbei (frei ab q +0,48 mit der Kapsel),
+## links an F2 (frei bis q −0,48). Gerechnet mit 1,5 m Vorausschau des
+## Lenkers: bei F1 q ≥ 1,4, an der Stirn von F2 q ≤ −1,5.
+const JAGD_SPUR: Array[Vector2] = [
+	Vector2(-10.0, 0.0), Vector2(7.5, 0.0), Vector2(10.5, 4.2), Vector2(28.5, 4.2),
+	Vector2(30.5, 0.0), Vector2(241.0, 0.0), Vector2(242.5, 1.8), Vector2(245.6, 1.8),
+	Vector2(247.6, -1.8), Vector2(252.0, -1.8), Vector2(254.5, 0.0), Vector2(310.0, 0.0),
+]
+
 ## Die Jagd (Modul `L05Jagd`); gesetzt von ihrem Bauschritt.
 var jagd: L05Jagd
+## Körper der Durchlässe in der Reihenfolge von DURCHLAESSE (für den Bruch).
+var durchlass_koerper: Array[StaticBody3D] = []
 ## Meldungen, die nur einmal kommen.
 var _gemeldet := {}
 
@@ -719,13 +790,22 @@ func begehbar(name_: String) -> Dictionary:
 
 
 ## Durchlässe, Hürden, Findlinge als graue Platzhalter in der Form ihrer
-## Körper, ohne Schatten wie das Begehbare (Optik: Paket P5).
+## Körper, ohne Schatten wie das Begehbare (Optik: Paket P5). Jeder
+## Durchlass bekommt dazu seinen Bruch („Bruch", unsichtbar), und sein
+## Körper kommt in `durchlass_koerper`: Dort bricht der Keiler hindurch
+## (L05Jagd, DURCHLASS-BRUCH) – über den Körper, den `duckdurchlass`
+## zurückgibt, ohne das Bauteil zu ändern.
 func _wegbauten_setzen() -> void:
+	durchlass_koerper.clear()
 	for d: Dictionary in DURCHLAESSE:
-		var koerper := duckdurchlass(float(d["s"]), float(d["tiefe"]),
+		var s: float = d["s"]
+		var tiefe: float = d["tiefe"]
+		var koerper := duckdurchlass(s, tiefe,
 				{"stolperzone": L05Jagd.STOLPER_DAUER, "optik": _durchlass_platzhalter})
 		koerper.name = String(d["name"])
+		koerper.add_child(_durchlass_bruch(s, tiefe))
 		_ohne_schatten(koerper)
+		durchlass_koerper.append(koerper)
 	for h: Dictionary in HUERDEN:
 		var koerper := huerde(float(h["s"]), {"stolperzone": L05Jagd.STOLPER_DAUER})
 		koerper.name = String(h["name"])
@@ -782,9 +862,6 @@ func _fruechte_setzen() -> void:
 					frucht_auf(p.x, p.y, p.z)
 
 
-## Rastplatz: eine Zone quer über den Weg (auf der Decke, Breite + 2 m) und
-## ein Pfahl mit leuchtender Laterne am rechten Rand (Platzhalter; der
-## Wegpfahl kommt mit den Wegbauten, P5).
 ## Platzhalter eines Durchlasses nach K5 (Entwurf §7.1, §1 Nr. 2): massiv
 ## nur der Riegel (DUCK_UNTEN bis RIEGEL_OBEN), darüber Latten mit 80 %
 ## offener Fläche, oben eine Kappe bis zur Oberkante des Körpers, außen zwei
@@ -805,19 +882,44 @@ func _durchlass_platzhalter(s: float, tiefe: float) -> Node3D:
 	while q < halb - LATTEN_ABSTAND * 0.5:
 		teile.append(Vector4(q - LATTE * 0.5, q + LATTE * 0.5, RIEGEL_OBEN, KAPPE_UNTEN))
 		q += LATTEN_ABSTAND
+	return _platzhalter_netz("Platzhalter", s, tiefe, teile)
+
+
+## Bruch eines Durchlasses (Platzhalter, Optik: P5): die Pfosten als Stümpfe
+## bis BRUCH_STUMPF, der Riegel in zwei Stücken am Boden, in der Mitte die
+## Bresche des Keilers. Unsichtbar, bis der Keiler hindurchbricht.
+func _durchlass_bruch(s: float, tiefe: float) -> Node3D:
+	var halb := maxf(breite_bei(s), breite_bei(s + tiefe)) * 0.5 + 1.0
+	var teile: Array[Vector4] = [
+		Vector4(-halb, -halb + 0.3, 0.0, BRUCH_STUMPF),
+		Vector4(halb - 0.3, halb, 0.0, BRUCH_STUMPF),
+		Vector4(-halb + 0.4, -BRUCH_BRESCHE, 0.0, BRUCH_RIEGEL),
+		Vector4(BRUCH_BRESCHE, halb - 0.4, 0.0, BRUCH_RIEGEL),
+	]
+	var netz := _platzhalter_netz("Bruch", s, tiefe, teile)
+	netz.visible = false
+	return netz
+
+
+## Graues Netz ohne Schatten aus Quader-Teilen Vector4(q_von, q_bis, unten,
+## oben) über die Tiefe des Durchlasses (Höhen über `boden_bei`).
+func _platzhalter_netz(name_: String, s: float, tiefe: float, teile: Array[Vector4]) -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for t in teile:
 		st.append_from(Wegdaten.schnittnetz(_hindernis_schnitte(s, s + tiefe, t.x, t.y, t.z, t.w)),
 				0, Transform3D.IDENTITY)
 	var netz := MeshInstance3D.new()
-	netz.name = "Platzhalter"
+	netz.name = name_
 	netz.mesh = st.commit()
 	netz.material_override = Materialbibliothek.einfarbig(Color(0.52, 0.52, 0.5))
 	netz.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return netz
 
 
+## Rastplatz: eine Zone quer über den Weg (auf der Decke, Breite + 2 m) und
+## ein Pfahl mit leuchtender Laterne am rechten Rand (Platzhalter; der
+## Wegpfahl kommt mit den Wegbauten, P5).
 func _rastplatz(s: float) -> void:
 	var zone := Area3D.new()
 	zone.name = "Rastplatz %.0f" % s
@@ -860,7 +962,7 @@ func _rastplatz(s: float) -> void:
 func _auf_rastplatz(koerper: Node3D, s: float) -> void:
 	if not koerper is Spieler:
 		return
-	var ort := to_global(weg_punkt(s, 0.0, 0.6))
+	var ort := to_global(weg_punkt(s, 0.0, RASTPLATZ_UEBER))
 	if GameState.checkpoint.distance_to(ort) > 1.0:
 		GameState.setze_checkpoint(ort)
 		GameState.zeige_nachricht("Rastplatz", 1.2)
@@ -1008,6 +1110,153 @@ func sprungfaelle() -> Array[Dictionary]:
 			"ziel": Vector2(stein_s + 3.5, 4.9), "kante": stein_s, "von": stein_s - 0.25,
 			"landung": stein_s + 1.6, "tief_erlaubt": 0.5, "pflicht": false})
 	return faelle
+
+
+## Stirnen der Durchlässe für den Spieltest-Bot (werkzeuge/spieltest.gd,
+## Opt-in): Er tippt Slide davor – sonst liefe er hinein und stolperte.
+func duckstellen() -> Array[float]:
+	var liste: Array[float] = []
+	for d: Dictionary in DURCHLAESSE:
+		liste.append(float(d["s"]))
+	return liste
+
+
+## Lauflinie für den Spieltest-Bot (Opt-in): dieselbe wie die der
+## Jagdprobe – in A rechts an den Kisten vorbei über die Grabenrampe, in der
+## Findlingsgasse rechts an F1, links an F2 vorbei.
+func lauflinie() -> Array[Vector2]:
+	return JAGD_SPUR
+
+
+## Zustand der Jagd für werkzeuge/jagdprobe.gd (`L05Jagd.zustand`).
+func jagd_zustand() -> Dictionary:
+	return jagd.zustand() if jagd != null else {}
+
+
+## Fälle für werkzeuge/jagdprobe.gd (Entwurf §12 P1, §2.5; Schema im Kopf
+## der Probe). Jeder Fall beginnt mit einem Tod: Die Probe setzt den
+## Checkpoint, die Figur stirbt und erscheint dort – genau so stellt das
+## Spiel den Keiler (L05Jagd.nach_tod).
+##   Ideallauf     vom Start bis hinter das Wehr: kein Tod vor CP1, Abstand
+##                 beim Wecken 15, Mindestabstand ≥ 10 (gerechnet 12,8)
+##   Rastplatz s   Respawn: Keiler bei s − 12, Durchlässe dahinter heil,
+##                 3 s weiter ohne Tod
+##   Krabbeln      an jedem Durchlass die Taste gehalten (gerechnet 6,5 m)
+##   Stolpern      an D3 und D4 (gerechnet 5,4 m), dasselbe mit 0,3 s
+##                 Zögern vor L5 (gerechnet 3,2 m)
+##   Gegenprobe    D3 und D4 gestolpert, 1,2 s gezögert vor L5: gefangen
+##                 (siehe JAGD_ZOEGERN_LANG)
+##   Ufer          stehen bei 283,5: gefangen; über der Lücke bei 284,5:
+##                 sicher, 1 s nachdem er am Ufer steht
+##   Ziel          von CP5 ins Zielportal: einmal geschafft, er schnaubt
+##                 weiter
+func jagdfaelle() -> Array[Dictionary]:
+	var anfang := to_global(LevelWerkzeuge.punkt(verlauf, START_S, 0.0, RASTPLATZ_UEBER))
+	var ideal := _jagdlinie({})
+	var faelle: Array[Dictionary] = [
+		{"name": "Ideallauf", "checkpoint": anfang, "rastplatz": START_S, "aktionen": ideal,
+				"spur": JAGD_SPUR, "ende_s": JAGD_ENDE_S, "erwartet": "ueberlebt",
+				"min_abstand": 10.0,
+				"weck_abstand": Vector2(L05Jagd.WECK_S - L05Jagd.SCHLAF_S, 0.2)},
+	]
+	for s in RASTPLAETZE:
+		faelle.append({"name": "Rastplatz %.0f" % s, "checkpoint": _rastplatz_ort(s),
+				"rastplatz": s, "aktionen": ideal, "spur": JAGD_SPUR, "ende_dauer": 3.0,
+				"erwartet": "ueberlebt", "keiler_start": Vector2(s - L05Jagd.VORSPRUNG, 0.1)})
+	var halten := {}
+	for d: Dictionary in DURCHLAESSE:
+		halten[String(d["name"])] = "halten"
+	faelle.append({"name": "Krabbeln an jedem Durchlass", "checkpoint": anfang,
+			"rastplatz": START_S, "aktionen": _jagdlinie(halten), "spur": JAGD_SPUR,
+			"ende_s": JAGD_ENDE_S, "erwartet": "ueberlebt"})
+	var stolpern := {"D3 Fluderjoch": "stolpern", "D4 Fluderjoch": "stolpern"}
+	faelle.append({"name": "Stolpern an D3 und D4", "checkpoint": anfang,
+			"rastplatz": START_S, "aktionen": _jagdlinie(stolpern), "spur": JAGD_SPUR,
+			"ende_s": JAGD_ENDE_S, "erwartet": "ueberlebt", "stolpern": 2})
+	var zoegern := stolpern.duplicate()
+	zoegern["L5 Mühlrinne"] = "zoegern"
+	faelle.append({"name": "Stolpern D3, D4, Zögern L5", "checkpoint": anfang,
+			"rastplatz": START_S, "aktionen": _jagdlinie(zoegern), "spur": JAGD_SPUR,
+			"ende_s": JAGD_ENDE_S, "erwartet": "ueberlebt", "stolpern": 2})
+	var drei := stolpern.duplicate()
+	drei["L5 Mühlrinne"] = "zoegern_lang"
+	faelle.append({"name": "Gegenprobe D3, D4, Zögern 1,2 s", "checkpoint": anfang,
+			"rastplatz": START_S, "aktionen": _jagdlinie(drei), "spur": JAGD_SPUR,
+			"ende_s": JAGD_ENDE_S, "erwartet": "gefangen", "stolpern": 2})
+	var cp5: float = RASTPLAETZE[RASTPLAETZE.size() - 1]
+	faelle.append({"name": "Ufer: Stand bei %.1f" % JAGD_STEHEN_S,
+			"checkpoint": _rastplatz_ort(cp5), "rastplatz": cp5,
+			"aktionen": _jagdlinie({"L6 Wehrbruch": "stehen"}), "spur": JAGD_SPUR,
+			"ende_ufer": 1.0, "erwartet": "gefangen"})
+	faelle.append({"name": "Ufer: über der Lücke bei %.1f" % JAGD_SCHWEBEN_S,
+			"checkpoint": _rastplatz_ort(cp5), "rastplatz": cp5,
+			"aktionen": _jagdlinie({"L6 Wehrbruch": "schweben"}), "spur": JAGD_SPUR,
+			"ende_ufer": 1.0, "erwartet": "ueberlebt"})
+	faelle.append({"name": "Ziel", "checkpoint": _rastplatz_ort(cp5), "rastplatz": cp5,
+			"aktionen": ideal, "spur": JAGD_SPUR, "ende_ziel": 3.0, "erwartet": "ueberlebt"})
+	return faelle
+
+
+func _rastplatz_ort(s: float) -> Vector3:
+	return to_global(weg_punkt(s, 0.0, RASTPLATZ_UEBER))
+
+
+## Die Aktionen eines Laufs, nach `s` sortiert (Schema im Kopf der
+## Jagdprobe). `abw` je Name eines Durchlasses "halten" oder "stolpern", je
+## Lücke "zoegern" oder "zoegern_lang", am Wehr "stehen" oder "schweben";
+## sonst der Ideallauf.
+func _jagdlinie(abw: Dictionary) -> Array[Dictionary]:
+	var aktionen: Array[Dictionary] = []
+	for d: Dictionary in DURCHLAESSE:
+		var name_d: String = d["name"]
+		var stirn: float = d["s"]
+		match String(abw.get(name_d, "")):
+			"halten":
+				aktionen.append({"s": stirn - JAGD_SLIDE_VOR, "tun": "slide_halten",
+						"bis": stirn + JAGD_HALTEN_BIS, "wo": name_d})
+			"stolpern":
+				aktionen.append({"s": stirn - 3.0, "tun": "stolpern", "bis": stirn + 1.0,
+						"reaktion": JAGD_REAKTION, "wo": name_d})
+			_:
+				aktionen.append({"s": stirn - JAGD_SLIDE_VOR, "tun": "slide", "wo": name_d})
+	for h: Dictionary in HUERDEN:
+		var vorn := float(h["s"]) - HUERDE_ZONE_LAENGE * 0.5
+		aktionen.append({"s": vorn - JAGD_HUERDE_VOR, "tun": "sprung", "wo": String(h["name"])})
+	for l: Dictionary in LUECKEN:
+		var name_l: String = l["name"]
+		var kante: float = l["von"]
+		var art := String(abw.get(name_l, ""))
+		if not JAGD_SPRUNG_VOR.has(name_l):
+			# Das Wehr: Doppelsprung, oder davor stehen bleiben bzw. darüber
+			# gehalten werden.
+			match art:
+				"stehen":
+					aktionen.append({"s": JAGD_STEHEN_S, "tun": "stehen", "wo": name_l})
+				"schweben":
+					aktionen.append({"s": kante, "tun": "schweben", "an": JAGD_SCHWEBEN_S,
+							"wo": name_l})
+				_:
+					aktionen.append({"s": JAGD_WEHR_SPRUNG, "tun": "doppel",
+							"nach": JAGD_DOPPEL_NACH, "wo": name_l})
+			continue
+		if art == "zoegern" or art == "zoegern_lang":
+			aktionen.append({"s": kante - JAGD_ZOEGERN_VOR, "tun": "warten",
+					"dauer": JAGD_ZOEGERN if art == "zoegern" else JAGD_ZOEGERN_LANG,
+					"wo": name_l})
+		aktionen.append({"s": kante - float(JAGD_SPRUNG_VOR[name_l]), "tun": "sprung",
+				"wo": name_l})
+	aktionen.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["s"]) < float(b["s"]))
+	# Gehaltene Taste vor dem nächsten Slide loslassen (siehe JAGD_LOSLASSEN_VOR).
+	for i in aktionen.size():
+		if String(aktionen[i]["tun"]) != "slide_halten":
+			continue
+		for k in range(i + 1, aktionen.size()):
+			if String(aktionen[k]["tun"]).begins_with("slide") or String(aktionen[k]["tun"]) == "stolpern":
+				aktionen[i]["bis"] = minf(float(aktionen[i]["bis"]),
+						float(aktionen[k]["s"]) - JAGD_LOSLASSEN_VOR)
+				break
+	return aktionen
 
 
 ## Freiraum über der Kamerabahn (Opt-in "freiraum" in level_check.gd;
