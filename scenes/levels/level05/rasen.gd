@@ -139,11 +139,18 @@ func schluessel() -> String:
 
 
 ## Der Bau in Schritten. „Rasen an der Suhle" lag kalt bei 422 ms (Entwurf
-## §9.4: kein Schritt über 400 ms) – Anlegen und Säen sind getrennt.
+## §9.4: kein Schritt über 400 ms) und danach, vom Anlegen getrennt, noch
+## bei 248–408 ms (P8 und seine Prüfung). Jetzt sät er je Seite einen
+## Schritt, das Anlegen (gut 20 ms) geht mit der linken – so bleibt die Zahl
+## der Schritte und damit der Bilder beim Laden gleich (die Uhr der Shader
+## läuft je Bild weiter; mit einem Schritt mehr wich jedes Foto ab).
+## Reihenfolge der Aufrufe wie vorher in einem Schritt.
 func _bau_schritte() -> Array:
 	return [
-		{"text": "Rasen wird angelegt", "tun": _anlegen},
-		{"text": "Rasen an der Suhle", "tun": _wiese_a},
+		{"text": "Rasen wird angelegt, Suhle links", "tun": func() -> void:
+			_anlegen()
+			_abschnitt_seite(ABSCHNITT_A, -1.0)},
+		{"text": "Rasen an der Suhle rechts", "tun": _wiese_a_rechts},
 		{"text": "Rasen auf den Kronen links", "tun": _kronen.bind(-1.0)},
 		{"text": "Rasen auf den Kronen rechts", "tun": _kronen.bind(1.0)},
 		{"text": "Rasen am Mühlbach", "tun": _wiese_e},
@@ -170,9 +177,10 @@ func _anlegen() -> void:
 
 
 ## A: Decke nach der Wegmaske, Wiese daneben (samt der niedrigen Kronen um
-## die Suhle), Rahmenfarne.
-func _wiese_a() -> void:
-	_abschnitt(ABSCHNITT_A)
+## die Suhle), Rahmenfarne. Die linke Seite sät der Schritt davor
+## (`_abschnitt_seite`), hier die rechte und die Farne.
+func _wiese_a_rechts() -> void:
+	_abschnitt_seite(ABSCHNITT_A, 1.0)
 	for seite: float in [-1.0, 1.0]:
 		bau.rahmenfarne(ABSCHNITT_A.x + 2.0, ABSCHNITT_A.y - 4.0, seite, _farn_stoff)
 
@@ -192,14 +200,19 @@ func _wiese_e() -> void:
 
 func _abschnitt(ab: Vector2) -> void:
 	for seite: float in [-1.0, 1.0]:
-		bau.decke(maxf(ab.x, 0.0), ab.y, seite)
-		var s := ab.x
-		while s < ab.y:
-			# In Stücken, weil die Breite wandert.
-			var rand := level.weg.wegrand(clampf(s, 0.0, Level05.M_ENDE)) + 0.3
-			bau.boden(s, minf(s + KRONE_SCHRITT, ab.y), seite, rand, rand + WIESE_BREITE,
-					WIESE_DICHTE, Rasenbau.Bereich.WIESE)
-			s += KRONE_SCHRITT
+		_abschnitt_seite(ab, seite)
+
+
+## Decke und Wiese einer Seite eines Abschnitts.
+func _abschnitt_seite(ab: Vector2, seite: float) -> void:
+	bau.decke(maxf(ab.x, 0.0), ab.y, seite)
+	var s := ab.x
+	while s < ab.y:
+		# In Stücken, weil die Breite wandert.
+		var rand := level.weg.wegrand(clampf(s, 0.0, Level05.M_ENDE)) + 0.3
+		bau.boden(s, minf(s + KRONE_SCHRITT, ab.y), seite, rand, rand + WIESE_BREITE,
+				WIESE_DICHTE, Rasenbau.Bereich.WIESE)
+		s += KRONE_SCHRITT
 
 
 ## Rasensaum auf den Kronen der Böschung einer Seite (Zug „auf") zwischen A

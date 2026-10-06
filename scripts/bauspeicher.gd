@@ -35,6 +35,12 @@ class_name Bauspeicher
 ##       ist. false: nichts abgelegt (dann gar nicht erst anfragen). Level 05
 ##       lädt so Wald und Rasen (zusammen rund 60 ms von der Platte, Runde 2
 ##       der Bauzeitprobe). Ohne `vorladen` liest `gespeichert()` wie immer.
+##   vorrechnen(schluessel, erzeuger) -> bool / vorrechnen_wert(...)
+##       Rechnet, was noch nicht abgelegt ist, in einem Arbeitsfaden
+##       (WorkerThreadPool) vor, während der Hauptfaden anderes baut; ein
+##       späteres `holen`/`wert` mit demselben Schlüssel nimmt das Ergebnis
+##       und wartet nur, wenn es noch nicht fertig ist. Siehe dort, was ein
+##       solcher Erzeuger darf. Ohne `vorrechnen` rechnet `holen` wie immer.
 ##   an: bool    false = nie lesen, nie schreiben (zum Vergleichen)
 ##
 ## Der SCHLÜSSEL muss alles nennen, wovon das Ergebnis abhängt und was sich
@@ -69,6 +75,12 @@ static var _bereit := false
 static var _nutzbar := false
 ## Pfade, die `vorladen` im Hintergrund angefragt hat.
 static var _vorgeladen := {}
+## false = `vorrechnen` stößt nichts an (zum Vergleichen: Das Ergebnis muss
+## dasselbe sein, nur die Ladezeit nicht).
+static var vorrechnen_an := true
+## Pfade, die `vorrechnen` angestoßen hat: Pfad -> {"aufgabe": Kennung im
+## WorkerThreadPool, "ergebnis": Array, in das der Faden die Ressource legt}.
+static var _im_bau := {}
 
 
 static func holen(schluessel: String, erzeuger: Callable) -> Resource:
@@ -79,7 +91,9 @@ static func holen(schluessel: String, erzeuger: Callable) -> Resource:
 		var geladen := ResourceLoader.load(pfad, "", ResourceLoader.CACHE_MODE_IGNORE)
 		if geladen != null:
 			return geladen
-	var neu: Resource = erzeuger.call()
+	var neu: Resource = _abholen(pfad) if _im_bau.has(pfad) else null
+	if neu == null:
+		neu = erzeuger.call()
 	if neu != null:
 		# Je Prozess eine eigene Zwischendatei: Zwei Spiele (oder Prüfwerk-
 		# zeuge) mit demselben user:// schreiben sich so nicht hinein.
@@ -139,13 +153,81 @@ static func ablegen(schluessel: String, inhalt: Variant) -> void:
 
 
 static func wert(schluessel: String, erzeuger: Callable) -> Variant:
-	var huelle := holen(schluessel, func() -> Resource:
-		var r := Resource.new()
-		r.set_meta("wert", erzeuger.call())
-		return r)
+	var huelle := holen(schluessel, _huelle(erzeuger))
 	if huelle == null or not huelle.has_meta("wert"):
 		return erzeuger.call()
 	return huelle.get_meta("wert")
+
+
+## Der Erzeuger der Hülle, in der `wert` einen Wert ablegt.
+static func _huelle(erzeuger: Callable) -> Callable:
+	return func() -> Resource:
+		var r := Resource.new()
+		r.set_meta("wert", erzeuger.call())
+		return r
+
+
+## Rechnet `erzeuger` in einem Arbeitsfaden vor, wenn unter `schluessel`
+## nichts abgelegt ist (siehe Kopf). true: angestoßen. false: nichts zu tun
+## oder nicht möglich (schon abgelegt oder unterwegs, Speicher aus, keine
+## Fäden) – dann rechnet `holen` wie bisher selbst.
+##
+## WARUM. Kalt rechnet ein Level seine Texturen Bildpunkt für Bildpunkt im
+## Hauptfaden, Schritt für Schritt; die übrigen Kerne stehen still. Was nur
+## aus festen Zahlen entsteht, kann dort schon laufen, bevor der Aufbau es
+## braucht. Level 05 stößt so seine Texturen an, bevor die Figur gebaut
+## wird (`Level05._enter_tree`).
+##
+## Der Erzeuger darf NUR rechnen: Rauschen, Bilder, Arrays, neue
+## Ressourcen. Nichts im Baum, keine statischen Zwischenspeicher, und nichts,
+## was den Grafikserver synchron fragt (`Texture2D.get_image`,
+## `Mesh.surface_get_arrays`): Wartet der Hauptfaden gerade auf diese
+## Aufgabe, kann er die Frage nicht beantworten. Neue Texturen und Stoffe
+## anzulegen ist erlaubt – der Server reiht das nur ein. Das Ergebnis muss
+## dasselbe sein wie im Hauptfaden: derselbe Erzeuger, derselbe Schlüssel.
+static func vorrechnen(schluessel: String, erzeuger: Callable) -> bool:
+	if not vorrechnen_an or not faeden() or not _vorbereiten():
+		return false
+	var pfad := _pfad(schluessel)
+	if _im_bau.has(pfad) or FileAccess.file_exists(pfad):
+		return false
+	var ergebnis := []
+	var aufgabe := WorkerThreadPool.add_task(func() -> void:
+		ergebnis.append(erzeuger.call()), true, "Bauspeicher " + schluessel)
+	_im_bau[pfad] = {"aufgabe": aufgabe, "ergebnis": ergebnis}
+	return true
+
+
+## `vorrechnen` für einen Wert, den später `wert()` abholt.
+static func vorrechnen_wert(schluessel: String, erzeuger: Callable) -> bool:
+	return vorrechnen(schluessel, _huelle(erzeuger))
+
+
+## Laufen Arbeitsfäden wirklich nebenher? Ohne Fäden (Web-Export ohne
+## Fadenunterstützung) rechnet der WorkerThreadPool im aufrufenden Faden –
+## Vorrechnen verlegte die Arbeit dann nur an eine Stelle ohne Ladebalken.
+static func faeden() -> bool:
+	return OS.has_feature("threads") and OS.get_processor_count() > 1
+
+
+## Wartet auf eine angestoßene Rechnung und gibt ihr Ergebnis heraus (null,
+## wenn der Faden nichts geliefert hat – dann rechnet `holen` selbst).
+static func _abholen(pfad: String) -> Resource:
+	var eintrag: Dictionary = _im_bau[pfad]
+	_im_bau.erase(pfad)
+	WorkerThreadPool.wait_for_task_completion(int(eintrag["aufgabe"]))
+	var ergebnis: Array = eintrag["ergebnis"]
+	return ergebnis[0] as Resource if not ergebnis.is_empty() else null
+
+
+## Wartet alle angestoßenen, nicht abgeholten Rechnungen ab und verwirft
+## sie – beim Verlassen eines Levels. Ein Faden, der beim Beenden des Spiels
+## noch Skript rechnet, darf nicht übrig bleiben, und ein nie abgeholtes
+## Ergebnis bliebe sonst bis zum Ende im Speicher.
+static func vorrechnungen_verwerfen() -> void:
+	for pfad: String in _im_bau.keys():
+		WorkerThreadPool.wait_for_task_completion(int((_im_bau[pfad] as Dictionary)["aufgabe"]))
+	_im_bau.clear()
 
 
 static func netz(art: String, argumente: Array, erzeuger: Callable) -> ArrayMesh:

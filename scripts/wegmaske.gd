@@ -112,12 +112,31 @@ static func _sicherstellen() -> void:
 	# Vom `Bauspeicher`, sonst gerechnet (gut 0,1 s). Die CPU-Abfragen
 	# lesen `_daten`, die GPU bekommt eine Kopie mit Mipmaps – beide aus
 	# demselben Bild, so bleiben CPU- und GPU-Maske gleich.
-	_bild = Bauspeicher.holen("wegmaske_welt_%d_%d" % [KANTE, SAAT],
+	_bild = Bauspeicher.holen(_welt_schluessel(),
 			func() -> Image: return _welt_rechnen()) as Image
 	_daten = _bild.get_data()
 	var gpu := _bild.duplicate() as Image
 	gpu.generate_mipmaps()
 	_textur = ImageTexture.create_from_image(gpu)
+
+
+## Rechnet Weltrauschen und Rasen in Arbeitsfäden vor
+## (`Bauspeicher.vorrechnen`), bevor ein Aufbau sie braucht; `textur()` und
+## `rasen_textur()` holen sie dort ab. Ohne diesen Aufruf ändert sich nichts.
+static func vorrechnen() -> void:
+	if _bild == null:
+		Bauspeicher.vorrechnen(_welt_schluessel(), func() -> Image: return _welt_rechnen())
+	if _rasen == null:
+		Bauspeicher.vorrechnen_wert(_rasen_schluessel(),
+				func() -> Dictionary: return _rasen_rechnen())
+
+
+static func _welt_schluessel() -> String:
+	return "wegmaske_welt_%d_%d" % [KANTE, SAAT]
+
+
+static func _rasen_schluessel() -> String:
+	return "wegmaske_rasen_%d_%d" % [RASEN_KANTE, SAAT]
 
 
 ## Das Weltrauschen, Bildpunkt für Bildpunkt (RGBA8, ohne Mipmaps).
@@ -338,7 +357,7 @@ static func rasen_textur() -> ImageTexture:
 		return _rasen
 	# Vom `Bauspeicher`, sonst gerechnet (gut 0,1 s): Bild mit Mipmaps und
 	# die mittlere Farbe, die die CPU-Seite braucht.
-	var paket: Dictionary = Bauspeicher.wert("wegmaske_rasen_%d_%d" % [RASEN_KANTE, SAAT],
+	var paket: Dictionary = Bauspeicher.wert(_rasen_schluessel(),
 			func() -> Dictionary: return _rasen_rechnen())
 	_rasen_mittel = paket["mittel"]
 	_rasen = ImageTexture.create_from_image(paket["bild"] as Image)

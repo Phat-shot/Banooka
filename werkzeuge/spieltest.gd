@@ -285,10 +285,13 @@ func _spiele(nummer: int) -> void:
 		_zurueck_in_den_hub()
 		return
 	_notiz("Level %02d steht (Aufbau %.1f s)" % [nummer, _uhr - start_aufbau])
+	# Hier hat der Zeitmodus seine Uhr gestartet (`Zeitlauf.beginnen` direkt
+	# vor `aufbau_fertig`, der Ladeschirm meldet sich im selben Bild ab).
+	var steht := _uhr
 	await _warte(0.8)
 	await _bild("level%02d_start" % nummer)
 
-	var ergebnis := await _durchlaufen(nummer)
+	var ergebnis := await _durchlaufen(nummer, steht)
 	_ergebnisse.append(ergebnis)
 
 
@@ -332,9 +335,18 @@ func _zurueck_in_den_hub() -> void:
 		Spielfluss.zum_hub()
 
 
-## Läuft ein Level bis zum Ende ab.
-func _durchlaufen(nummer: int) -> Dictionary:
+## Läuft ein Level bis zum Ende ab. `steht`: die Uhr des Bots, als der
+## Aufbau fertig war (für "uhr", siehe Rückgabe).
+func _durchlaufen(nummer: int, steht: float) -> Dictionary:
 	var szene := get_tree().current_scene
+	# Wann das Zielportal auslöst: Dort hält der Zeitmodus seine Uhr an
+	# (`LevelBasis._zeitlauf_werten`), wie das Level am selben Signal.
+	var ziel := [-1.0]
+	for knoten in szene.find_children("*", "", true, false):
+		if knoten.has_signal("level_geschafft"):
+			knoten.connect("level_geschafft", func() -> void:
+				if ziel[0] < 0.0:
+					ziel[0] = _uhr)
 	var verlauf: Curve3D = szene.get("verlauf")
 	if verlauf == null:
 		# Das Flugniveau hat keine Kurve. Messen lässt sich hier nichts,
@@ -453,17 +465,22 @@ func _durchlaufen(nummer: int) -> Dictionary:
 	if stand == "Zeit abgelaufen":
 		_fehler.append("Level %02d: in %.0f s nicht geschafft (bis %.0f von %.0f m)"
 				% [nummer, LEVEL_DAUER, beste, laenge])
-	_notiz("Level %02d: %s, weiteste Stelle %.0f von %.0f m, Tode %d"
-			% [nummer, stand, beste, laenge, tode])
+	var uhr: float = ziel[0] - steht if ziel[0] >= 0.0 else -1.0
+	_notiz("Level %02d: %s, weiteste Stelle %.0f von %.0f m, Tode %d, Uhr %.1f s"
+			% [nummer, stand, beste, laenge, tode, uhr])
 	return {
 		"nummer": nummer, "stand": stand, "weit": beste, "laenge": laenge,
 		"tode": tode, "kisten": GameState.kisten_zerbrochen,
 		"kisten_gesamt": GameState.kisten_gesamt, "fruechte": GameState.fruechte,
-		# Die reine Spielzeit im Level, ohne Aufbau und ohne Portalraum.
-		# Sie ist die einzige Zahl im Projekt, die sagt, wie lange ein
-		# Level WIRKLICH dauert – daraus kommen die Richtzeiten des
-		# Zeitmodus (`LevelBasis.zielzeit()`).
+		# Vom Losgehen des Bots (0,8 s nach dem Aufbau) bis zurück im
+		# Portalraum – samt der Schlussmeldung im Level (4,5 s,
+		# `LevelBasis._auf_level_geschafft`).
 		"dauer": _uhr - start,
+		# Was die Uhr des Zeitmodus zeigte (ohne Zeitkisten): vom fertigen
+		# Aufbau bis zum Zielportal, -1 ohne Ziel. Daraus kommen die
+		# Richtzeiten (`LevelBasis.zielzeit()`) – nicht aus "dauer", die gut
+		# 3,7 s länger ist.
+		"uhr": uhr,
 	}
 
 
@@ -1095,9 +1112,9 @@ func _ende() -> void:
 	print("Gesamtzeit: %.0f s, Tode insgesamt: %d, Bilder: %d" % [_uhr, _tote, _nr])
 	for e in _ergebnisse:
 		if e.has("laenge"):
-			print("Level %02d: %-16s %4.0f / %4.0f m | %5.1f s | Tode %d | Kisten %d/%d | Früchte %d"
+			print("Level %02d: %-16s %4.0f / %4.0f m | %5.1f s | Uhr %5.1f s | Tode %d | Kisten %d/%d | Früchte %d"
 					% [e["nummer"], e["stand"], e["weit"], e["laenge"],
-					float(e.get("dauer", 0.0)), e["tode"],
+					float(e.get("dauer", 0.0)), float(e.get("uhr", -1.0)), e["tode"],
 					e["kisten"], e["kisten_gesamt"], e["fruechte"]])
 		else:
 			print("Level %02d: %s" % [e["nummer"], e["stand"]])

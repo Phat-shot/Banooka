@@ -153,16 +153,24 @@ var _letzt_sq := Vector2.ZERO
 
 ## Bauschritte: Das Modell entsteht sofort (der Saum und spätere Pakete lesen
 ## `hoehe`), das Feld in den Schritten von `GelaendeBau`. Der Stoff geht leer
-## hinein und wird im ersten Schritt gefüllt (Level05, Kopf: STOFFE) – auch
-## vor „Der Hang wird geladen".
-static func bauschritte(level_: Level05) -> Array:
+## hinein und wird gefüllt, bevor das Feld Netze bekommt (Level05, Kopf:
+## STOFFE): im Schritt vor dem letzten von `GelaendeBau` („Der Hang bekommt
+## Farbe", warm „Der Hang wird geladen"). Davor stehen die Schritte
+## `texturen` (Löss, Wegmaske), die der Stoff braucht. WARUM so spät: Die
+## Texturen rechnen kalt in Arbeitsfäden (`Level05._enter_tree`); Vermessen
+## und Triangulieren brauchen sie nicht und überbrücken die Wartezeit.
+static func bauschritte(level_: Level05, texturen: Array = []) -> Array:
 	var g := L05Gelaende.new(level_)
 	level_.gelaende = g
 	var stoff := ShaderMaterial.new()
-	var schritte: Array = [{"text": "Waldboden und Fels für den Hang", "tun": func() -> void:
-		stoff_uebertragen(stoff, GelaendeBau.stoff(thema()))}]
-	schritte.append_array(GelaendeBau.schritte(level_.geometrie, GelaendeBau.schluessel("l05"),
-			g._feld_anlegen, stoff, "Der Hang", g._vorbereiten))
+	var schritte: Array = GelaendeBau.schritte(level_.geometrie, GelaendeBau.schluessel("l05"),
+			g._feld_anlegen, stoff, "Der Hang", g._vorbereiten)
+	var vorher := texturen.duplicate()
+	vorher.append({"text": "Waldboden und Fels für den Hang", "tun": func() -> void:
+		stoff_uebertragen(stoff, GelaendeBau.stoff(thema()))})
+	var letzter: Variant = schritte.pop_back()
+	schritte.append_array(vorher)
+	schritte.append(letzter)
 	return schritte
 
 

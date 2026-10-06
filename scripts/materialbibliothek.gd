@@ -28,6 +28,15 @@ class_name Materialbibliothek
 ## ihrer Struktur, statt je Variante eine Kopie mitzuschleppen.
 
 static var _cache: Dictionary = {}
+## Was `vorrechnen` im Hintergrund bauen kann: Schlüssel in `_cache` ->
+## Erzeuger. Nur Erzeuger, die allein rechnen (keine Zwischenspeicher, kein
+## `_hole` darin – siehe `Bauspeicher.vorrechnen`).
+static var _vorrechenbar := {
+	"waldweg": _baue_waldweg, "waldboden": _baue_waldboden, "fels": _baue_fels,
+	"wurzelfels": _baue_wurzelfels, "pfuetze": _baue_pfuetze, "rinde": _baue_rinde,
+	"struktur_holz": _baue_holz_struktur, "struktur_metall": _baue_metall_struktur,
+	"struktur_laub": _baue_laub_struktur,
+}
 
 const _B := 1.0 / 255.0   ## Byte -> 0..1
 
@@ -39,14 +48,34 @@ const _B := 1.0 / 255.0   ## Byte -> 0..1
 static func _hole(schluessel: String, erzeuger: Callable, platte: bool = false) -> Variant:
 	if not _cache.has(schluessel):
 		if platte:
-			_cache[schluessel] = Bauspeicher.wert("mb_" + schluessel, func() -> Variant:
-				var neu: Variant = erzeuger.call()
-				if neu is Dictionary:
-					(neu as Dictionary)["schluessel"] = schluessel
-				return neu)
+			_cache[schluessel] = Bauspeicher.wert("mb_" + schluessel,
+					_platten_erzeuger(schluessel, erzeuger))
 		else:
 			_cache[schluessel] = erzeuger.call()
 	return _cache[schluessel]
+
+
+## Was `_hole` mit `platte` im Bauspeicher ablegt: das Ergebnis des
+## Erzeugers, eine Struktur mit ihrem Schlüssel.
+static func _platten_erzeuger(schluessel: String, erzeuger: Callable) -> Callable:
+	return func() -> Variant:
+		var neu: Variant = erzeuger.call()
+		if neu is Dictionary:
+			(neu as Dictionary)["schluessel"] = schluessel
+		return neu
+
+
+## Rechnet Texturen vor, bevor der Aufbau sie braucht
+## (`Bauspeicher.vorrechnen`): Was noch nicht auf der Platte liegt, entsteht
+## in einem Arbeitsfaden, und der spätere Aufruf (`waldweg()`, `kistenholz()`
+## …) holt es dort ab – dasselbe Material, nur früher fertig. Ohne diesen
+## Aufruf ändert sich nichts. Namen wie in `_vorrechenbar`.
+static func vorrechnen(namen: Array[String]) -> void:
+	for name in namen:
+		if _cache.has(name) or not _vorrechenbar.has(name):
+			continue
+		Bauspeicher.vorrechnen_wert("mb_" + name,
+				_platten_erzeuger(name, _vorrechenbar[name] as Callable))
 
 
 ## Farbbild einer Variante: vom Speicher, sonst `erzeuger`. Der Schlüssel
@@ -567,9 +596,11 @@ static func _baue_frostgestein() -> StandardMaterial3D:
 ## Gleicher Bau wie das Frostgestein, nur in Erdtönen: In den Vorlagen
 ## ist der Waldgrund warm und satt, das Grün sitzt obenauf und am Rand.
 static func wurzelfels() -> StandardMaterial3D:
-	return _hole("wurzelfels", func() -> StandardMaterial3D:
-		return _baue_bandfels(6305, Farben.SCHLUCHTFELS_WALD,
-				Farben.SCHLUCHTFELS_WALD_HELL, 0.32), true)
+	return _hole("wurzelfels", _baue_wurzelfels, true)
+
+
+static func _baue_wurzelfels() -> StandardMaterial3D:
+	return _baue_bandfels(6305, Farben.SCHLUCHTFELS_WALD, Farben.SCHLUCHTFELS_WALD_HELL, 0.32)
 
 
 ## Moosnarbe für den Schluchtrand im Wald.
@@ -1588,55 +1619,58 @@ static func laub(farbe: Color = Farben.LAUB) -> StandardMaterial3D:
 
 
 static func _laub_struktur() -> Dictionary:
-	return _hole("struktur_laub", func() -> Dictionary:
-		var k := 192
-		var blatt_w := _zellen(7701, 0.11, k, FastNoiseLite.RETURN_CELL_VALUE, 16.0)
-		var blatt_k := _zellen(7701, 0.11, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 16.0)
-		var buschel := _zellen(7702, 0.038, k, FastNoiseLite.RETURN_CELL_VALUE, 18.0)
-		var gross := _fbm(7703, 0.024, 3, k)
-		var fein := _fbm(7704, 0.28, 2, k)
+	return _hole("struktur_laub", _baue_laub_struktur, true)
 
-		var mix := PackedByteArray()
-		mix.resize(k * k)
-		var mult := PackedByteArray()
-		mult.resize(k * k)
-		var akzent := PackedByteArray()
-		akzent.resize(k * k)
-		var hoehe := PackedByteArray()
-		hoehe.resize(k * k)
-		var rau := PackedByteArray()
-		rau.resize(k * k)
-		var ao := PackedByteArray()
-		ao.resize(k * k)
 
-		for i in k * k:
-			var bw := blatt_w[i] * _B
-			var bk := blatt_k[i] * _B
-			var bu := buschel[i] * _B
-			var f := fein[i] * _B
+static func _baue_laub_struktur() -> Dictionary:
+	var k := 192
+	var blatt_w := _zellen(7701, 0.11, k, FastNoiseLite.RETURN_CELL_VALUE, 16.0)
+	var blatt_k := _zellen(7701, 0.11, k, FastNoiseLite.RETURN_DISTANCE2_SUB, 16.0)
+	var buschel := _zellen(7702, 0.038, k, FastNoiseLite.RETURN_CELL_VALUE, 18.0)
+	var gross := _fbm(7703, 0.024, 3, k)
+	var fein := _fbm(7704, 0.28, 2, k)
 
-			# Blattkörper hell, Zwischenräume dunkel
-			var koerper := clampf(bk * 2.6, 0.0, 1.0)
-			var t := clampf(0.40 * koerper + 0.24 * bw + 0.20 * bu
-					+ 0.16 * gross[i] * _B, 0.0, 1.0)
-			t = clampf((t - 0.14) * 1.45, 0.0, 1.0)
-			# einzelne Blätter stehen im Schatten der darüberliegenden
-			var schatten := 1.0 - 0.20 * clampf((0.34 - bk) * 3.0, 0.0, 1.0)
+	var mix := PackedByteArray()
+	mix.resize(k * k)
+	var mult := PackedByteArray()
+	mult.resize(k * k)
+	var akzent := PackedByteArray()
+	akzent.resize(k * k)
+	var hoehe := PackedByteArray()
+	hoehe.resize(k * k)
+	var rau := PackedByteArray()
+	rau.resize(k * k)
+	var ao := PackedByteArray()
+	ao.resize(k * k)
 
-			var hh := clampf(0.18 + 0.56 * koerper + 0.16 * bu + 0.14 * f, 0.0, 1.0)
-			mix[i] = int(t * 255.0)
-			mult[i] = int(schatten * 255.0)
-			akzent[i] = int(clampf((bw - 0.76) * 3.6, 0.0, 1.0) * 0.65 * 255.0)
-			hoehe[i] = int(hh * 255.0)
-			rau[i] = int(clampf(0.94 - 0.22 * t, 0.4, 1.0) * 255.0)
-			ao[i] = int((0.84 + 0.16 * hh) * 255.0)
+	for i in k * k:
+		var bw := blatt_w[i] * _B
+		var bk := blatt_k[i] * _B
+		var bu := buschel[i] * _B
+		var f := fein[i] * _B
 
-		return {
-			"kante": k, "mix": mix, "mult": mult,
-			"akzent": akzent, "akzent_farbe": Farben.LAUB_GELB,
-			"normal": _normal_aus_hoehe(hoehe, k, 1.2), "normal_skala": 0.55,
-			"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
-		}, true)
+		# Blattkörper hell, Zwischenräume dunkel
+		var koerper := clampf(bk * 2.6, 0.0, 1.0)
+		var t := clampf(0.40 * koerper + 0.24 * bw + 0.20 * bu
+				+ 0.16 * gross[i] * _B, 0.0, 1.0)
+		t = clampf((t - 0.14) * 1.45, 0.0, 1.0)
+		# einzelne Blätter stehen im Schatten der darüberliegenden
+		var schatten := 1.0 - 0.20 * clampf((0.34 - bk) * 3.0, 0.0, 1.0)
+
+		var hh := clampf(0.18 + 0.56 * koerper + 0.16 * bu + 0.14 * f, 0.0, 1.0)
+		mix[i] = int(t * 255.0)
+		mult[i] = int(schatten * 255.0)
+		akzent[i] = int(clampf((bw - 0.76) * 3.6, 0.0, 1.0) * 0.65 * 255.0)
+		hoehe[i] = int(hh * 255.0)
+		rau[i] = int(clampf(0.94 - 0.22 * t, 0.4, 1.0) * 255.0)
+		ao[i] = int((0.84 + 0.16 * hh) * 255.0)
+
+	return {
+		"kante": k, "mix": mix, "mult": mult,
+		"akzent": akzent, "akzent_farbe": Farben.LAUB_GELB,
+		"normal": _normal_aus_hoehe(hoehe, k, 1.2), "normal_skala": 0.55,
+		"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
+	}
 
 
 ## Kistenholz: sichtbare Bretter mit dunklen Fugen und Maserung, die
@@ -1653,75 +1687,78 @@ static func kistenholz(farbe: Color = Farben.HOLZ) -> StandardMaterial3D:
 
 
 static func _holz_struktur() -> Dictionary:
-	return _hole("struktur_holz", func() -> Dictionary:
-		var k := 256
-		var maser := _gestreckt(8801, 0.085, 3, k, 6, 1)
-		var maser_fein := _gestreckt(8802, 0.30, 2, k, 8, 1)
-		var welle := _gestreckt(8803, 0.030, 2, k, 3, 1)
-		var fein := _fbm(8804, 0.45, 2, k)
-		var ast_d := _zellen(8805, 0.045, k, FastNoiseLite.RETURN_DISTANCE)
-		var ast_w := _zellen(8805, 0.045, k, FastNoiseLite.RETURN_CELL_VALUE)
+	return _hole("struktur_holz", _baue_holz_struktur, true)
 
-		var bretter := 4.0
-		var mix := PackedByteArray()
-		mix.resize(k * k)
-		var mult := PackedByteArray()
-		mult.resize(k * k)
-		var hoehe := PackedByteArray()
-		hoehe.resize(k * k)
-		var rau := PackedByteArray()
-		rau.resize(k * k)
-		var ao := PackedByteArray()
-		ao.resize(k * k)
 
-		var i := 0
-		for y in k:
-			var v := float(y) / float(k)
-			var lage := v * bretter
-			var brett := lage - floorf(lage)
-			# weiche Fugenkanten oben und unten am Brett
-			var kante := minf(brett, 1.0 - brett) * bretter
-			var fugenmix := clampf(1.0 - kante * 5.0, 0.0, 1.0)
-			var randschatten := clampf(1.0 - kante * 1.6, 0.0, 1.0)
-			for x in k:
-				var mf := maser_fein[i] * _B
-				var f := fein[i] * _B
+static func _baue_holz_struktur() -> Dictionary:
+	var k := 256
+	var maser := _gestreckt(8801, 0.085, 3, k, 6, 1)
+	var maser_fein := _gestreckt(8802, 0.30, 2, k, 8, 1)
+	var welle := _gestreckt(8803, 0.030, 2, k, 3, 1)
+	var fein := _fbm(8804, 0.45, 2, k)
+	var ast_d := _zellen(8805, 0.045, k, FastNoiseLite.RETURN_DISTANCE)
+	var ast_w := _zellen(8805, 0.045, k, FastNoiseLite.RETURN_CELL_VALUE)
 
-				# Maserungslinien: Gratfunktion über das längs gestreckte Rauschen
-				var linie := 1.0 - absf((maser[i] * _B * 0.72
-						+ welle[i] * _B * 0.28) * 2.0 - 1.0)
-				linie = linie * linie
-				var t := clampf(0.52 * (1.0 - linie) + 0.28 * mf + 0.20 * f, 0.0, 1.0)
-				t = clampf((t - 0.20) * 1.7, 0.0, 1.0)
-				var hh := 0.42 + 0.34 * t + 0.16 * f
-				var ro := 0.86 - 0.14 * t
-				var mu := 1.0 - 0.26 * randschatten
+	var bretter := 4.0
+	var mix := PackedByteArray()
+	mix.resize(k * k)
+	var mult := PackedByteArray()
+	mult.resize(k * k)
+	var hoehe := PackedByteArray()
+	hoehe.resize(k * k)
+	var rau := PackedByteArray()
+	rau.resize(k * k)
+	var ao := PackedByteArray()
+	ao.resize(k * k)
 
-				# Astloch
-				var ad := ast_d[i] * _B
-				if ad < 0.20 and ast_w[i] > 183:
-					var a := clampf((0.20 - ad) * 8.0, 0.0, 1.0)
-					mu *= 1.0 - 0.62 * a - 0.2 * (1.0 - absf(a * 2.0 - 1.0))
-					hh -= 0.20 * a
+	var i := 0
+	for y in k:
+		var v := float(y) / float(k)
+		var lage := v * bretter
+		var brett := lage - floorf(lage)
+		# weiche Fugenkanten oben und unten am Brett
+		var kante := minf(brett, 1.0 - brett) * bretter
+		var fugenmix := clampf(1.0 - kante * 5.0, 0.0, 1.0)
+		var randschatten := clampf(1.0 - kante * 1.6, 0.0, 1.0)
+		for x in k:
+			var mf := maser_fein[i] * _B
+			var f := fein[i] * _B
 
-				# Brettfuge: nahezu schwarz, damit die Bretter einzeln ablesbar sind
-				if fugenmix > 0.0:
-					mu *= 1.0 - 0.82 * fugenmix
-					hh -= 0.42 * fugenmix
-					ro += 0.10 * fugenmix
+			# Maserungslinien: Gratfunktion über das längs gestreckte Rauschen
+			var linie := 1.0 - absf((maser[i] * _B * 0.72
+					+ welle[i] * _B * 0.28) * 2.0 - 1.0)
+			linie = linie * linie
+			var t := clampf(0.52 * (1.0 - linie) + 0.28 * mf + 0.20 * f, 0.0, 1.0)
+			t = clampf((t - 0.20) * 1.7, 0.0, 1.0)
+			var hh := 0.42 + 0.34 * t + 0.16 * f
+			var ro := 0.86 - 0.14 * t
+			var mu := 1.0 - 0.26 * randschatten
 
-				mix[i] = int(t * 255.0)
-				mult[i] = int(clampf(mu, 0.0, 1.0) * 255.0)
-				hoehe[i] = int(clampf(hh, 0.0, 1.0) * 255.0)
-				rau[i] = int(clampf(ro, 0.35, 1.0) * 255.0)
-				ao[i] = int((0.40 + 0.60 * clampf(hh, 0.0, 1.0)) * 255.0)
-				i += 1
+			# Astloch
+			var ad := ast_d[i] * _B
+			if ad < 0.20 and ast_w[i] > 183:
+				var a := clampf((0.20 - ad) * 8.0, 0.0, 1.0)
+				mu *= 1.0 - 0.62 * a - 0.2 * (1.0 - absf(a * 2.0 - 1.0))
+				hh -= 0.20 * a
 
-		return {
-			"kante": k, "mix": mix, "mult": mult,
-			"normal": _normal_aus_hoehe(hoehe, k, 3.2), "normal_skala": 1.6,
-			"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
-		}, true)
+			# Brettfuge: nahezu schwarz, damit die Bretter einzeln ablesbar sind
+			if fugenmix > 0.0:
+				mu *= 1.0 - 0.82 * fugenmix
+				hh -= 0.42 * fugenmix
+				ro += 0.10 * fugenmix
+
+			mix[i] = int(t * 255.0)
+			mult[i] = int(clampf(mu, 0.0, 1.0) * 255.0)
+			hoehe[i] = int(clampf(hh, 0.0, 1.0) * 255.0)
+			rau[i] = int(clampf(ro, 0.35, 1.0) * 255.0)
+			ao[i] = int((0.40 + 0.60 * clampf(hh, 0.0, 1.0)) * 255.0)
+			i += 1
+
+	return {
+		"kante": k, "mix": mix, "mult": mult,
+		"normal": _normal_aus_hoehe(hoehe, k, 3.2), "normal_skala": 1.6,
+		"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
+	}
 
 
 ## Metall: gebürstete Streifen, leichte Rostflecken. Rost ist matt und
@@ -1773,72 +1810,75 @@ static func _metall_faerben_rechnen(struktur: Dictionary, farbe: Color) -> Image
 
 
 static func _metall_struktur() -> Dictionary:
-	return _hole("struktur_metall", func() -> Dictionary:
-		var k := 192
-		var strich := _gestreckt(9901, 0.55, 2, k, 10, 1)
-		var strich2 := _gestreckt(9902, 0.20, 2, k, 12, 1)
-		var rostn := _fbm(9903, 0.030, 4, k, 20.0)
-		var fein := _fbm(9904, 0.40, 2, k)
+	return _hole("struktur_metall", _baue_metall_struktur, true)
 
-		var r0 := Farben.ROST
-		var r1 := Farben.ROST_HELL
 
-		var mix := PackedByteArray()
-		mix.resize(k * k)
-		var mult := PackedByteArray()
-		mult.resize(k * k)
-		var rost := PackedByteArray()
-		rost.resize(k * k)
-		var rostfarbe := PackedByteArray()
-		rostfarbe.resize(k * k * 3)
-		var hoehe := PackedByteArray()
-		hoehe.resize(k * k)
-		var rau := PackedByteArray()
-		rau.resize(k * k)
-		var met := PackedByteArray()
-		met.resize(k * k)
-		var ao := PackedByteArray()
-		ao.resize(k * k)
+static func _baue_metall_struktur() -> Dictionary:
+	var k := 192
+	var strich := _gestreckt(9901, 0.55, 2, k, 10, 1)
+	var strich2 := _gestreckt(9902, 0.20, 2, k, 12, 1)
+	var rostn := _fbm(9903, 0.030, 4, k, 20.0)
+	var fein := _fbm(9904, 0.40, 2, k)
 
-		var j := 0
-		for i in k * k:
-			var f := fein[i] * _B
-			var t := clampf(0.58 * strich[i] * _B + 0.30 * strich2[i] * _B
-					+ 0.12 * f, 0.0, 1.0)
-			t = clampf((t - 0.24) * 1.85, 0.0, 1.0)
-			var hh := 0.42 + 0.42 * t + 0.16 * f
-			var ro := 0.28 + 0.22 * (1.0 - t)
-			var mt := 1.0
+	var r0 := Farben.ROST
+	var r1 := Farben.ROST_HELL
 
-			var rk := clampf((rostn[i] * _B - 0.66) * 3.6, 0.0, 1.0)
-			if rk > 0.0:
-				var rn := 0.35 + 0.75 * f
-				ro += (0.94 - ro) * rk
-				mt -= 0.85 * rk
-				hh += 0.14 * rk * f
-			rostfarbe[j] = int(clampf(r0.r + (r1.r - r0.r) * (0.35 + 0.75 * f),
-					0.0, 1.0) * 255.0)
-			rostfarbe[j + 1] = int(clampf(r0.g + (r1.g - r0.g) * (0.35 + 0.75 * f),
-					0.0, 1.0) * 255.0)
-			rostfarbe[j + 2] = int(clampf(r0.b + (r1.b - r0.b) * (0.35 + 0.75 * f),
-					0.0, 1.0) * 255.0)
-			j += 3
+	var mix := PackedByteArray()
+	mix.resize(k * k)
+	var mult := PackedByteArray()
+	mult.resize(k * k)
+	var rost := PackedByteArray()
+	rost.resize(k * k)
+	var rostfarbe := PackedByteArray()
+	rostfarbe.resize(k * k * 3)
+	var hoehe := PackedByteArray()
+	hoehe.resize(k * k)
+	var rau := PackedByteArray()
+	rau.resize(k * k)
+	var met := PackedByteArray()
+	met.resize(k * k)
+	var ao := PackedByteArray()
+	ao.resize(k * k)
 
-			mix[i] = int(t * 255.0)
-			mult[i] = 255
-			rost[i] = int(rk * 255.0)
-			hoehe[i] = int(clampf(hh, 0.0, 1.0) * 255.0)
-			rau[i] = int(clampf(ro, 0.1, 1.0) * 255.0)
-			met[i] = int(clampf(mt, 0.0, 1.0) * 255.0)
-			ao[i] = int((0.66 + 0.34 * clampf(hh, 0.0, 1.0)) * 255.0)
+	var j := 0
+	for i in k * k:
+		var f := fein[i] * _B
+		var t := clampf(0.58 * strich[i] * _B + 0.30 * strich2[i] * _B
+				+ 0.12 * f, 0.0, 1.0)
+		t = clampf((t - 0.24) * 1.85, 0.0, 1.0)
+		var hh := 0.42 + 0.42 * t + 0.16 * f
+		var ro := 0.28 + 0.22 * (1.0 - t)
+		var mt := 1.0
 
-		return {
-			"kante": k, "mix": mix, "mult": mult,
-			"rost": rost, "rostfarbe": rostfarbe,
-			"normal": _normal_aus_hoehe(hoehe, k, 1.1), "normal_skala": 0.8,
-			"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
-			"metall": _grautextur(met, k),
-		}, true)
+		var rk := clampf((rostn[i] * _B - 0.66) * 3.6, 0.0, 1.0)
+		if rk > 0.0:
+			var rn := 0.35 + 0.75 * f
+			ro += (0.94 - ro) * rk
+			mt -= 0.85 * rk
+			hh += 0.14 * rk * f
+		rostfarbe[j] = int(clampf(r0.r + (r1.r - r0.r) * (0.35 + 0.75 * f),
+				0.0, 1.0) * 255.0)
+		rostfarbe[j + 1] = int(clampf(r0.g + (r1.g - r0.g) * (0.35 + 0.75 * f),
+				0.0, 1.0) * 255.0)
+		rostfarbe[j + 2] = int(clampf(r0.b + (r1.b - r0.b) * (0.35 + 0.75 * f),
+				0.0, 1.0) * 255.0)
+		j += 3
+
+		mix[i] = int(t * 255.0)
+		mult[i] = 255
+		rost[i] = int(rk * 255.0)
+		hoehe[i] = int(clampf(hh, 0.0, 1.0) * 255.0)
+		rau[i] = int(clampf(ro, 0.1, 1.0) * 255.0)
+		met[i] = int(clampf(mt, 0.0, 1.0) * 255.0)
+		ao[i] = int((0.66 + 0.34 * clampf(hh, 0.0, 1.0)) * 255.0)
+
+	return {
+		"kante": k, "mix": mix, "mult": mult,
+		"rost": rost, "rostfarbe": rostfarbe,
+		"normal": _normal_aus_hoehe(hoehe, k, 1.1), "normal_skala": 0.8,
+		"rau": _grautextur(rau, k), "ao": _grautextur(ao, k),
+		"metall": _grautextur(met, k),
+	}
 
 
 ## Fell des Beuteldachses – feine Haarstruktur mit Strähnen.

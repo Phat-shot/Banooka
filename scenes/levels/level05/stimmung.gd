@@ -19,8 +19,14 @@ class_name L05Stimmung
 ##   des Bildes und die Tiefe hangauf. Sättigung 1,0 (vorher 1,25), Kontrast
 ##   1,06, Glow 0,5 ab 1,0. `Bildrahmen` 0,32 in einem warmen Schwarz
 ##   (0,05/0,03/0,02). Dazu `horizont()` als grober Ring (`_horizont`).
-## * SONNE: 26° hoch, 35° rechts hinter der Kamera (Licht fällt nach
+## * SONNE: 26° hoch, rechts hinter der Kamera (Licht fällt nach
 ##   (0,52/−0,44/0,74): hangauf und nach q > 0), warm (1,0/0,80/0,56).
+##   Sie steht fest in der Welt, die Laufrichtung dreht sich unter ihr: 35°
+##   zur Laufrichtung bei s 0–30 und 180, 26–27° bei s 90–120, 40° bei
+##   s 240–270 (gerechnet aus KURVE, Tangente über ±1 m; Spanne 26–41°).
+##   Die 30–40° des Entwurfs (§8.3) hält keine feste Richtung über die
+##   ganze Strecke (die Spanne ist 14° breit); auf allen Fotostellen liegt
+##   der Weg im Licht.
 ##   Rechts (q < 0) liegen Wand und Bach im Schatten, links der Sonnenhang
 ##   im Licht. Schatten ORTHOGONAL (eine Stufe, 70 m) statt zwei Stufen:
 ##   Die tiefe Sonne hinter der Kamera zieht Schattenwerfer hinter der
@@ -78,7 +84,12 @@ class_name L05Stimmung
 ##   auf, wenn der Keiler erwacht (`L05Jagd.schlaeft`): Sie steigen in
 ##   KRAEHEN_DAUER um KRAEHEN_HUB, kreisen schneller und schlagen heftiger.
 ##   Schläft er wieder (Tod vor dem ersten Rastplatz), sitzen sie wieder im
-##   Kreis über der Krone.
+##   Kreis über der Krone. Der Flügelschlag springt dabei EINMAL um, statt
+##   mitzugleiten: Der Shader rechnet die Phase als TIME × `schlag_tempo`
+##   (voegel.gd), und TIME zählt seit dem Start des Spiels. Ein gleitendes
+##   Tempo ergäbe die Frequenz tempo + TIME · d(tempo)/dt – nach 40 s Spiel
+##   bis 40 Hz, die Flügel sprängen beim Auffliegen wild. Ein Sprung kostet
+##   einen einzigen Phasensprung, wie ein Vogel, der aufschreckt.
 ##
 ## KLANG (§8.4, §9.3, Jury JT19): die Mühle als Schleife (`Klang`, „muehle")
 ## auf einem eigenen `AudioStreamPlayer` – `Klang.spiele` spielt nicht
@@ -164,8 +175,8 @@ const NEBEL_SAAT := 5801
 
 ## Krähen über der Eiche: so hoch über der Mitte der Kerbe kreisen sie, so
 ## weit, so viele; beim Wecken steigen sie in KRAEHEN_DAUER s um KRAEHEN_HUB
-## m, und Umlauf (U/min) und Flügelschlag (je s) gehen von ruhig auf
-## aufgeschreckt.
+## m, der Umlauf (U/min) geht von ruhig auf aufgeschreckt, der Flügelschlag
+## (je s) springt sofort um (siehe Kopf, BEWEGUNG).
 const KRAEHEN_UEBER := 7.0
 const KRAEHEN_RADIUS := 9.0
 const KRAEHEN_ANZAHL := 2
@@ -420,7 +431,8 @@ func _process(delta: float) -> void:
 
 
 ## Auffliegen beim Wecken, Rückkehr, wenn er wieder schläft (siehe Kopf).
-## Schreibt nur, wenn sich etwas geändert hat.
+## Höhe und Umlauf gleiten, der Flügelschlag springt beim ersten Bild nach
+## dem Wecken bzw. Einschlafen um. Schreibt nur, wenn sich etwas geändert hat.
 func _kraehen_regeln(delta: float) -> void:
 	if kraehen == null:
 		return
@@ -428,14 +440,17 @@ func _kraehen_regeln(delta: float) -> void:
 	_flug = minf(_flug + delta / KRAEHEN_DAUER, 1.0) if wach else 0.0
 	if _flug == _flug_gesetzt:
 		return
+	var umschlag := (_flug > 0.0) != (_flug_gesetzt > 0.0)
 	_flug_gesetzt = _flug
 	var t := smoothstep(0.0, 1.0, _flug)
 	kraehen.position.y = _kraehen_y + KRAEHEN_HUB * t
 	kraehen.umdrehungen_je_minute = lerpf(KRAEHEN_UMLAUF.x, KRAEHEN_UMLAUF.y, t)
+	if not umschlag:
+		return
 	var kreisel := kraehen.get_node_or_null("Kreisel") as MultiMeshInstance3D
 	if kreisel != null and kreisel.material_override is ShaderMaterial:
 		(kreisel.material_override as ShaderMaterial).set_shader_parameter("schlag_tempo",
-				lerpf(KRAEHEN_SCHLAG.x, KRAEHEN_SCHLAG.y, t))
+				KRAEHEN_SCHLAG.y if _flug > 0.0 else KRAEHEN_SCHLAG.x)
 
 
 ## Lautstärke der Mühle nach dem Abstand der Figur zum Rad (siehe Kopf).

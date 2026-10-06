@@ -61,16 +61,18 @@ class_name Level05
 ## räumt das Level die Zwischenspeicher von `Wegdecke` und `GelaendeSaum`.
 ##
 ## STOFFE. Gelände und Saum bekommen ihren Stoff beim Zusammenstellen der
-## Schritte LEER und füllen ihn in ihrem ersten Schritt
-## (`L05Gelaende.stoff_uebertragen`); die Texturen der Bibliothek entstehen
-## davor in eigenen Schritten (wie L01Saum). WARUM: `GelaendeBau.schritte`
-## und `Kanten.linien_schritte` nehmen den Stoff beim Zusammenstellen an.
-## Mit fertigen Stoffen dauerte „Bauschritte zusammenstellen" kalt 1252 ms
+## Schritte LEER und füllen ihn in einem eigenen Schritt
+## (`L05Gelaende.stoff_uebertragen`): der Saum in seinem ersten, das Gelände
+## erst vor seinen Netzen; die Texturen der Bibliothek entstehen davor in
+## eigenen Schritten (wie L01Saum). WARUM: `GelaendeBau.schritte` und
+## `Kanten.linien_schritte` nehmen den Stoff beim Zusammenstellen an. Mit
+## fertigen Stoffen dauerte „Bauschritte zusammenstellen" kalt 1252 ms
 ## (gemessen, ohne Kopf; P1b: 3,6 ms) – die Texturen von Erde, Waldboden,
 ## Fels, Sandstein, Wegmaske und Rasen in einem Bild, Entwurf §9.4: kein
-## Schritt über 400 ms. Der Löss (`Materialbibliothek.waldweg`) allein
-## braucht kalt rund 480 ms und lässt sich ohne geteilten Code nicht teilen
-## (in P1b steckte er in „Der Hohlweg wird gelegt", 623 ms).
+## Schritt über 400 ms. Kalt rechnen diese Texturen seit den Mängeln von P8
+## in Arbeitsfäden (`_enter_tree`, `Bauspeicher.vorrechnen`); vorher lag
+## der Löss (`Materialbibliothek.waldweg`) allein bei 490–580 ms in seinem
+## Schritt.
 ##
 ## PROBEN (Opt-in, je im Kopf des Werkzeugs beschrieben): `pruefprofil`,
 ## `freiraumprobe` und `wasser_zonenprobe` (LevelCheck), `sprungfaelle` (Sprungprobe), `jagdfaelle`
@@ -653,14 +655,24 @@ const GEHEIMNISSE := [
 const SICHTWEITEN := {"kiste": 50.0, "frucht": 40.0, "kiste_web": 40.0, "frucht_web": 35.0}
 
 ## Richtzeit des Zeitmodus (Entwurf §6.6), von Hand gesetzt wie in Level 06
-## (level06.gd, `zielzeit`): 1,3 × die gemessene Zeit des Spieltest-Bots,
-## auf ganze Sekunden gerundet. Die abgeleitete Formel der Basis
-## (296 / 8,5 × 2,8 ≈ 97 s) schenkte hier jede Stufe. Gemessen (Paket P8,
-## werkzeuge/spieltest.sh, TEST_LEVEL=5, Bild für Bild mit 60 Hz): Der Bot
-## lief das Level ohne Tod, mit zwei Stolperern, in 40,7 s (wie in P1b:
-## 40,7 und 40,8 s in Echtzeit). 1,3 × 40,7 = 52,9 → 53 s; Gold (85 %)
-## 45,05 s, Platin (72 %) 38,16 s – Ideallauf ohne Zeitkisten ≈ 34,4 s.
-const ZIELZEIT := 53.0
+## (level06.gd, `zielzeit`): 1,3 × die Zeit des Spieltest-Bots, auf ganze
+## Sekunden gerundet. Die abgeleitete Formel der Basis (296 / 8,5 × 2,8
+## ≈ 97 s) schenkte hier jede Stufe.
+##
+## BOT-ZEIT ist, was die Uhr des Zeitmodus zeigt: vom fertigen Aufbau bis
+## zum Zielportal (`Zeitlauf.beginnen` … `beenden`), im Spieltest "uhr".
+## Gemessen (werkzeuge/spieltest.sh, TEST_LEVEL=5, Bild für Bild mit 60 Hz,
+## zwei Läufe gleich): ohne Tod, mit zwei Stolperern, 37,0 s. P8 nahm
+## stattdessen die "dauer" des Spieltests, 40,7 s – die läuft erst 0,8 s
+## nach dem Aufbau los und enthält die 4,5 s Schlussmeldung im Level; mit
+## 53 s holte schon der Bot mit zwei Stolperern und ohne Zeitkiste Platin.
+##
+## 1,3 × 37,0 = 48,1 → 48 s: Gold (85 %) 40,8 s, Platin (72 %) 34,56 s.
+## Ideallauf ohne Zeitkisten ≈ 34,4 s (§6.6: A 2,7 s + ab dem Wecken
+## 30,95 s laut Jagdprobe + 0,8 s). Saphir also für jeden Überlebenden mit
+## ein, zwei Fehlern, Gold für einen sauberen Lauf, Platin nur fast perfekt
+## oder mit ein, zwei Zeitkisten (je 1–3 s) – wie §6.6 es will.
+const ZIELZEIT := 48.0
 
 # =========================================================== Proben
 
@@ -771,6 +783,8 @@ var abendlicht: L05Stimmung
 var saum_flaechen := {}
 ## Die geglättete Decke als Tabelle (`decke_glatt`), angelegt mit dem Verlauf.
 var _glatt := PackedFloat32Array()
+## Sind die Texturen angestoßen (`_enter_tree`)?
+var _vorgerechnet := false
 
 
 func ende() -> float:
@@ -783,6 +797,37 @@ func absturz_hoehe() -> float:
 
 
 # =========================================================== Aufbau
+
+## Texturen der Bibliothek, die das Level kalt in Arbeitsfäden vorrechnet
+## (siehe `_enter_tree`), in der Reihenfolge, in der der Aufbau sie braucht:
+## Löss, dann Wegmaske und Rasen (`Wegmaske.vorrechnen`), dann diese.
+const VORRECHNEN_ERST: Array[String] = ["waldweg"]
+const VORRECHNEN_DANN: Array[String] = ["waldboden", "fels", "wurzelfels", "pfuetze",
+		"rinde", "struktur_holz", "struktur_metall", "struktur_laub"]
+
+
+## Stößt die Texturen an, bevor der Aufbau beginnt (`Bauspeicher.vorrechnen`).
+## `_enter_tree` läuft vor dem `_ready` der Kinder – die Fäden rechnen also
+## schon, während die Figur gebaut wird, und danach, während der Hang
+## vermessen und trianguliert wird (`L05Gelaende.bauschritte`); die
+## Schritte, die sie brauchen, holen sie fertig ab.
+##
+## WARUM. Kalt (erstes Laden nach jeder Codeänderung) rechnete der
+## Hauptfaden diese Texturen Bildpunkt für Bildpunkt in den Schritten:
+## gemessen 1,6 s, der Löss allein 0,55 s in einem Schritt (Entwurf §9.4:
+## kein Schritt über 400 ms). Sie hängen nur von festen Zahlen ab; geteilt
+## werden konnte der Löss ohne Eingriff in den geteilten Code nicht.
+## Liegen sie im Bauspeicher, stößt das hier nichts an. Was nie abgeholt
+## wird, wartet das Level beim Verlassen ab (`vorrechnungen_verwerfen`).
+func _enter_tree() -> void:
+	if _vorgerechnet:
+		return
+	_vorgerechnet = true
+	Materialbibliothek.vorrechnen(VORRECHNEN_ERST)
+	Wegmaske.vorrechnen()
+	Materialbibliothek.vorrechnen(VORRECHNEN_DANN)
+	tree_exiting.connect(Bauspeicher.vorrechnungen_verwerfen, CONNECT_ONE_SHOT)
+
 
 ## Gerüst nach Entwurf §9.4: Hang (Gelände), Hohlweg (Decke, Kollision,
 ## Lippen), Böschungen, Stufen und Ufer (Saum), Suhle, Bach und Mühlbach
@@ -798,15 +843,16 @@ func _bauschritte() -> Array:
 	tree_exiting.connect(func() -> void:
 		Wegdecke.vergessen(WEG_SCHLUESSEL)
 		GelaendeSaum.vergessen(), CONNECT_ONE_SHOT)
-	# Zuerst die Texturen der Bibliothek, die Decke, Gelände und Saum teilen
-	# (siehe STOFFE im Kopf).
-	var schritte: Array = [
+	# Die Texturen der Bibliothek, die Decke, Gelände und Saum teilen, in
+	# eigenen Schritten vor dem ersten Stoff, der sie braucht: dem des Hangs
+	# (siehe STOFFE im Kopf und `L05Gelaende.bauschritte`).
+	var texturen: Array = [
 		{"text": "Löss wird gesiebt", "tun": func() -> void: Materialbibliothek.waldweg()},
 		{"text": "Spur und Rasen werden ausgelegt", "tun": func() -> void:
 			Wegmaske.textur()
 			Wegmaske.rasen_textur()},
 	]
-	schritte.append_array(L05Gelaende.bauschritte(self))
+	var schritte: Array = L05Gelaende.bauschritte(self, texturen)
 	schritte.append({"text": "Der Hohlweg wird gelegt", "tun": _weg_bauen})
 	schritte.append_array(L05Saum.bauschritte(self))
 	schritte.append_array(L05Wasser.bauschritte(self))
