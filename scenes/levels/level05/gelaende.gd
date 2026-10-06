@@ -8,8 +8,9 @@ class_name L05Gelaende
 ## bildlinks):
 ## * Talboden: die geglättete Decke (`Level05.decke_glatt`); das Tal fällt
 ##   mit dem Weg von 26 auf 2 m.
-## * Kuppe: um die Eiche (s −6) r 40 m, 3 m hoch – ihr Scheitel trägt den
-##   Fuß der Eiche auf Y 27 (Entwurf §8.2). Hinter ihr ein flacher Sattel,
+## * Kuppe: um s −6 (`Level05.EICHE`) r 40 m, 3 m hoch, Scheitel auf Y 27
+##   (Entwurf §8.2); die Eiche steht 3,5 m dahinter auf ihrem Rücken
+##   (`L05Eiche`, Kopf: ABWEICHUNGEN). Hinter ihr ein flacher Sattel,
 ##   dann ein Kamm (SUEDKAMM), der das Tal oben schließt: Ohne ihn zeigte
 ##   der Himmel vom Start aus unter dem Horizont seine Bodenfarbe (Jury
 ##   JT10, Weltkante). Er steht vom Start aus 3° über dem Horizont, von unten

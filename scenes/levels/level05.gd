@@ -20,10 +20,10 @@ class_name Level05
 ##
 ## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Gebaut sind der
 ## ROHBAU (Pakete P1a/P1b: Verlauf, Weg, Bauteile, Spielobjekte, Jagd und
-## Proben, voll spielbar) und der BODEN (P3: Wegdecke mit Lippen, Gelände,
-## Saum). Eiche, Wegbauten-Optik, Wasser, Wald, Rasen und Stimmung folgen in
-## eigenen Paketen; bis dahin stehen die Bauteile als graue Platzhalter in
-## der Form ihrer Kollision.
+## Proben, voll spielbar), der BODEN (P3: Wegdecke mit Lippen, Gelände,
+## Saum) und die EICHE (P4). Wegbauten-Optik, Wasser, Wald, Rasen und
+## Stimmung folgen in eigenen Paketen; bis dahin stehen die Bauteile als
+## graue Platzhalter in der Form ihrer Kollision.
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
@@ -35,8 +35,9 @@ class_name Level05
 ## MODULE unter `scenes/levels/level05/`, je eine Klasse mit
 ## `bauschritte(level: Level05)`: `L05Gelaende` (Hang, Kuppe, Kamm,
 ## Mühlwiese; P3), `L05Saum` (Lösswände, Ufer, Wehrwände, Stirnen und
-## Setzstufen; P3) und `L05Jagd` (der Keiler: Schlaf, Wecken, Jagd, Hopser,
-## Durchlass-Bruch und Heilen, Ufer; P1b).
+## Setzstufen; P3), `L05Eiche` (die gespaltene Hauereiche hinter dem Start,
+## nah und fern, mit eigenem Nebel; P4) und `L05Jagd` (der Keiler: Schlaf,
+## Wecken, Jagd, Hopser, Durchlass-Bruch und Heilen, Ufer; P1b).
 ##
 ## BODEN (P3, Entwurf §5, §8, §9.2–9.4). Die Wegdecke trägt den Stoff aus
 ## `Wegdecke` (Waldweg in Löss, `wegdecke_thema`), an L1–L6 vier bis sechs
@@ -61,8 +62,9 @@ class_name Level05
 ##
 ## PROBEN (Opt-in, je im Kopf des Werkzeugs beschrieben): `pruefprofil` und
 ## `freiraumprobe` (LevelCheck), `sprungfaelle` (Sprungprobe), `jagdfaelle`
-## und `jagd_zustand` (Jagdprobe), `duckstellen` und `lauflinie` (Spieltest-
-## Bot), `pruefruhe`, `foto_stelle`.
+## und `jagd_zustand` (Jagdprobe), `wahrzeichen` und `wahrzeichen_strecke`
+## (Wahrzeichenprobe), `duckstellen` und `lauflinie` (Spieltest-Bot),
+## `pruefruhe`, `foto_stelle`.
 ##
 ## KOORDINATEN wie überall: `s` Strecke auf dem Verlauf (3D-Bogenlänge),
 ## `q` quer dazu (positiv = rechts in Laufrichtung, im Rückblick also
@@ -160,6 +162,16 @@ class_name Level05
 ##   * K1 tastet nur Dreiecke ab, die den freien Raum erreichen können
 ##     (K1_WEIT): Gelände und Saum hätten die Probe sonst um Minuten
 ##     verlängert, ohne ein anderes Ergebnis zu liefern.
+##   P4 (Eiche, Einzelheiten im Kopf von `L05Eiche`):
+##   * Die Stammachse steht bei s −9,5 statt −6 (Fuß und Brettwurzeln
+##     reichten sonst über die Querwand auf den Startboden); die Kuppe des
+##     Geländes bleibt bei EICHE["s"] = −6.
+##   * Die Kerbe ist 9,0 statt 7 m breit: 7 m wären im Schlussbild 13,4
+##     statt der verlangten 16 Bildpunkte.
+##   * Die Kronen sitzen an Ästen, ihre Mitten bei Y 52,5 statt ≈ 55. K3
+##     prüft weiter die Kronen aus EICHE, die gebauten die
+##     Wahrzeichenprobe. K1 lässt die Eiche aus (sie steht vor s 0, wo K1
+##     nichts prüft); so bleibt das Protokoll des LevelChecks gleich.
 
 const M_ENDE := 300.0
 ## Bis hier reicht die Kurve: Die Kamera steht 21 m weiter auf dem Verlauf
@@ -446,9 +458,12 @@ const DECKE_GLATT := 8.0
 const GLATT_VON := -60.0
 const GLATT_BIS := 460.0
 const GLATT_SCHRITT := 0.5
-## Die Hauereiche (Entwurf §8.2; die Optik baut Paket P4). Hier nur, was
-## Gelände und Freiraumprobe (K3) brauchen: Ort des Fußes auf der Kuppe und
-## die beiden Schirmkronen als Vector3(q, Y der Mitte, Radius).
+## Die Hauereiche nach dem Entwurf (§8.2): Kuppe des Geländes (s, Y ihres
+## Scheitels) und die beiden Schirmkronen als Vector3(q, Y der Mitte,
+## Radius) – für Gelände und Freiraumprobe (K3). Gebaut wird sie in
+## `L05Eiche`, mit der Stammachse 3,5 m weiter hinten (L05Eiche.STAMM_S)
+## und den Kronen an Ästen; ihre wirklichen Kronen prüft die
+## Wahrzeichenprobe (`wahrzeichen`).
 const EICHE := {"s": -6.0, "boden_y": 27.0,
 		"kronen": [Vector3(-11.0, 55.0, 7.5), Vector3(11.0, 55.0, 7.5)]}
 
@@ -698,6 +713,9 @@ var durchlass_koerper: Array[StaticBody3D] = []
 var _gemeldet := {}
 ## Das Gelände (Modul `L05Gelaende`); gesetzt von seinem ersten Bauschritt.
 var gelaende: L05Gelaende
+## Die Hauereiche (Modul `L05Eiche`); gesetzt beim Zusammenstellen der
+## Schritte, gebaut in ihrem Schritt.
+var eiche: L05Eiche
 ## Die geglättete Decke als Tabelle (`decke_glatt`), angelegt mit dem Verlauf.
 var _glatt := PackedFloat32Array()
 
@@ -714,9 +732,9 @@ func absturz_hoehe() -> float:
 # =========================================================== Aufbau
 
 ## Gerüst nach Entwurf §9.4: Hang (Gelände), Hohlweg (Decke, Kollision,
-## Lippen), Böschungen, Stufen und Ufer (Saum), Wegbauten, Spiel, Keiler.
-## Was ein späteres Paket baut (Wasser, Eiche, Wald, Rasen, Licht), fehlt
-## noch; die Reihenfolge der übrigen Schritte bleibt.
+## Lippen), Böschungen, Stufen und Ufer (Saum), die Hauereiche, Wegbauten,
+## Spiel, Keiler. Was ein späteres Paket baut (Wasser, Wald, Rasen, Licht),
+## fehlt noch; die Reihenfolge der übrigen Schritte bleibt.
 func _bauschritte() -> Array:
 	_verlauf_anlegen()
 	# Beim Verlassen räumen (Baukasten §0 Nr. 3): Die Stoffe der Wegdecke
@@ -736,6 +754,7 @@ func _bauschritte() -> Array:
 	schritte.append_array(L05Gelaende.bauschritte(self))
 	schritte.append({"text": "Der Hohlweg wird gelegt", "tun": _weg_bauen})
 	schritte.append_array(L05Saum.bauschritte(self))
+	schritte.append_array(L05Eiche.bauschritte(self))
 	schritte.append_array([
 		{"text": "Wurzelbögen und Hürden", "tun": _wegbauten_setzen},
 		{"text": "Kisten, Früchte, Rastplätze", "tun": _spiel_setzen},
@@ -1367,6 +1386,23 @@ func pruefprofil() -> Dictionary:
 	return {"sicht": true, "todeszonen": true, "rand": true, "freiraum": true}
 
 
+## Probepunkte des Wahrzeichens für `werkzeuge/wahrzeichenprobe.gd`
+## (Entwurf §11 Nr. 7, §7.1 K3; P4): je Krone und für die Kerbe ein Eintrag
+## {"name", "punkte"} in Weltkoordinaten, die Kerbe dazu mit "kanten" (die
+## innersten Ecken der Kronen). Aus der gebauten Eiche (`L05Eiche`); vor
+## ihrem Bauschritt leer.
+func wahrzeichen() -> Array[Dictionary]:
+	if eiche == null:
+		var leer: Array[Dictionary] = []
+		return leer
+	return eiche.wahrzeichen()
+
+
+## Stellen der Wahrzeichenprobe: vom Start bis zum Ziel (Entwurf P4).
+func wahrzeichen_strecke() -> Vector2:
+	return Vector2(START_S, ZIEL_S)
+
+
 ## Hält an, was von selbst läuft: den Keiler (L05Jagd, Ruhestellung).
 func pruefruhe() -> void:
 	if jagd != null:
@@ -1739,6 +1775,11 @@ func _freiraum_k1() -> Dictionary:
 		for knoten in wurzel.find_children("*", "GeometryInstance3D", true, false):
 			var g := knoten as GeometryInstance3D
 			if not g.is_visible_in_tree() or _k1_spielobjekt(g) != null:
+				continue
+			# Die Eiche steht vor dem Kurvenanfang, wo K1 nichts prüft
+			# (`_k1_pruefen`: s ≤ 0) – ihre Dreiecke nur abzutasten, hieße
+			# Zeit und änderte die Zählung im Protokoll.
+			if eiche != null and eiche.wurzel != null and eiche.wurzel.is_ancestor_of(g):
 				continue
 			var dreiecke := PackedVector3Array()
 			if g is MeshInstance3D and (g as MeshInstance3D).mesh != null:

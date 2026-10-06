@@ -167,6 +167,29 @@ FEHLER Jagdprobe Level${NR} ohne Schlusszeile"
 	fi
 done
 
+# Wahrzeichen (Entwurf L05 §11 Nr. 7, P4): Stehen die Kronen der Eiche an
+# mindestens 70 % der Stellen frei im Bild – gegen Gelände, Saum und (ab
+# P7) Wald, also gegen das, was wirklich gezeichnet wird? Opt-in: nur
+# Level, deren Skript `wahrzeichen()` anbietet (heute Level 05). WARUM
+# hier: Jedes spätere Paket stellt Bäume, Wände und Bauten in den Hang, und
+# eines davon könnte die Eiche still zudecken. Rund 10 s je Level.
+WAHRZEICHEN=""
+for NR in ${NUMMERN//,/ }; do
+	SKRIPT="$ZIEL/scenes/levels/level${NR}.gd"
+	[ -f "$SKRIPT" ] && grep -q "^func wahrzeichen()" "$SKRIPT" || continue
+	TEIL="$(timeout 600 "$GODOT" --headless --path "$ZIEL" \
+		res://werkzeuge/Wahrzeichenprobe.tscn -- "res://scenes/levels/Level${NR}.tscn" 2>&1 \
+		| grep -Ev "$RAUSCHEN")"
+	WAHRZEICHEN="$WAHRZEICHEN
+$TEIL"
+	echo "$TEIL" | grep -E "Kerbe bei|ohne freie|FEHLER|SCRIPT ERROR|=== Wahrzeichenprobe"
+	if ! echo "$TEIL" | grep -qE "=== Wahrzeichenprobe .*: [0-9]+ von [0-9]+ Stellen"; then
+		WAHRZEICHEN="$WAHRZEICHEN
+FEHLER Wahrzeichenprobe Level${NR} ohne Schlusszeile"
+		echo "FEHLER Wahrzeichenprobe Level${NR} ohne Schlusszeile"
+	fi
+done
+
 # Wegmaske (Level 01): Rechnen CPU und GPU dieselbe Maske? Die Konstanten
 # prüft Stufe 3; hier wird die Maske wirklich gezeichnet und ausgelesen –
 # das geht nur mit einem Renderer, also über xvfb-run wie foto.sh. Ohne
@@ -192,6 +215,7 @@ if [ -n "$IMPORT" ] || echo "$SZENEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$MASKE" | grep -qE "ABWEICHUNG|SCRIPT ERROR|ABBRUCH" \
 		|| echo "$SPRUNG" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| echo "$JAGD" | grep -qE "FEHLER|SCRIPT ERROR" \
+		|| echo "$WAHRZEICHEN" | grep -qE "FEHLER|SCRIPT ERROR" \
 		|| ! echo "$GLATT" | grep -qE "=== 0 Abweichungen"; then
 	echo "ERGEBNIS: FEHLER GEFUNDEN"
 	exit 1

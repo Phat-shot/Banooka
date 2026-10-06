@@ -66,6 +66,26 @@ const KACHEL_V := 0.35
 ## Zahl der Winkel, an denen `fuss_radien` den Umriss am Boden meldet.
 const FUSS_WINKEL := 48
 
+## SPALTFLÄCHE (Option "spalt", für die gespaltene Hauereiche in Level 05,
+## Entwurf L05 §8.2): Wo ein Stamm aufgerissen ist, liegt das Holz frei –
+## hell, silbergrau verwittert, mit Fasern längs. Die Ecken eines Rings, die
+## vor einer Ebene liegen, werden auf sie gedrückt (der Ring wird ein „D")
+## und tragen statt Borke den Holzton (UV2.x = EIGEN, wie Pilze und
+## Bruchflächen). WARUM so und nicht als eigene Fläche auf der Borke: Zwei
+## Flächen übereinander flimmern, und auf 300 m (Schlussbild, `far` 380)
+## trennt der Tiefenpuffer nur noch rund 0,1 m. NULL-PFAD: Ohne die Option
+## läuft keine Zeile anders und kein Zufallszug kommt hinzu – die Töne der
+## Fläche kommen aus dem Rauschen, nicht aus `rng`; Shader und Stoffe
+## bleiben, wie sie sind. Gemessen (P4): Alle 107 Optionssätze, die
+## Werkstatt und Level 01 (74) und die Propschau (33) beim Bauen an `netz`
+## übergeben, liefern Bit für Bit dieselben Felder und Metadaten wie vorher;
+## der Portalraum ruft `netz` nicht auf (nur `borkenstoff`).
+const SPALT_FARBE := Color(0.44, 0.4, 0.33)
+## Über diesen Anteil der Höhe läuft die Fläche an `spalt_von` und
+## `spalt_bis` aus (Tiefe 0 → voll): ein Riss, der sich schließt, statt
+## einer Stufe in der Borke.
+const SPALT_AUSLAUF := 0.12
+
 
 # ================================================================ Bauer
 
@@ -112,6 +132,14 @@ static func fertig(st: SurfaceTool) -> ArrayMesh:
 ##   ast_steil        Steigung der Äste in rad (0.75)
 ##   oben             "offen" (in der Krone), "spitz" oder "bruch"
 ##   schlicht         8 Ecken, keine Rippen, kein Beiwerk (für Fernreihen)
+##   spalt            Spaltfläche: Vector2 (x, z), die Richtung, in die sie
+##                    schaut (Länge egal). Vorgabe Vector2.ZERO = keine –
+##                    siehe `_spalt_tiefe`
+##   spalt_tiefe      wie tief sie in den Stamm schneidet, Anteil des
+##                    Radius (0.4)
+##   spalt_von, spalt_bis   über welchen Anteil der Höhe sie läuft (0, 1);
+##                    an beiden Enden läuft sie über SPALT_AUSLAUF aus
+##   spalt_farbe      Ton des verwitterten Holzes (SPALT_FARBE)
 ##   saat             feste Saat (1)
 ##
 ## Metadaten am Netz: "ast_spitzen" (PackedVector3Array, samt Leittrieb als
@@ -339,6 +367,10 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 	var ast_laenge: float = o.get("ast_laenge", hoehe * 0.28)
 	var ast_steil: float = o.get("ast_steil", 0.75)
 	var oben: String = o.get("oben", "offen")
+	var spalt: Vector2 = o.get("spalt", Vector2.ZERO)
+	var spalt_an := spalt != Vector2.ZERO
+	if spalt_an:
+		spalt = spalt.normalized()
 	if schlicht_:
 		rippen = 0
 		pilze = 0
@@ -445,6 +477,15 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 				y_ecke += zacke * radius_oben
 				r *= lerpf(0.98, 0.72, zacke)
 			var p := mitte + Vector3(cos(winkel) * r, y_ecke - yy, -sin(winkel) * r)
+			# Spaltfläche (siehe SPALT_FARBE): Ecken vor der Ebene auf sie.
+			var im_spalt := false
+			if spalt_an:
+				var tief := _spalt_tiefe(yy / hoehe, o)
+				var vor := (cos(winkel) * spalt.x - sin(winkel) * spalt.y) * r
+				var ebene := r0 * (1.0 - tief)
+				if tief > 0.0 and vor > ebene:
+					p -= Vector3(spalt.x, 0.0, spalt.y) * (vor - ebene)
+					im_spalt = true
 			zeile.append(p)
 			uv.append(Vector2(float(j) / float(seiten) * float(n_u), y_ecke * KACHEL_V * kachel))
 			var ao := _fuss_ao(yy, radius)
@@ -458,8 +499,12 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 			m += 0.3 * rauschen.get_noise_3d(p.x * 0.9, p.y * 0.5, p.z * 0.9)
 			m *= moos
 			var nord := moos * (1.0 - smoothstep(0.5, maxf(2.5, hoehe * 0.45), yy))
-			fa.append(Color(ao, ao, ao, clampf(m, 0.0, 1.0)))
-			ar.append(Vector2(BORKE, nord))
+			if im_spalt:
+				fa.append(_spalt_ton(p, spalt, o, rauschen))
+				ar.append(Vector2(EIGEN, 0.0))
+			else:
+				fa.append(Color(ao, ao, ao, clampf(m, 0.0, 1.0)))
+				ar.append(Vector2(BORKE, nord))
 		zeilen.append(zeile)
 		uvs.append(uv)
 		farben.append(fa)
@@ -625,6 +670,30 @@ static func _fuss_ao(y: float, radius: float) -> float:
 	var band := 1.2 + radius * 0.1
 	return lerpf(0.35, 1.0, smoothstep(0.0, band, y)) \
 			* lerpf(0.82, 1.0, smoothstep(band, band * 2.5, y))
+
+
+## Tiefe der Spaltfläche (Anteil des Radius) beim Höhenanteil `t`: zwischen
+## `spalt_von` und `spalt_bis` voll, an beiden Enden über SPALT_AUSLAUF
+## ausgeblendet, sonst 0.
+static func _spalt_tiefe(t: float, o: Dictionary) -> float:
+	var von: float = o.get("spalt_von", 0.0)
+	var bis: float = o.get("spalt_bis", 1.0)
+	var tiefe: float = o.get("spalt_tiefe", 0.4)
+	return tiefe * smoothstep(von, von + SPALT_AUSLAUF, t) \
+			* (1.0 - smoothstep(bis - SPALT_AUSLAUF, bis, t))
+
+
+## Holzton einer Ecke auf der Spaltfläche: verwittert silbergrau, längs
+## gefasert (das Rauschen quer gestaucht, längs gestreckt), hier und da ein
+## dunkler Riss. Moos wächst dort nicht (Alpha 0).
+static func _spalt_ton(p: Vector3, spalt: Vector2, o: Dictionary,
+		rauschen: FastNoiseLite) -> Color:
+	var farbe: Color = o.get("spalt_farbe", SPALT_FARBE)
+	var quer := p.x * spalt.y - p.z * spalt.x
+	var faser := rauschen.get_noise_2d(quer * 5.0, p.y * 0.25)
+	var riss := rauschen.get_noise_2d(quer * 3.0 + 40.0, p.y * 0.12)
+	var hell := (0.86 + 0.22 * faser) * (0.5 if riss > 0.42 else 1.0)
+	return Color(farbe.r * hell, farbe.g * hell, farbe.b * hell, 0.0)
 
 
 ## Anschwellen des Stamms zu den Wurzeln hin.
