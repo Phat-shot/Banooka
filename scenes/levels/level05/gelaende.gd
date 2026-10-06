@@ -237,11 +237,18 @@ func sicht_oberkante(x: float, z: float) -> float:
 
 
 ## (s, q) eines Weltpunkts (Level-Koordinaten).
+##
+## Erste Schätzung über z (die Kurve läuft überall nach −Z), dann Newton auf
+## der Tangente: höchstens 14 Schritte, Schluss bei einem Schritt unter
+## 5 mm, danach Punkt und Tangente an der letzten Stelle. Punkt und Tangente
+## stehen hier ausgeschrieben, mit genau den Rechnungen von `_punkt` und
+## `_tangente` (dieselben Vector2, also dieselbe Rundung) und einmal je
+## Stelle statt zweimal: Die Projektion läuft beim kalten Bau rund 160 000
+## Mal (Gelände, Rasen, Wald), zwei Aufrufe je Schritt kosteten dort gut
+## ein Drittel ihrer Zeit (Paket P8, Bauzeit). Das Ergebnis ist bitgleich.
 func projektion(x: float, z: float) -> Vector2:
 	if x == _letzt.x and z == _letzt.y:
 		return _letzt_sq
-	# Erste Schätzung über z (die Kurve läuft überall nach −Z), dann Newton
-	# auf der Tangente.
 	var lo := 0
 	var hi := _anzahl - 1
 	while hi - lo > 1:
@@ -251,15 +258,24 @@ func projektion(x: float, z: float) -> Vector2:
 		else:
 			hi = mitte
 	var s := S_MIN + S_SCHRITT * float(lo)
-	for _k in 14:
-		var c := _punkt(s)
-		var t := _tangente(s)
+	var letzt := float(_anzahl - 1)
+	var i_max := _anzahl - 2
+	var c := Vector2.ZERO
+	var t := Vector2.ZERO
+	var schritte := 0
+	var fertig := false
+	while true:
+		var f := clampf((s - S_MIN) / S_SCHRITT, 0.0, letzt)
+		var i := mini(floori(f), i_max)
+		var u := f - float(i)
+		c = Vector2(lerpf(_px[i], _px[i + 1], u), lerpf(_pz[i], _pz[i + 1], u))
+		t = Vector2(lerpf(_tx[i], _tx[i + 1], u), lerpf(_tz[i], _tz[i + 1], u)).normalized()
+		if fertig:
+			break
 		var ds := (x - c.x) * t.x + (z - c.y) * t.y
 		s = clampf(s + ds, S_MIN, S_MAX)
-		if absf(ds) < 0.005:
-			break
-	var c := _punkt(s)
-	var t := _tangente(s)
+		schritte += 1
+		fertig = absf(ds) < 0.005 or schritte >= 14
 	# Rechts = (−t.z, t.x) (wie LevelWerkzeuge: q > 0 rechts in Laufrichtung)
 	var q := (x - c.x) * -t.y + (z - c.y) * t.x
 	_letzt = Vector2(x, z)

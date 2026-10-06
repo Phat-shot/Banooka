@@ -40,6 +40,12 @@ const SPIELERGRENZE := LevelWerkzeuge.SPIELERGRENZE
 
 var verlauf: Curve3D
 var abschnitte: Array[Dictionary] = []
+## Suchtabellen für `abschnitt_bei` (`_suche_vorbereiten`).
+var _suche_von := PackedFloat64Array()
+var _suche_bis := PackedFloat64Array()
+var _suche_linear := false
+var _suche_erster := {}
+var _suche_letzter := {}
 var begehbares: Array[Dictionary] = []
 var leitlinien: Array[Dictionary] = []
 var todeszonen: Array[Dictionary] = []
@@ -63,14 +69,57 @@ func _init(kurve: Curve3D, daten: Dictionary) -> void:
 
 # =========================================================== Abfragen
 #
-# Wörtlich wie level01.gd:1382-1640 (Rechenweg und Reihenfolge).
+# Wörtlich wie level01.gd:1382-1640 (Rechenweg und Reihenfolge). Einzige
+# Ausnahme: `abschnitt_bei` sucht halbiert statt linear (dieselbe Antwort,
+# siehe dort).
 
 ## Der Abschnitt, der `s` enthält, oder {} in einer Lücke.
 func abschnitt_bei(s: float) -> Dictionary:
-	for a: Dictionary in abschnitte:
-		if s >= float(a["von"]) and s <= float(a["bis"]):
-			return a
+	_suche_vorbereiten()
+	if _suche_linear:
+		for a: Dictionary in abschnitte:
+			if s >= float(a["von"]) and s <= float(a["bis"]):
+				return a
+		return {}
+	# Der erste Abschnitt mit von ≤ s ≤ bis – wie die Schleife oben, aber
+	# halbiert: Sind die Abschnitte nach `von` geordnet und überlappen nicht
+	# (`_suche_vorbereiten` prüft das), ist er der erste, dessen `bis` ≥ s
+	# ist, falls dessen `von` ≤ s. Auf einer Naht (bis des einen = von des
+	# nächsten) ist das der vordere, wie bei der Schleife.
+	var lo := 0
+	var hi := _suche_bis.size()
+	while lo < hi:
+		var mitte := (lo + hi) >> 1
+		if _suche_bis[mitte] < s:
+			lo = mitte + 1
+		else:
+			hi = mitte
+	if lo < _suche_bis.size() and s >= _suche_von[lo]:
+		return abschnitte[lo]
 	return {}
+
+
+## Für `abschnitt_bei`: Grenzen aller Abschnitte als Tabellen, und ob die
+## Abschnitte geordnet und ohne Überlappung sind (sonst sucht es linear wie
+## früher). Neu, wenn sich die Liste geändert hat (Zahl, erster oder letzter
+## Eintrag). WARUM: Level 05 fragt beim Bau rund 60 000-mal; die lineare
+## Suche über seine Abschnitte kostete dort gemessen rund 0,2 s (Paket P8).
+func _suche_vorbereiten() -> void:
+	var n := abschnitte.size()
+	if n == _suche_von.size() and (n == 0 or (is_same(abschnitte[0], _suche_erster)
+			and is_same(abschnitte[n - 1], _suche_letzter))):
+		return
+	_suche_von.resize(n)
+	_suche_bis.resize(n)
+	_suche_linear = false
+	for i in n:
+		var a := abschnitte[i]
+		_suche_von[i] = float(a["von"])
+		_suche_bis[i] = float(a["bis"])
+		if _suche_von[i] > _suche_bis[i] or (i > 0 and _suche_von[i] < _suche_bis[i - 1]):
+			_suche_linear = true
+	_suche_erster = abschnitte[0] if n > 0 else {}
+	_suche_letzter = abschnitte[n - 1] if n > 0 else {}
 
 
 ## Breite des Weges an dieser Stelle. 0.0 bedeutet: hier ist eine Lücke.

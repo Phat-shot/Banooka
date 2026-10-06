@@ -22,8 +22,10 @@ class_name Level05
 ## ROHBAU (Pakete P1a/P1b: Verlauf, Weg, Bauteile, Spielobjekte, Jagd und
 ## Proben, voll spielbar), der BODEN (P3: Wegdecke mit Lippen, Gelände,
 ## Saum), die EICHE (P4), die WEGBAUTEN samt Keiler-Optik (P5), das
-## WASSER (P6: Suhle, Rinnsale, Tobelbach, Mühlteich, Weißwasser, Mühlrad)
-## und WALD und RASEN (P7). Die Stimmung folgt in einem eigenen Paket.
+## WASSER (P6: Suhle, Rinnsale, Tobelbach, Mühlteich, Weißwasser, Mühlrad),
+## WALD und RASEN (P7) und die STIMMUNG (P8: Himmel, Sonne und Lichter,
+## Tiefennebel und Bildrahmen in Level05.tscn; Zonen, Horizont, Bewegung
+## in der Luft, Krähen und Mühle in `L05Stimmung`).
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
@@ -42,9 +44,12 @@ class_name Level05
 ## gebrochen, Hürden, Findlinge, Bänke, Rampe, Treppen, Wehr, Rastpfähle –
 ## mit ihren Körpern; P5), `L05Wald` (Hangwald nah, am Hang und auf den
 ## Kämmen, Baumtore, Gebüsch, Totholz, Sträucher, Felsen; P7), `L05Rasen`
-## (Rasensaum, Laubstreu, Kupferfarn; P7) und `L05Jagd` (der Keiler: Schlaf,
-## Wecken, Jagd, Hopser, Durchlass-Bruch und Heilen, Ufer; P1b; sein Körper
-## und seine Effekte in scenes/enemies/keiler.gd, P5).
+## (Rasensaum, Laubstreu, Kupferfarn; P7), `L05Stimmung` (Zonen nach der
+## Strecke über den `Stimmungsregler`, Horizontring, Lichtschächte, Pollen,
+## Staub, Laub, Bachnebel, Krähen über der Eiche, Mühle als Klangschleife;
+## P8, Werte und Abweichungen vom Entwurf in ihrem Kopf) und `L05Jagd`
+## (der Keiler: Schlaf, Wecken, Jagd, Hopser, Durchlass-Bruch und Heilen,
+## Ufer; P1b; sein Körper und seine Effekte in scenes/enemies/keiler.gd, P5).
 ##
 ## BODEN (P3, Entwurf §5, §8, §9.2–9.4). Die Wegdecke trägt den Stoff aus
 ## `Wegdecke` (Waldweg in Löss, `wegdecke_thema`), an L1–L6 vier bis sechs
@@ -299,6 +304,12 @@ const TERRASSEN := [
 ## Suhlgraben (von, bis, Welt-Y der Sohle): 0,8 m tief, nicht tödlich,
 ## Rampe rechts hinaus (BEGEHBARES "Grabenrampe").
 const SUHLGRABEN := Vector3(23.5, 28.1, 25.2)
+
+## Kronenlicht auf der Decke in A (Entwurf §8.3, Zone A „Kronenlicht"):
+## Abschnitte, die vor x beginnen, tragen die Stärke y (`Wegdecke`, Shader
+## `wegboden`: gefleckte Helligkeit, Pfad × 0,9–1,05). Bis an den Suhlgraben;
+## der Übergang liegt 1,5 m innerhalb der Abschnittsenden (22 → 25).
+const KRONENLICHT := Vector2(23.5, 0.6)
 
 ## Wegdecke (Entwurf §9.2): Schlüssel im Zwischenspeicher von `Wegdecke` (je
 ## Level, beim Verlassen geräumt), Löss-Ton der Erde in der Spur (der
@@ -641,8 +652,15 @@ const GEHEIMNISSE := [
 ## ohne sie der größte Posten.
 const SICHTWEITEN := {"kiste": 50.0, "frucht": 40.0, "kiste_web": 40.0, "frucht_web": 35.0}
 
-## Richtzeit, vorläufig (§6.6): 1,3 × Bot-Zeit folgt aus dem Spieltest.
-const ZIELZEIT := 46.0
+## Richtzeit des Zeitmodus (Entwurf §6.6), von Hand gesetzt wie in Level 06
+## (level06.gd, `zielzeit`): 1,3 × die gemessene Zeit des Spieltest-Bots,
+## auf ganze Sekunden gerundet. Die abgeleitete Formel der Basis
+## (296 / 8,5 × 2,8 ≈ 97 s) schenkte hier jede Stufe. Gemessen (Paket P8,
+## werkzeuge/spieltest.sh, TEST_LEVEL=5, Bild für Bild mit 60 Hz): Der Bot
+## lief das Level ohne Tod, mit zwei Stolperern, in 40,7 s (wie in P1b:
+## 40,7 und 40,8 s in Echtzeit). 1,3 × 40,7 = 52,9 → 53 s; Gold (85 %)
+## 45,05 s, Platin (72 %) 38,16 s – Ideallauf ohne Zeitkisten ≈ 34,4 s.
+const ZIELZEIT := 53.0
 
 # =========================================================== Proben
 
@@ -745,6 +763,9 @@ var gewaesser: L05Wasser
 ## beim Zusammenstellen der Schritte.
 var wald: L05Wald
 var rasen: L05Rasen
+## Licht, Nebel, Bewegung und Klang (Modul `L05Stimmung`), gesetzt von ihrem
+## Bauschritt.
+var abendlicht: L05Stimmung
 ## Gebaute Flächen des Saums je Zug (`Kanten.flaeche_punkt`), Name des
 ## Zuges -> {"flaeche"}; gefüllt von `L05Saum` (für die Rinnsale).
 var saum_flaechen := {}
@@ -795,6 +816,7 @@ func _bauschritte() -> Array:
 	# Wald und Rasen nach den Kisten: Sie halten Abstand zu ihnen.
 	schritte.append_array(L05Wald.bauschritte(self))
 	schritte.append_array(L05Rasen.bauschritte(self))
+	schritte.append_array(L05Stimmung.bauschritte(self))
 	schritte.append_array(L05Jagd.bauschritte(self))
 	return schritte
 
@@ -964,6 +986,8 @@ func _abschnitte_rechnen() -> Array[Dictionary]:
 				continue
 			var e := {"name": st["name"], "von": a, "bis": b,
 					"breite": breite_nach_tabelle(a), "breite_ende": breite_nach_tabelle(b)}
+			if a < KRONENLICHT.x:
+				e["kronenlicht"] = KRONENLICHT.y
 			if st.has("h0"):
 				var h0: float = st["h0"]
 				var h1: float = st["h1"]

@@ -36,8 +36,8 @@ class_name L05Eiche
 ##   das Stück mit der Kuppe hätte an den Stückgrenzen eine Nebelkante
 ##   gezogen). OFFEN (Prüfung P4): Hinter der Kuppe ist der Fuß aus der
 ##   Ferne kaum zu sehen, die 0,7 wirken also fast nirgends – ob „Kuppe"
-##   so gemeint ist, entscheidet der Nutzer. Die Krähen kommen mit der
-##   Stimmung (Paket P8).
+##   so gemeint ist, entscheidet der Nutzer. Die Krähen über der Eiche
+##   setzt die Stimmung (`L05Stimmung`).
 ##
 ## ABWEICHUNGEN VOM ENTWURF, jede von Code oder Messung erzwungen:
 ##   * STAMM_S −9,5 statt −6: Die Querwand Start (`Level05.LEITLINIEN`)
@@ -59,15 +59,12 @@ class_name L05Eiche
 ##     oben an den Hälften; ihr Ansatz liegt auf Y 30,2, die Kronenmitten
 ##     sollen nach dem Entwurf bei Y ≈ 55 liegen (gemessen 54,5 und 54,9).
 ##
-## NEBEL BIS PAKET P8. `Nebelstoff` rechnet Tiefennebel (wie Level 01).
-## Level05.tscn steht noch auf Exponentialnebel (Dichte 0,0035); die
-## Stimmung (P8) stellt ihn auf den Tiefennebel des Entwurfs (§8.3) um.
-## Bis dahin trüge die Eiche mit `Nebelstoff.nebel_setzen` gar keinen Nebel
-## (Dichte 0,0035 · 0,45 auf einer Tiefenkurve von 10–100 m). Deshalb
-## übersetzt `nebel_einstellen` Exponentialnebel in die Tiefenkurve des
-## Stoffs (siehe EXP_*). Tiefennebel geht unverändert an `nebel_setzen`.
-## AUFGABE FÜR P8: `nebel_stoffe` an den Stimmungsregler hängen und die
-## Brücke EXP_* samt ihrem Zweig in `nebel_einstellen` entfernen.
+## NEBEL. `Nebelstoff` rechnet Tiefennebel wie die Szene (Level05.tscn,
+## Entwurf §8.3: 16 → 240 m, Kurve 1,4). Beim Bau stellt `nebel_einstellen`
+## die eigenen Stoffe auf den Nebel der Szene; danach führt sie der
+## Stimmungsregler nach der Strecke nach (`L05Stimmung`, Option
+## "nebelstoffe" = `nebel_stoffe`). Die Brücke für den Exponentialnebel, der
+## bis Paket P8 in der Szene stand, ist entfallen.
 ##
 ## KOSTEN (Entwurf §10: Desktop 10 (+3), Handy 6). Nah zwei Netze, Stamm
 ## (Fuß und Hälften verschmolzen) und Kronen (beide verschmolzen); fern
@@ -180,14 +177,6 @@ const LAUB_FERN := Color(0.376, 0.549, 0.173)
 const NEBEL_KRONE := 0.45
 const NEBEL_STAMM := 0.45
 const NEBEL_KUPPE := 0.7
-## Exponentialnebel 1 − e^(−ρd) als Tiefenkurve des Stoffs:
-## pow(smoothstep(0, EXP_BIS/ρ, d), 0,5) · EXP_DECKUNG. Angepasst auf
-## ρd 0,07 … 1,4 (bei ρ 0,0035: 20 … 400 m), größte Abweichung 0,016
-## (gerechnet; bei 35/100/200/320 m: 0,104/0,280/0,504/0,685 statt
-## 0,115/0,295/0,503/0,674). Brücke bis P8 (siehe Kopf).
-const EXP_BIS := 1.47
-const EXP_DECKUNG := 0.74
-const EXP_KURVE := 0.5
 
 ## Borke der Eiche: Rinde der Bibliothek, etwas wenig Moos oben (Licht).
 const BORKE := {"moos_oben": 0.35, "moos_nord": 0.6}
@@ -196,7 +185,7 @@ const BORKE_FERN := {"fern": true, "moos_oben": 0.35}
 var level: Level05
 ## Die Eiche im Level (Gruppe GRUPPE).
 var wurzel: Node3D
-## Abschriften mit eigenem Nebel (für die Stimmung, P8).
+## Abschriften mit eigenem Nebel (für den Stimmungsregler, `L05Stimmung`).
 var nebel_stoffe: Array[ShaderMaterial] = []
 ## Kronen (Mitten und Größen der Hüllen der Fernkronen, die Mitten ihrer
 ## Astballen) und die innersten Ecken an der Kerbe, in Weltkoordinaten –
@@ -452,19 +441,12 @@ func _nebelarm(stoff: Material, anteil: float) -> Material:
 
 
 ## Schreibt den Nebel von `umgebung` in die eigenen Stoffe (siehe Kopf,
-## NEBEL BIS PAKET P8).
+## NEBEL).
 func nebel_einstellen(umgebung: Environment) -> void:
 	if umgebung == null:
 		return
 	for stoff in nebel_stoffe:
 		Nebelstoff.nebel_setzen(stoff, umgebung)
-		if umgebung.fog_enabled and umgebung.fog_mode == Environment.FOG_MODE_EXPONENTIAL \
-				and umgebung.fog_density > 0.0:
-			var anteil := float(stoff.get_meta("nebel_anteil", Nebelstoff.ANTEIL))
-			stoff.set_shader_parameter("nebel_von", 0.0)
-			stoff.set_shader_parameter("nebel_bis", EXP_BIS / umgebung.fog_density)
-			stoff.set_shader_parameter("nebel_kurve", EXP_KURVE)
-			stoff.set_shader_parameter("nebel_dichte", EXP_DECKUNG * anteil)
 
 
 func _umgebung() -> Environment:

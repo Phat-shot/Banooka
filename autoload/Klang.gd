@@ -31,6 +31,17 @@ const STIMMEN := 12
 ## sondern nur fünfmal so laut.
 const MINDESTABSTAND := 0.05
 const SPEICHERPFAD := "user://klang.cfg"
+## Die Mühle (`_bau_muehle`): Länge der Schleife, Takt der Schaufeln (vier je
+## Schleife), Überblendung von Ende zu Anfang und der eigene Startwert.
+const MUEHLE_LAENGE := 1.92
+const MUEHLE_TAKT := 0.48
+const MUEHLE_UEBERBLENDUNG := 0.12
+const MUEHLE_SAAT := 5291
+## Schleifen: Sie entstehen nicht beim Start, sondern beim ersten Abholen
+## (`strom`) – die Mühle braucht nur Level 05, und gebaut kostet sie beim
+## Programmstart rund 35–50 ms (gemessen, Rechner; auf dem Handy das
+## Mehrfache). Level 05 holt sie beim Laden, unter dem Ladeschirm.
+const SCHLEIFEN: Array[String] = ["muehle"]
 
 ## Wellenformen der Tonbausteine.
 enum Welle { SINUS, DREIECK, RECHTECK }
@@ -106,6 +117,11 @@ func spiele(name: String, tonhoehe: float = 1.0, staerke: float = 1.0) -> void:
 	if strom_ == null:
 		push_warning("Klang unbekannt: %s" % name)
 		return
+	# Schleifen (die Mühle) laufen nicht über die Stimmen: Eine Stimme bliebe
+	# sonst für immer belegt. Wer eine Schleife will, holt sie mit `strom()`
+	# und spielt sie selbst, mit `schleifen_pegel()` (Level 05: L05Stimmung).
+	if strom_.loop_mode != AudioStreamWAV.LOOP_DISABLED:
+		return
 
 	var jetzt := Time.get_ticks_msec() / 1000.0
 	var abstand := float(_abstaende.get(name, MINDESTABSTAND))
@@ -150,16 +166,32 @@ func stumm_schalten(an: bool) -> void:
 	speichern()
 
 
-## Namen aller Klänge (für Prüfwerkzeuge und eine spätere Tonoptionsseite).
+## Namen aller Klänge (für Prüfwerkzeuge und eine spätere Tonoptionsseite),
+## auch der Schleifen, die erst beim ersten `strom()` entstehen.
 func namen() -> PackedStringArray:
 	var liste := PackedStringArray(_kloenge.keys())
+	for name: String in SCHLEIFEN:
+		if not liste.has(name):
+			liste.append(name)
 	liste.sort()
 	return liste
 
 
-## Der fertige Klang zu einem Namen, oder null.
+## Der fertige Klang zu einem Namen, oder null. Eine Schleife (SCHLEIFEN)
+## entsteht hier beim ersten Abholen.
 func strom(name: String) -> AudioStreamWAV:
+	if not _kloenge.has(name) and SCHLEIFEN.has(name):
+		_schleifen_bauen(name)
 	return _kloenge.get(name) as AudioStreamWAV
+
+
+## Linearer Pegel für eine Schleife, die der Aufrufer selbst abspielt
+## (eigener AudioStreamPlayer, siehe `spiele`): Gesamtlautstärke mal
+## `staerke`, 0 bei stummem Ton und im Browser vor der ersten Eingabe.
+func schleifen_pegel(staerke: float) -> float:
+	if stumm or not _freigegeben:
+		return 0.0
+	return clampf(lautstaerke * staerke, 0.0, 1.0)
 
 
 # ---------------------------------------------------------- Spielstand
@@ -392,6 +424,59 @@ func _bau_menue_wahl() -> PackedFloat32Array:
 	return p
 
 
+## Baut eine Schleife aus SCHLEIFEN (siehe `strom`).
+func _schleifen_bauen(name: String) -> void:
+	match name:
+		"muehle":
+			_kloenge["muehle"] = _schleife(_bau_muehle(), 0.5, MUEHLE_LAENGE)
+
+
+## Mühlrad am Mühlbach (Level 05), als nahtlose Schleife von MUEHLE_LAENGE:
+## ein Bett aus Wasserrauschen, je Takt eine Schaufel, die ins Wasser
+## schlägt (Platscher mit fallendem Filter und einem dumpfen Plopp), jede
+## zweite mit einem Holzklopfen der Welle, einmal je Umlauf das Knarren des
+## Lagers und ein paar Gluckser. Abgespielt wird sie nicht über `spiele`,
+## sondern von L05Stimmung mit eigenem Spieler und nach der Strecke
+## geregelt – `spiele` spielt nicht räumlich (Entwurf L05 §8.4, §9.3).
+##
+## NAHTLOS: Gerechnet wird MUEHLE_UEBERBLENDUNG länger als die Schleife;
+## der Überhang wird über den Anfang geblendet (`_schleife`). Damit das nur
+## Rauschen trifft, liegen alle Ereignisse zwischen 0,15 und 1,8 s, und die
+## Überblendung hält die Leistung gleich (Sinus/Kosinus). Das Rauschen der
+## Schleife zieht aus einem eigenen Zufall (MUEHLE_SAAT), nicht aus
+## `_zufall` – die anderen Klänge bleiben unberührt.
+func _bau_muehle() -> PackedFloat32Array:
+	var gemeinsam := _zufall
+	_zufall = RandomNumberGenerator.new()
+	_zufall.seed = MUEHLE_SAAT
+	var p := _puffer(MUEHLE_LAENGE + MUEHLE_UEBERBLENDUNG)
+	# Bett: rauschendes Wasser unter dem Rad, darüber feine Gischt.
+	_rauschen_fest(p, 0.55, 700.0, 160.0)
+	_rauschen_fest(p, 0.16, 2600.0, 1200.0)
+	var takte := int(round(MUEHLE_LAENGE / MUEHLE_TAKT))
+	for k in takte:
+		var t := 0.15 + float(k) * MUEHLE_TAKT
+		# Die Schaufel schlägt ins Wasser: Platscher von hell nach dumpf …
+		_rauschen(p, t, 0.22, 0.9, 2600.0, 500.0, 300.0, 0.004, 2.2)
+		# … und ein Plopp, jede Schaufel ein wenig anders.
+		var f := 150.0 - 12.0 * float(k % 3)
+		_ton(p, t + 0.01, 0.12, f, f * 0.57, 0.45, Welle.SINUS, 0.003, 2.5)
+		# Holz auf Holz: die Welle im Lager, jede zweite Schaufel.
+		if k % 2 == 0:
+			_ton(p, t + 0.24, 0.035, 520.0 - 40.0 * float(k), 380.0, 0.32,
+					Welle.DREIECK, 0.001, 4.0)
+	# Knarren des Lagers einmal je Umlauf, rau und tief.
+	_ton(p, 0.9, 0.42, 92.0, 118.0, 0.2, Welle.RECHTECK, 0.06, 1.2)
+	_ton(p, 0.9, 0.42, 184.0, 236.0, 0.1, Welle.DREIECK, 0.06, 1.2)
+	# Gluckser im Unterwasser.
+	for _i in 5:
+		var t := _zufall.randf_range(0.2, 1.72)
+		var f := _zufall.randf_range(300.0, 650.0)
+		_ton(p, t, 0.05, f, f * 1.4, 0.18, Welle.SINUS, 0.005, 2.0)
+	_zufall = gemeinsam
+	return p
+
+
 ## Menü, bestätigt: zwei Glöckchen eine Quarte aufwärts (G5–C6), kürzer
 ## und tiefer als die Frucht, damit man beide auseinanderhält.
 func _bau_menue_ok() -> PackedFloat32Array:
@@ -492,6 +577,24 @@ func _rauschen(puffer: PackedFloat32Array, start: float, dauer: float,
 				* _huelle(t, anstieg_anteil, kruemmung)
 
 
+## Gefiltertes Rauschen wie `_rauschen`, aber über den ganzen Puffer, mit
+## fester Grenzfrequenz und ohne Hülle – das Bett einer Schleife. Die
+## Beiwerte stehen fest und werden einmal gerechnet: `_rauschen` rechnet je
+## Abtastwert eine Potenz und eine Exponentialfunktion, für zwei Sekunden
+## Bett kostete das beim Programmstart rund 60–100 ms.
+func _rauschen_fest(puffer: PackedFloat32Array, staerke: float, tief: float,
+		hoch: float) -> void:
+	var a := 1.0 - exp(-TAU * minf(tief, ABTASTRATE * 0.45) / float(ABTASTRATE))
+	var b := 1.0 - exp(-TAU * hoch / float(ABTASTRATE))
+	var tp := 0.0
+	var basis := 0.0
+	var faktor := 2.5 * staerke
+	for j in puffer.size():
+		tp += a * (_zufall.randf_range(-1.0, 1.0) - tp)
+		basis += b * (tp - basis)
+		puffer[j] += (tp - basis) * faktor
+
+
 ## Normiert den fertigen Puffer auf `pegel` und packt ihn in einen
 ## AudioStreamWAV.
 ##
@@ -529,5 +632,41 @@ func _fertig(werte: PackedFloat32Array, pegel: float) -> AudioStreamWAV:
 	strom_.mix_rate = ABTASTRATE
 	strom_.stereo = false
 	strom_.loop_mode = AudioStreamWAV.LOOP_DISABLED
+	strom_.data = daten
+	return strom_
+
+
+## Wie `_fertig`, aber als Schleife über `laenge` Sekunden: Der Puffer ist
+## länger, sein Überhang hinter `laenge` wird über den Anfang geblendet
+## (Sinus/Kosinus, gleiche Leistung für Rauschen), dann abgeschnitten. Ohne
+## die Rampen von `_fertig` – die hörte man in jeder Runde als Loch.
+func _schleife(werte: PackedFloat32Array, pegel: float, laenge: float) -> AudioStreamWAV:
+	var n := mini(int(laenge * ABTASTRATE), werte.size())
+	var ueber := mini(werte.size() - n, n)
+	if n == 0:
+		return null
+	for i in ueber:
+		var w := float(i) / float(maxi(ueber, 1)) * PI * 0.5
+		werte[i] = werte[i] * sin(w) + werte[n + i] * cos(w)
+	werte.resize(n)
+
+	var spitze := 0.0
+	for wert in werte:
+		spitze = maxf(spitze, absf(wert))
+	var faktor := (pegel / spitze) if spitze > 0.0 else 0.0
+
+	var daten := PackedByteArray()
+	daten.resize(n * 2)
+	for i in n:
+		var v := clampf(werte[i] * faktor, -1.0, 1.0)
+		daten.encode_s16(i * 2, int(round(v * 32767.0)))
+
+	var strom_ := AudioStreamWAV.new()
+	strom_.format = AudioStreamWAV.FORMAT_16_BITS
+	strom_.mix_rate = ABTASTRATE
+	strom_.stereo = false
+	strom_.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	strom_.loop_begin = 0
+	strom_.loop_end = n
 	strom_.data = daten
 	return strom_

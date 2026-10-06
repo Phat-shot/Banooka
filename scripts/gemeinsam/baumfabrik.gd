@@ -69,6 +69,9 @@ const TOT_TON := Color(0.82, 0.8, 0.78, 0.25)
 ## Mindestabstand der Stämme im Hain (wald.gd:219, im Hain 60 %).
 const HAIN_ABSTAND := 2.3
 
+## Modellnamen je Rolle (siehe `modellbaum`).
+static var _rollen := {}
+
 
 # =========================================================== Netze
 
@@ -169,12 +172,23 @@ static func baum(o: Dictionary, mit_kranz: bool = false) -> Dictionary:
 ## wählt unter den Nadelbäumen (Name mit „Pine"), sonst unter den übrigen;
 ## `wahl` (0..1) das Modell. `ton` tönt den Stamm beim Setzen (zusätzlich
 ## zur Tönung des Pflanzers; Birkenrinde, Silber, Sandstein …).
+##
+## Die Modelle einer Rolle merkt sich `_rollen` (je Rolle, Nadel/Laub und
+## Schalter der Fremdmodelle): `Fremdmodelle.rolle` fragt für jedes Modell
+## der Rolle den Ressourcenlader, ob die Datei liegt – je Baum aufs Neue.
+## In Level 05 waren das kalt rund 500 Aufrufe mit 7 850 Dateiabfragen,
+## gemessen 0,32–0,45 s der Ladezeit. Die Antwort ist dieselbe (die Dateien
+## ändern sich nicht, solange das Spiel läuft); ein Zwischenspeicher der
+## Dateilage, kein Zustand eines Levels (wie `Nebelstoff._shader`).
 static func modellbaum(rolle: String, nadel: bool, wahl: float, hoehe: float, unten: float,
 		ton: Color = Color.WHITE) -> Dictionary:
-	var namen := PackedStringArray()
-	for n in Fremdmodelle.rolle(rolle):
-		if n.contains("Pine") == nadel:
-			namen.append(n)
+	var schluessel := "%s|%s|%s" % [rolle, nadel, Fremdmodelle.aktiv()]
+	var namen: PackedStringArray = _rollen.get(schluessel, PackedStringArray())
+	if not _rollen.has(schluessel):
+		for n in Fremdmodelle.rolle(rolle):
+			if n.contains("Pine") == nadel:
+				namen.append(n)
+		_rollen[schluessel] = namen
 	if namen.is_empty():
 		return {}
 	var name := namen[clampi(int(wahl * float(namen.size())), 0, namen.size() - 1)]

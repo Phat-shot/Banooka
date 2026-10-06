@@ -910,6 +910,14 @@ func _rinnsal(seite: float) -> PackedVector3Array:
 	return bahn
 
 
+## Ort auf dem Spiegel des Tobelbachs an `s` (Level-Koordinaten): Mitte des
+## Betts, Höhe des Spiegels – für den Bachnebel der Stimmung (`L05Stimmung`).
+func bach_ort(s: float) -> Vector3:
+	var p := level.weg_punkt(s, _bett_q(s))
+	p.y = _bach_spiegel(s)
+	return p
+
+
 ## Spiegel des Tobelbachs an `s` (wie `_laeufe`: stromab nie steigend).
 func _bach_spiegel(s: float) -> float:
 	var spiegel := INF

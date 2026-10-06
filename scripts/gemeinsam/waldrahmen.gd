@@ -95,6 +95,12 @@ var kisten: Array[Vector3] = []
 ## Sichtkegel, Schema `Waldsetzer.kegel_frei`: {auge, ziel, winkel (rad),
 ## ziel_frei?}. Leer: keine Kegel.
 var kegel: Array[Dictionary] = []
+## Vorprüfung von `kegel_frei` (`_kegel_vorbereiten`).
+var _kegel_kaesten: Array[AABB] = []
+var _kegel_huelle := AABB()
+var _kegel_cos := 1.0
+var _kegel_erster := {}
+var _kegel_letzter := {}
 ## Kantenregel: {von, bis (Strecke), seite (+1 rechts, −1 links),
 ## weite? (KANTE_WEITE), tiefe? (KANTE_TIEFE)}. Leer: keine Kanten.
 var kanten: Array[Dictionary] = []
@@ -411,6 +417,16 @@ func kante_frei(huelle: AABB) -> bool:
 ## Liegt eine Krone (Welt-Hülle) außerhalb aller Sichtkegel (`kegel`)?
 ## Geprüft an Punkten, die sicher in der Krone liegen: Mitte, Flächenmitten
 ## (85 %) und Ecken (55 %) der Hülle (wald.gd:718).
+##
+## VORPRÜFUNG mit Kästen (`_kegel_vorbereiten`), dieselben Antworten: Eine
+## Kugel (Mitte m, Radius r), die `Waldsetzer.kegel_frei_einzeln` im Kegel
+## findet, hat ihre Mitte näher als L·tan w + r/cos w an der Achse von Auge
+## bis Ziel (L Länge, w halber Öffnungswinkel; aus θ − asin(r/d) < w und
+## Abstand längs ≤ L). Liegt m außerhalb des Kastens um die Achse, der um
+## L·tan w und dann um r/cos w (+5 cm gegen Rundung) geweitet ist, bliebe
+## die Prüfung ohne Treffer – sie entfällt. Erst gegen den Kasten um alle
+## Kegel, dann je Kegel. In Level 05 (rund 290 Kegel, rund 1 000 Kronen)
+## liefen sonst rund 200 000 Einzelprüfungen beim kalten Bau (Paket P8).
 func kegel_frei(huelle: AABB) -> bool:
 	var m := huelle.get_center()
 	var h := huelle.size * 0.5
@@ -418,7 +434,20 @@ func kegel_frei(huelle: AABB) -> bool:
 	# weg, nur die übrigen prüfen die 15 Punkte.
 	var nahe: Array[Dictionary] = []
 	var weit := h.length()
-	for k in kegel:
+	_kegel_vorbereiten()
+	var rand := weit / _kegel_cos + 0.05
+	var alle := _kegel_huelle
+	if m.x < alle.position.x - rand or m.x > alle.end.x + rand \
+			or m.y < alle.position.y - rand or m.y > alle.end.y + rand \
+			or m.z < alle.position.z - rand or m.z > alle.end.z + rand:
+		return true
+	for i in kegel.size():
+		var b := _kegel_kaesten[i]
+		if m.x < b.position.x - rand or m.x > b.end.x + rand \
+				or m.y < b.position.y - rand or m.y > b.end.y + rand \
+				or m.z < b.position.z - rand or m.z > b.end.z + rand:
+			continue
+		var k := kegel[i]
 		if not Waldsetzer.kegel_frei_einzeln(m, weit, k):
 			nahe.append(k)
 	if nahe.is_empty():
@@ -438,6 +467,34 @@ func kegel_frei(huelle: AABB) -> bool:
 		if not Waldsetzer.kegel_frei(p, r, nahe):
 			return false
 	return true
+
+
+## Kästen der Vorprüfung von `kegel_frei` (siehe dort): je Kegel die Achse
+## von Auge bis Ziel, geweitet um L·tan w; dazu der Kasten um alle und der
+## kleinste Kosinus der Öffnungswinkel. Neu gerechnet, wenn sich die Liste
+## geändert hat (Zahl, erster oder letzter Eintrag – `kegel` wird nur
+## angehängt oder ganz ersetzt, `werkzeuge/baukastenprobe.gd`).
+func _kegel_vorbereiten() -> void:
+	var n := kegel.size()
+	if n == _kegel_kaesten.size() and (n == 0 or (is_same(kegel[0], _kegel_erster)
+			and is_same(kegel[n - 1], _kegel_letzter))):
+		return
+	_kegel_kaesten.clear()
+	_kegel_cos = 1.0
+	_kegel_huelle = AABB()
+	for i in n:
+		var k := kegel[i]
+		var auge: Vector3 = k["auge"]
+		var ziel: Vector3 = k["ziel"]
+		var winkel: float = k["winkel"]
+		var kasten := AABB(auge, Vector3.ZERO).expand(ziel)
+		kasten = kasten.grow(auge.distance_to(ziel) * tan(winkel))
+		_kegel_kaesten.append(kasten)
+		_kegel_cos = minf(_kegel_cos, cos(winkel))
+		_kegel_huelle = kasten if i == 0 else _kegel_huelle.merge(kasten)
+	_kegel_cos = maxf(_kegel_cos, 0.01)
+	_kegel_erster = kegel[0] if n > 0 else {}
+	_kegel_letzter = kegel[n - 1] if n > 0 else {}
 
 
 ## Frei von Kisten (waagerecht, `abstand` m)? wald.gd:750.
@@ -558,10 +615,27 @@ func _kammhoehe(auge_: Vector3, ziel: Vector3) -> float:
 	var dir := flach / weit
 	var steil := -INF
 	var t := 3.0
+	# `_raster_hoehe` ausgeschrieben (dieselben Rechnungen, also dieselben
+	# Werte): Die Himmelsprobe ruft sie in Level 05 rund 190 000-mal, der
+	# Aufruf selbst kostete dort ein Drittel der Zeit (Paket P8, Bauzeit).
+	var x0 := _hoehen_feld.position.x
+	var z0 := _hoehen_feld.position.y
+	var nx := _hoehen_mass.x
+	var nz := _hoehen_mass.y
 	while t < weit - 4.0:
-		var h := _raster_hoehe(auge_.x + dir.x * t, auge_.z + dir.y * t)
-		if not is_nan(h):
-			steil = maxf(steil, (h - auge_.y) / t)
+		var fx := (auge_.x + dir.x * t - x0) / HOEHEN_ZELLE
+		var fz := (auge_.z + dir.y * t - z0) / HOEHEN_ZELLE
+		var a := floori(fx)
+		var b := floori(fz)
+		if a >= 0 and b >= 0 and a < nx - 1 and b < nz - 1:
+			var u := fx - float(a)
+			var v := fz - float(b)
+			var i := b * nx + a
+			var oben := lerpf(_hoehen_raster[i], _hoehen_raster[i + 1], u)
+			var unten := lerpf(_hoehen_raster[i + nx], _hoehen_raster[i + nx + 1], u)
+			var h := lerpf(oben, unten, v)
+			if not is_nan(h):
+				steil = maxf(steil, (h - auge_.y) / t)
 		t += HOEHEN_ZELLE
 	if steil == -INF:
 		return -INF
