@@ -28,6 +28,13 @@ class_name Bauspeicher
 ##   gespeichert(schluessel) -> Variant / ablegen(schluessel, inhalt)
 ##       Lesen und Schreiben getrennt, für Bauten über mehrere Bauschritte
 ##       (Gelände in Level 01); null heißt: noch nichts da.
+##   vorladen(schluessel) -> bool
+##       Liest einen abgelegten Wert im Hintergrund (ResourceLoader in einem
+##       Arbeitsfaden), während das Level andere Schritte baut; ein späteres
+##       `gespeichert()` holt ihn ab und wartet nur, wenn er noch nicht fertig
+##       ist. false: nichts abgelegt (dann gar nicht erst anfragen). Level 05
+##       lädt so Wald und Rasen (zusammen rund 60 ms von der Platte, Runde 2
+##       der Bauzeitprobe). Ohne `vorladen` liest `gespeichert()` wie immer.
 ##   an: bool    false = nie lesen, nie schreiben (zum Vergleichen)
 ##
 ## Der SCHLÜSSEL muss alles nennen, wovon das Ergebnis abhängt und was sich
@@ -60,6 +67,8 @@ static var an := true
 
 static var _bereit := false
 static var _nutzbar := false
+## Pfade, die `vorladen` im Hintergrund angefragt hat.
+static var _vorgeladen := {}
 
 
 static func holen(schluessel: String, erzeuger: Callable) -> Resource:
@@ -89,10 +98,32 @@ static func gespeichert(schluessel: String) -> Variant:
 	var pfad := _pfad(schluessel)
 	if not FileAccess.file_exists(pfad):
 		return null
-	var huelle := ResourceLoader.load(pfad, "", ResourceLoader.CACHE_MODE_IGNORE)
+	var huelle: Resource
+	if _vorgeladen.has(pfad):
+		_vorgeladen.erase(pfad)
+		huelle = ResourceLoader.load_threaded_get(pfad)
+	else:
+		huelle = ResourceLoader.load(pfad, "", ResourceLoader.CACHE_MODE_IGNORE)
 	if huelle == null or not huelle.has_meta("wert"):
 		return null
 	return huelle.get_meta("wert")
+
+
+## Fragt einen abgelegten Wert im Hintergrund an (siehe Kopf). false, wenn
+## nichts abgelegt ist oder der Speicher aus ist.
+static func vorladen(schluessel: String) -> bool:
+	if not _vorbereiten():
+		return false
+	var pfad := _pfad(schluessel)
+	if not FileAccess.file_exists(pfad):
+		return false
+	if _vorgeladen.has(pfad):
+		return true
+	if ResourceLoader.load_threaded_request(pfad, "", false,
+			ResourceLoader.CACHE_MODE_IGNORE) != OK:
+		return false
+	_vorgeladen[pfad] = true
+	return true
 
 
 ## Legt einen Wert ab (Gegenstück zu `gespeichert()`).

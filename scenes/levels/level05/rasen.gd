@@ -11,7 +11,9 @@ class_name L05Rasen
 ##   reicht die Platte des Saums: Die Kamera steht 5,6 m über der Figur und
 ##   sieht über die 3–5 m hohen Wände auf ihre Kronen. In A (Suhle, samt den
 ##   niedrigen Kronen dort) und E (Mühlbach) Rasen auf der Decke nach der
-##   Wegmaske (`Rasenbau.decke`) und auf der Wiese daneben (WIESE_BREITE).
+##   Wegmaske (`Rasenbau.decke`) und auf der Wiese daneben (WIESE_BREITE),
+##   in E weiter hinter dem Ende der Decke bis unter die Kamera am Ziel
+##   (AUSLAUF_E).
 ##   Die Höhe ist die gezeichnete Oberkante (`L05Gelaende.sicht_oberkante`:
 ##   Krone des Saums oder Gelände, auf den Kronen aus einer Tabelle,
 ##   `_krone_hoehe`); im Wasser (Suhle, Teich, Unterwasser) wächst nichts.
@@ -33,13 +35,20 @@ class_name L05Rasen
 ## Laub je Stück von LAUB_STUECK m, Farn von STUECK m eines; alles ohne
 ## Schatten, mit harten Sichtweiten (Gras 42, Laub 46, Farn 44 m). Mit
 ## `Effekte.reduziert` halbe Dichte (Rasenbau ×0,5, Laub und Farn ×HANDY).
-## Gemessen (Messtore wie `L05Wald`, gegen denselben Stand nur mit Wald):
-## Desktop +8 … +16 Zeichenaufrufe, Handy +4 … +13; bis +94 k Dreiecke im
-## Bild (s 8, Wiese und Decke in A); +8,0 MB Grafikspeicher (Handy +4,5).
-## BAUZEIT: je Schritt höchstens 0,35–0,41 s („Rasen an der Suhle",
-## Bauzeitprobe, vier Runden; die Kronen beider Seiten zusammen über
-## `sicht_oberkante` brauchten 1,2–1,4 s, daher die Tabelle und ein Schritt
-## je Seite).
+## Gemessen (Messtore wie `L05Wald`, gegen denselben Stand nur mit Wald,
+## Prüfung der P7-Mängel): Desktop +11 … +16 Zeichenaufrufe, Handy +6 … +13;
+## bis +94 k Dreiecke im Bild (s 8, Wiese und Decke in A); +10,3 MB
+## Grafikspeicher (Handy +5,3).
+## BAUZEIT und BAUSPEICHER (Entwurf §9.4: kein Schritt über 400 ms): Gebaut
+## wird nur beim ersten Laden, höchstens 0,33 s je Schritt („Rasen an der
+## Suhle", ohne das Anlegen; zusammen lagen beide bei 0,42 s); die Kronen
+## beider Seiten zusammen über `sicht_oberkante` brauchten 1,2–1,4 s, daher
+## die Tabelle und ein Schritt je Seite. Danach liegen die LAGEN im
+## Bauspeicher, nicht die Knoten: Rasen und Farn sind MultiMeshes, deren
+## Instanzen ohne Grafik nicht auslesbar sind (siehe `L05Ablage`). Aus
+## ihnen baut `Rasenbau.fertig` dieselben Knoten wieder (`Bau.zustand`,
+## Streu und Laub mit fertigem Netz: `FertigerHaufen`) – ein Schritt von
+## rund 10 ms statt sieben Schritten von zusammen 1,2 s.
 
 ## Breite des Rasensaums hinter der Wandkrone (m) und seine Dichte (Flecken
 ## je m²); die Kronen bekommen ihn in Stücken von KRONE_SCHRITT m (die
@@ -54,6 +63,15 @@ const ABSCHNITT_A := Vector2(-4.0, 31.0)
 const ABSCHNITT_E := Vector2(265.0, 300.0)
 const WIESE_BREITE := 8.0
 const WIESE_DICHTE := 3.5
+## Hinter dem Ende der Decke (M_ENDE) bis hierher die Wiese unter der
+## Kamera, von der Zunge des Auslaufs (`Level05.auslauf_halb`) bis
+## AUSLAUF_BREITE quer: Am Ziel (296) steht die Kamera 21 m dahinter bei
+## 317, der untere Bildrand trifft den Boden rund 5 m vor ihr (Blick 10°
+## nach unten, halbes Bildfeld 37,5°, 5,6 m hoch). Ohne das lag im unteren
+## Drittel des Schlussbilds nur nackter Grund (Prüfung P7), in A dagegen
+## Gras bis an die Kamera. Quer wie die Wiese in A (Wegrand + WIESE_BREITE).
+const AUSLAUF_E := 315.0
+const AUSLAUF_BREITE := 12.0
 ## Sperren als Vector4(s, q, halbe Länge, halbe Breite): Suhlgraben,
 ## Schlamm um den schlafenden Keiler (L05Wasser.DECKE_*), Wehrkrone.
 const SPERREN: Array[Vector4] = [
@@ -88,41 +106,57 @@ const HANDY := 0.5
 const SAAT := 5801
 
 var level: Level05
-var bau: Rasenbau
+var bau: Bau
 var _farn_stoff: ShaderMaterial
 ## Kisten als (s, q), für Laub und Farn.
 var _kisten: Array[Vector2] = []
 ## Kronen einer Seite (siehe `_tabelle_anlegen`).
 var _tabelle := PackedVector2Array()
 var _tabelle_von := 0.0
+## Lagen von Laub und Farn (für die Ablage): {"laub": Stück -> Haufen
+## (`haufen_daten`), "farn": Vector2i(Stück, Form) -> {lagen, farben}}.
+var _laub_farn := {}
 
 
+## Die Schritte: liegen die Lagen im Bauspeicher (`schluessel`, im
+## Hintergrund vorgeladen wie der Wald), einer, der daraus die Knoten baut
+## (`_aus_speicher`); sonst der ganze Bau, der am Ende ablegt (`_fertig`).
 static func bauschritte(level_: Level05) -> Array:
 	var r := L05Rasen.new()
 	r.level = level_
 	level_.rasen = r
+	if Bauspeicher.vorladen(r.schluessel()):
+		return [{"text": "Rasen wird ausgerollt", "tun": r._aus_speicher}]
+	return r._bau_schritte()
+
+
+## Schlüssel im Bauspeicher: wie `L05Wald.schluessel` (der Rasen hält
+## Abstand zu den Stämmen des Walds, K8 rechnet mit der Kamera).
+func schluessel() -> String:
+	var kamera := level.get_node_or_null("CorridorCamera") as KorridorKamera
+	return "l05_rasen_%s_%s_%s" % ["handy" if Effekte.reduziert else "voll",
+			"modelle" if Fremdmodelle.aktiv() else "ohne", L05Ablage.kamera_schluessel(kamera)]
+
+
+## Der Bau in Schritten. „Rasen an der Suhle" lag kalt bei 422 ms (Entwurf
+## §9.4: kein Schritt über 400 ms) – Anlegen und Säen sind getrennt.
+func _bau_schritte() -> Array:
 	return [
-		{"text": "Rasen an der Suhle", "tun": r._wiese_a},
-		{"text": "Rasen auf den Kronen links", "tun": r._kronen.bind(-1.0)},
-		{"text": "Rasen auf den Kronen rechts", "tun": r._kronen.bind(1.0)},
-		{"text": "Rasen am Mühlbach", "tun": r._wiese_e},
-		{"text": "Laub am Wegrand und Kupferfarn", "tun": r._laub_und_farn},
-		{"text": "Rasen wird ausgerollt", "tun": r._fertig},
+		{"text": "Rasen wird angelegt", "tun": _anlegen},
+		{"text": "Rasen an der Suhle", "tun": _wiese_a},
+		{"text": "Rasen auf den Kronen links", "tun": _kronen.bind(-1.0)},
+		{"text": "Rasen auf den Kronen rechts", "tun": _kronen.bind(1.0)},
+		{"text": "Rasen am Mühlbach", "tun": _wiese_e},
+		{"text": "Laub am Wegrand und Kupferfarn", "tun": _laub_und_farn},
+		{"text": "Rasen wird ausgerollt", "tun": _fertig},
 	]
 
 
 # ================================================================ Bau
 
-## Legt den Bau an (Kisten, Stämme, Sperren) und sät A: Decke nach der
-## Wegmaske, Wiese daneben (samt der niedrigen Kronen um die Suhle),
-## Rahmenfarne.
-func _wiese_a() -> void:
-	var kamera := level.get_node_or_null("CorridorCamera") as KorridorKamera
-	var optionen := {"kisten": level.kisten_orte(), "kamera": kamera, "saat": SAAT + 1,
-			"name": "Rasen"}
-	if level.wald != null:
-		optionen["wald"] = level.wald.dichte
-	bau = Rasenbau.new(level.deko, level.weg, hoehe, optionen)
+## Legt den Bau an: Kisten, Stämme und Sperren, der Stoff des Kupferfarns.
+func _anlegen() -> void:
+	bau = _bau_neu()
 	for k in level.kisten_orte():
 		_kisten.append(bau.strecke_quer(k))
 	for v in SPERREN:
@@ -132,16 +166,28 @@ func _wiese_a() -> void:
 			var sq := bau.strecke_quer(f)
 			if absf(sq.y) < 40.0:
 				bau.kreis(sq.x, sq.y, 0.8)
-	_farn_stoff = Farnwerk.stoff().duplicate() as ShaderMaterial
-	_farn_stoff.set_shader_parameter("farbe", KUPFER)
+	_farn_stoff_anlegen()
+
+
+## A: Decke nach der Wegmaske, Wiese daneben (samt der niedrigen Kronen um
+## die Suhle), Rahmenfarne.
+func _wiese_a() -> void:
 	_abschnitt(ABSCHNITT_A)
 	for seite: float in [-1.0, 1.0]:
 		bau.rahmenfarne(ABSCHNITT_A.x + 2.0, ABSCHNITT_A.y - 4.0, seite, _farn_stoff)
 
 
-## E: Decke nach der Wegmaske und die Wiese daneben.
+## E: Decke nach der Wegmaske und die Wiese daneben, bis unter die Kamera
+## (siehe AUSLAUF_E).
 func _wiese_e() -> void:
 	_abschnitt(ABSCHNITT_E)
+	for seite: float in [-1.0, 1.0]:
+		var s := ABSCHNITT_E.y
+		while s < AUSLAUF_E:
+			var innen := Level05.auslauf_halb(s) + 0.3
+			bau.boden(s, minf(s + KRONE_SCHRITT, AUSLAUF_E), seite, innen, AUSLAUF_BREITE,
+					WIESE_DICHTE, Rasenbau.Bereich.WIESE)
+			s += KRONE_SCHRITT
 
 
 func _abschnitt(ab: Vector2) -> void:
@@ -213,12 +259,10 @@ func _krone_hoehe(x: float, z: float) -> float:
 
 
 ## Laubstreu am Wegrand und Kupferfarn, je Stück von LAUB_STUECK bzw.
-## STUECK m als Haufen bzw. Feld.
+## STUECK m als Haufen bzw. Feld: erst die Lagen (`_laub_farn`, für die
+## Ablage), dann die Knoten daraus – beim Laden mit derselben Funktion.
 func _laub_und_farn() -> void:
 	var anteil := HANDY if Effekte.reduziert else 1.0
-	var wurzel := Node3D.new()
-	wurzel.name = "Laub und Farn"
-	level.deko.add_child(wurzel)
 	var formen: Array[Bodenstreu.Teil] = []
 	var frng := PropWerkzeug.zufall(SAAT + 2)
 	for i in 6:
@@ -246,16 +290,17 @@ func _laub_und_farn() -> void:
 			var lage := Transform3D(Basis(Vector3.UP, rng.randf() * TAU)
 					* Basis.from_scale(Vector3.ONE * rng.randf_range(0.8, 1.3)), p)
 			(haufen[i] as Bodenstreu.Haufen).teil(t, lage)
+	var laub := {}
 	for i: int in haufen:
-		(haufen[i] as Bodenstreu.Haufen).knoten(wurzel, "Laub %d" % i, SICHT_LAUB)
-	_kupferfarn(wurzel, anteil)
+		laub[i] = haufen_daten(haufen_fertig(haufen[i] as Bodenstreu.Haufen))
+	_laub_farn = {"laub": laub, "farn": _kupferfarn(anteil)}
+	_laub_farn_einhaengen(_laub_farn)
 
 
-## Kupferfarn auf der Sonnenseite (q > 0) hinter der Wandkrone (FARN_STRECKEN).
-func _kupferfarn(wurzel: Node3D, anteil: float) -> void:
-	var netze: Array[ArrayMesh] = [Farnwerk.klein(3), Farnwerk.klein(8),
-			Farnwerk.netz({"laenge": 1.0, "wedel": 6, "fiedern": 7, "zacken": 0,
-				"steil": Vector2(0.45, 1.05), "schwere": 0.28, "saat": SAAT + 4})]
+## Kupferfarn auf der Sonnenseite (q > 0) hinter der Wandkrone
+## (FARN_STRECKEN): die Felder je Stück und Form, Vector2i(Stück, Form) ->
+## {lagen, farben}.
+func _kupferfarn(anteil: float) -> Dictionary:
 	var rng := PropWerkzeug.zufall(SAAT + 5)
 	var zug := _zug("Böschung rechts")
 	var felder := {}
@@ -291,17 +336,81 @@ func _kupferfarn(wurzel: Node3D, anteil: float) -> void:
 				var v := rng.randf_range(0.8, 1.15)
 				farben.append(Color(v * rng.randf_range(0.95, 1.08), v, v * rng.randf_range(0.85, 1.0)))
 				e["farben"] = farben
+	return felder
+
+
+## Die Knoten von Laub und Farn aus ihren Lagen (`_laub_farn`), unter einer
+## Wurzel „Laub und Farn".
+func _laub_farn_einhaengen(d: Dictionary) -> void:
+	var wurzel := Node3D.new()
+	wurzel.name = "Laub und Farn"
+	level.deko.add_child(wurzel)
+	var laub: Dictionary = d["laub"]
+	for i: int in laub:
+		haufen_aus(laub[i] as Dictionary).knoten(wurzel, "Laub %d" % i, SICHT_LAUB)
+	var netze: Array[ArrayMesh] = [Farnwerk.klein(3), Farnwerk.klein(8),
+			Farnwerk.netz({"laenge": 1.0, "wedel": 6, "fiedern": 7, "zacken": 0,
+				"steil": Vector2(0.45, 1.05), "schwere": 0.28, "saat": SAAT + 4})]
+	var felder: Dictionary = d["farn"]
 	for schluessel: Vector2i in felder:
 		var e: Dictionary = felder[schluessel]
-		var lagen: Array[Transform3D] = e["lagen"]
+		var lagen: Array[Transform3D] = []
+		lagen.assign(e["lagen"])
 		Bodenstreu.feld(wurzel, "Kupferfarn %d %d" % [schluessel.x, schluessel.y],
 				netze[schluessel.y], lagen, e["farben"] as PackedColorArray, SICHT_FARN, _farn_stoff)
 
 
+## Rasenbau fertig, dann ablegen: die Lagen aus Rasenbau (`Bau.zustand`)
+## und von Laub und Farn. WARUM die Lagen und nicht die Knoten: Rasen und
+## Farn sind MultiMeshes, deren Instanzen ohne Grafik nicht auslesbar sind
+## (siehe `L05Ablage`). `fertig` baut aus den Lagen in rund 20 ms dieselben
+## Knoten (Bauzeitprobe, P7: „Rasen wird ausgerollt" 19–27 ms).
 func _fertig() -> void:
-	if bau != null:
-		bau.fertig()
+	if bau == null:
+		return
+	var zustand := bau.zustand()
+	bau.fertig()
 	bau = null
+	if not _laub_farn.is_empty():
+		Bauspeicher.ablegen(schluessel(), {"rasen": zustand, "laub_farn": _laub_farn})
+	_laub_farn = {}
+
+
+## Der Rasen aus dem Bauspeicher: Laub und Farn, dann der Rasen – in der
+## Reihenfolge des Baus, mit denselben Funktionen. Lässt er sich nicht lesen,
+## wird hier wie beim ersten Mal gebaut.
+func _aus_speicher() -> void:
+	var gesichert: Variant = Bauspeicher.gespeichert(schluessel())
+	var d: Dictionary = gesichert if gesichert is Dictionary else {}
+	_farn_stoff_anlegen()
+	var neu := _bau_neu()
+	var stoffe: Array[Material] = [null, _farn_stoff]
+	if not d.has("rasen") or not d.has("laub_farn") \
+			or not neu.zustand_setzen(d["rasen"] as Dictionary, stoffe):
+		neu = null
+		for schritt: Dictionary in _bau_schritte():
+			(schritt["tun"] as Callable).call()
+		return
+	_laub_farn_einhaengen(d["laub_farn"] as Dictionary)
+	neu.fertig()
+
+
+## Ein Rasenbau mit Kisten, Kamera (K8), Walddichte und Saat des Levels.
+func _bau_neu() -> Bau:
+	var kamera := level.get_node_or_null("CorridorCamera") as KorridorKamera
+	var optionen := {"kisten": level.kisten_orte(), "kamera": kamera, "saat": SAAT + 1,
+			"name": "Rasen"}
+	if level.wald != null:
+		optionen["wald"] = level.wald.dichte
+	return Bau.new(level.deko, level.weg, hoehe, optionen)
+
+
+## Der Kupferfarn: eine Abschrift von `Farnwerk.stoff()` (siehe Kopf).
+func _farn_stoff_anlegen() -> void:
+	if _farn_stoff != null:
+		return
+	_farn_stoff = Farnwerk.stoff().duplicate() as ShaderMaterial
+	_farn_stoff.set_shader_parameter("farbe", KUPFER)
 
 
 # ================================================================ Abfragen
@@ -373,3 +482,92 @@ func _laubhaeufchen(rng: RandomNumberGenerator) -> Bodenstreu.Teil:
 		t.dreieck(a, rippe, re, kipp, farbe, hell, farbe, Bodenstreu.GROSS)
 		t.dreieck(rippe, b, re, kipp, hell, farbe, farbe, Bodenstreu.GROSS)
 	return t
+
+
+## Ein Haufen (Laub, Streu) mit fertigem Netz: einmal gebaut (`Haufen.netz`
+## aus den Scheiteln kostete beim Laden 18 ms für die Streu), als Daten für
+## die Ablage und zurück.
+static func haufen_fertig(h: Bodenstreu.Haufen) -> FertigerHaufen:
+	var f := FertigerHaufen.new(h.ursprung)
+	f.fertig_netz = null if h.leer() else h.netz()
+	return f
+
+
+static func haufen_daten(h: FertigerHaufen) -> Dictionary:
+	return {"ursprung": h.ursprung, "netz": h.fertig_netz}
+
+
+static func haufen_aus(d: Dictionary) -> FertigerHaufen:
+	var f := FertigerHaufen.new(d["ursprung"] as Vector3)
+	f.fertig_netz = d["netz"] as ArrayMesh
+	return f
+
+
+## Ein Haufen, dessen Netz schon gebaut ist: `knoten` (Bodenstreu) hängt es
+## ein, ohne es aus den Scheiteln neu zu bauen.
+class FertigerHaufen:
+	extends Bodenstreu.Haufen
+	var fertig_netz: ArrayMesh
+
+	func netz() -> ArrayMesh:
+		return fertig_netz
+
+	func leer() -> bool:
+		return fertig_netz == null
+
+
+## `Rasenbau` mit einem Zustand für den Bauspeicher: Was `fertig` zu Knoten
+## macht – je Stück die Lagen und Farben von Halmen, Büscheln, Wispeln,
+## Moos, Farnen, Großblättern und Rahmenfarnen und der Streuhaufen –, als
+## Daten heraus (`zustand`) und wieder hinein (`zustand_setzen`); danach
+## baut `fertig` wie beim ersten Mal. WARUM hier und nicht in rasenbau.gd:
+## Der geteilte Baustein bleibt unberührt (Null-Pfad); die Felder, die hier
+## gelesen werden, sind die von `Rasenbau.Sammlung`.
+class Bau:
+	extends Rasenbau
+
+	const FELDER: Array[String] = ["gras", "bueschel", "wispel", "polster", "farn", "gross"]
+
+	func zustand() -> Dictionary:
+		var aus := {}
+		for i: int in _sammlungen:
+			var sa: Rasenbau.Sammlung = _sammlungen[i]
+			# Die Streu bekommt hier ihr fertiges Netz: `fertig` baut es dann
+			# nicht noch einmal.
+			if sa.haufen != null:
+				sa.haufen = L05Rasen.haufen_fertig(sa.haufen)
+			var e := {"rahmen": sa.rahmen.duplicate(true),
+					"haufen": {} if sa.haufen == null else L05Rasen.haufen_daten(
+						sa.haufen as L05Rasen.FertigerHaufen)}
+			for f in FELDER:
+				e[f] = sa.get(f)
+				e[f + "_farben"] = sa.get(f + "_farben")
+			aus[i] = e
+		return {"sammlungen": aus, "stoffe": _rahmen_stoffe.size()}
+
+	## false, wenn die Stoffe der Rahmenfarne nicht passen (dann bleibt der
+	## Bau leer).
+	func zustand_setzen(d: Dictionary, stoffe: Array[Material]) -> bool:
+		if int(d.get("stoffe", -1)) != stoffe.size():
+			return false
+		_rahmen_stoffe = stoffe
+		_sammlungen = {}
+		var sammlungen: Dictionary = d["sammlungen"]
+		for i: int in sammlungen:
+			var e: Dictionary = sammlungen[i]
+			var sa := Rasenbau.Sammlung.new()
+			for f in FELDER:
+				var lagen: Array[Transform3D] = sa.get(f)
+				lagen.assign(e[f])
+				sa.set(f + "_farben", e[f + "_farben"] as PackedColorArray)
+			var rahmen: Dictionary = e["rahmen"]
+			for rs: Vector2i in rahmen:
+				var r: Dictionary = rahmen[rs]
+				var lagen: Array[Transform3D] = []
+				lagen.assign(r["lagen"])
+				sa.rahmen[rs] = {"lagen": lagen, "farben": r["farben"] as PackedColorArray}
+			var haufen: Dictionary = e["haufen"]
+			if not haufen.is_empty():
+				sa.haufen = L05Rasen.haufen_aus(haufen)
+			_sammlungen[i] = sa
+		return true
