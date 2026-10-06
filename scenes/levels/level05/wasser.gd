@@ -8,13 +8,20 @@ class_name L05Wasser
 ## WAS HIER ENTSTEHT (Seiten wie im Rückblick: q < 0 BILDRECHTS, Schatten
 ## und Wasser; q > 0 BILDLINKS, Sonnenhang):
 ## * SUHLE (A, q < 0, hinter der niedrigen Erdböschung): Schlamm aus
-##   `Materialbibliothek.moorboden` als `duplicate()` (in Braun getönt,
-##   nasser: Der Torf der Bibliothek ist grün), knapp über dem Grund der
-##   Mulde des Geländes (`L05Gelaende.SUHLE`); wo die Mulde ansteigt,
-##   taucht er unter das Feld. Darauf Pfützen (`Materialbibliothek.pfuetze`,
-##   der Glanz), dazu drei auf der Decke um den schlafenden Keiler: Er liegt
-##   am Wegrand vor der Suhle (L05Jagd, SCHLAF_Q), und der Entwurf will ihn
-##   „in der glänzenden Suhle".
+##   `Materialbibliothek.moorboden` als `duplicate()` (satt dunkelbraun
+##   getönt, nass glänzend: Der Torf der Bibliothek ist grün), der dem Feld
+##   der Mulde (`L05Gelaende.SUHLE`) knapp darüber folgt und sie bis gut
+##   einen halben Meter über ihrem Grund deckt; im Grund zusammenhängende
+##   Lachen (`Materialbibliothek.pfuetze`, der Glanz), eben auf einem
+##   Spiegel. Dazu ein Schlammfleck mit Pfützen auf der Decke um den
+##   schlafenden Keiler: Er liegt am Wegrand vor der Suhle (L05Jagd,
+##   SCHLAF_Q), und der Entwurf will ihn „in der glänzenden Suhle". Alle
+##   Ränder laufen über die Deckung im Alpha aus (Raster, siehe
+##   `_suhle_netze`). WARUM so: Als Ebene 6 cm über dem tiefsten Grund
+##   deckte der Schlamm nur einen schmalen Streifen der Mulde; im Bild bei
+##   s 8 änderten sich 1,6 % der Bildpunkte, die Mulde blieb grauer Kies,
+##   und die Pfützen standen als graue Scheiben mit harter Kante im Gras
+##   (Prüfung P6).
 ## * RINNSALE am Wasserriss L1: je eines aus beiden Böschungen, unter der
 ##   Grasnarbe heraus, die Wand hinab und im Spalt bis auf seinen Grund
 ##   (`Wasserfall.band`, an der gebauten Fläche des Saums, `stand` in
@@ -36,12 +43,15 @@ class_name L05Wasser
 ##   bildrechts, als Schuss ÜBER der Todeszone (Spiegel ≥ WEHR_RECHTS) und
 ##   am rechten Ufer hinab ins Unterwasser – darunter ein dunkler, schneller
 ##   Wasserkörper im Stoff des Bachs (Schaum nach der Schnelle), darüber
-##   ein Band aus `Wasserfall.band` (rechts).
-## * MÜHLRAD Ø 7 m bei s 291 / q −7 im Unterwasser, unterschlächtig: Die
-##   Welle liegt quer zum Weg (das Rad steht längs, ab ≈ 15 m bildrechts im
-##   Bild), Schaufeln 0,2 m im Wasser, zwei Böcke tragen die Welle. Es
-##   dreht sich im Bildtakt (`_process`) – deshalb ohne Interpolation
-##   (`PHYSICS_INTERPOLATION_MODE_OFF`), sonst zitterte es (Glattprobe).
+##   zwei Bänder aus `Wasserfall.band` (rechts): der Schuss ab der
+##   Bruchkante und der Fall, weiß und gewölbt (`_weisswasser`).
+## * MÜHLRAD Ø 7 m bei s 291 / q −8,5 im Unterwasser, unterschlächtig: Die
+##   Welle liegt quer zum Lauf, das Rad steht in seiner Fließrichtung (ab
+##   ≈ 13 m bildrechts im Bild, von der Kamera her fast von vorn),
+##   Schaufeln 0,2 m im Wasser, zwei Böcke tragen die Welle, einer am
+##   Ufer, einer im Lauf. Es dreht sich im Bildtakt (`_process`) – deshalb
+##   ohne Interpolation (`PHYSICS_INTERPOLATION_MODE_OFF`), sonst zitterte
+##   es (Glattprobe).
 ##
 ## TÖDLICH ist hier nichts (Entwurf §1 Nr. 23): keine Kollision, keine
 ## Zone, keine `Wasser`-Gefahr. Tödlich bleiben allein die Todeszonen der
@@ -55,19 +65,22 @@ class_name L05Wasser
 ## KOSTEN (Entwurf §10: Wasser und Mühlrad 10 Zeichenaufrufe, Handy 8),
 ## alles ohne Schatten: Bach, Teich, Bruch und Gerinne in EINEM Netz im
 ## Stoff des Bachs (1); Schlamm (1) und Pfützen (1) der Suhle; die
-## Rinnsale (1), die Fälle der Gerinne (1) und das Weißwasser (1) je als
-## ein Band; Rad (1) und Böcke (1). Zusammen höchstens 8. Gemessen
-## (Messtore 8/60/90/140/218/276/280/296, mit gegen ohne Wasser): Rechner
-## und Handy je +2 bis +7, das meiste am Mühlbach (276–296). Sichtweiten
-## siehe SICHT_*; Bach und Suhle ohne: Eine Sichtweite zählt ab der Mitte
-## der Hülle, die des Bachs (Tobel bis Feldrand) liegt weit vom Bild.
+## Rinnsale (1), die Fälle der Gerinne (1), der Schuss (1) und der Fall
+## (1) des Weißwassers je als ein Band; Rad (1) und Böcke (1). Zusammen
+## 9; zugleich im Bild höchstens 6 (am Mühlbach), weil Suhle und
+## Rinnsale nur von Nahem zu sehen sind. Sichtweiten siehe SICHT_*; der
+## Bach ohne: Eine Sichtweite zählt ab der Mitte der Hülle, die des Bachs
+## (Tobel bis Feldrand) liegt weit vom Bild.
 ##
 ## BAUSPEICHER: Das Netz des Bachs (das Ufer wird am gezeichneten Gelände
 ## abgetastet), Schlamm und Pfützen liegen nach dem ersten Laden je
 ## Handyweg und Rechner im `Bauspeicher` (das Feld des Handys hat weitere
 ## Punkte), das Mühlrad als `Bauspeicher.netz`. Die Bänder sind kurz und
-## entstehen bei jedem Laden neu. Gemessen (Bauzeitprobe, Rechner): kalt
-## 168 und 158 ms für die beiden Schritte, im zweiten Laden 7 und 6 ms.
+## entstehen bei jedem Laden neu. Gemessen (Bauzeitprobe, Rechner, je vier
+## Läufe mit frischem Benutzerordner): kalt 173–225 ms für Flächen und Suhle
+## (als Ebene: 135–184) und 111–139 ms für Bänder und Rad, im zweiten
+## Laden 2–4 und 5–10 ms; das ganze Level kalt 7,40–7,60 s (vorher
+## 7,10–7,65 s), im zweiten Laden 231–325 ms.
 ##
 ## ABWEICHUNGEN VOM ENTWURF, jede von Code oder Messung erzwungen:
 ##   * Teich und Bruch sind keine Läufe des Bachbands, sondern ein eigenes
@@ -80,8 +93,12 @@ class_name L05Wasser
 ##     Y ≈ 1,6 fallen – unter die Zone (2,6). Der Entwurf verlangt die Zone
 ##     unter dem Weißwasser; also hält der Schuss über der begehbaren
 ##     Breite mindestens WEHR_RECHTS und fällt erst dahinter.
-##   * Die Schlammfläche ist ein `duplicate()` von `moorboden` mit Braun und
-##     weniger Rauheit (Entwurf §1 Nr. 24: geteilte Stoffe nur als Kopie).
+##   * Die Schlammfläche ist ein `duplicate()` von `moorboden` mit Braun,
+##     weniger Rauheit und Spiegelung, die Pfützen eines von `pfuetze` mit
+##     Deckung aus der Scheitelfarbe (Entwurf §1 Nr. 24: geteilte Stoffe nur
+##     als Kopie).
+##   * Das Mühlrad steht 1,5 m weiter im Lauf (q −8,5 statt −7) und in
+##     dessen Richtung (siehe RAD_Q).
 ##   * Zusätzlich Wasser in den Spalten L4/L5 und in den Gerinnen D3/D4
 ##     (siehe oben); der Entwurf nennt sie „Seitenrinne", „Mühlrinne" und
 ##     „tropfend", ohne Wasser blieben es trockene Namen.
@@ -97,33 +114,73 @@ const SICHT_RAND := 5.0
 
 # =========================================================== Suhle
 
-## Raster der Suhle (s, q): so weit, Abstand der Punkte (Handy × 1,4).
-const SUHLE_S := Vector2(5.0, 27.0)
-const SUHLE_Q := Vector2(-19.5, -9.3)
-const SUHLE_SCHRITT := 0.6
-## Der Schlamm liegt so hoch über dem tiefsten Grund der Mulde (m).
-const SCHLAMM_UEBER := 0.06
-## Tönung des Torfs der Bibliothek (Faktoren je Kanal): aus Moorgrün wird
-## dunkelbrauner, nasser Schlamm (gerechnet: Albedo bis 0,34/0,26/0,13
-## statt 0,36/0,42/0,25; mit 1,45/0,74/0,62 stand er im Bild lachsrot);
-## Rauheit nass.
-const SCHLAMM_TON := Color(0.95, 0.62, 0.5)
-const SCHLAMM_RAU := 0.3
+## Raster über der Mulde (s, q; `L05Gelaende.SUHLE`, Grund auf Y 25,6, die
+## Decke von A auf 26,0) und Abstand der Punkte (Handy × 1,4).
+const SUHLE_S := Vector2(2.0, 29.0)
+const SUHLE_Q := Vector2(-20.5, -10.0)
+const SUHLE_SCHRITT := 0.5
+## Der Schlamm liegt so hoch über dem Feld (m) – er folgt ihm, statt als
+## Ebene über dem Grund zu stehen.
+const SCHLAMM_UEBER := 0.03
+## Er deckt das Feld ganz bis so hoch über dem Grund der Mulde (x) und läuft
+## bis y aus; das Rauschen schiebt diese Höhen um ± SCHLAMM_WANDERN.
+const SCHLAMM_RAND := Vector2(0.36, 0.62)
+const SCHLAMM_WANDERN := 0.14
+## Im Grund (bis so hoch darüber) ist er nasser: die Farbe mal SCHLAMM_NASS.
+const SCHLAMM_NASS_BIS := 0.3
+const SCHLAMM_NASS := 0.72
+## Schlamm auf der Decke um den schlafenden Keiler (`L05Jagd.SCHLAF_S`/`_Q`,
+## der Leib liegt 2 m hangauf): Ellipsen Vector4(s, q, Halbachse längs,
+## Halbachse quer). Raster (s, q) mit Abstand; zum Rand der Decke (die
+## Leitlinie liegt auf q −6,6, dahinter die Erdböschung) läuft er ab DECKE_Q.x
+## + DECKE_AUSLAUF aus.
+const SCHLAMM_DECKE: Array[Vector4] = [Vector4(14.4, -4.6, 4.3, 1.75),
+		Vector4(10.6, -5.4, 1.8, 0.95), Vector4(18.4, -4.2, 1.6, 1.0)]
+const DECKE_S := Vector2(7.5, 21.0)
+const DECKE_Q := Vector2(-6.45, -2.0)
+const DECKE_SCHRITT := 0.35
+const DECKE_AUSLAUF := 0.5
+## Ränder der Flecken auf der Decke: Breite des Auslaufs (im Maß der
+## Ellipse, 1 − r) und wie weit das Rauschen ihn schiebt – für den Schlamm
+## (x) und die Pfützen (y).
+const DECKE_WEICH := Vector2(0.35, 0.3)
+const DECKE_WANDERN := Vector2(0.2, 0.15)
+## Über die Decke (m): Schlamm, darauf die Pfützen.
+const DECKE_SCHLAMM := 0.02
+const DECKE_PFUETZE := 0.035
+## Tönung des Torfs der Bibliothek (Faktoren je Kanal; Albedo dort von
+## 0,11/0,15/0,10 bis 0,36/0,42/0,25): satt dunkelbraun, im Mittel
+## 0,16/0,12/0,06. Mit 0,95/0,62/0,50 (P6) lag er bei 0,22/0,18/0,09, mit
+## 0,85/0,42/0,34 stand er von oben orangerot im Bild, mit 1,45/0,74/0,62
+## lachsrot.
+const SCHLAMM_TON := Color(0.68, 0.42, 0.32)
+## Nass glänzend (Rauheit), aber mit wenig Spiegelung (`metallic_specular`,
+## Vorgabe 0,5): Die Kamera sieht die Suhle flach, und dort warf sie den
+## Himmel als graulila Schleier zurück (Prüfung P6; im Bild verglichen:
+## Rauheit 0,14/0,45/0,6, Spiegelung 0,5/0,3/0,2). So bleibt sie braun, und
+## das Licht bricht sich nur noch streifig an der Normalmap.
+const SCHLAMM_RAU := 0.14
+const SCHLAMM_GLANZ := 0.2
 ## Texturmaßstab (Wiederholungen je Meter).
 const SCHLAMM_UV := 0.18
-## Pfützen Vector4(s, q, Halbachse längs, Halbachse quer): in der Mulde
-## (auf dem Schlamm) und auf der Decke um den Keiler (q > −6,6).
-const PFUETZEN: Array[Vector4] = [
-	Vector4(10.5, -13.4, 1.5, 0.9), Vector4(14.8, -12.2, 1.0, 0.7),
-	Vector4(18.6, -14.0, 1.9, 1.1), Vector4(22.0, -12.9, 0.9, 0.6),
-	Vector4(12.6, -15.7, 0.8, 0.5),
-	Vector4(12.3, -5.3, 0.85, 0.5), Vector4(16.6, -3.4, 0.7, 0.45),
-	Vector4(14.9, -6.0, 0.55, 0.32),
-]
-## So hoch über dem Schlamm bzw. der Decke liegen die Pfützen (m; die
-## Bibliothek denkt an rund 2 cm, hier etwas mehr Spiel gegen den Schlamm,
-## der selbst nur SCHLAMM_UEBER über dem Feld liegt).
-const PFUETZE_UEBER := 0.03
+## Pfützen in der Mulde: ein Spiegel so hoch über ihrem Grund; wo Wasser
+## steht, sagt ein Feld aus Rauschen (Streuung, Anteil, Rand), das mit der Höhe über
+## dem Grund (mal PFUETZE_HANG) sinkt – im flachen Grund zusammenhängende
+## Lachen, an den Hängen keine. Der Spiegel bleibt mindestens
+## PFUETZE_UEBER über dem Schlamm.
+const PFUETZE_SPIEGEL := 0.065
+const PFUETZE_STREUUNG := 0.5
+const PFUETZE_ANTEIL := 0.2
+const PFUETZE_RAND := 0.22
+const PFUETZE_HANG := 6.0
+const PFUETZE_UEBER := 0.015
+## Pfützen auf dem Schlamm der Decke (wie SCHLAMM_DECKE).
+const PFUETZEN_DECKE: Array[Vector4] = [Vector4(12.2, -5.3, 1.5, 0.8),
+		Vector4(16.9, -3.5, 1.0, 0.55), Vector4(9.9, -5.0, 0.8, 0.45),
+		Vector4(18.9, -4.5, 0.8, 0.45)]
+## Rauschen für die Ränder (feste Saat) und seine Frequenz (je m).
+const SUHLE_SAAT := 5803
+const SUHLE_RAUSCHEN := 0.22
 
 # =========================================================== Rinnsale
 
@@ -192,6 +249,18 @@ const WEHR_ZONE_MAX := 2.6
 ## Weißwasser (Farben wie die Fälle von Level 01).
 const FALL_SCHAUM := Color(0.86, 0.93, 0.95)
 const FALL_TIEF := Color(0.2, 0.38, 0.42)
+## Weißwasser: Der Schuss beginnt an der Bruchkante zum Teich (q) und läuft
+## so viele Punkte (je 0,05 s Wurf) in den Fall hinein.
+const WEHR_KANTE := 4.5
+const SCHUSS_UEBER := 4
+## Der Fall an der rechten Kante: Wölbung (Anteil der Breite, die zweite
+## Lage 1,4-mal), Tempo und Farben – fast weiß auch zwischen den
+## Schaumstreifen, sonst stand er von der Seite als hellblaue Glasscheibe
+## da (Prüfung P6).
+const WEHRFALL_BAUCH := 0.1
+const WEHRFALL_TEMPO := 6.5
+const WEHRFALL_SCHAUM := Color(0.94, 0.97, 0.98)
+const WEHRFALL_TIEF := Color(0.7, 0.8, 0.82)
 
 # =========================================================== Gerinne
 
@@ -199,13 +268,21 @@ const FALL_TIEF := Color(0.2, 0.38, 0.42)
 const GERINNE_UNTER := 0.13
 const GERINNE_HALB := 0.42
 const GERINNE_TEMPO := 1.6
+## Uferabstand des Shaders bis GERINNE_SAUM vor der Wand (darunter keine
+## helle Uferfarbe und kein Schaumsaum, `bach.gdshader` ab 0,45 bzw. 0,6).
+const GERINNE_UFER := 0.4
+const GERINNE_SAUM := 0.06
 ## Das Wasser schießt mit so viel Tempo (m/s) aus dem Ende des Gerinnes.
 const GERINNE_WURF := 1.0
 
 # =========================================================== Mühlrad
 
+## Mitte des Rads (s, q): 1,5 m weiter im Lauf des Unterwassers als im
+## Entwurf (q −7). Dort stand es am Rand des Laufs, und ab s 292 hing die
+## untere Kante über trockenem Grund (Prüfung P6, Strahlprobe gegen das
+## Bachnetz). Die Ebene des Rads folgt dem Lauf (`_unter_richtung`).
 const RAD_S := 291.0
-const RAD_Q := -7.0
+const RAD_Q := -8.5
 ## Halbmesser bis an die Schaufelkanten, die Kränze und die Nabe (m).
 const RAD_R := 3.5
 const KRANZ_R := 3.15
@@ -277,8 +354,8 @@ func _flaechen_bauen() -> void:
 	bach.extra_cull_margin = 0.5
 	bruch_netze.clear()
 	bruch_netze.append(bach)
-	_knoten("Suhle", netze["schlamm"] as Mesh, _schlamm_stoff(), 0.0)
-	_knoten("Pfützen", netze["pfuetzen"] as Mesh, Materialbibliothek.pfuetze(), 0.0)
+	_knoten("Suhle", netze["schlamm"] as Mesh, _schlamm_stoff(), SICHT_RINNSAL)
+	_knoten("Pfützen", netze["pfuetzen"] as Mesh, _pfuetzen_stoff(), SICHT_RINNSAL)
 
 
 func _knoten(name_k: String, netz: Mesh, stoff: Material, sicht: float) -> MeshInstance3D:
@@ -357,6 +434,19 @@ func _bett_q(s: float) -> float:
 	var m := L05Saum.form_ab(level, _ufer_zug(), s)
 	var lippe := absf(Level05.leitlinie_q(Level05.leitlinie_punkte(-1.0), s)) + 0.4
 	return -(lippe + float(m["fuss"]) + 0.6 + L05Gelaende.BETT_BREITE * 0.5)
+
+
+## Fließrichtung des Unterwassers (waagerecht) an `s`: das Stück des Laufs
+## `L05Gelaende.UNTERWASSER`, in dem `s` liegt (an den Enden das erste bzw.
+## letzte).
+func _unter_richtung(s: float) -> Vector3:
+	var lauf := L05Gelaende.UNTERWASSER
+	var i := 0
+	while i < lauf.size() - 2 and lauf[i + 1].x <= s:
+		i += 1
+	var d := level.weg_punkt(lauf[i + 1].x, lauf[i + 1].y) - level.weg_punkt(lauf[i].x, lauf[i].y)
+	d.y = 0.0
+	return d.normalized()
 
 
 ## Spiegel des Unterwassers an `s` (linear über s, dahinter wie am Ende).
@@ -508,8 +598,12 @@ func _bruch(netz: Bachband.Netz) -> void:
 
 ## Wasser im Gerinne eines Fluderjochs `d` (`L05Wegbauten`, Kopf): ein
 ## Streifen GERINNE_UNTER unter dem Rand, mit dessen Gefälle nach links,
-## von der Sandsteinwand bis ans Ende über dem Bach. Quer läuft er an den
-## Wänden des Halbstamms aus (Uferabstand 1).
+## von der Sandsteinwand bis ans Ende über dem Bach. Ruhig und dunkel
+## (Schnelle 0, Uferabstand bis GERINNE_UFER: die Farbe der Tiefe, kein
+## Schaumsaum); erst auf den letzten GERINNE_SAUM Metern zur Wand des
+## Halbstamms läuft es aus (Uferabstand 1,1). WARUM: Steht die Figur an L4,
+## schwebt die Rückblickkamera rund 1 m über dem Gerinne von D3, und
+## schäumendes Bachwasser füllte das untere Siebtel des Bildes (Prüfung P6).
 func _gerinne_wasser(netz: Bachband.Netz, d: Dictionary) -> void:
 	var g := L05Wegbauten.gerinne_lage(level, d)
 	var von: float = g["von"]
@@ -524,28 +618,54 @@ func _gerinne_wasser(netz: Bachband.Netz, d: Dictionary) -> void:
 		var x := lerpf(bis - 0.1, von + 0.05, float(k) / float(TEILE))
 		var y := L05Wegbauten.gerinne_rand_y(level, d, x) - GERINNE_UNTER
 		var sicht := 1.0 - smoothstep(von + 0.6, von + 0.05, x)
-		for z: float in [-GERINNE_HALB, 0.0, GERINNE_HALB]:
+		var innen := GERINNE_HALB - GERINNE_SAUM
+		for z: float in [-GERINNE_HALB, -innen, 0.0, innen, GERINNE_HALB]:
 			var p := level.weg_punkt(mitte, x) + vorn * z
 			p.y = y
-			netz.punkt(p, Vector2(z, -x), GERINNE_TEMPO,
-					Color(0.3, sicht, absf(z) / GERINNE_HALB * 0.95))
+			var ufer := 1.1 if absf(z) > innen + 0.001 else absf(z) / innen * GERINNE_UFER
+			netz.punkt(p, Vector2(z, -x), GERINNE_TEMPO, Color(0.0, sicht, ufer))
 	for k in TEILE:
-		for i in 2:
-			var a := erste + k * 3 + i
-			netz.viereck(a, a + 1, a + 4, a + 3)
+		for i in 4:
+			var a := erste + k * 5 + i
+			netz.viereck(a, a + 1, a + 6, a + 5)
 
 
 # ================================================================ Suhle
 
-## Schlamm und Pfützen der Suhle (siehe Kopf): {"schlamm", "pfuetzen"}.
-## Der Schlamm ist ein Raster über der Mulde, SCHLAMM_UEBER über ihrem
-## tiefsten Grund, nur wo er das Feld überragt – an den Rändern taucht er
-## darunter. UV in Metern × SCHLAMM_UV.
+## Schlamm und Pfützen der Suhle (siehe Kopf): {"schlamm", "pfuetzen"} –
+## je EIN Netz aus der Mulde und der Decke um den Keiler. Alles sind Raster
+## mit Deckung im Alpha der Scheitelfarbe: Die Ränder laufen über einen
+## halben Meter aus, statt als Kante einer Fläche oder Scheibe im Gras zu
+## stehen (Prüfung P6).
 func _suhle_netze() -> Dictionary:
-	var schritt := SUHLE_SCHRITT * (L05Gelaende.HANDY if Effekte.reduziert else 1.0)
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = SUHLE_SAAT
+	rauschen.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	rauschen.frequency = SUHLE_RAUSCHEN
+	rauschen.fractal_octaves = 2
+	var handy := L05Gelaende.HANDY if Effekte.reduziert else 1.0
+	var schlamm := SurfaceTool.new()
+	schlamm.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pfuetzen := SurfaceTool.new()
+	pfuetzen.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_mulde_schreiben(schlamm, pfuetzen, rauschen, SUHLE_SCHRITT * handy)
+	_decke_schreiben(schlamm, pfuetzen, rauschen, DECKE_SCHRITT * handy)
+	schlamm.index()
+	pfuetzen.index()
+	return {"schlamm": schlamm.commit(), "pfuetzen": pfuetzen.commit()}
+
+
+## Schlamm und Lachen in der Mulde (Raster SUHLE_S × SUHLE_Q): Der Schlamm
+## liegt SCHLAMM_UEBER über dem Feld und deckt es bis SCHLAMM_RAND über dem
+## tiefsten Grund, im Grund nasser (dunkler). Die Lachen liegen eben auf
+## PFUETZE_SPIEGEL über dem Grund, wo das Rauschen (zweite Lage, versetzt)
+## im Flachen Wasser stehen lässt (siehe PFUETZE_*).
+func _mulde_schreiben(schlamm: SurfaceTool, pfuetzen: SurfaceTool, rauschen: FastNoiseLite,
+		schritt: float) -> void:
 	var spalten := ceili((SUHLE_Q.y - SUHLE_Q.x) / schritt)
 	var zeilen := ceili((SUHLE_S.y - SUHLE_S.x) / schritt)
-	var orte: Array[Vector3] = []
+	var orte := PackedVector3Array()
+	var raster := PackedVector2Array()
 	var feld := PackedFloat32Array()
 	var grund := INF
 	for i in zeilen + 1:
@@ -555,76 +675,117 @@ func _suhle_netze() -> Dictionary:
 			var p := LevelWerkzeuge.punkt_frei(level.verlauf, s, q)
 			var h := _feld(p.x, p.z)
 			orte.append(p)
+			raster.append(Vector2(s, q))
 			feld.append(h)
 			grund = minf(grund, h)
-	var y := grund + SCHLAMM_UEBER
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var boden := PackedVector3Array()
+	var boden_farbe := PackedColorArray()
+	var lache := PackedVector3Array()
+	var lache_farbe := PackedColorArray()
+	for e in orte.size():
+		var s := raster[e].x
+		var q := raster[e].y
+		var ueber := feld[e] - grund
+		var rand := ueber + rauschen.get_noise_2d(s, q) * SCHLAMM_WANDERN
+		var nass := lerpf(SCHLAMM_NASS, 1.0, smoothstep(0.05, SCHLAMM_NASS_BIS, ueber))
+		boden.append(Vector3(orte[e].x, feld[e] + SCHLAMM_UEBER, orte[e].z))
+		boden_farbe.append(Color(nass, nass, nass,
+				1.0 - smoothstep(SCHLAMM_RAND.x, SCHLAMM_RAND.y, rand)))
+		var wasser := rauschen.get_noise_2d(s * 1.3 + 41.0, q * 1.3 - 17.0) * PFUETZE_STREUUNG \
+				+ PFUETZE_ANTEIL - ueber * PFUETZE_HANG
+		lache.append(Vector3(orte[e].x, maxf(grund + PFUETZE_SPIEGEL,
+				feld[e] + SCHLAMM_UEBER + PFUETZE_UEBER), orte[e].z))
+		lache_farbe.append(Color(1.0, 1.0, 1.0, smoothstep(0.0, PFUETZE_RAND, wasser)))
+	_raster_schreiben(schlamm, boden, boden_farbe, zeilen, spalten)
+	_raster_schreiben(pfuetzen, lache, lache_farbe, zeilen, spalten)
+
+
+## Schlamm und Pfützen auf der Decke um den Keiler (SCHLAMM_DECKE,
+## PFUETZEN_DECKE): eben über der Decke, die Ränder aus den Ellipsen und
+## dem Rauschen; zum Rand der Decke hin laufen beide aus.
+func _decke_schreiben(schlamm: SurfaceTool, pfuetzen: SurfaceTool, rauschen: FastNoiseLite,
+		schritt: float) -> void:
+	var spalten := ceili((DECKE_Q.y - DECKE_Q.x) / schritt)
+	var zeilen := ceili((DECKE_S.y - DECKE_S.x) / schritt)
+	var boden := PackedVector3Array()
+	var boden_farbe := PackedColorArray()
+	var lache := PackedVector3Array()
+	var lache_farbe := PackedColorArray()
+	for i in zeilen + 1:
+		var s := lerpf(DECKE_S.x, DECKE_S.y, float(i) / float(zeilen))
+		var decke := level.boden_bei(s)
+		for k in spalten + 1:
+			var q := lerpf(DECKE_Q.x, DECKE_Q.y, float(k) / float(spalten))
+			var p := LevelWerkzeuge.punkt_frei(level.verlauf, s, q)
+			var rand := smoothstep(DECKE_Q.x, DECKE_Q.x + DECKE_AUSLAUF, q)
+			var n := rauschen.get_noise_2d(s, q)
+			boden.append(Vector3(p.x, decke + DECKE_SCHLAMM, p.z))
+			boden_farbe.append(Color(1.0, 1.0, 1.0, smoothstep(0.0, DECKE_WEICH.x,
+					_flecken(SCHLAMM_DECKE, s, q) + n * DECKE_WANDERN.x) * rand))
+			lache.append(Vector3(p.x, decke + DECKE_PFUETZE, p.z))
+			lache_farbe.append(Color(1.0, 1.0, 1.0, smoothstep(0.0, DECKE_WEICH.y,
+					_flecken(PFUETZEN_DECKE, s, q) + n * DECKE_WANDERN.y) * rand))
+	_raster_schreiben(schlamm, boden, boden_farbe, zeilen, spalten)
+	_raster_schreiben(pfuetzen, lache, lache_farbe, zeilen, spalten)
+
+
+## Höchster Wert 1 − r über die Ellipsen Vector4(s, q, Halbachse längs,
+## quer) an (s, q), r der Ellipsenabstand (1 auf dem Rand); kleiner 0 außen.
+static func _flecken(flecken: Array[Vector4], s: float, q: float) -> float:
+	var wert := -INF
+	for f in flecken:
+		wert = maxf(wert, 1.0 - Vector2((s - f.x) / f.z, (q - f.y) / f.w).length())
+	return wert
+
+
+## Ein Raster aus (`zeilen` + 1) × (`spalten` + 1) Punkten (zeilenweise) als
+## Dreiecke in `st`, mit Scheitelfarbe (Alpha = Deckung); Vierecke, an deren
+## Ecken nirgends Deckung ist, entfallen. Oberseite nach oben (Godot: im
+## Uhrzeigersinn von oben gesehen, wie `Bachband.Netz.dreieck`), Normale
+## oben, UV aus x/z × SCHLAMM_UV (die Pfütze liest ihre Textur dreiplanar).
+static func _raster_schreiben(st: SurfaceTool, orte: PackedVector3Array, farben: PackedColorArray,
+		zeilen: int, spalten: int) -> void:
 	for i in zeilen:
 		for k in spalten:
 			var a := i * (spalten + 1) + k
 			var ecken: Array[int] = [a, a + 1, a + spalten + 2, a + spalten + 1]
-			var drueber := false
+			var deckt := false
 			for e in ecken:
-				drueber = drueber or feld[e] < y
-			if not drueber:
+				deckt = deckt or farben[e].a > 0.002
+			if not deckt:
 				continue
-			var p: Array[Vector3] = []
-			for e in ecken:
-				p.append(Vector3(orte[e].x, y, orte[e].z))
-			_dreieck_oben(st, p[0], p[1], p[2], SCHLAMM_UV)
-			_dreieck_oben(st, p[0], p[2], p[3], SCHLAMM_UV)
-	st.index()
-	return {"schlamm": st.commit(), "pfuetzen": _pfuetzen_netz(y)}
+			for paar in 2:
+				var dreieck := PackedInt32Array([ecken[0], ecken[1 + paar], ecken[2 + paar]])
+				var pa := orte[dreieck[0]]
+				if (orte[dreieck[1]] - pa).cross(orte[dreieck[2]] - pa).y > 0.0:
+					dreieck = PackedInt32Array([dreieck[0], dreieck[2], dreieck[1]])
+				for e in dreieck:
+					st.set_normal(Vector3.UP)
+					st.set_color(farben[e])
+					st.set_uv(Vector2(orte[e].x, orte[e].z) * SCHLAMM_UV)
+					st.add_vertex(orte[e])
 
 
-## Ein Dreieck mit der Oberseite nach vorn (Godot: im Uhrzeigersinn von oben
-## gesehen, wie `Bachband.Netz.dreieck`), Normale oben, UV aus x/z × `uv`.
-static func _dreieck_oben(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, uv: float) -> void:
-	var folge: Array[Vector3] = [a, b, c]
-	if (b - a).cross(c - a).y > 0.0:
-		folge = [a, c, b]
-	for p in folge:
-		st.set_normal(Vector3.UP)
-		st.set_uv(Vector2(p.x, p.z) * uv)
-		st.add_vertex(p)
-
-
-## Der Stoff des Schlamms (siehe Kopf): Kopie von `moorboden`, getönt.
+## Der Stoff des Schlamms (siehe Kopf): Kopie von `moorboden`, getönt, nass,
+## durchsichtig nach der Deckung (Scheitelfarbe). Er zeichnet vor den
+## Pfützen (`render_priority`): Beide sind durchsichtig und schreiben keine
+## Tiefe, die Reihenfolge entschiede sonst der Abstand der Mitten.
 static func _schlamm_stoff() -> StandardMaterial3D:
 	var m := Materialbibliothek.moorboden().duplicate() as StandardMaterial3D
 	m.albedo_color = SCHLAMM_TON
 	m.roughness = SCHLAMM_RAU
+	m.metallic_specular = SCHLAMM_GLANZ
+	m.vertex_color_use_as_albedo = true
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.render_priority = -1
 	return m
 
 
-## Pfützen (PFUETZEN): je eine flache Scheibe mit gewelltem Rand, auf dem
-## Schlamm (Höhe `schlamm_y`) bzw. auf der Decke. Die Textur der Pfütze
-## liegt dreiplanar in der Welt; UV braucht es nicht.
-func _pfuetzen_netz(schlamm_y: float) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var rng := PropWerkzeug.zufall(5801)
-	var leitlinie := Level05.leitlinie_punkte(-1.0)
-	for pf in PFUETZEN:
-		var mitte := LevelWerkzeuge.punkt_frei(level.verlauf, pf.x, pf.y)
-		var auf_decke := pf.y > Level05.leitlinie_q(leitlinie, pf.x)
-		mitte.y = (level.boden_bei(pf.x) if auf_decke else schlamm_y) + PFUETZE_UEBER
-		var vorn := LevelWerkzeuge.richtung(level.verlauf, pf.x)
-		vorn.y = 0.0
-		vorn = vorn.normalized()
-		var rechts := vorn.cross(Vector3.UP).normalized()
-		const RAND := 18
-		var phase := rng.randf() * TAU
-		var rand: Array[Vector3] = []
-		for k in RAND:
-			var w := TAU * float(k) / float(RAND)
-			var r := 1.0 + 0.16 * sin(w * 3.0 + phase) + 0.08 * sin(w * 5.0 + phase * 1.7)
-			rand.append(mitte + vorn * cos(w) * pf.z * r + rechts * sin(w) * pf.w * r)
-		for k in RAND:
-			_dreieck_oben(st, mitte, rand[k], rand[(k + 1) % RAND], 1.0)
-	st.index()
-	return st.commit()
+## Der Stoff der Pfützen: Kopie von `pfuetze`, ihr Alpha mal der Deckung.
+static func _pfuetzen_stoff() -> StandardMaterial3D:
+	var m := Materialbibliothek.pfuetze().duplicate() as StandardMaterial3D
+	m.vertex_color_use_as_albedo = true
+	return m
 
 
 # ================================================================ Bänder
@@ -650,9 +811,7 @@ func _baender_und_rad() -> void:
 			if fall != null:
 				faelle.append(fall)
 	_sichtweite(_baender_vereinen(faelle, "Gerinnefälle"), _sicht())
-	var weiss := _weisswasser()
-	if weiss != null:
-		bruch_netze.append(weiss)
+	bruch_netze.append_array(_weisswasser())
 	_muehlrad()
 
 
@@ -796,50 +955,86 @@ static func _wurf(start: Vector3, richtung: Vector3, tempo: float, ende_y: float
 	return aus
 
 
-## Das Weißwasser im Bruch (siehe Kopf): aus dem Teich über den Schuss
-## (`wehr_spiegel`, knapp darüber), am rechten Ende frei hinab ins
-## Unterwasser und dort noch ein Stück weiter.
-func _weisswasser() -> Wasserfall:
+## Das Weißwasser im Bruch (siehe Kopf) in zwei Bändern. Der SCHUSS beginnt
+## an der Bruchkante zum Teich (WEHR_KANTE), liegt knapp über dem Spiegel
+## des Schusses (`wehr_spiegel`) und läuft SCHUSS_UEBER Punkte in den Fall
+## hinein (er blendet auf seinem letzten Fünftel aus, das läge sonst vor der
+## rechten Kante). Der FALL stürzt von der rechten Kante frei hinab ins
+## Unterwasser und läuft dort aus: heller, schneller und gewölbt
+## (WEHRFALL_*). WARUM getrennt: Begann ein Band schon über dem Teich, lag
+## sein Anfang als weißes Blatt mit harter Kante auf dem Spiegel, und als
+## EIN Band (eine Farbe, ein Bauch für Schuss und Fall) las sich der Fall
+## von der Seite als durchsichtige, hellblaue Scheibe (Prüfung P6). Ein
+## Bauch auf dem Schuss wölbte ihn nach oben. Rückgabe: beide Knoten.
+func _weisswasser() -> Array[Wasserfall]:
 	var bruch: Dictionary = Level05.LUECKEN[5]
 	var mitte := (float(bruch["von"]) + float(bruch["bis"])) * 0.5
 	var breite := float(bruch["bis"]) - float(bruch["von"]) + 0.2
 	var aussen := LevelWerkzeuge.richtung(level.verlauf, mitte).cross(Vector3.UP).normalized() * -1.0
-	var bahn := PackedVector3Array()
-	for q: float in [TEICH_Q.x + 1.6, TEICH_Q.x, 2.5, 0.0, -2.5, -WEHR_Q]:
+	var schuss := PackedVector3Array()
+	for q: float in [WEHR_KANTE, 2.5, 0.0, -2.5, -WEHR_Q]:
 		var p := LevelWerkzeuge.punkt_frei(level.verlauf, mitte, q)
 		p.y = wehr_spiegel(q) + 0.04
-		bahn.append(p)
-	var unten := _unter_spiegel(mitte) + 0.03
-	var fall := _wurf(bahn[bahn.size() - 1], aussen, 2.0, unten)
-	bahn.append_array(fall)
-	var fuss := bahn[bahn.size() - 1]
-	bahn.append(fuss + aussen * 0.8)
-	bahn.append(fuss + aussen * 1.8)
-	var band := Wasserfall.band(self, bahn, breite, {"name": "Weißwasser",
-			"breite_ende": breite + 0.6, "bauch": 0.05, "tempo": 4.2, "spalten": 8,
+		schuss.append(p)
+	var fall := PackedVector3Array([schuss[schuss.size() - 1]])
+	fall.append_array(_wurf(fall[0], aussen, 2.0, _unter_spiegel(mitte) + 0.03))
+	var fuss := fall[fall.size() - 1]
+	fall.append(fuss + aussen * 0.8)
+	fall.append(fuss + aussen * 1.8)
+	for i in range(1, mini(SCHUSS_UEBER + 1, fall.size())):
+		schuss.append(fall[i])
+	var baender: Array[Wasserfall] = []
+	var oben := Wasserfall.band(self, schuss, breite, {"name": "Weißwasser",
+			"breite_ende": breite + 0.2, "bauch": 0.05, "tempo": 4.2, "spalten": 8,
 			"schritt": 0.35, "farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF,
 			"richtung": aussen, "ferne": 1.0})
-	_sichtweite(band, _sicht())
-	return band
+	# Der Fall in zwei Lagen (ein Netz, `_baender_vereinen`): Der Stoff deckt
+	# höchstens 0,45 bis 0,85; zwei Lagen mit verschobenem Muster decken
+	# 0,7 bis 0,98, und der Fall steht weiß statt gläsern.
+	var lagen: Array[Wasserfall] = []
+	for lage in 2:
+		var bahn := PackedVector3Array()
+		for p in fall:
+			bahn.append(p + (aussen * 0.1 + Vector3.DOWN * 0.03) * float(lage))
+		var band := Wasserfall.band(self, bahn, breite + 0.1 + 0.4 * float(lage), {
+				"name": "Wehrfall", "breite_ende": breite + 0.8 + 0.4 * float(lage),
+				"bauch": WEHRFALL_BAUCH * (1.0 + 0.4 * float(lage)), "bauch_ab": 0.6,
+				"tempo": WEHRFALL_TEMPO, "spalten": 8, "schritt": 0.2,
+				"farbe_schaum": WEHRFALL_SCHAUM, "farbe_tief": WEHRFALL_TIEF,
+				"richtung": aussen, "ferne": 1.0})
+		if band != null:
+			lagen.append(band)
+	var unten := _baender_vereinen(lagen, "Wehrfall")
+	for band: Wasserfall in [oben, unten]:
+		if band != null:
+			_sichtweite(band, _sicht())
+			baender.append(band)
+	return baender
 
 
 # ================================================================ Mühlrad
 
 ## Das Mühlrad (siehe Kopf) in seinem Rahmen: Mitte über dem Unterwasser
-## (die Schaufeln RAD_EINTAUCHEN tief im Wasser), X = Welle (quer zum Weg,
-## +q), Y oben, Z gegen die Laufrichtung. `rad` dreht sich um X; die Böcke
-## stehen still. Dreht es positiv, laufen die Schaufeln unten hangab – mit
-## dem Wasser.
+## (die Schaufeln RAD_EINTAUCHEN tief im Wasser), X = Welle (quer zum Lauf
+## des Unterwassers), Y oben, Z gegen die Fließrichtung. `rad` dreht sich
+## um X; die Böcke stehen still. Dreht es positiv, laufen die Schaufeln
+## unten mit dem Wasser.
 func _muehlrad() -> void:
 	var spiegel := _unter_spiegel(RAD_S)
 	var mitte := level.weg_punkt(RAD_S, RAD_Q)
 	mitte.y = spiegel - RAD_EINTAUCHEN + RAD_R
-	var rechts := LevelWerkzeuge.richtung(level.verlauf, RAD_S).cross(Vector3.UP).normalized()
+	var welle := _unter_richtung(RAD_S).cross(Vector3.UP).normalized()
 	var rahmen := Node3D.new()
 	rahmen.name = "Mühlrad"
-	rahmen.transform = Transform3D(Basis(rechts, Vector3.UP, rechts.cross(Vector3.UP)), mitte)
+	rahmen.transform = Transform3D(Basis(welle, Vector3.UP, welle.cross(Vector3.UP)), mitte)
 	add_child(rahmen)
-	var grund := _feld(mitte.x, mitte.z) - mitte.y
+	# Die Böcke reichen bis unter den tiefsten Grund an ihren vier Füßen: Der
+	# eine steht am Ufer, der andere im Lauf.
+	var grund := INF
+	for x: float in [-BOCK_Q, BOCK_Q]:
+		for z: float in [-BOCK_FUSS, BOCK_FUSS]:
+			var fuss := rahmen.transform * Vector3(x, 0.0, z)
+			grund = minf(grund, _feld(fuss.x, fuss.z) - mitte.y)
 	var stoff := Riesenstamm.borkenstoff()
 	rad = MeshInstance3D.new()
 	rad.name = "Rad"
@@ -947,7 +1142,7 @@ static func _boecke_netz(grund: float) -> ArrayMesh:
 
 # ================================================================ Probe
 
-## Opt-in "wasser" von `werkzeuge/level_check.gd` (über `Level05.wasserprobe`,
+## Opt-in "wasser" von `werkzeuge/level_check.gd` (über `Level05.wasser_zonenprobe`,
 ## Form wie `freiraumprobe`): je Abweichung eine Zeile "ABWEICHUNG …",
 ## zuletzt "GEPRUEFT n".
 ##   1. Todeszonen: genau eine je Lücke aus `Level05.LUECKEN` mit der

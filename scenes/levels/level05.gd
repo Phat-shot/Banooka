@@ -66,7 +66,7 @@ class_name Level05
 ## (in P1b steckte er in „Der Hohlweg wird gelegt", 623 ms).
 ##
 ## PROBEN (Opt-in, je im Kopf des Werkzeugs beschrieben): `pruefprofil`,
-## `freiraumprobe` und `wasserprobe` (LevelCheck), `sprungfaelle` (Sprungprobe), `jagdfaelle`
+## `freiraumprobe` und `wasser_zonenprobe` (LevelCheck), `sprungfaelle` (Sprungprobe), `jagdfaelle`
 ## und `jagd_zustand` (Jagdprobe), `wahrzeichen` und `wahrzeichen_strecke`
 ## (Wahrzeichenprobe), `duckstellen` und `lauflinie` (Spieltest-Bot),
 ## `pruefruhe`, `foto_stelle`.
@@ -185,7 +185,10 @@ class_name Level05
 ##   * Teich und Bruch als eigenes Raster im Netz des Bachs, das Weißwasser
 ##     als Schuss über der Zone des Wehrs (Spiegel ≥ 2,7, die Zone 2,6),
 ##     zusätzlich Wasser in den Spalten L4/L5 und in den Gerinnen D3/D4.
-##   * LevelCheck prüft das Wasser über `wasserprobe` (Opt-in "wasser").
+##   * LevelCheck prüft das Wasser über `wasser_zonenprobe` (Opt-in "wasser").
+##   * Das Mühlrad steht bei q −8,5 statt −7, in der Richtung des
+##     Unterwassers: Am Rand des Laufs hing seine untere Kante über
+##     trockenem Grund (Prüfung P6).
 ##   * Der schlafende Keiler liegt 2 m hangauf von SCHLAF_S, umgedreht, die
 ##     Schnauze zur Eichelspur (keiler.gd, SCHLAFPLATZ): Stehend steckte er
 ##     durch das Gatter Ü.
@@ -1298,7 +1301,9 @@ func pruefprofil() -> Dictionary:
 
 ## Opt-in "wasser" von LevelCheck (Paket P6): Todeszonen unverändert, kein
 ## Wasser tödlich, die Zone am Wehr unter dem Weißwasser (`L05Wasser.probe`).
-func wasserprobe() -> PackedStringArray:
+## Nicht verwechseln mit `werkzeuge/wasserprobe.gd`: Das zählt die
+## Wasser-Gefahren eines Levels.
+func wasser_zonenprobe() -> PackedStringArray:
 	return L05Wasser.probe(self, gewaesser)
 
 

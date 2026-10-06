@@ -43,7 +43,8 @@ extends Node
 ##   "freiraum"    Freiraum über der Kamerabahn: Das Level liefert die
 ##                 Abweichungen über `freiraumprobe()` (`_pruefe_freiraum`)
 ##   "wasser"      Wasser und Todeszonen: Das Level liefert die Abweichungen
-##                 über `wasserprobe()` (`_pruefe_wasser`)
+##                 über `wasser_zonenprobe()` (`_pruefe_wasser`; nicht das
+##                 Werkzeug `wasserprobe.gd`, das Wasser-Gefahren zählt)
 ## Das Level muss dafür `breite_bei(s)` und `boden_bei(s)` anbieten; für
 ## die Oberseiten des Begehbaren `BEGEHBARES` und `begehbar(name)` wie
 ## Level 01.
@@ -83,7 +84,7 @@ extends Node
 ## "naht" und "freiraum"): Wasser ist dort Kulisse, tödlich sind allein die
 ## Todeszonen der Lücken auf fester Höhe (Entwurf L05 §1 Nr. 23). Was das
 ## heißt – welche Zonen, welches Wasser über welcher Zone –, weiß nur das
-## Level; `wasserprobe()` liefert "ABWEICHUNG …" und "GEPRUEFT n" wie
+## Level; `wasser_zonenprobe()` liefert "ABWEICHUNG …" und "GEPRUEFT n" wie
 ## `freiraumprobe()`, und eine Probe ohne geprüfte Stelle ist ein FEHLER.
 ## Ohne den Schlüssel läuft alles wie vorher.
 ##
@@ -725,21 +726,21 @@ func _pruefe_freiraum() -> void:
 ## `freiraumprobe()`; auch hier ist eine Probe ohne geprüfte Stelle ein
 ## FEHLER.
 func _pruefe_wasser() -> void:
-	if not _level.has_method("wasserprobe"):
-		print("  FEHLER  pruefprofil() meldet \"wasser\", aber das Level hat kein wasserprobe()")
+	if not _level.has_method("wasser_zonenprobe"):
+		print("  FEHLER  pruefprofil() meldet \"wasser\", aber das Level hat kein wasser_zonenprobe()")
 		_fehler += 1
 		return
-	var zeilen: PackedStringArray = _level.call("wasserprobe")
+	var zeilen: PackedStringArray = _level.call("wasser_zonenprobe")
 	var ergebnis := _abweichungen_melden(zeilen, "Wasser")
 	var geprueft: String = ergebnis["geprueft"]
 	if not geprueft.is_valid_int() or geprueft.to_int() <= 0:
-		print("  FEHLER  Wasser: wasserprobe() meldet kein \"GEPRUEFT n\" mit n > 0 (%s)"
+		print("  FEHLER  Wasser: wasser_zonenprobe() meldet kein \"GEPRUEFT n\" mit n > 0 (%s)"
 				% geprueft)
 		_fehler += 1
 	print("  Wasser: %s Stellen geprüft, %d Abweichungen" % [geprueft, ergebnis["probleme"]])
 
 
-## Gemeinsam für Naht und Freiraum: Jede Zeile "ABWEICHUNG …" ist ein
+## Gemeinsam für Naht, Freiraum und Wasser: Jede Zeile "ABWEICHUNG …" ist ein
 ## FEHLER – die ersten zwölf stehen einzeln da, der Rest als Zahl –,
 ## "GEPRUEFT n" sagt, wie viel das Level geprüft hat. Ergebnis:
 ## {"probleme": Zahl der Abweichungen, "geprueft": n als Text, "?" ohne die
