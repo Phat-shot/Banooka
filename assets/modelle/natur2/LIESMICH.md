@@ -27,21 +27,22 @@ M1–M18 und bekommen deshalb genau die Modelle wie vorher.
 
 | Rolle | Dateien | wo |
 |---|---|---|
-| M1 Hallen- und Hangbäume | `CommonTree_1`–`_5`, `PineTree_1`, `_2`, `_3`, `_5` | Level 01: hintere Reihen des Hangwalds; Portalraum: Waldsaum hinter der Nordmauer, `CommonTree_3`/`_4` und `PineTree_2`/`_5` (schmale Kronen) in den Räumen |
+| M1 Hallen- und Hangbäume | `CommonTree_1`–`_5`, `PineTree_1`, `_2`, `_3`, `_5` | Level 01: hintere Reihen des Hangwalds; Portalraum: Waldsaum hinter der Nordmauer, `CommonTree_3`/`_4` und `PineTree_2`/`_5` (schmale Kronen) in den Räumen; Level 05: naher Hangwald, nur `CommonTree_1`–`_5` |
 | M3 Talwald nah | `CommonTree_1`, `_2`, `_5`, `PineTree_1`, `_3` | Level 01: alle Bäume des nahen Talwalds samt ihrer Fernfassung |
 | M8 Felsen | `Rock_Moss_2`, `_5`, `_6` | Level 01: Deko-Felsen am Saum, Waldboden der Haine |
 | M16 Moosstämme, Stümpfe | `WoodLog_Moss`, `TreeStump_Moss` | Level 01: Waldboden der Haine |
-| M17 Totholz | `CommonTree_Dead_1`, `_2` | Level 01: Totholz im Tal; Portalraum: Nebelsümpfe, Sand und Neon (Waldsaum) |
+| M17 Totholz | `CommonTree_Dead_1`, `_2` | Level 01: Totholz im Tal; Portalraum: Nebelsümpfe, Sand und Neon (Waldsaum); Level 05: Kuppe um die Hauereiche |
 | M19 Weiden | `Willow_1`, `_3`, `_5` | Raum 1: L03 (Ufer, Vorhang über den Bahnenden); Werkstatt-Station 32 |
-| M20 Birken | `BirchTree_1`–`_5` | Raum 1: L04 (Pionierbirken, `_1`, `_3`), L05 (Tobel); Werkstatt-Station 32 |
-| M21 Felsen ohne Moos | `Rock_1`–`_7` | Raum 1: L02 (mit Schnee), L04 (`_1`, `_3`), L05 (sandsteinfarben); Werkstatt-Station 32 (Waldboden) |
+| M20 Birken | `BirchTree_1`–`_5` | Raum 1: L04 (Pionierbirken, `_1`, `_3`), L05 (Tobel, alle fünf); Werkstatt-Station 32 |
+| M21 Felsen ohne Moos | `Rock_1`–`_7` | Raum 1: L02 (mit Schnee), L04 (`_1`, `_3`), L05 (`_1`, `_3`, `_5`, sandsteinfarben); Werkstatt-Station 32 (Waldboden) |
 | M22 Totholz, kahl | `CommonTree_Dead_3`–`_5` | Raum 1: L02 (Krummholz), L04 (`_3`, silbern); Werkstatt-Station 32 |
 | M23 Treibholz, Stumpf | `WoodLog`, `TreeStump` | Raum 1: L03 (Treib- und Rechenholz), L04; Werkstatt-Station 32 (Waldboden) |
-| M24 Sträucher | `Bush_1`, `_2`, `BushBerries_1`, `_2` | Raum 1: L05 (Sträucher, Beeren); Werkstatt-Station 32 |
+| M24 Sträucher | `Bush_1`, `_2`, `BushBerries_1`, `_2` | Raum 1: L05 (`Bush_1`, `BushBerries_1` am Rand der Haine); Werkstatt-Station 32 |
 
 Die 24 Modelle für Raum 1 sind die vereinigte Wunschliste der vier
 Entwürfe (Nutzerentscheidung R4: bis rund 24 neue Modelle statt der neun
-aus dem Baukastenplan). Noch verdrahtet sie kein Level; gebraucht werden
+aus dem Baukastenplan). Level 05 nutzt Birken, Felsen und Sträucher
+(Paket P7, `scenes/levels/level05/wald.gd`); gebraucht werden
 sie über die Bausteine `Baumfabrik` (Bäume: `modellbaum`, `hain`,
 `totholz`, `bodenstueck`) und `Waldsetzer.fremd` (Sträucher), gezeigt in
 der Werkstatt, Station 32. Birkenrinde („White") ist in `netz()` weiß mit

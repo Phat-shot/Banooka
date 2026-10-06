@@ -21,9 +21,9 @@ class_name Level05
 ## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Gebaut sind der
 ## ROHBAU (Pakete P1a/P1b: Verlauf, Weg, Bauteile, Spielobjekte, Jagd und
 ## Proben, voll spielbar), der BODEN (P3: Wegdecke mit Lippen, Gelände,
-## Saum), die EICHE (P4), die WEGBAUTEN samt Keiler-Optik (P5) und das
-## WASSER (P6: Suhle, Rinnsale, Tobelbach, Mühlteich, Weißwasser, Mühlrad).
-## Wald, Rasen und Stimmung folgen in eigenen Paketen.
+## Saum), die EICHE (P4), die WEGBAUTEN samt Keiler-Optik (P5), das
+## WASSER (P6: Suhle, Rinnsale, Tobelbach, Mühlteich, Weißwasser, Mühlrad)
+## und WALD und RASEN (P7). Die Stimmung folgt in einem eigenen Paket.
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
@@ -40,9 +40,11 @@ class_name Level05
 ## `L05Eiche` (die gespaltene Hauereiche hinter dem Start,
 ## nah und fern, mit eigenem Nebel; P4), `L05Wegbauten` (Durchlässe heil und
 ## gebrochen, Hürden, Findlinge, Bänke, Rampe, Treppen, Wehr, Rastpfähle –
-## mit ihren Körpern; P5) und `L05Jagd` (der Keiler: Schlaf, Wecken, Jagd,
-## Hopser, Durchlass-Bruch und Heilen, Ufer; P1b; sein Körper und seine
-## Effekte in scenes/enemies/keiler.gd, P5).
+## mit ihren Körpern; P5), `L05Wald` (Hangwald nah, am Hang und auf den
+## Kämmen, Baumtore, Gebüsch, Totholz, Sträucher, Felsen; P7), `L05Rasen`
+## (Rasensaum, Laubstreu, Kupferfarn; P7) und `L05Jagd` (der Keiler: Schlaf,
+## Wecken, Jagd, Hopser, Durchlass-Bruch und Heilen, Ufer; P1b; sein Körper
+## und seine Effekte in scenes/enemies/keiler.gd, P5).
 ##
 ## BODEN (P3, Entwurf §5, §8, §9.2–9.4). Die Wegdecke trägt den Stoff aus
 ## `Wegdecke` (Waldweg in Löss, `wegdecke_thema`), an L1–L6 vier bis sechs
@@ -192,6 +194,14 @@ class_name Level05
 ##   * Der schlafende Keiler liegt 2 m hangauf von SCHLAF_S, umgedreht, die
 ##     Schnauze zur Eichelspur (keiler.gd, SCHLAFPLATZ): Stehend steckte er
 ##     durch das Gatter Ü.
+##   P7 (Wald und Rasen, Einzelheiten in den Köpfen von `L05Wald` und
+##   `L05Rasen`):
+##   * Die Baumtore rahmen den Weg seitlich, ihre Kronen schließen sich nicht
+##     über ihm: Jede Krone dort verdeckte die Eiche von einer Strecke aus
+##     (gemessen: Wahrzeichenprobe 81,5 % statt 91,8 %).
+##   * K3 (±6°) räumt den nahen Wald in A bis C bis |q| 20–44; auf den
+##     Kronen über dem Hohlweg steht Gebüsch statt Bäumen.
+##   * Die Freiraumprobe meldet K4 (Stammfüße bei |q| < 8, gezählt vom Wald).
 
 const M_ENDE := 300.0
 ## Bis hier reicht die Kurve: Die Kamera steht 21 m weiter auf dem Verlauf
@@ -731,6 +741,10 @@ var eiche: L05Eiche
 ## Das Wasser (Modul `L05Wasser`), gesetzt beim Zusammenstellen der Schritte.
 ## Nicht „wasser": So heißt das Bauteil von `KorridorLevel`.
 var gewaesser: L05Wasser
+## Der Wald (Modul `L05Wald`) und Rasen, Laub und Farn (`L05Rasen`), gesetzt
+## beim Zusammenstellen der Schritte.
+var wald: L05Wald
+var rasen: L05Rasen
 ## Gebaute Flächen des Saums je Zug (`Kanten.flaeche_punkt`), Name des
 ## Zuges -> {"flaeche"}; gefüllt von `L05Saum` (für die Rinnsale).
 var saum_flaechen := {}
@@ -752,8 +766,8 @@ func absturz_hoehe() -> float:
 ## Gerüst nach Entwurf §9.4: Hang (Gelände), Hohlweg (Decke, Kollision,
 ## Lippen), Böschungen, Stufen und Ufer (Saum), Suhle, Bach und Mühlbach
 ## samt Mühlrad (Wasser), die Hauereiche, Wegbauten
-## (je Abschnitt ein Schritt), Spiel, Keiler. Was ein späteres Paket baut
-## (Wald, Rasen, Licht), fehlt noch; die Reihenfolge der übrigen
+## (je Abschnitt ein Schritt), Spiel, Wald und Rasen, Keiler. Was ein
+## späteres Paket baut (Licht), fehlt noch; die Reihenfolge der übrigen
 ## Schritte bleibt.
 func _bauschritte() -> Array:
 	_verlauf_anlegen()
@@ -778,6 +792,9 @@ func _bauschritte() -> Array:
 	schritte.append_array(L05Eiche.bauschritte(self))
 	schritte.append_array(L05Wegbauten.bauschritte(self))
 	schritte.append({"text": "Kisten, Früchte, Rastplätze", "tun": _spiel_setzen})
+	# Wald und Rasen nach den Kisten: Sie halten Abstand zu ihnen.
+	schritte.append_array(L05Wald.bauschritte(self))
+	schritte.append_array(L05Rasen.bauschritte(self))
 	schritte.append_array(L05Jagd.bauschritte(self))
 	return schritte
 
@@ -1593,6 +1610,9 @@ func _jagdlinie(abw: Dictionary) -> Array[Dictionary]:
 ##           K1_UNTEN und K1_OBEN über der Decke (0 ≤ s ≤ KURVE_ENDE). Die
 ##           Dreiecke werden im Raster K1_RASTER abgetastet; Kisten und
 ##           Früchte zählen mit ihrer Oberkante, Teilchen nicht.
+##   K3      Gelände und Saum verdecken die Kronen der Eiche nicht
+##           (`_freiraum_k3`).
+##   K4      kein Stammfuß bei |q| < 8 (`_freiraum_k4`, Zählung des Walds).
 ## Werte aus der Kamera des Levels (`hoehe`, `abstand`).
 func freiraumprobe() -> PackedStringArray:
 	var zeilen := PackedStringArray()
@@ -1630,7 +1650,24 @@ func freiraumprobe() -> PackedStringArray:
 	var k3 := _freiraum_k3(hoehe, abstand)
 	zeilen.append_array(k3["zeilen"] as PackedStringArray)
 	stellen += int(k3["stellen"])
+	zeilen.append_array(_freiraum_k4())
 	zeilen.append("GEPRUEFT %d" % stellen)
+	return zeilen
+
+
+## K4 (Entwurf §7.1, Paket P7): kein Stammfuß bei |q| < 8 – gezählt vom
+## Wald beim Bau (`L05Wald.zahlen`); die Baumtore zählen getrennt. Die
+## Kegel K3 für Bäume prüft der Waldrahmen beim Pflanzen.
+func _freiraum_k4() -> PackedStringArray:
+	var zeilen := PackedStringArray()
+	if wald == null or not wald.zahlen.has("staemme_q8"):
+		return zeilen
+	var n := int(wald.zahlen["staemme_q8"])
+	print("  Freiraum K4: %d Stammfüße, davon %d bei |q| < %.0f; Baumtore %d, davon %d bei |q| < %.0f; Kronen im Kegel K3 abgewiesen: %d"
+			% [int(wald.zahlen.get("staemme", 0)), n, L05Wald.K4_Q, wald.tor_fuesse.size(),
+				int(wald.zahlen.get("tore_q8", 0)), L05Wald.K4_Q, int(wald.zahlen.get("nein_kegel", 0))])
+	if n > 0:
+		zeilen.append("ABWEICHUNG K4: %d Stammfüße bei |q| < %.0f" % [n, L05Wald.K4_Q])
 	return zeilen
 
 
