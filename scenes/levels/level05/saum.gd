@@ -141,9 +141,13 @@ static func bauschritte(level: Level05) -> Array:
 		# für alle zugleich (`_platte_lage`); dazu braucht er Linie und Stellen.
 		var profil := _profil_auf.bind(level, zug, {"linie": linie, "feste": feste_zug}) if auf \
 				else _profil_ab.bind(level, zug)
+		# Die gebaute Fläche jedes Zuges (`Kanten.flaeche_punkt`): An ihr laufen
+		# die Rinnsale des Wasserrisses hinab (`L05Wasser`).
+		var stand := {}
+		level.saum_flaechen[String(zug["name"])] = stand
 		linien.append({"seite": float(zug["seite"]), "linie": linie, "profil": profil,
 				"gruppe": String(zug["name"]), "schritt": SCHRITT, "karten": true,
-				"saat": 5101 + i, "feste_s": feste_zug})
+				"saat": 5101 + i, "feste_s": feste_zug, "stand": stand})
 	linien.append_array(_querlinien(level))
 	# Der Stoff geht leer hinein und wird im ersten Schritt gefüllt (Level05,
 	# Kopf: STOFFE): Sandstein und Moos kosten kalt gut 0,1 s.

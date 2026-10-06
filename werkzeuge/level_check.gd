@@ -42,6 +42,8 @@ extends Node
 ##                 die Abweichungen über `nahtprobe()` (`_pruefe_naht`)
 ##   "freiraum"    Freiraum über der Kamerabahn: Das Level liefert die
 ##                 Abweichungen über `freiraumprobe()` (`_pruefe_freiraum`)
+##   "wasser"      Wasser und Todeszonen: Das Level liefert die Abweichungen
+##                 über `wasserprobe()` (`_pruefe_wasser`)
 ## Das Level muss dafür `breite_bei(s)` und `boden_bei(s)` anbieten; für
 ## die Oberseiten des Begehbaren `BEGEHBARES` und `begehbar(name)` wie
 ## Level 01.
@@ -76,6 +78,14 @@ extends Node
 ## `freiraumprobe()` 1 Fehler, mit einer ABWEICHUNG 1, nur „GEPRUEFT 120"
 ## 0, leere Liste 1, vierzehn ABWEICHUNGEN 14 (zwölf einzeln, „… und 2
 ## weitere"); ohne den Schlüssel wie vorher 0.
+##
+## WASSER (Opt-in "wasser", Level 05 Paket P6, dieselbe Arbeitsteilung wie
+## "naht" und "freiraum"): Wasser ist dort Kulisse, tödlich sind allein die
+## Todeszonen der Lücken auf fester Höhe (Entwurf L05 §1 Nr. 23). Was das
+## heißt – welche Zonen, welches Wasser über welcher Zone –, weiß nur das
+## Level; `wasserprobe()` liefert "ABWEICHUNG …" und "GEPRUEFT n" wie
+## `freiraumprobe()`, und eine Probe ohne geprüfte Stelle ist ein FEHLER.
+## Ohne den Schlüssel läuft alles wie vorher.
 ##
 ## RUHE (Opt-in, Baukasten Raum 1 §1.7): Hat das Level `pruefruhe()`, ruft
 ## die Prüfung es vor den Opt-in-Proben (Sichtprobe samt Kamera-Abgleich)
@@ -612,6 +622,8 @@ func _opt_in_proben() -> void:
 		_pruefe_naht()
 	if bool(profil.get("freiraum", false)):
 		_pruefe_freiraum()
+	if bool(profil.get("wasser", false)):
+		_pruefe_wasser()
 	if not (sicht or gefaelle or zonen or rand):
 		return
 	if not _level.has_method("breite_bei") or not _level.has_method("boden_bei"):
@@ -707,6 +719,24 @@ func _pruefe_freiraum() -> void:
 		_fehler += 1
 	print("  Freiraum: %s Stellen der Kamerabahn geprüft, %d Abweichungen"
 			% [geprueft, ergebnis["probleme"]])
+
+
+## Wasser und Todeszonen (Opt-in "wasser", siehe Kopf): Form wie
+## `freiraumprobe()`; auch hier ist eine Probe ohne geprüfte Stelle ein
+## FEHLER.
+func _pruefe_wasser() -> void:
+	if not _level.has_method("wasserprobe"):
+		print("  FEHLER  pruefprofil() meldet \"wasser\", aber das Level hat kein wasserprobe()")
+		_fehler += 1
+		return
+	var zeilen: PackedStringArray = _level.call("wasserprobe")
+	var ergebnis := _abweichungen_melden(zeilen, "Wasser")
+	var geprueft: String = ergebnis["geprueft"]
+	if not geprueft.is_valid_int() or geprueft.to_int() <= 0:
+		print("  FEHLER  Wasser: wasserprobe() meldet kein \"GEPRUEFT n\" mit n > 0 (%s)"
+				% geprueft)
+		_fehler += 1
+	print("  Wasser: %s Stellen geprüft, %d Abweichungen" % [geprueft, ergebnis["probleme"]])
 
 
 ## Gemeinsam für Naht und Freiraum: Jede Zeile "ABWEICHUNG …" ist ein

@@ -21,7 +21,8 @@ class_name Level05
 ## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Gebaut sind der
 ## ROHBAU (Pakete P1a/P1b: Verlauf, Weg, Bauteile, Spielobjekte, Jagd und
 ## Proben, voll spielbar), der BODEN (P3: Wegdecke mit Lippen, Gelände,
-## Saum), die EICHE (P4) und die WEGBAUTEN samt Keiler-Optik (P5). Wasser,
+## Saum), die EICHE (P4), die WEGBAUTEN samt Keiler-Optik (P5) und das
+## WASSER (P6: Suhle, Rinnsale, Tobelbach, Mühlteich, Weißwasser, Mühlrad).
 ## Wald, Rasen und Stimmung folgen in eigenen Paketen.
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
@@ -34,7 +35,9 @@ class_name Level05
 ## MODULE unter `scenes/levels/level05/`, je eine Klasse mit
 ## `bauschritte(level: Level05)`: `L05Gelaende` (Hang, Kuppe, Kamm,
 ## Mühlwiese; P3), `L05Saum` (Lösswände, Ufer, Wehrwände, Stirnen und
-## Setzstufen; P3), `L05Eiche` (die gespaltene Hauereiche hinter dem Start,
+## Setzstufen; P3), `L05Wasser` (Suhle, Rinnsale am Wasserriss, Tobelbach,
+## Mühlteich, Weißwasser im Wehrbruch, Mühlrad – nichts davon tödlich; P6),
+## `L05Eiche` (die gespaltene Hauereiche hinter dem Start,
 ## nah und fern, mit eigenem Nebel; P4), `L05Wegbauten` (Durchlässe heil und
 ## gebrochen, Hürden, Findlinge, Bänke, Rampe, Treppen, Wehr, Rastpfähle –
 ## mit ihren Körpern; P5) und `L05Jagd` (der Keiler: Schlaf, Wecken, Jagd,
@@ -62,8 +65,8 @@ class_name Level05
 ## braucht kalt rund 480 ms und lässt sich ohne geteilten Code nicht teilen
 ## (in P1b steckte er in „Der Hohlweg wird gelegt", 623 ms).
 ##
-## PROBEN (Opt-in, je im Kopf des Werkzeugs beschrieben): `pruefprofil` und
-## `freiraumprobe` (LevelCheck), `sprungfaelle` (Sprungprobe), `jagdfaelle`
+## PROBEN (Opt-in, je im Kopf des Werkzeugs beschrieben): `pruefprofil`,
+## `freiraumprobe` und `wasserprobe` (LevelCheck), `sprungfaelle` (Sprungprobe), `jagdfaelle`
 ## und `jagd_zustand` (Jagdprobe), `wahrzeichen` und `wahrzeichen_strecke`
 ## (Wahrzeichenprobe), `duckstellen` und `lauflinie` (Spieltest-Bot),
 ## `pruefruhe`, `foto_stelle`.
@@ -177,7 +180,12 @@ class_name Level05
 ##   P5 (Wegbauten und Keiler, Einzelheiten in den Köpfen von
 ##   `L05Wegbauten` und keiler.gd):
 ##   * Das Gerinne der Fluderjoche bleibt im Bruch heil; den Wasserschwall
-##     zeigt der Keiler als Effekt, das Wasser darin kommt mit P6.
+##     zeigt der Keiler als Effekt, das Wasser darin legt `L05Wasser` (P6).
+##   P6 (Wasser, Einzelheiten im Kopf von `L05Wasser`):
+##   * Teich und Bruch als eigenes Raster im Netz des Bachs, das Weißwasser
+##     als Schuss über der Zone des Wehrs (Spiegel ≥ 2,7, die Zone 2,6),
+##     zusätzlich Wasser in den Spalten L4/L5 und in den Gerinnen D3/D4.
+##   * LevelCheck prüft das Wasser über `wasserprobe` (Opt-in "wasser").
 ##   * Der schlafende Keiler liegt 2 m hangauf von SCHLAF_S, umgedreht, die
 ##     Schnauze zur Eichelspur (keiler.gd, SCHLAFPLATZ): Stehend steckte er
 ##     durch das Gatter Ü.
@@ -717,6 +725,12 @@ var gelaende: L05Gelaende
 ## Die Hauereiche (Modul `L05Eiche`); gesetzt beim Zusammenstellen der
 ## Schritte, gebaut in ihrem Schritt.
 var eiche: L05Eiche
+## Das Wasser (Modul `L05Wasser`), gesetzt beim Zusammenstellen der Schritte.
+## Nicht „wasser": So heißt das Bauteil von `KorridorLevel`.
+var gewaesser: L05Wasser
+## Gebaute Flächen des Saums je Zug (`Kanten.flaeche_punkt`), Name des
+## Zuges -> {"flaeche"}; gefüllt von `L05Saum` (für die Rinnsale).
+var saum_flaechen := {}
 ## Die geglättete Decke als Tabelle (`decke_glatt`), angelegt mit dem Verlauf.
 var _glatt := PackedFloat32Array()
 
@@ -733,9 +747,10 @@ func absturz_hoehe() -> float:
 # =========================================================== Aufbau
 
 ## Gerüst nach Entwurf §9.4: Hang (Gelände), Hohlweg (Decke, Kollision,
-## Lippen), Böschungen, Stufen und Ufer (Saum), die Hauereiche, Wegbauten
+## Lippen), Böschungen, Stufen und Ufer (Saum), Suhle, Bach und Mühlbach
+## samt Mühlrad (Wasser), die Hauereiche, Wegbauten
 ## (je Abschnitt ein Schritt), Spiel, Keiler. Was ein späteres Paket baut
-## (Wasser, Wald, Rasen, Licht), fehlt noch; die Reihenfolge der übrigen
+## (Wald, Rasen, Licht), fehlt noch; die Reihenfolge der übrigen
 ## Schritte bleibt.
 func _bauschritte() -> Array:
 	_verlauf_anlegen()
@@ -756,6 +771,7 @@ func _bauschritte() -> Array:
 	schritte.append_array(L05Gelaende.bauschritte(self))
 	schritte.append({"text": "Der Hohlweg wird gelegt", "tun": _weg_bauen})
 	schritte.append_array(L05Saum.bauschritte(self))
+	schritte.append_array(L05Wasser.bauschritte(self))
 	schritte.append_array(L05Eiche.bauschritte(self))
 	schritte.append_array(L05Wegbauten.bauschritte(self))
 	schritte.append({"text": "Kisten, Früchte, Rastplätze", "tun": _spiel_setzen})
@@ -1277,7 +1293,13 @@ func zielzeit() -> float:
 
 ## Opt-in-Proben von `werkzeuge/level_check.gd` (Entwurf P1).
 func pruefprofil() -> Dictionary:
-	return {"sicht": true, "todeszonen": true, "rand": true, "freiraum": true}
+	return {"sicht": true, "todeszonen": true, "rand": true, "freiraum": true, "wasser": true}
+
+
+## Opt-in "wasser" von LevelCheck (Paket P6): Todeszonen unverändert, kein
+## Wasser tödlich, die Zone am Wehr unter dem Weißwasser (`L05Wasser.probe`).
+func wasserprobe() -> PackedStringArray:
+	return L05Wasser.probe(self, gewaesser)
 
 
 ## Probepunkte des Wahrzeichens für `werkzeuge/wahrzeichenprobe.gd` und

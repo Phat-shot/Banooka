@@ -64,8 +64,8 @@ class_name L05Wegbauten
 ## Mitte (BRESCHE): Riegel und Zangen hängen gesplittert durch, Stangen,
 ## Latten und Strähnen hängen als Stümpfe von oben, Stücke liegen am Boden
 ## (flacher als 0,3 m). Das Gerinne bleibt heil – den Schwall zeigt der
-## Keiler als Effekt (`Keiler.durchbrechen`); das Wasser darin kommt mit
-## Paket P6.
+## Keiler als Effekt (`Keiler.durchbrechen`); das Wasser darin und den Fall
+## an seinem Ende legt `L05Wasser` (Paket P6, über `gerinne_lage`).
 ##
 ## FREIRAUM (Entwurf §7.1 K1): Über |q| ≤ 3,5 steht nichts zwischen 4,6 und
 ## 9,2 m über dem Weg: Kopfstangen bis 4,39, Bogen bis gut 4,55 (Scheitel
@@ -112,6 +112,13 @@ const BRESCHE := 1.5
 const GERINNE_RAND := 4.58
 const GERINNE_R := 0.56
 const GERINNE_INNEN := 0.45
+## Das Gerinne reicht so weit über die linke Leitlinie hinaus (über das Ufer,
+## dort fällt sein Wasser in den Bach) und über die rechte (in die
+## Sandsteinwand), und so viel fällt sein Rand über die ganze Länge nach
+## links. `L05Wasser` legt das Wasser hinein (`gerinne_lage`).
+const GERINNE_LINKS := 2.2
+const GERINNE_RECHTS := 1.0
+const GERINNE_FALL := 0.08
 ## Scheitel der Bogenwurzeln (Achse) und ihr Halbmesser dort.
 const BOGEN_SCHEITEL := 4.3
 const BOGEN_R := 0.18
@@ -618,12 +625,12 @@ static func _krone(level: Level05, seite: float, s: float) -> Vector2:
 static func _durchlass(level: Level05, d: Dictionary) -> void:
 	var s: float = d["s"]
 	var tiefe: float = d["tiefe"]
-	var art := _art(d)
+	var bauart := art(d)
 	var koerper := level.duckdurchlass(s, tiefe, {"stolperzone": L05Jagd.STOLPER_DAUER,
 			"optik": func(_s: float, _t: float) -> Node3D: return _durchlass_netz(level, d, false)})
 	koerper.name = String(d["name"])
-	koerper.set_meta("art", art)
-	if art == "joch":
+	koerper.set_meta("art", bauart)
+	if bauart == "joch":
 		# Woher das Wasser schwappt (Keiler.durchbrechen): Mitte des Gerinnes.
 		koerper.set_meta("gerinne", GERINNE_RAND - GERINNE_R * 0.5)
 	var bruch := _durchlass_netz(level, d, true)
@@ -635,10 +642,11 @@ static func _durchlass(level: Level05, d: Dictionary) -> void:
 
 
 ## Bauart nach dem Namen: Gatter (Ü), Wurzelbogen (D1, D2), Fluderjoch.
+## Öffentlich: `L05Wasser` legt Wasser in die Gerinne der Joche.
 ## Ohne Rücksicht auf Groß- und Kleinschreibung: „Ü Wildgatter" enthält
 ## „gatter" klein – mit `contains("Gatter")` wurde Ü bis P5 als Fluderjoch
 ## gebaut, samt Gerinne und Wasserschwall.
-static func _art(d: Dictionary) -> String:
+static func art(d: Dictionary) -> String:
 	var name := String(d["name"])
 	if name.containsn("gatter"):
 		return "gatter"
@@ -657,7 +665,7 @@ static func _durchlass_netz(level: Level05, d: Dictionary, kaputt: bool) -> Mesh
 	var netz := Bauspeicher.netz("l05_durchlass", [String(d["name"]), kaputt], func() -> ArrayMesh:
 		var st := Riesenstamm.bauer()
 		var saat := int(s * 10.0) + (500 if kaputt else 0)
-		match _art(d):
+		match art(d):
 			"gatter":
 				_gatter(st, level, mitte, tiefe, kaputt, saat)
 			"bogen":
@@ -1064,10 +1072,41 @@ static func _fluderjoch(st: SurfaceTool, _level: Level05, mitte: float, tiefe: f
 						r, r, o, 1.0)
 		x += 0.42
 		nr += 1
-	_gerinne(st, -(links + 2.2), rechts + 1.0, saat + 200)
+	_gerinne(st, -(links + GERINNE_LINKS), rechts + GERINNE_RECHTS, saat + 200)
 	if kaputt:
 		_truemmer(st, rng, halb_z, 2, Vector2(0.1, 0.13), Vector2(0.6, 1.1), holz)
 		_truemmer(st, rng, halb_z, 5, Vector2(0.05, 0.06), Vector2(0.5, 1.0), holz)
+
+
+## Lage des Gerinnes eines Fluderjochs `d` für `L05Wasser`: {"s": Mitte
+## des Jochs (dort steht sein Rahmen, `_lage`), "von", "bis": x seiner
+## Enden (x = q im Rahmen; links über dem Bach, rechts in der Wand)}.
+static func gerinne_lage(level: Level05, d: Dictionary) -> Dictionary:
+	var mitte := float(d["s"]) + float(d["tiefe"]) * 0.5
+	return {"s": mitte, "von": -(_leitlinie(-1.0, mitte) + GERINNE_LINKS),
+			"bis": _leitlinie(1.0, mitte) + GERINNE_RECHTS}
+
+
+## Welt-Y des Randes (Achse) des Gerinnes von `d` an der Stelle x, mit
+## seinem Gefälle wie in `_gerinne` (ohne die Beulen der Borke).
+static func gerinne_rand_y(level: Level05, d: Dictionary, x: float) -> float:
+	var g := gerinne_lage(level, d)
+	var von: float = g["von"]
+	var bis: float = g["bis"]
+	var fall := GERINNE_FALL * (bis - x) / (bis - von)
+	return level.boden_bei(float(g["s"])) + GERINNE_RAND - fall
+
+
+## Ein Holzstück bzw. eine Stange wie die Bauteile hier (`_holz`, `_stange`),
+## für das Mühlrad in `L05Wasser`: ein Holz, eine Borke, ein Stoff.
+static func holz(st: SurfaceTool, lage: Transform3D, punkte: PackedVector3Array,
+		radien: PackedFloat32Array, o: Dictionary = {}) -> void:
+	_holz(st, lage, punkte, radien, o)
+
+
+static func stange(st: SurfaceTool, lage: Transform3D, a: Vector3, b: Vector3, r0: float,
+		r1: float, o: Dictionary = {}, stueck: float = 0.8) -> void:
+	_stange(st, lage, a, b, r0, r1, o, stueck)
 
 
 ## Das Gerinne: ein ausgehöhlter Halbstamm (U) quer über den Weg von x `von`
@@ -1106,7 +1145,7 @@ static func _gerinne(st: SurfaceTool, von: float, bis: float, saat: int) -> void
 	var anzahl := maxi(ceili((bis - von) / 0.5), 2)
 	for k in anzahl + 1:
 		var x := lerpf(von, bis, float(k) / float(anzahl))
-		var fall := 0.08 * (bis - x) / (bis - von)
+		var fall := GERINNE_FALL * (bis - x) / (bis - von)
 		var zeile := PackedVector3Array()
 		var uv := PackedVector2Array()
 		var fa := PackedColorArray()
