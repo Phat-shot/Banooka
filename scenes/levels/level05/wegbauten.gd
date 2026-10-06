@@ -14,20 +14,22 @@ class_name L05Wegbauten
 ##   Durchlass  Unterkante des Riegels auf DUCK_UNTEN (0,95), Oberkante auf
 ##              RIEGEL_OBEN (1,40) – die Hölzer werden dort plattgedrückt
 ##              (`_holz`, "oben"/"unten"), über der ganzen Weite, die man
-##              erreicht (bis hinter die Leitlinie). Die flachen Bänder
-##              tragen hellen Holzton: Der Rücken und die Unterkante sind
-##              abgewetzt (Entwurf §8.4: „Unterkante des Riegels hell"). Unter
-##              0,95 steht über dem Weg nichts.
+##              erreicht (bis hinter die Leitlinie). Die Unterkante ist hell
+##              abgewetzt (Entwurf §8.4: „Unterkante des Riegels hell"), am
+##              Gatter und an den Jochen auch der Rücken; die Wurzelbögen
+##              behalten oben Borke und Moos (`_wurzelbogen`). Unter 0,95
+##              steht über dem Weg nichts.
 ##   Hürde      die Wurzel genau so breit wie der Körper tief (0,6), ihr
 ##              Rücken flach auf HUERDE_HOEHE (0,7), hell abgewetzt, die
 ##              Flanken bemoost; in einem gescherten Rahmen, der wie der
 ##              Körper der Decke folgt (`_scher_lage`).
 ##   Findling   `Findling.netz` auf den Kasten des Körpers (Oberseite =
-##              Oberkante, Seiten nur nach innen), im gescherten Rahmen.
-##              Gemessen: Oberseite 1–12 mm unter der Oberkante, Flanken
-##              5–20 cm hinter dem Körper – `Findling.netz` rundet den
-##              Grundriss (Superellipse, „eckig") und lässt die Seiten nach
-##              oben einlaufen („anlauf"); siehe `_findling`.
+##              Oberkante, Seiten nur nach innen) mit rechteckigem Grundriss
+##              (Option „ecke"), im gescherten Rahmen; siehe `_findling`.
+##              Gemessen (Strahlen gegen die Körper, h 0,15–1,25):
+##              Oberseite 2–12 mm unter der Oberkante, Flanken und
+##              Stirnflächen 0,1–1,5 cm dahinter, die Ecken auf der
+##              Winkelhalbierenden 1,9–3,1 cm.
 ##   Bänke      G1–G3 und der Trittstein: `Findling.netz` in der Lage ihres
 ##              Kastens (`weg.begehbar`), Kisten auf der ebenen Fläche
 ##              (`_mit_kisten_auf`, wie Level 01).
@@ -42,15 +44,15 @@ class_name L05Wegbauten
 ## offene Geometrie mit mindestens 60 % freier Fläche, damit die Figur
 ## dahinter zu sehen bleibt – im Rückblick steht jeder Durchlass zwischen
 ## Kamera und Figur. Gemessen (Strahlen längs des Weges im Raster 0,1 m
-## zwischen Riegel und Kappe, nur die heile Optik): Ü 67 %, D1 81 %, D2 80 %,
+## zwischen Riegel und Kappe, nur die heile Optik): Ü 80 %, D1 85 %, D2 84 %,
 ## D3 69 %, D4 72 % frei.
-##   Ü  Wildgatter: zwei Spaltriegel, Stangen alle 0,5 m (Ø 8–10 cm; an der
+##   Ü  Wildgatter: zwei Spaltriegel, Stangen alle 0,5 m (Ø 6–7 cm; an der
 ##      Stirn nur jede zweite), Pfosten hinter der Leitlinie, Kopfstangen auf
 ##      4,17–4,39 m.
 ##   D1, D2  Wurzelbogen: drei Wurzeln als Riegel (die ganze Tiefe von
 ##      1,8 m ist Körper – so liest sich auch die Tiefe als Masse), zwei
 ##      geflochtene Bogenwurzeln von Krone zu Krone (über dem Weg ≤ 4,6 m) und
-##      ein Vorhang aus Wurzelsträhnen alle 0,3 m (Ø ≤ 10 cm).
+##      ein Vorhang aus Wurzelsträhnen alle 0,3 m (Ø 5–7 cm).
 ##   D3, D4  Fluderjoch: zwei Böcke hinter den Leitlinien, die Zangen-
 ##      balken als Riegel (Spaltfläche nach außen), Latten alle 0,42 m, das
 ##      Gerinne als ausgehöhlter Halbstamm auf 4,02–4,58 m.
@@ -341,6 +343,11 @@ static func _rastpfaehle(sa: Sammler, level: Level05, von: float, bis: float) ->
 ##              der abgewetzte Rücken, die helle Unterkante
 ##   klemm_x    Vector2: die Grenzen gelten nur für Ecken mit x darin
 ##   hell       Eigenfarbe der geklemmten Ecken (ABGEWETZT)
+##   oben_borke true: Ecken über `oben` bleiben Borke statt `hell` – ein
+##              plattgedrückter Rücken ohne helles Band; ihr Moos kommt nur
+##              aus dem Stoff (Moos auf Flächen nach oben, fleckig nach der
+##              Moostextur), nicht zusätzlich aus `moos`: Mit beidem lag auf
+##              jedem Rücken ein durchgehend grüner Streifen.
 ##   spalt      Richtung (Raum von `lage`) einer Spaltfläche; Ecken, die
 ##              weiter als spalt_tiefe · Radius von der Achse liegen,
 ##              liegen auf ihr, in `spalt_farbe` (GRAU)
@@ -364,6 +371,7 @@ static func _holz(st: SurfaceTool, lage: Transform3D, punkte: PackedVector3Array
 	var unten: float = o.get("unten", -INF)
 	var klemm_x: Vector2 = o.get("klemm_x", Vector2(-INF, INF))
 	var hell: Color = o.get("hell", ABGEWETZT)
+	var oben_borke: bool = o.get("oben_borke", false)
 	var spalt: Vector3 = o.get("spalt", Vector3.ZERO)
 	var spalt_tiefe: float = o.get("spalt_tiefe", 0.25)
 	var spalt_farbe: Color = o.get("spalt_farbe", GRAU)
@@ -420,6 +428,7 @@ static func _holz(st: SurfaceTool, lage: Transform3D, punkte: PackedVector3Array
 					dir.y * 1.5, dir.z * 1.5 + float(saat % 97))
 			var p := punkte[i] + dir * r * rel
 			var art := Riesenstamm.BORKE
+			var ruecken := false
 			var farbe := Color(ao_hier * ton.r, ao_hier * ton.g, ao_hier * ton.b, 0.0)
 			if mit_spalt:
 				var d := (p - punkte[i]).dot(sp)
@@ -433,15 +442,18 @@ static func _holz(st: SurfaceTool, lage: Transform3D, punkte: PackedVector3Array
 			if p.x >= klemm_x.x and p.x <= klemm_x.y:
 				if p.y > oben:
 					p.y = oben
-					art = Riesenstamm.EIGEN
-					var g := hell * rng.randf_range(0.92, 1.06)
-					farbe = Color(g.r, g.g, g.b, 0.0)
+					if not oben_borke:
+						art = Riesenstamm.EIGEN
+						var g := hell * rng.randf_range(0.92, 1.06)
+						farbe = Color(g.r, g.g, g.b, 0.0)
+					else:
+						ruecken = true
 				elif p.y < unten:
 					p.y = unten
 					art = Riesenstamm.EIGEN
 					var g := hell * rng.randf_range(0.85, 1.0)
 					farbe = Color(g.r, g.g, g.b, 0.0)
-			if art == Riesenstamm.BORKE:
+			if art == Riesenstamm.BORKE and not ruecken:
 				var m := moos * (0.4 + 0.6 * rauschen.get_noise_3d(p.x * 4.0 + bogen, p.y * 4.0,
 						p.z * 4.0))
 				farbe.a = clampf(m, 0.0, 1.0)
@@ -623,11 +635,14 @@ static func _durchlass(level: Level05, d: Dictionary) -> void:
 
 
 ## Bauart nach dem Namen: Gatter (Ü), Wurzelbogen (D1, D2), Fluderjoch.
+## Ohne Rücksicht auf Groß- und Kleinschreibung: „Ü Wildgatter" enthält
+## „gatter" klein – mit `contains("Gatter")` wurde Ü bis P5 als Fluderjoch
+## gebaut, samt Gerinne und Wasserschwall.
 static func _art(d: Dictionary) -> String:
 	var name := String(d["name"])
-	if name.contains("Gatter"):
+	if name.containsn("gatter"):
 		return "gatter"
-	if name.contains("Wurzelbogen"):
+	if name.containsn("wurzelbogen"):
 		return "bogen"
 	return "joch"
 
@@ -773,7 +788,9 @@ static func _gatter(st: SurfaceTool, _level: Level05, mitte: float, tiefe: float
 				Vector3(px.y + 0.1, GATTER_KOPF + 0.02, z), GATTER_KOPF_R, GATTER_KOPF_R * 0.92, ok,
 				1.2)
 	# Stangen alle 0,5 m in beiden Ebenen, auf gleicher Höhe quer (so liegen
-	# sie im Rückblick hintereinander und lassen die Lücken offen).
+	# sie im Rückblick hintereinander und lassen die Lücken offen), Ø 6–7 cm:
+	# Mit 8–10 cm war die Figur dahinter aus der Kamera nur in 12 von 42
+	# Stellungen frei.
 	var x := -links + 0.3
 	var nr := 0
 	while x < rechts - 0.25:
@@ -790,7 +807,7 @@ static func _gatter(st: SurfaceTool, _level: Level05, mitte: float, tiefe: float
 			o["moos"] = 0.2
 			o["anfang"] = "stumpf"
 			o["ende"] = "stumpf"
-			var r := rng.randf_range(0.042, 0.05)
+			var r := rng.randf_range(0.03, 0.036)
 			var kipp := rng.randf_range(-0.015, 0.015)
 			var unten := RIEGEL_OBEN - 0.1
 			var oben := GATTER_KOPF
@@ -829,30 +846,42 @@ static func _wurzelbogen(st: SurfaceTool, level: Level05, mitte: float, tiefe: f
 	var wurzel := {"ton": WURZEL_TON, "moos": 0.5, "seiten": 9, "buckel": 0.09}
 	var y := (KorridorLevel.DUCK_UNTEN + RIEGEL_OBEN) * 0.5
 	# Riegel: drei Wurzeln über die Tiefe, die aus der Wand kommen und in die
-	# andere Wand tauchen; über dem Weg flach auf 0,95–1,40.
+	# andere Wand tauchen; über dem Weg flach auf 0,95–1,40. Die äußeren
+	# liegen so weit innen, dass Achse, Welle (3 cm) und Halbmesser samt
+	# Buckeln (0,31 · 1,1) in ±tiefe/2 bleiben – mit Welle 0,12 standen sie
+	# bis 16 cm vor der Stirn bzw. hinter dem Ausgang, Optik ohne Körper.
+	# Flach auf DUCK_UNTEN schon ab 0,1 m vor der Leitlinie: Stieg die
+	# Wurzel erst dort zur Wand, lag ihre Unterkante am Rand bis 4 cm über
+	# dem Körper. Der Rücken bleibt Borke mit Moos (`oben_borke`): Hell
+	# abgewetzt lasen sich die drei Rücken von oben (s 90) als Bretterboden,
+	# heller als der Weg; hell bleibt nur die Unterkante (§8.4).
 	var halb_z := tiefe * 0.5
+	var r_riegel := 0.31
+	var welle := 0.03
 	for k in 3:
-		var zc := lerpf(halb_z - 0.32, -halb_z + 0.32, float(k) / 2.0)
+		var zc := lerpf(halb_z - r_riegel * 1.1 - welle, -(halb_z - r_riegel * 1.1 - welle),
+				float(k) / 2.0)
 		var o := wurzel.duplicate()
 		o["saat"] = saat + k * 5
-		o["hoch"] = RIEGEL_HOCH / 0.32
+		o["hoch"] = RIEGEL_HOCH / 0.29
 		o["oben"] = RIEGEL_OBEN
 		o["unten"] = KorridorLevel.DUCK_UNTEN
 		o["klemm_x"] = Vector2(-links - 0.25, rechts + 0.25)
+		o["oben_borke"] = true
 		o["anfang"] = "spitz"
 		o["ende"] = "spitz"
 		var phase := float(k) * 2.1
-		var stuetzen := PackedVector3Array([Vector3(-links - 1.5, 2.3, zc - 0.2),
-				Vector3(-links - 0.6, 1.45, zc), Vector3(-links + 0.4, y, zc)])
-		var x := -links + 1.4
-		while x < rechts - 0.9:
-			stuetzen.append(Vector3(x, y, zc + 0.12 * sin(x * 0.8 + phase)))
+		var stuetzen := PackedVector3Array([Vector3(-links - 1.6, 2.3, zc - 0.2),
+				Vector3(-links - 0.75, 1.35, zc), Vector3(-links - 0.1, y, zc)])
+		var x := -links + 1.0
+		while x < rechts - 0.7:
+			stuetzen.append(Vector3(x, y, zc + welle * sin(x * 0.8 + phase)))
 			x += 1.3
-		stuetzen.append_array([Vector3(rechts - 0.4, y, zc), Vector3(rechts + 0.6, 1.5, zc),
-				Vector3(rechts + 1.5, 2.4, zc + 0.2)])
+		stuetzen.append_array([Vector3(rechts + 0.1, y, zc), Vector3(rechts + 0.75, 1.4, zc),
+				Vector3(rechts + 1.6, 2.4, zc + 0.2)])
 		var linie := _glatt(stuetzen, 3)
-		var radien := _radien(linie.size(), PackedFloat32Array([0.2, 0.36, 0.32, 0.3, 0.32, 0.36,
-				0.2]))
+		var radien := _radien(linie.size(), PackedFloat32Array([0.2, r_riegel, 0.3, 0.29, 0.3,
+				r_riegel, 0.2]))
 		if not kaputt:
 			_holz(st, Transform3D.IDENTITY, linie, radien, o)
 		else:
@@ -905,7 +934,8 @@ static func _wurzelbogen(st: SurfaceTool, level: Level05, mitte: float, tiefe: f
 		o["moos"] = 0.6
 		_holz(st, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
 				PackedFloat32Array([0.12, 0.24, BOGEN_R, BOGEN_R * 0.9, BOGEN_R, 0.24, 0.12])), o)
-	# Vorhang: Strähnen alle 0,3 m vom Bogen hinab bis knapp über den Riegel.
+	# Vorhang: Strähnen alle 0,3 m vom Bogen hinab bis knapp über den Riegel,
+	# Ø 5–7 cm (mit 7–10 cm verdeckte bei s 90 eine Strähne die Figur fast).
 	var x := -links + 0.35
 	var nr := 0
 	while x < rechts - 0.3:
@@ -928,7 +958,7 @@ static func _wurzelbogen(st: SurfaceTool, level: Level05, mitte: float, tiefe: f
 		var o := {"ton": STRAEHNE_TON, "moos": 0.1, "seiten": 5, "buckel": 0.12,
 				"saat": saat + 60 + nr, "anfang": "stumpf",
 				"ende": "splitter" if kaputt and absf(x) < BRESCHE + 0.7 else "spitz"}
-		var r := rng.randf_range(0.035, 0.05)
+		var r := rng.randf_range(0.026, 0.036)
 		_holz(st, Transform3D.IDENTITY, punkte, PackedFloat32Array([r, r * 0.9, r * 0.75,
 				r * 0.6, r * 0.45, r * 0.3]), o)
 		x += 0.3
@@ -1168,11 +1198,22 @@ static func _findling(sa: Sammler, level: Level05, f: Dictionary, saat: int) -> 
 	var groesse := Vector3(breite, KorridorLevel.FINDLING_HOEHE, KorridorLevel.FINDLING_TIEFE)
 	var lage := _scher_lage(level, s, q, groesse.z)
 	lage.origin.y += groesse.y * 0.5
-	# Flanken knapp am Körper: flache Beulen, wenig Anlauf, eckiger Grundriss.
-	# Mit den Vorgaben (Beulen 0,1, Anlauf 8 cm, Exponent 3,6) lagen sie
-	# 11–34 cm hinter dem Körper – die Figur stieß an Luft.
-	var o := {"saat": saat, "moos": 0.8, "beulen": 0.05, "unruhe": 0.04, "anlauf": 0.025,
-			"eckig": 5.0}
+	# Flanken und Ecken auf dem Körper: Grundriss als Rechteck mit Ecken von
+	# 4 cm (`Findling` Option „ecke"), ohne Anlauf und Umrisssprünge; Beulen,
+	# Unruhe und Facetten zusammen gut 1 cm, die Schichtfugen 1,2 cm tief
+	# (Option „fuge_tiefe", Vorgabe 8 cm) – sie lesen sich über ihr dunkles
+	# Band, nicht über die Tiefe; die Körnung gibt der Stoff.
+	# WARUM: Die Gasse ist das Ausweich-Element unter Jagddruck, man läuft die
+	# Innenecken eng an. Mit Superellipse (Exponent 5), Beulen 5 cm und den
+	# Umrisssprüngen der Vorgabe lag die sichtbare Flanke 9–37 cm hinter dem
+	# Körper, an der Gassenecke der Stirn (im Band der Stolperzone) bis 1,4 m:
+	# Man stolperte an einer Ecke, die man noch weit weg sah. Die Gestalt
+	# kommt jetzt aus den Sandsteinbändern, der Oberkante (rundum 7–22 cm
+	# gerundet, darunter bleibt die Flanke auf dem Körper) und dem Moos. Der
+	# starre Rahmen reicht: Der Weg dreht sich über die Tiefe eines Steins um
+	# 0,004 rad, an seinen Enden 4–5 mm Versatz zum Körper (gemessen).
+	var o := {"saat": saat, "moos": 0.8, "ecke": 0.04, "beulen": 0.004, "unruhe": 0.005,
+			"anlauf": 0.0, "umriss": 0.0, "rundung": 0.22, "fuge_tiefe": 0.012}
 	var netz := _getoent(Findling.netz(groesse, o), SANDSTEIN_TON)
 	sa.stein(netz, lage)
 	sa.kranz(_fussring(netz, -groesse.y * 0.5, 0.7), lage)
@@ -1193,8 +1234,14 @@ static func _bank(sa: Sammler, level: Level05, name: String, ton: Color, saat: i
 	sa.kranz(_fussring(netz, boden, clampf(minf(groesse.x, groesse.z) * 0.3, 0.35, 0.8)), lage)
 
 
-## G1 Wurzelknie: der Stein im Griff der Eichenwurzeln, die vom Stamm her
-## (hinter dem Start, −s) über ihn greifen; oben in den Kasten geklemmt.
+## G1 Wurzelknie: der Stein im Griff der Eichenwurzeln. Sie kommen von der
+## Außenseite (hinter der Leitlinie, +x) aus dem Boden, steigen an der
+## Außenwand hoch, laufen über die Oberseite (dort in den Kasten geklemmt)
+## und tauchen an der Wegseite IN den Kasten (Achse 0,13 m innen, Halbmesser
+## dort ≤ 0,12) bis in den Boden. WARUM so: Vorher kamen sie von hinten (−s)
+## über den Startboden und hingen vorn 0,25–2,0 m hoch vor dem Kasten – die
+## Figur lief durch sie hindurch (Optik ohne Körper im erreichbaren Raum).
+## Hinter der Leitlinie und im Kasten erreicht man sie nicht.
 static func _wurzelknie(sa: Sammler, level: Level05) -> void:
 	var name := "G1 Wurzelknie"
 	var e := level.begehbar(name)
@@ -1205,19 +1252,20 @@ static func _wurzelknie(sa: Sammler, level: Level05) -> void:
 	var g: Vector3 = e["groesse"]
 	var h := g * 0.5
 	var boden := -(float(e["oben"]) - h.y)
-	var wurzel := {"ton": WURZEL_TON, "moos": 0.75, "seiten": 9, "buckel": 0.1,
+	var wurzel := {"ton": WURZEL_TON, "moos": 0.75, "seiten": 9, "buckel": 0.06,
 			"oben": h.y + 0.015, "klemm_x": Vector2(-h.x, h.x), "anfang": "spitz", "ende": "spitz"}
-	# Zwei Wurzeln von hinten (+z, zur Eiche) über die äußere Hälfte hinab.
+	# Zwei Wurzeln quer über den Stein, zwischen den Kisten hindurch.
 	for k in 2:
-		var x := 0.35 + 0.75 * float(k)
-		var linie := _glatt(PackedVector3Array([Vector3(x + 0.4, boden - 0.4, h.z + 1.6),
-				Vector3(x + 0.2, h.y - 0.1, h.z + 0.25), Vector3(x, h.y - 0.08, 0.0),
-				Vector3(x + 0.25, h.y - 0.25, -h.z + 0.1), Vector3(x + 0.6, boden - 0.3,
-				-h.z - 0.6)]), 4)
+		var z := 0.55 - 0.9 * float(k)
+		var linie := _glatt(PackedVector3Array([Vector3(h.x + 0.7, boden - 0.4, z + 0.25),
+				Vector3(h.x + 0.26, h.y - 0.6, z + 0.15), Vector3(h.x - 0.1, h.y - 0.05, z + 0.1),
+				Vector3(0.0, h.y - 0.07, z), Vector3(-h.x + 0.35, h.y - 0.1, z - 0.05),
+				Vector3(-h.x + 0.13, h.y - 0.5, z - 0.08), Vector3(-h.x + 0.14, boden + 0.3, z - 0.12),
+				Vector3(-h.x + 0.3, boden - 0.4, z - 0.15)]), 4)
 		var o := wurzel.duplicate()
 		o["saat"] = 5110 + k
-		_holz(sa.holz, lage, linie, _radien(linie.size(), PackedFloat32Array([0.3, 0.22, 0.16,
-				0.12])), o)
+		_holz(sa.holz, lage, linie, _radien(linie.size(), PackedFloat32Array([0.26, 0.2, 0.15,
+				0.12, 0.11])), o)
 
 
 ## Wurzeln, die aus der Böschung über die Bank G2 greifen (oben geklemmt).
@@ -1232,9 +1280,11 @@ static func _bankwurzeln(sa: Sammler, level: Level05) -> void:
 	for k in 2:
 		# Vorn (+z, wo man landet), die Kisten stehen hinten (z −0,5 … −2,5).
 		var z := 0.2 + 1.4 * float(k)
+		# An der Wegseite mit der Achse 0,12 m im Kasten (Halbmesser dort ≤ 0,1):
+		# Mit 0,05 standen die Wurzeln 3–6 cm vor der Bank in den Weg.
 		var linie := _glatt(PackedVector3Array([Vector3(h.x + 0.9, h.y + 1.4, z + 0.3),
 				Vector3(h.x - 0.1, h.y - 0.06, z), Vector3(-h.x + 0.5, h.y - 0.1, z - 0.2),
-				Vector3(-h.x + 0.05, h.y - 0.7, z - 0.25), Vector3(-h.x + 0.2, boden - 0.2,
+				Vector3(-h.x + 0.12, h.y - 0.7, z - 0.25), Vector3(-h.x + 0.2, boden - 0.2,
 				z - 0.4)]), 4)
 		_holz(sa.holz, lage, linie, _radien(linie.size(), PackedFloat32Array([0.16, 0.11, 0.08])),
 				{"saat": 5350 + k, "ton": WURZEL_TON, "moos": 0.5, "seiten": 7, "buckel": 0.1,
@@ -1351,8 +1401,10 @@ static func _grabenrampe(sa: Sammler, level: Level05) -> void:
 			normale = -normale
 		# Die Spaltfläche liegt 0,25 · r vor der Achse (`_holz`): Achse so weit
 		# unter der Oberseite der Rampe, die Fläche parallel zu ihr.
-		var achse_a: Vector3 = rampe.call(s, q0 - 0.08) - normale * r * 0.25
-		var achse_b: Vector3 = rampe.call(s, q1 + 0.1) - normale * r * 0.25 \
+		# Die Enden bündig mit den Seiten der Rampe: 8–10 cm darüber hinaus
+		# ragten sie zur Wegseite in die Luft über dem Graben.
+		var achse_a: Vector3 = rampe.call(s, q0 + 0.01) - normale * r * 0.25
+		var achse_b: Vector3 = rampe.call(s, q1 - 0.01) - normale * r * 0.25 \
 				+ Vector3.UP * rng.randf_range(-0.01, 0.0)
 		_stange(sa.holz, Transform3D.IDENTITY, achse_a, achse_b, r, r * rng.randf_range(0.92, 1.0),
 				{"saat": 5160 + nr, "seiten": 9, "spalt": normale, "spalt_tiefe": 0.25,

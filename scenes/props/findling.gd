@@ -67,7 +67,13 @@ const SCHICHT_NEIGUNG := 0.07
 ## fuss_aus (Meter, um die der Fuß nach außen ausläuft: voll am Boden, bis
 ## unter die gerundete Kante – ohne Wasserlinie bis 40 % der Höhe – auf
 ## null; so steht ein Trittstein mit Anlauf wie gewachsener Fels im Bach
-## statt wie eine Trommel. Die Oberkante bleibt, wo sie ist; Vorgabe 0).
+## statt wie eine Trommel. Die Oberkante bleibt, wo sie ist; Vorgabe 0),
+## ecke (Meter; nur wenn gesetzt: Grundriss ein Rechteck mit Ecken dieses
+## Halbmessers statt der Superellipse, `eckig` gilt dann nicht – für einen
+## Block, an dessen Flanken und Ecken die Figur anstößt: Die Superellipse
+## weicht an den Ecken um Dezimeter hinter den Kasten zurück, siehe
+## `_rechteck`. Ohne die Option läuft alles wie zuvor), fuge_tiefe (Meter,
+## Vorgabe FUGE_TIEFE; der Versatz der Schicht über der Fuge wächst mit).
 static func netz(groesse: Vector3, optionen: Dictionary = {}) -> ArrayMesh:
 	return Bauspeicher.netz("findling", [groesse, optionen],
 			func() -> ArrayMesh: return _netz_bauen(groesse, optionen))
@@ -304,6 +310,60 @@ static func _umriss(a: float, b: float, n_exp: float, anzahl: int) -> Array[Pack
 	return [punkte, normalen]
 
 
+## Grundriss als Rechteck (halbe Seiten a, b) mit Ecken vom Halbmesser `r`:
+## [Punkte, Außennormalen], im selben Umlaufsinn wie `_umriss` (von +x über
+## −z). Die Seiten in Stücken von höchstens `schritt`, jede Ecke als Bogen aus
+## drei Stücken (Sehnenfehler unter 0,5 cm bei r 0,06), damit an jeder Ecke
+## ein Punkt sitzt. WARUM: Bei der Superellipse liegen die Punkte nach
+## Bogenlänge verteilt; an langen, schmalen Blöcken (4,6 × 1,6 m) weicht sie
+## schon 10 cm hinter der Stirn um 0,3 m hinter den Kasten zurück, und die
+## Ecke selbst fehlt als Sehne.
+static func _rechteck(a: float, b: float, r: float, schritt: float) -> Array[PackedVector2Array]:
+	r = clampf(r, 0.005, minf(a, b) * 0.9)
+	var ax := a - r
+	var bz := b - r
+	var teile: Array[Array] = [
+		_strecke(Vector2(a, 0.0), Vector2(a, -bz), Vector2(1.0, 0.0), schritt),
+		_eckbogen(Vector2(ax, -bz), 0, r),
+		_strecke(Vector2(ax, -b), Vector2(-ax, -b), Vector2(0.0, -1.0), schritt),
+		_eckbogen(Vector2(-ax, -bz), 1, r),
+		_strecke(Vector2(-a, -bz), Vector2(-a, bz), Vector2(-1.0, 0.0), schritt),
+		_eckbogen(Vector2(-ax, bz), 2, r),
+		_strecke(Vector2(-ax, b), Vector2(ax, b), Vector2(0.0, 1.0), schritt),
+		_eckbogen(Vector2(ax, bz), 3, r),
+		_strecke(Vector2(a, bz), Vector2(a, 0.0), Vector2(1.0, 0.0), schritt),
+	]
+	var punkte := PackedVector2Array()
+	var normalen := PackedVector2Array()
+	for teil in teile:
+		punkte.append_array(teil[0])
+		normalen.append_array(teil[1])
+	return [punkte, normalen]
+
+
+## Gerade Seite des Rechtecks von `von` (mit) bis `bis` (ohne).
+static func _strecke(von: Vector2, bis: Vector2, normale: Vector2, schritt: float) -> Array:
+	var punkte := PackedVector2Array()
+	var normalen := PackedVector2Array()
+	var n := maxi(ceili(von.distance_to(bis) / schritt), 1)
+	for i in n:
+		punkte.append(von.lerp(bis, float(i) / float(n)))
+		normalen.append(normale)
+	return [punkte, normalen]
+
+
+## Ecke `k` (0–3, im Umlaufsinn) um `mitte`: Anfang mit, Ende ohne.
+static func _eckbogen(mitte: Vector2, k: int, r: float) -> Array:
+	var punkte := PackedVector2Array()
+	var normalen := PackedVector2Array()
+	for i in 3:
+		var w := -PI * 0.5 * float(k) - PI / 6.0 * float(i)
+		var richtung := Vector2(cos(w), sin(w))
+		punkte.append(mitte + richtung * r)
+		normalen.append(richtung)
+	return [punkte, normalen]
+
+
 static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 	var saat: int = o.get("saat", 1)
 	var eckig: float = o["eckig"]
@@ -324,6 +384,13 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 	var moos_oben: float = o.get("moos_oben", 1.0)
 	var wasser_y: float = o.get("wasser_y", -INF)
 	var fuss_aus: float = o.get("fuss_aus", 0.0)
+	# Tiefe der Schichtfugen und Versatz der Schicht darüber (Option
+	# „fuge_tiefe"; ohne sie die Werte von zuvor).
+	var fuge_tief := FUGE_TIEFE
+	var stufe_tief := 0.03
+	if o.has("fuge_tiefe"):
+		fuge_tief = float(o["fuge_tiefe"])
+		stufe_tief = 0.03 * fuge_tief / FUGE_TIEFE
 	var aus_bis: float = -h.y + 0.8 * h.y
 	if wasser_y > -INF:
 		# Über dem Wasser sichtbar: Die Flanke läuft bis unter die Kante aus.
@@ -351,7 +418,12 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 	var umfang := TAU * sqrt((h.x * h.x + h.z * h.z) * 0.5)
 	var anzahl := clampi(int(umfang / 0.38), 20, 40)
 	anzahl += anzahl % 2
-	var um := _umriss(h.x, h.z, eckig, anzahl)
+	var um: Array[PackedVector2Array]
+	if o.has("ecke"):
+		um = _rechteck(h.x, h.z, float(o["ecke"]), 0.38)
+		anzahl = um[0].size()
+	else:
+		um = _umriss(h.x, h.z, eckig, anzahl)
 	var punkte2: PackedVector2Array = um[0]
 	var normalen2: PackedVector2Array = um[1]
 	# Grundriss unregelmäßig: springt nach innen (bei Deko auch nach außen,
@@ -470,8 +542,8 @@ static func _koerper(h: Vector3, o: Dictionary) -> ArrayMesh:
 							+ unruhe * (0.3 + 0.25 * n1) * lerpf(1.0, 0.4, oben_anteil) \
 							+ unruhe * 1.1 * (0.5 + 0.5 * zelle) * lerpf(1.0, 0.25, oben_anteil)
 					var fuge: float = z.get("fuge", 0.0)
-					tief += fuge * fugen_tiefe[jj] * FUGE_TIEFE
-					tief += float(z.get("stufe", 0.0)) * 0.03 * fugen_tiefe[jj]
+					tief += fuge * fugen_tiefe[jj] * fuge_tief
+					tief += float(z.get("stufe", 0.0)) * stufe_tief * fugen_tiefe[jj]
 					if not nur_innen:
 						var n2 := grob.get_noise_3d(basis.x, y * 0.7, basis.y)
 						tief -= unruhe * 0.9 * maxf(-n2, 0.0)

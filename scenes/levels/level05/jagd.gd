@@ -51,6 +51,16 @@ class_name L05Jagd
 ## zeigt sie. Außerhalb eines Hopsers steht er genau auf `boden_bei` (die
 ## Jagdprobe misst ≤ 0,05 m).
 ##
+## FINDLINGSGASSE (Entwurf §5 D; P5-Prüfung): Der Keiler ist gut 5 m lang
+## (Schnauze 3,2 m vor, Schwanz 2,1 m hinter dem Ursprung) und 1,7 m breit,
+## die Gasse zwischen F1 und F2 nur 4,4 m lang – auf der Querlage der Figur
+## lief er sichtbar durch beide Steine. Über F1 springt er deshalb (Hopser
+## von KEILER_VORN vor der Stirn bis KEILER_HINTEN hinter dem Rücken, mit
+## FINDLING_ANLAUF davor und dahinter, Scheitel HOPS_FINDLING: So liegen
+## Hufe und Bauch über 1,4 m, solange sie über dem Stein sind). Noch in der
+## Luft schwenkt er auf die freie Seite von F2 und läuft dort vorbei
+## (`_gassenlage`). Nur Optik: Der Abstand rechnet weiter auf der Strecke.
+##
 ## HANGNEIGUNG als Wert (`hangneigung`): Gefälle der Decke über
 ## ± NEIGUNG_BASIS in Laufrichtung, in Radiant, positiv bergab; im Hopser
 ## das mittlere Gefälle von Lippe zu Lippe (die Flughaltung selbst sagt
@@ -152,6 +162,21 @@ const STUFE_MIN := 0.2
 const NEIGUNG_BASIS := 1.0
 ## Durchlass-Bruch ab keiler_s ≥ Stirn − BRUCH_VOR (Entwurf §9.1).
 const BRUCH_VOR := 1.5
+## Findlingsgasse (siehe Kopf): Reichweite des Leibs vor und hinter dem
+## Ursprung, halbe Breite samt Luft, Anlauf und Scheitel des Hopsers über
+## F1, Übergang der Querlage an F2. Nachgerechnet (ohne Gefälle): Mit
+## Scheitel 1,7 über 8,7 m liegt der Ursprung, solange Vorder- oder
+## Hinterhufe über F1 sind, mindestens 0,97 m über der oberen Lippe; die
+## eingezogenen Hufe hängen 0,35 m über dem Ursprung, im Sprung hebt sich der
+## Leib um 0,12 m – zusammen 1,44 m über 1,4. Am Gefälle der Gasse (rund 7 %)
+## liegt die Decke am Stein noch 0,1–0,3 m tiefer als die Lippe.
+const KEILER_VORN := 2.0
+const KEILER_SCHNAUZE := 3.2
+const KEILER_HINTEN := 2.1
+const KEILER_HALB := 0.95
+const FINDLING_ANLAUF := 1.5
+const HOPS_FINDLING := 1.7
+const GASSE_UEBERGANG := 2.5
 
 enum Lage { SCHLAF, JAGD, UFER }
 
@@ -308,7 +333,7 @@ func _physics_process(delta: float) -> void:
 		_durchlaesse_pruefen(true)
 	var abstand := s_figur - _keiler_s
 	var naehe := 1.0 - clampf(abstand / HOECHSTABSTAND, 0.0, 1.0)
-	_stellen(_keiler_s, _querlage(s_figur) * QUER_ANTEIL)
+	_stellen(_keiler_s, _gassenlage(_keiler_s, _querlage(s_figur) * QUER_ANTEIL))
 	_keiler.aktualisiere(delta, 1.0 if _lage == Lage.JAGD else 0.0, naehe)
 	if abstand <= FANGABSTAND and _figur.invuln <= 0.0:
 		_faenge += 1
@@ -349,7 +374,7 @@ func _ruhestellung(versetzt: bool) -> void:
 		return
 	_keiler_s = minf(s_figur - VORSPRUNG, UFER_S)
 	_lage_setzen(Lage.UFER if _keiler_s >= UFER_S else Lage.JAGD)
-	_stellen(_keiler_s, _querlage(s_figur) * QUER_ANTEIL, versetzt)
+	_stellen(_keiler_s, _gassenlage(_keiler_s, _querlage(s_figur) * QUER_ANTEIL), versetzt)
 	_durchlaesse_pruefen()
 
 
@@ -389,6 +414,27 @@ func _stellen(s: float, q: float, versetzt := false) -> void:
 func _haltung(methode: String, argumente: Array = []) -> void:
 	if is_instance_valid(_keiler) and _keiler.has_method(methode):
 		_keiler.callv(methode, argumente)
+
+
+## Querlage des Keilers bei `s`: `q`, an F2 auf die freie Seite geklemmt
+## (siehe Kopf, FINDLINGSGASSE) – voll, solange ein Teil des Leibs neben F2
+## ist, davor (in der Luft über F1) und danach weich über GASSE_UEBERGANG.
+func _gassenlage(s: float, q: float) -> float:
+	if Level05.FINDLINGE.size() < 2:
+		return q
+	var f: Dictionary = Level05.FINDLINGE[1]
+	var mitte: float = f["s"]
+	var halb_tief := KorridorLevel.FINDLING_TIEFE * 0.5
+	var seite := -signf(float(f["q"]))
+	var grenze := float(f["q"]) + seite * (float(f["breite"]) * 0.5 + KEILER_HALB)
+	var von := mitte - halb_tief - KEILER_SCHNAUZE
+	var bis := mitte + halb_tief + KEILER_HINTEN
+	var w := smoothstep(von - GASSE_UEBERGANG, von, s) \
+			* (1.0 - smoothstep(bis, bis + GASSE_UEBERGANG, s))
+	if w <= 0.0:
+		return q
+	var frei := minf(q, grenze) if seite < 0.0 else maxf(q, grenze)
+	return lerpf(q, frei, w)
 
 
 ## Querlage der Figur an ihrer Strecke (positiv = rechts).
@@ -464,6 +510,11 @@ func _hopser_rechnen() -> Array[Dictionary]:
 		var mitte: float = h["s"]
 		var halb := KorridorLevel.HUERDE_TIEFE * 0.5
 		hindernisse.append({"a": mitte - halb, "b": mitte + halb, "huerde": true})
+	if not Level05.FINDLINGE.is_empty():
+		var f1: Dictionary = Level05.FINDLINGE[0]
+		var halb_f := KorridorLevel.FINDLING_TIEFE * 0.5
+		hindernisse.append({"a": float(f1["s"]) - halb_f - KEILER_VORN,
+				"b": float(f1["s"]) + halb_f + KEILER_HINTEN, "huerde": false, "findling": true})
 	hindernisse.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return float(a["a"]) < float(b["a"]))
 	# Überlappende zu einem zusammenfassen.
@@ -474,14 +525,16 @@ func _hopser_rechnen() -> Array[Dictionary]:
 			if float(h["a"]) - HOPS_ANLAUF <= float(letzte["b"]) + HOPS_ANLAUF:
 				letzte["b"] = maxf(float(letzte["b"]), float(h["b"]))
 				letzte["huerde"] = bool(letzte["huerde"]) and bool(h["huerde"])
+				letzte["findling"] = bool(letzte.get("findling", false)) or bool(h.get("findling", false))
 				continue
 		gruppen.append(h.duplicate())
 	var liste: Array[Dictionary] = []
 	for g in gruppen:
 		var a: float = g["a"]
 		var b: float = g["b"]
-		var von := a - HOPS_ANLAUF
-		var bis := b + HOPS_ANLAUF
+		var anlauf := FINDLING_ANLAUF if bool(g.get("findling", false)) else HOPS_ANLAUF
+		var von := a - anlauf
+		var bis := b + anlauf
 		if von >= UFER_S:
 			continue
 		if bis > UFER_S:
@@ -489,6 +542,8 @@ func _hopser_rechnen() -> Array[Dictionary]:
 		var ya := _level.boden_bei(von)
 		var yb := _level.boden_bei(bis)
 		var scheitel := HOPS_HUERDE if bool(g["huerde"]) else HOPS_GRUND + HOPS_JE_METER * (b - a)
+		if bool(g.get("findling", false)):
+			scheitel = HOPS_FINDLING
 		liste.append({"von": von, "bis": bis, "ya": ya, "yb": yb,
 				"oben": maxf(ya, yb) + scheitel})
 	return liste

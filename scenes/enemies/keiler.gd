@@ -51,8 +51,11 @@ class_name Keiler
 ## TAKT. Alles bewegt sich in `_physics_process` (Physikinterpolation, die
 ## Glattprobe): Die Jagd ruft `aktualisiere` in ihrem Physikschritt, dieser
 ## Knoten rechnet danach (`process_physics_priority`) die Haltung. Ruft
-## niemand `aktualisiere` (Schlaf, Ruhe der Proben), steht der Gang still;
-## Atem, Erwachen und Schnauben laufen weiter.
+## niemand `aktualisiere` in diesem Physikbild (Schlaf, Ruhe der Proben),
+## steht er: Tempo 0, kein Gang, keine Staubfahne, am Ufer schnaubt er.
+## Atem, Erwachen und Schnauben laufen weiter. WARUM: Sonst blieb das Tempo
+## der letzten Haltung stehen (nach `aufstehen` 1) – in der Ruhe der Proben
+## stand er mitten im Sprung, und die Staubfahne lief.
 ##
 ## EFFEKTE (Entwurf §8.4), alle über `Effekte` und dort gedeckelt:
 ##   Staubfahne   golden, hinter ihm, solange er läuft (`dauerstaub`)
@@ -61,7 +64,9 @@ class_name Keiler
 ##   Staubpuff    beim Abspringen und Landen eines Hopsers, beim Aufspringen
 ##                und beim Schlittern am Ufer
 ##   Splitter     Bretter im Kistenholz (vorgewärmt, `Effekte.vorwaermen`)
-##   Wasserschwall  Tropfen und Gischt aus dem Gerinne (D3/D4)
+##   Wasserschwall  Tropfen und Gischt aus dem Gerinne (D3/D4), beide im
+##                Stoff ALPHA (`Effekte.rauch`): Funken (additiv) leuchteten
+##                im Schatten wie Glut statt wie Wasser
 
 ## Sprünge je Sekunde im vollen Galopp. 7,4 m/s bei gut 3,3 m je Sprung.
 const TAKT := 2.2
@@ -96,7 +101,9 @@ const AUGE := Color(1.0, 0.36, 0.1)
 ## Staub der Fahne und der Puffs: golden im Abendlicht (Entwurf §8.4).
 const GOLDSTAUB := Color(0.96, 0.76, 0.46, 0.85)
 const DAMPF := Color(0.9, 0.93, 1.0, 0.42)
-const WASSER := Color(0.78, 0.9, 1.0, 0.9)
+## Gischt und Tropfen im Schatten des Tobels: gedämpft, nicht leuchtend.
+const GISCHT := Color(0.88, 0.94, 1.0, 0.7)
+const TROPFEN := Color(0.58, 0.68, 0.76, 0.95)
 
 ## Leib: Stationen [z, Oberkante, Unterkante, halbe Breite, Mähne] (m, Raum
 ## des Körpers, Boden auf 0). Buckel über den Vorderbeinen, abfallender
@@ -322,6 +329,8 @@ func durchbrechen(ort: Vector3, wasser: Vector3 = Vector3.INF) -> void:
 
 func _physics_process(delta: float) -> void:
 	_uhr += delta
+	if _angetrieben != Engine.get_physics_frames():
+		_tempo = 0.0
 	if _erwachen >= 0.0:
 		_erwachen += delta
 		_schlaf = 1.0 - smoothstep(0.0, ERWACHEN, _erwachen)
@@ -447,14 +456,23 @@ func _schnauben_stoss(staerke: float) -> void:
 
 ## Wasser schwappt aus dem Gerinne: Tropfen fallen, unten stäubt Gischt.
 func _wasserschwall(ort: Vector3) -> void:
-	var tropfen := Effekte.funken(self, ort, WASSER, 26, 3.2, 0.16, 70.0)
+	var tropfen := Effekte.rauch(self, ort, TROPFEN, 0.2, 26)
 	if tropfen != null:
 		tropfen.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 		tropfen.emission_box_extents = Vector3(1.2, 0.1, 0.4)
+		tropfen.direction = Vector3.DOWN
+		tropfen.spread = 30.0
+		tropfen.initial_velocity_min = 0.4
+		tropfen.initial_velocity_max = 2.2
+		tropfen.damping_min = 0.0
+		tropfen.damping_max = 0.2
 		tropfen.gravity = Vector3(0.0, -14.0, 0.0)
 		tropfen.lifetime = 0.9
+		tropfen.scale_amount_min = 0.08
+		tropfen.scale_amount_max = 0.15
+		tropfen.scale_amount_curve = null
 	var gischt := Effekte.rauch(self, Vector3(ort.x, global_position.y + 0.3, ort.z),
-			Color(0.88, 0.94, 1.0, 0.7), 1.1, 6)
+			GISCHT, 1.1, 6)
 	if gischt != null:
 		gischt.gravity = Vector3(0.0, 0.2, 0.0)
 
