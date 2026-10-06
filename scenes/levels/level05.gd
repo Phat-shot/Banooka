@@ -21,9 +21,8 @@ class_name Level05
 ## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Gebaut sind der
 ## ROHBAU (Pakete P1a/P1b: Verlauf, Weg, Bauteile, Spielobjekte, Jagd und
 ## Proben, voll spielbar), der BODEN (P3: Wegdecke mit Lippen, Gelände,
-## Saum) und die EICHE (P4). Wegbauten-Optik, Wasser, Wald, Rasen und
-## Stimmung folgen in eigenen Paketen; bis dahin stehen die Bauteile als
-## graue Platzhalter in der Form ihrer Kollision.
+## Saum), die EICHE (P4) und die WEGBAUTEN samt Keiler-Optik (P5). Wasser,
+## Wald, Rasen und Stimmung folgen in eigenen Paketen.
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
@@ -36,8 +35,11 @@ class_name Level05
 ## `bauschritte(level: Level05)`: `L05Gelaende` (Hang, Kuppe, Kamm,
 ## Mühlwiese; P3), `L05Saum` (Lösswände, Ufer, Wehrwände, Stirnen und
 ## Setzstufen; P3), `L05Eiche` (die gespaltene Hauereiche hinter dem Start,
-## nah und fern, mit eigenem Nebel; P4) und `L05Jagd` (der Keiler: Schlaf,
-## Wecken, Jagd, Hopser, Durchlass-Bruch und Heilen, Ufer; P1b).
+## nah und fern, mit eigenem Nebel; P4), `L05Wegbauten` (Durchlässe heil und
+## gebrochen, Hürden, Findlinge, Bänke, Rampe, Treppen, Wehr, Rastpfähle –
+## mit ihren Körpern; P5) und `L05Jagd` (der Keiler: Schlaf, Wecken, Jagd,
+## Hopser, Durchlass-Bruch und Heilen, Ufer; P1b; sein Körper und seine
+## Effekte in scenes/enemies/keiler.gd, P5).
 ##
 ## BODEN (P3, Entwurf §5, §8, §9.2–9.4). Die Wegdecke trägt den Stoff aus
 ## `Wegdecke` (Waldweg in Löss, `wegdecke_thema`), an L1–L6 vier bis sechs
@@ -172,6 +174,13 @@ class_name Level05
 ##     Hälften, ihre Mitten bei q ≈ ±12,5 und Y ≈ 55. K3 prüft die
 ##     gebauten Kronen (`wahrzeichen`), EICHE nur ohne gebaute Eiche. K1
 ##     lässt die Eiche aus (sie steht vor s 0, wo K1 nichts prüft).
+##   P5 (Wegbauten und Keiler, Einzelheiten in den Köpfen von
+##   `L05Wegbauten` und keiler.gd):
+##   * Das Gerinne der Fluderjoche bleibt im Bruch heil; den Wasserschwall
+##     zeigt der Keiler als Effekt, das Wasser darin kommt mit P6.
+##   * Der schlafende Keiler liegt 2 m hangauf von SCHLAF_S, umgedreht, die
+##     Schnauze zur Eichelspur (keiler.gd, SCHLAFPLATZ): Stehend steckte er
+##     durch das Gatter Ü.
 
 const M_ENDE := 300.0
 ## Bis hier reicht die Kurve: Die Kamera steht 21 m weiter auf dem Verlauf
@@ -582,18 +591,6 @@ const FRUECHTE := [
 	{"art": "reihe", "von": 290.5, "bis": 295.0, "anzahl": 5, "q": 0.0},
 ]
 
-## Platzhalter der Durchlässe (K5): Oberkante des Riegels, Unterkante der
-## Kappe, Breite und Abstand der Latten (0,2 auf 1,0 m: 80 % offen).
-const RIEGEL_OBEN := 1.4
-const KAPPE_UNTEN := 4.2
-const LATTE := 0.2
-const LATTEN_ABSTAND := 1.0
-## Bruch (Platzhalter): Pfostenstümpfe bis BRUCH_STUMPF, Riegelstücke am
-## Boden bis BRUCH_RIEGEL, die Bresche ±BRUCH_BRESCHE um die Wegmitte.
-const BRUCH_STUMPF := 1.6
-const BRUCH_RIEGEL := 0.3
-const BRUCH_BRESCHE := 1.4
-
 ## Rastplätze (§6.5): Zonen auf `boden_bei`, Breite `breite_bei` + 2. Der
 ## erste ist zugleich die Stelle des Weckens (L05Jagd.WECK_S).
 const RASTPLAETZE: Array[float] = [31.0, 122.0, 178.0, 204.0, 268.0]
@@ -710,7 +707,8 @@ const JAGD_SPUR: Array[Vector2] = [
 
 ## Die Jagd (Modul `L05Jagd`); gesetzt von ihrem Bauschritt.
 var jagd: L05Jagd
-## Körper der Durchlässe in der Reihenfolge von DURCHLAESSE (für den Bruch).
+## Körper der Durchlässe in der Reihenfolge von DURCHLAESSE (für den Bruch);
+## gefüllt von den Bauschritten der Wegbauten (`L05Wegbauten._durchlass`).
 var durchlass_koerper: Array[StaticBody3D] = []
 ## Meldungen, die nur einmal kommen.
 var _gemeldet := {}
@@ -735,9 +733,10 @@ func absturz_hoehe() -> float:
 # =========================================================== Aufbau
 
 ## Gerüst nach Entwurf §9.4: Hang (Gelände), Hohlweg (Decke, Kollision,
-## Lippen), Böschungen, Stufen und Ufer (Saum), die Hauereiche, Wegbauten,
-## Spiel, Keiler. Was ein späteres Paket baut (Wasser, Wald, Rasen, Licht),
-## fehlt noch; die Reihenfolge der übrigen Schritte bleibt.
+## Lippen), Böschungen, Stufen und Ufer (Saum), die Hauereiche, Wegbauten
+## (je Abschnitt ein Schritt), Spiel, Keiler. Was ein späteres Paket baut
+## (Wasser, Wald, Rasen, Licht), fehlt noch; die Reihenfolge der übrigen
+## Schritte bleibt.
 func _bauschritte() -> Array:
 	_verlauf_anlegen()
 	# Beim Verlassen räumen (Baukasten §0 Nr. 3): Die Stoffe der Wegdecke
@@ -758,10 +757,8 @@ func _bauschritte() -> Array:
 	schritte.append({"text": "Der Hohlweg wird gelegt", "tun": _weg_bauen})
 	schritte.append_array(L05Saum.bauschritte(self))
 	schritte.append_array(L05Eiche.bauschritte(self))
-	schritte.append_array([
-		{"text": "Wurzelbögen und Hürden", "tun": _wegbauten_setzen},
-		{"text": "Kisten, Früchte, Rastplätze", "tun": _spiel_setzen},
-	])
+	schritte.append_array(L05Wegbauten.bauschritte(self))
+	schritte.append({"text": "Kisten, Früchte, Rastplätze", "tun": _spiel_setzen})
 	schritte.append_array(L05Jagd.bauschritte(self))
 	return schritte
 
@@ -1038,18 +1035,18 @@ func lippen_thema() -> Dictionary:
 	return {"luecken": luecken, "lippen_steine": LIPPEN_STEINE, "name": "L05"}
 
 
-## Optik des Begehbaren: grauer Platzhalter in der Form der Kollision, ohne
-## Schatten (Schatten werfen nur Stämme, Kisten, Figur und Keiler, Entwurf
-## §10 – jeder Schattenwerfer kostet je Schattenstufe einen Zeichenaufruf
-## mehr); die Optik kommt mit den Wegbauten (P5). Ohne eigene Optik bleiben
-## (OHNE_OPTIK) der Startboden – den Boden dort zeichnet das Gelände – und
-## die Wehrkörper unter der Wehrkrone, deren Seiten der Saum als Wehrwände
-## zeichnet: Ihre Oberseite lag mit der Schulter des Saums in einer Ebene
-## und flimmerte.
+## Optik des Begehbaren: Bänke, Trittstein und Grabenrampe zeichnet
+## `L05Wegbauten` in seinen Abschnitten (verschmolzen je Stoff) – hier steht
+## nur eine leere Marke. Ohne eigene Optik bleiben (OHNE_OPTIK) der
+## Startboden – den Boden dort zeichnet das Gelände – und die Wehrkörper
+## unter der Wehrkrone, deren Seiten der Saum als Wehrwände zeichnet: Ihre
+## Oberseite lag mit der Schulter des Saums in einer Ebene und flimmerte.
+## Was keiner zeichnet, bekäme einen grauen Platzhalter ohne Schatten.
 func _begehbar_optik(e: Dictionary) -> Node3D:
-	if OHNE_OPTIK.has(String(e["name"])):
+	var name_e := String(e["name"])
+	if OHNE_OPTIK.has(name_e) or L05Wegbauten.BEGEHBARE.has(name_e):
 		var leer := Node3D.new()
-		leer.name = "OhneOptik"
+		leer.name = "OhneOptik" if OHNE_OPTIK.has(name_e) else "Optik (Wegbauten)"
 		return leer
 	var sicht := weg.platzhalter(e)
 	_ohne_schatten(sicht)
@@ -1172,34 +1169,6 @@ func gelaende_hoehe(x: float, z: float) -> float:
 	return gelaende.hoehe(x, z) if gelaende != null else NAN
 
 
-## Durchlässe, Hürden, Findlinge als graue Platzhalter in der Form ihrer
-## Körper, ohne Schatten wie das Begehbare (Optik: Paket P5). Jeder
-## Durchlass bekommt dazu seinen Bruch („Bruch", unsichtbar), und sein
-## Körper kommt in `durchlass_koerper`: Dort bricht der Keiler hindurch
-## (L05Jagd, DURCHLASS-BRUCH) – über den Körper, den `duckdurchlass`
-## zurückgibt, ohne das Bauteil zu ändern.
-func _wegbauten_setzen() -> void:
-	durchlass_koerper.clear()
-	for d: Dictionary in DURCHLAESSE:
-		var s: float = d["s"]
-		var tiefe: float = d["tiefe"]
-		var koerper := duckdurchlass(s, tiefe,
-				{"stolperzone": L05Jagd.STOLPER_DAUER, "optik": _durchlass_platzhalter})
-		koerper.name = String(d["name"])
-		koerper.add_child(_durchlass_bruch(s, tiefe))
-		_ohne_schatten(koerper)
-		durchlass_koerper.append(koerper)
-	for h: Dictionary in HUERDEN:
-		var koerper := huerde(float(h["s"]), {"stolperzone": L05Jagd.STOLPER_DAUER})
-		koerper.name = String(h["name"])
-		_ohne_schatten(koerper)
-	for f: Dictionary in FINDLINGE:
-		var koerper := findling_hindernis(float(f["s"]), float(f["q"]), float(f["breite"]),
-				{"stolperzone": L05Jagd.STOLPER_DAUER})
-		koerper.name = String(f["name"])
-		_ohne_schatten(koerper)
-
-
 # =========================================================== Spiel
 
 ## Sichtweiten zuerst (sie greifen bei allem, was danach unter `objekte`
@@ -1245,64 +1214,8 @@ func _fruechte_setzen() -> void:
 					frucht_auf(p.x, p.y, p.z)
 
 
-## Platzhalter eines Durchlasses nach K5 (Entwurf §7.1, §1 Nr. 2): massiv
-## nur der Riegel (DUCK_UNTEN bis RIEGEL_OBEN), darüber Latten mit 80 %
-## offener Fläche, oben eine Kappe bis zur Oberkante des Körpers, außen zwei
-## Pfosten – ein Netz, grau, ohne Schatten. WARUM nicht der Kasten in
-## Körperform: Im Rückblick steht jeder Durchlass zwischen Kamera und Figur,
-## solange sie 1,3–16 m davor läuft (Sichtlinie von 5,6 m Höhe 21 m voraus
-## auf die Figur); ein voller Kasten verdeckte sie dort jedes Mal
-## (gesehen im Foto bei s 8: die Figur hinter dem Gatter Ü).
-func _durchlass_platzhalter(s: float, tiefe: float) -> Node3D:
-	var halb := maxf(breite_bei(s), breite_bei(s + tiefe)) * 0.5 + 1.0
-	var teile: Array[Vector4] = [
-		Vector4(-halb, halb, DUCK_UNTEN, RIEGEL_OBEN),
-		Vector4(-halb, halb, KAPPE_UNTEN, DUCK_OBEN),
-		Vector4(-halb, -halb + 0.3, 0.0, DUCK_OBEN),
-		Vector4(halb - 0.3, halb, 0.0, DUCK_OBEN),
-	]
-	var q := -halb + LATTEN_ABSTAND
-	while q < halb - LATTEN_ABSTAND * 0.5:
-		teile.append(Vector4(q - LATTE * 0.5, q + LATTE * 0.5, RIEGEL_OBEN, KAPPE_UNTEN))
-		q += LATTEN_ABSTAND
-	return _platzhalter_netz("Platzhalter", s, tiefe, teile)
-
-
-## Bruch eines Durchlasses (Platzhalter, Optik: P5): die Pfosten als Stümpfe
-## bis BRUCH_STUMPF, der Riegel in zwei Stücken am Boden, in der Mitte die
-## Bresche des Keilers. Unsichtbar, bis der Keiler hindurchbricht.
-func _durchlass_bruch(s: float, tiefe: float) -> Node3D:
-	var halb := maxf(breite_bei(s), breite_bei(s + tiefe)) * 0.5 + 1.0
-	var teile: Array[Vector4] = [
-		Vector4(-halb, -halb + 0.3, 0.0, BRUCH_STUMPF),
-		Vector4(halb - 0.3, halb, 0.0, BRUCH_STUMPF),
-		Vector4(-halb + 0.4, -BRUCH_BRESCHE, 0.0, BRUCH_RIEGEL),
-		Vector4(BRUCH_BRESCHE, halb - 0.4, 0.0, BRUCH_RIEGEL),
-	]
-	var netz := _platzhalter_netz("Bruch", s, tiefe, teile)
-	netz.visible = false
-	return netz
-
-
-## Graues Netz ohne Schatten aus Quader-Teilen Vector4(q_von, q_bis, unten,
-## oben) über die Tiefe des Durchlasses (Höhen über `boden_bei`).
-func _platzhalter_netz(name_: String, s: float, tiefe: float, teile: Array[Vector4]) -> MeshInstance3D:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for t in teile:
-		st.append_from(Wegdaten.schnittnetz(_hindernis_schnitte(s, s + tiefe, t.x, t.y, t.z, t.w)),
-				0, Transform3D.IDENTITY)
-	var netz := MeshInstance3D.new()
-	netz.name = name_
-	netz.mesh = st.commit()
-	netz.material_override = Materialbibliothek.einfarbig(Color(0.52, 0.52, 0.5))
-	netz.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return netz
-
-
-## Rastplatz: eine Zone quer über den Weg (auf der Decke, Breite + 2 m) und
-## ein Pfahl mit leuchtender Laterne am rechten Rand (Platzhalter; der
-## Wegpfahl kommt mit den Wegbauten, P5).
+## Rastplatz: eine Zone quer über den Weg (auf der Decke, Breite + 2 m). Den
+## Wegpfahl mit der Laterne baut `L05Wegbauten`.
 func _rastplatz(s: float) -> void:
 	var zone := Area3D.new()
 	zone.name = "Rastplatz %.0f" % s
@@ -1318,28 +1231,6 @@ func _rastplatz(s: float) -> void:
 	zone.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 	zone.body_entered.connect(_auf_rastplatz.bind(s))
 	objekte.add_child(zone)
-
-	var pfahl := MeshInstance3D.new()
-	pfahl.name = "Rastplatzpfahl"
-	var stange := CylinderMesh.new()
-	stange.top_radius = 0.08
-	stange.bottom_radius = 0.1
-	stange.height = 2.4
-	stange.radial_segments = 8
-	pfahl.mesh = stange
-	pfahl.material_override = Materialbibliothek.einfarbig(Color(0.52, 0.52, 0.5))
-	pfahl.position = weg_punkt(s, breite_bei(s) * 0.5 + 0.3, 1.2)
-	pfahl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	deko.add_child(pfahl)
-	var laterne := MeshInstance3D.new()
-	laterne.name = "Rastplatzlaterne"
-	var licht := BoxMesh.new()
-	licht.size = Vector3(0.3, 0.4, 0.3)
-	laterne.mesh = licht
-	laterne.material_override = Materialbibliothek.leuchtend(Farben.PORTAL_START, 0.9)
-	laterne.position = weg_punkt(s, breite_bei(s) * 0.5 + 0.3, 2.6)
-	laterne.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	deko.add_child(laterne)
 
 
 func _auf_rastplatz(koerper: Node3D, s: float) -> void:

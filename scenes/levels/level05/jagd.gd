@@ -62,8 +62,8 @@ class_name L05Jagd
 ##
 ## DURCHLASS-BRUCH (Entwurf §9.1, §8.4): Erreicht er die Stirn eines
 ## Durchlasses bis auf BRUCH_VOR, bricht er hindurch – der Körper (Ebene 16)
-## und die Stolperzone gehen aus, die heile Optik geht aus, der Bruch-
-## Platzhalter („Bruch", vom Level an den Körper gehängt) geht an. Alles
+## und die Stolperzone gehen aus, die heile Optik geht aus, der Bruch
+## („Bruch", von `L05Wegbauten` an den Körper gehängt) geht an. Alles
 ## über den Körper, den `KorridorLevel.duckdurchlass` zurückgibt; das
 ## Bauteil selbst bleibt unverändert. Die Figur stört das nie: Ist er bis
 ## Stirn − 1,5 heran, steht sie – lebend – mindestens 0,5 m hinter der Stirn
@@ -81,13 +81,20 @@ class_name L05Jagd
 ## 0,083 m zu kurz (gemessen an CP2, an CP4 0,080). Liegt der Rastplatz vor
 ## WECK_S – Start oder Game Over –, schläft er wieder an seinem Platz.
 ##
-## HALTUNGEN rufe ich am Keiler nur, wenn er sie kennt (`has_method`): Die
-## Optik dazu kommt mit P5. Ruft:
+## HALTUNGEN rufe ich am Keiler nur, wenn er sie kennt (`has_method`; die
+## Optik steht in keiler.gd, Paket P5). Ruft:
 ##   schlafen()               beim Einschlafen (Start, Tod vor CP1)
 ##   erwachen()               beim Wecken (Entwurf: 0,5 s im Lauf)
+##   aufstehen()              wenn er ohne Wecken aus dem Schlaf in die Jagd
+##                            oder ans Ufer kommt (Respawn an einem Rastplatz,
+##                            Ruhe der Proben): sofort wach, ohne Effekte
 ##   in_luft(an: bool)        zu Beginn und am Ende jedes Hopsers
 ##   schnauben()              bei der Ankunft am Ufer; der Zustand hält an
 ##   hangneigung(winkel)      jedes Bild, Radiant, positiv bergab
+##   durchbrechen(ort, wasser)  wenn er in der Jagd durch einen Durchlass
+##                            bricht (nicht beim Heilen und Versetzen): Ort
+##                            des Bruchs und, am Fluderjoch, des Gerinnes
+##                            (Metadaten "gerinne" am Körper), sonst INF
 ## Laufen ergibt sich wie bisher aus `aktualisiere(delta, tempo, naehe)`:
 ## Tempo 1 in der Jagd, 0 am Ufer.
 ##
@@ -100,8 +107,7 @@ class_name L05Jagd
 ## bricht dort erst, wenn die Figur 10,5 m hinter seiner Stirn steht – keine
 ## Probe misst dann noch an ihm. Nach einem Tod bleibt die Ruhe.
 ##
-## Die Strecke der Figur kommt aus `LevelBasis.strecke_der_figur()`. Der
-## Keiler behält vorerst sein altes Netz aus keiler.gd.
+## Die Strecke der Figur kommt aus `LevelBasis.strecke_der_figur()`.
 
 ## Gefangen: unmittelbar bevor die Figur stirbt (für Proben, später Optik).
 signal gefangen(abstand: float)
@@ -299,7 +305,7 @@ func _physics_process(delta: float) -> void:
 		if _keiler_s >= UFER_S:
 			_keiler_s = UFER_S
 			_lage_setzen(Lage.UFER)
-		_durchlaesse_pruefen()
+		_durchlaesse_pruefen(true)
 	var abstand := s_figur - _keiler_s
 	var naehe := 1.0 - clampf(abstand / HOECHSTABSTAND, 0.0, 1.0)
 	_stellen(_keiler_s, _querlage(s_figur) * QUER_ANTEIL)
@@ -319,11 +325,15 @@ func _einschlafen() -> void:
 	_durchlaesse_pruefen()
 
 
-## Lage wechseln; am Ufer beginnt das Schnauben (siehe Kopf).
+## Lage wechseln; aus dem Schlaf ohne Wecken steht er sofort auf, am Ufer
+## beginnt das Schnauben (siehe Kopf, HALTUNGEN).
 func _lage_setzen(neu: Lage) -> void:
 	if neu == _lage:
 		return
+	var aus_schlaf := _lage == Lage.SCHLAF
 	_lage = neu
+	if aus_schlaf and neu != Lage.SCHLAF:
+		_haltung("aufstehen")
 	if neu == Lage.UFER:
 		_haltung("schnauben")
 
@@ -487,8 +497,9 @@ func _hopser_rechnen() -> Array[Dictionary]:
 # =========================================================== Durchlässe
 
 ## Jeden Durchlass auf den Stand bringen, der zur Stelle des Keilers passt
-## (siehe Kopf, DURCHLASS-BRUCH und HEILEN).
-func _durchlaesse_pruefen() -> void:
+## (siehe Kopf, DURCHLASS-BRUCH und HEILEN). `wirkung`: in der Jagd – dann
+## bricht er sichtbar hindurch (`durchbrechen`).
+func _durchlaesse_pruefen(wirkung: bool = false) -> void:
 	for i in _durchlaesse.size():
 		var koerper := _durchlaesse[i]
 		if not is_instance_valid(koerper):
@@ -496,14 +507,23 @@ func _durchlaesse_pruefen() -> void:
 		var stirn: float = koerper.get_meta("strecke", 0.0)
 		var soll := _lage != Lage.SCHLAF and _keiler_s >= stirn - BRUCH_VOR
 		if soll != _gebrochen[i]:
-			_durchlass_stellen(i, soll)
+			_durchlass_stellen(i, soll, wirkung)
 
 
 ## Körper und Stolperzone aus bzw. an, heile Optik und Bruch umschalten.
 ## Aufgeschoben, weil das mitten im Physikschritt geschieht.
-func _durchlass_stellen(i: int, gebrochen: bool) -> void:
+func _durchlass_stellen(i: int, gebrochen: bool, wirkung: bool = false) -> void:
 	_gebrochen[i] = gebrochen
 	var koerper := _durchlaesse[i]
+	if gebrochen and wirkung:
+		var mitte := float(koerper.get_meta("strecke", 0.0)) \
+				+ float(koerper.get_meta("tiefe", 0.0)) * 0.5
+		var q := _querlage(_level.strecke_der_figur()) * QUER_ANTEIL
+		var ort := _level.to_global(_level.weg_punkt(mitte, q, 1.2))
+		var wasser := Vector3.INF
+		if koerper.has_meta("gerinne"):
+			wasser = _level.to_global(_level.weg_punkt(mitte, q, float(koerper.get_meta("gerinne"))))
+		_haltung("durchbrechen", [ort, wasser])
 	for kind in koerper.get_children():
 		if kind is CollisionShape3D:
 			kind.set_deferred("disabled", gebrochen)
