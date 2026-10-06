@@ -155,7 +155,7 @@ class_name Level05
 ##   * Der Rasen der Decke bleibt der der Wegmaske, nur die Erde ist in Löss
 ##     getönt: Saum und Gelände tragen denselben Rasen (Naht an der Kante).
 ##   * Freiraum K3 prüft, ob Gelände und Saum die Kronen der Eiche verdecken
-##     (Strahlen zu Mitte und Rand, `_freiraum_k3`), nicht einen Kegel von
+##     (Strahlen zur Mitte und ins Laub, `_freiraum_k3`), nicht einen Kegel von
 ##     ±6°: Ganz unten im Tal liegt die Krone nur 8° über der Kamera, und
 ##     ihr eigener Fuß auf der Kuppe läge im Kegel. Den Kegel für Bäume
 ##     prüft der Waldrahmen (Paket P7).
@@ -168,10 +168,10 @@ class_name Level05
 ##     Geländes bleibt bei EICHE["s"] = −6.
 ##   * Die Kerbe ist 9,0 statt 7 m breit: 7 m wären im Schlussbild 13,4
 ##     statt der verlangten 16 Bildpunkte.
-##   * Die Kronen sitzen an Ästen, ihre Mitten bei Y 52,5 statt ≈ 55. K3
-##     prüft weiter die Kronen aus EICHE, die gebauten die
-##     Wahrzeichenprobe. K1 lässt die Eiche aus (sie steht vor s 0, wo K1
-##     nichts prüft); so bleibt das Protokoll des LevelChecks gleich.
+##   * Die Kronen sitzen als Schirme oben an den Ästen der 24,5 m hohen
+##     Hälften, ihre Mitten bei q ≈ ±12,5 und Y ≈ 55. K3 prüft die
+##     gebauten Kronen (`wahrzeichen`), EICHE nur ohne gebaute Eiche. K1
+##     lässt die Eiche aus (sie steht vor s 0, wo K1 nichts prüft).
 
 const M_ENDE := 300.0
 ## Bis hier reicht die Kurve: Die Kamera steht 21 m weiter auf dem Verlauf
@@ -460,10 +460,11 @@ const GLATT_BIS := 460.0
 const GLATT_SCHRITT := 0.5
 ## Die Hauereiche nach dem Entwurf (§8.2): Kuppe des Geländes (s, Y ihres
 ## Scheitels) und die beiden Schirmkronen als Vector3(q, Y der Mitte,
-## Radius) – für Gelände und Freiraumprobe (K3). Gebaut wird sie in
-## `L05Eiche`, mit der Stammachse 3,5 m weiter hinten (L05Eiche.STAMM_S)
-## und den Kronen an Ästen; ihre wirklichen Kronen prüft die
-## Wahrzeichenprobe (`wahrzeichen`).
+## Radius) – für das Gelände und, nur solange keine Eiche gebaut ist, für
+## die Freiraumprobe (K3). Gebaut wird sie in `L05Eiche`, mit der
+## Stammachse 3,5 m weiter hinten (L05Eiche.STAMM_S) und den Kronen an
+## Ästen; deren Punkte liefert `wahrzeichen` an K3 und die
+## Wahrzeichenprobe.
 const EICHE := {"s": -6.0, "boden_y": 27.0,
 		"kronen": [Vector3(-11.0, 55.0, 7.5), Vector3(11.0, 55.0, 7.5)]}
 
@@ -648,8 +649,10 @@ const K1_RASTER := 1.0
 ## Dreiecke weit vom Weg; ohne diese Vorprüfung tastete die Probe sie alle ab.
 const K1_WEIT := 10.6
 ## K3 (Entwurf §7.1): von jeder Stelle K3_VON … M_ENDE (alle K3_SCHRITT m)
-## Strahlen von der Kamera zu Mitte und Rand (K3_RAND · Radius) jeder Krone
-## der Eiche, abgetastet alle K3_TAKT m bis K3_VOR · Radius vor der Krone.
+## Strahlen von der Kamera zur Mitte jeder Krone der Eiche und zu den
+## Probepunkten in ihrem Laub (`wahrzeichen`; ohne gebaute Eiche zu Mitte
+## und Rand, K3_RAND · Radius, der Kronen aus EICHE), abgetastet alle
+## K3_TAKT m bis K3_VOR · Radius vor der Krone.
 const K3_VON := 6.0
 const K3_SCHRITT := 2.0
 const K3_RAND := 0.6
@@ -1386,11 +1389,12 @@ func pruefprofil() -> Dictionary:
 	return {"sicht": true, "todeszonen": true, "rand": true, "freiraum": true}
 
 
-## Probepunkte des Wahrzeichens für `werkzeuge/wahrzeichenprobe.gd`
-## (Entwurf §11 Nr. 7, §7.1 K3; P4): je Krone und für die Kerbe ein Eintrag
-## {"name", "punkte"} in Weltkoordinaten, die Kerbe dazu mit "kanten" (die
-## innersten Ecken der Kronen). Aus der gebauten Eiche (`L05Eiche`); vor
-## ihrem Bauschritt leer.
+## Probepunkte des Wahrzeichens für `werkzeuge/wahrzeichenprobe.gd` und
+## die Freiraumprobe K3 (Entwurf §11 Nr. 7, §7.1 K3; P4): je Krone und für
+## die Kerbe ein Eintrag {"name", "punkte"} in Weltkoordinaten – die
+## Kronenpunkte im Laub, dazu "mitte" und "radius" der Hülle; die Kerbe mit
+## "kanten" (die innersten Ecken der Kronen). Aus der gebauten Eiche
+## (`L05Eiche.wahrzeichen`); vor ihrem Bauschritt leer.
 func wahrzeichen() -> Array[Dictionary]:
 	if eiche == null:
 		var leer: Array[Dictionary] = []
@@ -1714,24 +1718,38 @@ func freiraumprobe() -> PackedStringArray:
 
 ## K3 (siehe `freiraumprobe`): Verdecken Gelände oder Saum die Kronen der
 ## Eiche? Getestet gegen `L05Gelaende.sicht_oberkante` (gezeichnetes Feld,
-## Kronen der Böschungen). Die Bäume (Paket P7) prüft der Waldrahmen mit
-## seinem Kegel. Ohne Gelände: nichts zu prüfen.
+## Kronen der Böschungen). Ziele sind die gebauten Kronen: Mitte der Hülle
+## und die Probepunkte im Laub aus `wahrzeichen` (wie die
+## Wahrzeichenprobe). Erst ohne gebaute Eiche die Kronen des Entwurfs aus
+## EICHE (Mitte und vier Punkte auf K3_RAND des Radius). Die Bäume (Paket
+## P7) prüft der Waldrahmen mit seinem Kegel. Ohne Gelände: nichts zu
+## prüfen.
 func _freiraum_k3(hoehe: float, abstand: float) -> Dictionary:
 	var zeilen := PackedStringArray()
 	if gelaende == null:
 		return {"zeilen": zeilen, "stellen": 0}
-	var eiche_s: float = EICHE["s"]
-	var kronen: Array = EICHE["kronen"]
 	var ziele: Array[Vector3] = []
 	var radien: Array[float] = []
-	for k: Vector3 in kronen:
-		var mitte := LevelWerkzeuge.punkt_frei(verlauf, eiche_s, k.x)
-		mitte.y = k.y
-		var r := k.z * K3_RAND
-		for d: Vector3 in [Vector3.ZERO, Vector3(r, 0.0, 0.0), Vector3(-r, 0.0, 0.0),
-				Vector3(0.0, r, 0.0), Vector3(0.0, -r, 0.0)]:
-			ziele.append(mitte + d)
-			radien.append(k.z)
+	for e: Dictionary in wahrzeichen():
+		if not String(e["name"]).begins_with("Krone"):
+			continue
+		var radius: float = e["radius"]
+		ziele.append(e["mitte"] as Vector3)
+		radien.append(radius)
+		for p: Vector3 in e["punkte"]:
+			ziele.append(p)
+			radien.append(radius)
+	if ziele.is_empty():
+		var eiche_s: float = EICHE["s"]
+		var kronen: Array = EICHE["kronen"]
+		for k: Vector3 in kronen:
+			var mitte := LevelWerkzeuge.punkt_frei(verlauf, eiche_s, k.x)
+			mitte.y = k.y
+			var r := k.z * K3_RAND
+			for d: Vector3 in [Vector3.ZERO, Vector3(r, 0.0, 0.0), Vector3(-r, 0.0, 0.0),
+					Vector3(0.0, r, 0.0), Vector3(0.0, -r, 0.0)]:
+				ziele.append(mitte + d)
+				radien.append(k.z)
 	var stellen := 0
 	var verdeckt := 0
 	var knappste := INF
