@@ -24,8 +24,9 @@ class_name L05Saum
 ##          Teile: Narbe wie `Kanten.profil_ab`, Farben über `Kanten.farbe`,
 ##          Rauschen der Wand nur nach außen (`GelaendeSaum`: Richtung 2).
 ##          Die Platte hinter der Krone endet nie über dem gezeichneten
-##          Gelände (PLATTE_UNTER), und wo der nächste Zug beginnt, sinkt das
-##          ganze Profil unter Ufer und Gelände (`uebergabe`).
+##          Gelände (PLATTE_UNTER, gemessen dort, wohin der Querschnitt
+##          wirklich zeigt: `_platte_lage`), und wo der nächste Zug beginnt,
+##          sinkt das ganze Profil unter Ufer und Gelände (`uebergabe`).
 ##   ab     Ufer oder Wehrwand hinab, von der Lippe her (wie `profil_ab`,
 ##          30 Punkte dort, 16 hier): Narbe über der Lippe, Wand bis aufs
 ##          Bett, Fuß unter das Bett des Geländes. Erde und Moos am Ufer,
@@ -47,7 +48,7 @@ class_name L05Saum
 ## Ferne verschwände, ließe das Gelände unter ihm als Graben stehen. Ein
 ## Stoff für alles (`thema`), keine Schatten, keine Kollision – die Linien
 ## sind die Kollisionskanten (Leitlinie, Lippe der Schulter, Stufen).
-## Bauspeicher: `SPEICHER` (Level 05 nennt ihn, `Kanten` legt ab).
+## Bauspeicher: `speicher()` (Level 05 nennt ihn, `Kanten` legt ab).
 ##
 ## FREIRAUM (Entwurf §7.1): K1 – nichts vom Saum liegt über |q| ≤ 3,5; die
 ## Narbe tritt höchstens `Level05.ZUEGE` „Überhang" (≤ 0,45 m) vor die
@@ -55,11 +56,14 @@ class_name L05Saum
 ## stehen höchstens 5,6 m über der Decke neben dem Weg; ob sie die Eiche
 ## verdecken, misst `Level05.freiraumprobe`.
 
-const SPEICHER := "l05_saum_kanten"
 const NAME := "Saum"
-## Abstand der Querschnitte an den Seiten und quer über den Weg (m).
+## Abstand der Querschnitte an den Seiten und quer über den Weg (m), in den
+## Übergaben (`uebergabe`) enger: Dort schrumpft das Kronenband, und das
+## Plattenende lief schräg durch die Querschnitte – zwischen zweien stand es
+## über dem steil fallenden Feld bis 0,16 m frei (s 180; Prüfung P3, Runde 3).
 const SCHRITT := 0.7
 const SCHRITT_QUER := 0.45
+const SCHRITT_UEBERGABE := 0.35
 ## Sichtweite der Stücke (siehe Kopf).
 const SICHT := 400.0
 ## Krone hinter der Wand: so weit reicht der Saum hinter die Wandkrone,
@@ -71,8 +75,11 @@ const KRONE_STEIGT := 0.06
 const UEBERGABE_SINKT := -0.08
 const UEBERGABE_BAND := 0.11
 ## Das äußere Ende der Platte liegt mindestens so tief unter dem Gelände
-## (`L05Gelaende.hoehe`): Es endet nie frei über ihm (siehe `_profil_auf`).
+## (`L05Gelaende.hoehe`): Es endet nie frei über ihm (siehe `_platte_lage`).
+## Es folgt der Linie, geglättet mit PLATTE_GLATT (m, wie jeder Profilpunkt
+## mit seinem Fenster, `GelaendeSaum.Profil.glatt`).
 const PLATTE_UNTER := 0.12
+const PLATTE_GLATT := 2.5
 ## Stufen der Decke: Querschnitte der Seiten so weit davor und dahinter (m;
 ## siehe `bauschritte`).
 const STUFE_SPIEL := 0.02
@@ -123,8 +130,18 @@ static func bauschritte(level: Level05) -> Array:
 		var feste_zug := feste.duplicate()
 		for p: Vector2 in linie:
 			feste_zug.append(p.x)
-		linien.append({"seite": float(zug["seite"]), "linie": linie,
-				"profil": (_profil_auf if auf else _profil_ab).bind(level, zug),
+		# In der Übergabe Querschnitte alle SCHRITT_UEBERGABE Meter.
+		var von_ueb := _uebergabe_von(zug)
+		if not is_nan(von_ueb):
+			var s_ueb := von_ueb
+			while s_ueb < float(zug["bis"]) - SCHRITT_UEBERGABE * 0.5:
+				feste_zug.append(s_ueb)
+				s_ueb += SCHRITT_UEBERGABE
+		# Die Plattenenden eines Zuges „auf" entstehen beim ersten Querschnitt
+		# für alle zugleich (`_platte_lage`); dazu braucht er Linie und Stellen.
+		var profil := _profil_auf.bind(level, zug, {"linie": linie, "feste": feste_zug}) if auf \
+				else _profil_ab.bind(level, zug)
+		linien.append({"seite": float(zug["seite"]), "linie": linie, "profil": profil,
 				"gruppe": String(zug["name"]), "schritt": SCHRITT, "karten": true,
 				"saat": 5101 + i, "feste_s": feste_zug})
 	linien.append_array(_querlinien(level))
@@ -134,8 +151,18 @@ static func bauschritte(level: Level05) -> Array:
 	var schritte: Array = [{"text": "Sandstein und Moos für die Wände", "tun": func() -> void:
 		L05Gelaende.stoff_uebertragen(stoff, Kanten.stoff(thema()))}]
 	schritte.append_array(Kanten.linien_schritte(level.geometrie, level.weg, linien, stoff, NAME,
-			SPEICHER, {"sicht": SICHT}))
+			speicher(), {"sicht": SICHT}))
 	return schritte
+
+
+## Schlüssel im Bauspeicher. Er nennt `Effekte.reduziert` (bauspeicher.gd,
+## Kopf: SCHLÜSSEL): Die Plattenenden liegen unter dem GEZEICHNETEN Feld
+## (`_platte_lage`), und das setzt seine Punkte auf dem Handyweg 1,4-mal
+## weiter auseinander (`L05Gelaende._abstand`). Mit einem Schlüssel für
+## beide lud ein Werkzeug mit gemeinsamem user:// (oder ein späterer
+## Schalter im Spiel) einen Saum, der gegen das andere Feld gebaut war.
+static func speicher() -> String:
+	return "l05_saum_" + ("handy" if Effekte.reduziert else "voll")
 
 
 ## Stoff der Kanten: Erde ist Löss (die Erde des Waldwegs, gelb-ocker
@@ -195,6 +222,15 @@ static func form_auf(level: Level05, zug: Dictionary, s: float) -> Dictionary:
 ## des Ufers, und die Platte stand 1–1,9 m frei darüber, am Ende mit einem
 ## dunklen Deckel (CP3 bei 178, Messtor 280; Prüfung P3, Runde 2).
 static func uebergabe(zug: Dictionary, s: float) -> float:
+	var von := _uebergabe_von(zug)
+	if is_nan(von):
+		return 1.0
+	return 1.0 - smoothstep(von, float(zug["bis"]), s)
+
+
+## Wo die Übergabe von `zug` beginnt (der Anfang des nächsten Zuges seiner
+## Seite), NAN ohne Übergabe.
+static func _uebergabe_von(zug: Dictionary) -> float:
 	var bis: float = zug["bis"]
 	for z: Dictionary in Level05.ZUEGE:
 		if float(z["seite"]) != float(zug["seite"]):
@@ -202,8 +238,8 @@ static func uebergabe(zug: Dictionary, s: float) -> float:
 		# `zug` selbst fällt heraus: Sein Anfang liegt nicht hinter sich.
 		var von: float = z["von"]
 		if von > float(zug["von"]) and von < bis and float(z["bis"]) > bis:
-			return 1.0 - smoothstep(von, bis, s)
-	return 1.0
+			return von
+	return NAN
 
 
 ## Die Form eines Zuges „ab" an `s`:
@@ -231,8 +267,8 @@ static func _ab_o(d: float, k: float, fels: float) -> float:
 
 ## Böschung hinauf (siehe Kopf), 18 Punkte von der Krone zur Decke. `o`
 ## zählt vom Fuß (der Linie) nach außen; die Narbe tritt zum Weg vor.
-static func _profil_auf(_i: int, probe: Dictionary, level: Level05,
-		zug: Dictionary) -> GelaendeSaum.Profil:
+static func _profil_auf(i: int, probe: Dictionary, level: Level05,
+		zug: Dictionary, lage: Dictionary) -> GelaendeSaum.Profil:
 	var s: float = probe["s"]
 	var seite: float = zug["seite"]
 	var m := form_auf(level, zug, s)
@@ -250,15 +286,25 @@ static func _profil_auf(_i: int, probe: Dictionary, level: Level05,
 	# --- Krone und Grasnarbe (0–5): Die Narbe tritt `ov` vor die Wandkrone.
 	# Die Platte endet `weit` hinter der Wandkrone, nie über dem gezeichneten
 	# Gelände: sonst stünde ihre Kante frei (in der Übergabe liegt das Feld
-	# schon im Bett des nächsten Zuges; siehe `uebergabe`).
+	# schon im Bett des nächsten Zuges, siehe `uebergabe`; an Ecken der Linie
+	# zeigt der Querschnitt schräg, siehe `_platte_lage`).
 	var weit: float = m["weit"]
+	if not lage.has("y"):
+		_platte_lage(level, zug, lage)
 	var ende_y := krone + KRONE_STEIGT
-	var ende := LevelWerkzeuge.punkt_frei(level.verlauf, s,
-			float(probe["q"]) + seite * (lauf + weit))
-	var feld := level.gelaende.hoehe(ende.x, ende.z)
-	if not is_nan(feld):
-		ende_y = minf(ende_y, feld - PLATTE_UNTER)
-	p.punkt(lauf + weit, ende_y, Kanten.farbe(0.78, 0.0, 0.1, 1.0), 2.5)
+	var stellen: PackedFloat32Array = lage["s"]
+	if i < stellen.size() and absf(stellen[i] - s) < 0.001:
+		ende_y = minf(ende_y, (lage["y"] as PackedFloat32Array)[i])
+	else:
+		# Nicht die Querschnitte, für die `lage` gerechnet ist (eine andere
+		# Abtastung): quer zum Weg prüfen.
+		push_warning("L05Saum: Plattenende an s %.2f quer zum Weg geprüft" % s)
+		var ende := LevelWerkzeuge.punkt_frei(level.verlauf, s,
+				float(probe["q"]) + seite * (lauf + weit))
+		var feld := level.gelaende.hoehe(ende.x, ende.z)
+		if not is_nan(feld):
+			ende_y = minf(ende_y, feld - PLATTE_UNTER)
+	p.punkt(lauf + weit, ende_y, Kanten.farbe(0.78, 0.0, 0.1, 1.0), PLATTE_GLATT)
 	p.punkt(lauf - ov * 0.4, krone - 0.006 * f, Kanten.farbe(0.78, 0.0, 0.2, 1.0))
 	p.punkt(lauf - ov * 0.8, krone - 0.035 * f, Kanten.farbe(0.72, 0.1, 0.3, 0.95))
 	p.punkt(lauf - ov, krone - 0.12 * f, Kanten.farbe(0.5, 0.6, 0.3, 0.45))
@@ -291,7 +337,64 @@ static func _profil_auf(_i: int, probe: Dictionary, level: Level05,
 	return p
 
 
-## Die Lücke, in der der Querschnitt an `s` liegt, sonst {} – erst
+## PLATTENENDEN eines Zuges „auf", für alle Querschnitte zugleich (beim
+## ersten Aufruf von `_profil_auf`; legt in `lage` "s" und "y" ab): je
+## Querschnitt das Welt-Y von Punkt 0. Das Ende steht dort, wo
+## `GelaendeSaum.querschnitte` es hinsetzt – auf der mit PLATTE_GLATT
+## geglätteten Linie, entlang IHRER Normale –, und es liegt PLATTE_UNTER
+## unter dem gezeichneten Gelände: an diesem Ort und ein Viertel und halb
+## zum Ende der Nachbarn hin. Zwischen zwei Enden läuft die Kante gerade;
+## mit diesen Proben liegt sie auch dort unter dem Feld.
+## WARUM: Bis Runde 3 prüfte der Saum quer zum Weg (`punkt_frei` an
+## q + lauf + weit). An einer Ecke der Leitlinie zeigt der Querschnitt aber
+## anders: Am Ausgang der Nische G3 (die Linie springt von 263,0 auf 263,5
+## um 1,2 m nach innen) fächern die Querschnitte bis 36° nach +s auf. Sie
+## trugen die Krone von 263,5 (9,38) über s 264–267, wo das Feld schon auf
+## 8,9 liegt; die Prüfung quer zum Weg traf das höhere Feld daneben, und die
+## Platte stand bis 0,5 m frei – ein Grasbrett im Messtor 280 und an CP5
+## (Prüfung P3, Runde 3).
+static func _platte_lage(level: Level05, zug: Dictionary, lage: Dictionary) -> void:
+	var seite: float = zug["seite"]
+	var proben := GelaendeSaum.linie(level.weg.verlauf, lage["linie"], SCHRITT, lage["feste"])
+	# Dieselbe Mischung zweier Fassungen wie `GelaendeSaum.querschnitte` für
+	# einen Punkt mit `glatt` = PLATTE_GLATT.
+	var fenster := GelaendeSaum.FENSTER
+	var k := 0
+	while k < fenster.size() - 2 and fenster[k + 1] < PLATTE_GLATT:
+		k += 1
+	var t := clampf(inverse_lerp(fenster[k], fenster[k + 1], PLATTE_GLATT), 0.0, 1.0)
+	var a := GelaendeSaum.glaetten(proben, fenster[k], seite)
+	var b := GelaendeSaum.glaetten(proben, fenster[k + 1], seite)
+	var pa: PackedVector3Array = a["p"]
+	var pb: PackedVector3Array = b["p"]
+	var na: PackedVector3Array = a["n"]
+	var nb: PackedVector3Array = b["n"]
+	var n := proben.size()
+	var stellen := PackedFloat32Array()
+	var enden := PackedVector2Array()
+	var kronen := PackedFloat32Array()
+	for i in n:
+		var s: float = proben[i]["s"]
+		var m := form_auf(level, zug, s)
+		var e := pa[i].lerp(pb[i], t) \
+				+ na[i].lerp(nb[i], t).normalized() * (float(m["lauf"]) + float(m["weit"]))
+		stellen.append(s)
+		enden.append(Vector2(e.x, e.z))
+		kronen.append(float(m["krone"]) + KRONE_STEIGT)
+	var hoehen := PackedFloat32Array()
+	for i in n:
+		var y := kronen[i]
+		var orte := PackedVector2Array([enden[i]])
+		for j: int in [i - 1, i + 1]:
+			if j >= 0 and j < n:
+				orte.append_array([enden[i].lerp(enden[j], 0.25), enden[i].lerp(enden[j], 0.5)])
+		for o: Vector2 in orte:
+			var feld := level.gelaende.hoehe(o.x, o.y)
+			if not is_nan(feld):
+				y = minf(y, feld - PLATTE_UNTER)
+		hoehen.append(y)
+	lage["s"] = stellen
+	lage["y"] = hoehen
 ## LUECKE_SPIEL hinter der Lippe. WARUM: Die Proben kommen als Vector2 (32
 ## Bit) an; die Lippe 136,3 etwa als 136,300003, also schon IN der Lücke. Der
 ## Querschnitt an der Lippe lag dann auf dem Grund, und die Schulter tauchte

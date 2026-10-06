@@ -314,15 +314,28 @@ func _vorbereiten(f: GelaendeFeld) -> void:
 	var kanten: Array = [_querreihe(Level05.M_ENDE - ENDE_REIHE),
 			_querreihe(Level05.M_ENDE + ENDE_REIHE)]
 	for zug: Dictionary in Level05.ZUEGE:
-		# Je Reihe: Abstand und ob er ab dem Knick zählt (bei „auf" die
-		# Wandkrone, bei „ab" der Fuß der Wand) oder ab der Linie.
-		var reihen: Array[Vector2] = []
+		# Je Reihe: Abstand (mal Kronenband), ob er ab dem Knick zählt (bei
+		# „auf" die Wandkrone, bei „ab" der Fuß der Wand) oder ab der Linie,
+		# ein fester Zusatz (m) und ob die Reihe nur liegt, wo das Band voll
+		# ist (1), nicht in der Übergabe. Bei „auf" so eine Reihe am Ende der
+		# Platte (`L05Saum`, "weit") und eine am Anfang des Kronenrückens
+		# (RUECKEN_AB dahinter). WARUM: Hinter KRONE_OBEN lag die nächste
+		# Reihe des Rasters bis 1,6 m weiter, oft schon im fallenden Rücken
+		# zum Teich. Das gezeichnete Feld lag am Plattenende dann bis 0,16 m
+		# unter dem Modell (Nische G3), und die Platte musste sich darunter
+		# ducken (Prüfung P3, Runde 3). In der Übergabe liegt das Band schon
+		# im Ufer; dort gaben die Reihen dem Übergangsrücken nur schärfere
+		# Facetten (CP3 bei 178).
+		var reihen: Array[Vector4] = []
 		if String(zug["art"]) == "auf":
-			reihen.assign([Vector2(KRONE_UNTEN - 0.5, 1.0), Vector2(KRONE_UNTEN, 1.0),
-					Vector2(KRONE_UNTEN + 0.8, 1.0), Vector2(KRONE_OBEN, 1.0)])
+			reihen.assign([Vector4(KRONE_UNTEN - 0.5, 1.0, 0.0, 0.0),
+					Vector4(KRONE_UNTEN, 1.0, 0.0, 0.0), Vector4(KRONE_UNTEN + 0.8, 1.0, 0.0, 0.0),
+					Vector4(KRONE_OBEN, 1.0, 0.0, 0.0), Vector4(L05Saum.KRONE_WEIT, 1.0, 0.0, 1.0),
+					Vector4(L05Saum.KRONE_WEIT, 1.0, RUECKEN_AB, 1.0)])
 		else:
-			reihen.assign([Vector2(-0.2, 0.0), Vector2(0.6, 1.0), Vector2(0.6 + BETT_BREITE, 1.0),
-					Vector2(2.6 + BETT_BREITE, 1.0)])
+			reihen.assign([Vector4(-0.2, 0.0, 0.0, 0.0), Vector4(0.6, 1.0, 0.0, 0.0),
+					Vector4(0.6 + BETT_BREITE, 1.0, 0.0, 0.0),
+					Vector4(2.6 + BETT_BREITE, 1.0, 0.0, 0.0)])
 		for stellen in _zug_stuecke(zug):
 			# Je Stelle Linie, Knick und Maßstab des Kronenbands (das sich in
 			# der Übergabe staucht, `L05Saum.form_auf` "band" – seine Reihen
@@ -342,10 +355,18 @@ func _vorbereiten(f: GelaendeFeld) -> void:
 			for r in reihen:
 				var punkte := PackedVector2Array()
 				for k in stellen.size():
-					var u := linie[k] + r.y * knick[k] + r.x * band[k]
+					if r.w > 0.0 and band[k] < 1.0:
+						# Übergabe: Die Reihe setzt aus (eine neue beginnt dahinter).
+						if punkte.size() >= 2:
+							kanten.append({"punkte": punkte, "abstand": 1.0,
+									"reihen": PackedFloat32Array([0.0])})
+						punkte = PackedVector2Array()
+						continue
+					var u := linie[k] + r.y * knick[k] + r.x * band[k] + r.z
 					punkte.append(_welt(stellen[k], float(zug["seite"]) * u))
-				kanten.append({"punkte": punkte, "abstand": 1.0,
-						"reihen": PackedFloat32Array([0.0])})
+				if punkte.size() >= 2:
+					kanten.append({"punkte": punkte, "abstand": 1.0,
+							"reihen": PackedFloat32Array([0.0])})
 	# Quer über jede Lücke dort, wo das Feld auf ihren Grund fällt
 	# (LUECKE_HINTER vor den Lippen), knapp davor und dahinter: Sonst spannte
 	# das Feld Dreiecke von unter der Decke (0,9 m tief) über den Spalt, und
