@@ -1,0 +1,1162 @@
+diff --git a/scenes/levels/Level05.tscn b/scenes/levels/Level05.tscn
+index b9b3408..76dc469 100644
+--- a/scenes/levels/Level05.tscn
++++ b/scenes/levels/Level05.tscn
+@@ -42,6 +42,8 @@ shader_parameter/wolken_deckung = 0.75
+ shader_parameter/wolke_hell = Color(1, 0.82, 0.7, 1)
+ shader_parameter/wolke_schatten = Color(0.4, 0.48, 0.66, 1)
+ shader_parameter/wolken_dunst = 0.45
++shader_parameter/wolken_bank = 0.16
++shader_parameter/wolken_bank_hoehe = 0.13
+ 
+ [sub_resource type="Sky" id="SkyRes"]
+ sky_material = SubResource("Himmel")
+diff --git a/scenes/levels/level05.gd b/scenes/levels/level05.gd
+index af91be0..dc00a91 100644
+--- a/scenes/levels/level05.gd
++++ b/scenes/levels/level05.gd
+@@ -350,6 +350,11 @@ const KRONENLICHT := Vector2(23.5, 0.6)
+ const WEG_SCHLUESSEL := "l05_"
+ const LOESS_WEG := Color(1.12, 1.0, 0.78)
+ const LIPPEN_STEINE := Vector2i(4, 6)
++## Höhe der Lippensteine (Faktor in `Wegdecke`, R3; Bild-Jury R3, Mangel
++## „Lücken": „flache graue Scheiben"): 13–22 cm statt 8–14 cm – Kuppen mit
++## Höhe, die aus 14 m als Steine an der Kante zu lesen sind. Höher nicht:
++## Sie liegen auf der Decke vor der Kante, wo man abspringt.
++const LIPPEN_STEIN_HOCH := 1.6
+ ## Auslauf der Decke hinter M_ENDE (`_auslauf_bauen`): so lang (m), in
+ ## Stücken von AUSLAUF_SCHRITT Metern.
+ const AUSLAUF_LAENGE := 10.0
+@@ -1302,7 +1307,8 @@ func lippen_thema() -> Dictionary:
+ 	var luecken: Array[Dictionary] = []
+ 	for l: Dictionary in LUECKEN:
+ 		luecken.append({"name": "L05 " + String(l["name"]), "von": l["von"], "bis": l["bis"]})
+-	return {"luecken": luecken, "lippen_steine": LIPPEN_STEINE, "name": "L05"}
++	return {"luecken": luecken, "lippen_steine": LIPPEN_STEINE, "name": "L05",
++			"lippen_stein_hoch": LIPPEN_STEIN_HOCH}
+ 
+ 
+ ## Optik des Begehbaren: Bänke, Trittstein und Grabenrampe zeichnet
+diff --git a/scenes/levels/level05/eiche.gd b/scenes/levels/level05/eiche.gd
+index ad0a4b3..1bb4baa 100644
+--- a/scenes/levels/level05/eiche.gd
++++ b/scenes/levels/level05/eiche.gd
+@@ -127,7 +127,7 @@ const FUSS := {"hoehe": 6.0, "radius": 2.5, "radius_oben": 0.7, "brettwurzeln":
+ 		"wurzel_reichweite": 2.4, "wurzel_hoehe": 3.6, "wurzel_dicke": 0.6, "anlauf": 0.35,
+ 		"krumm": 0.0, "oben": "offen", "pilze": 2, "efeu": 2, "spalt": Vector2(0.0, -1.0),
+ 		"spalt_tiefe": 0.06, "spalt_von": 0.4, "rippen_tiefe": 0.17, "drehung": 0.7,
+-		"spalt_farbe": Color(0.25, 0.19, 0.13), "saat": 5501}
++		"spalt_farbe": Color(0.5, 0.38, 0.26), "spalt_borke": true, "saat": 5501}
+ ## Stammhälften: gemeinsame Optionen; je Seite dazu `neigung`, `spalt` und
+ ## `saat` (`_haelfte`). Ansatz HAELFTE_ANSATZ (x seitlich, y Höhe) im Fuß.
+ ## SCHIRM: Die vier Äste gehen erst ab 80 % der Höhe ab, flach (0,25 rad)
+@@ -144,10 +144,19 @@ const FUSS := {"hoehe": 6.0, "radius": 2.5, "radius_oben": 0.7, "brettwurzeln":
+ ## 1,43 Radien breit) und dunkler (0,15/0,11/0,075 statt 0,25/0,19/0,13):
+ ## Breit und hell lasen sich die beiden Innenseiten bei s 8 als glatte,
+ ## längs gemaserte Bretter (eigene Prüfung).
++## R3 (Bild-Jury R3, Hauereiche: „heller, gepunkteter Spaltstreifen der
++## Länge nach, wie ein Reißverschluss oder Gleis"): Die Spaltflächen von Fuß
++## und Hälften tragen die Rinde (`spalt_borke`, siehe
++## `Riesenstamm.SPALT_BORKE`) – matt und längs gefasert. Ihr Ton multipliziert
++## jetzt die Rindentextur (Helligkeit rund 0,35), daher heller angegeben:
++## 0,42/0,32/0,22 ergibt dunkles Holz unter der halben Helligkeit der Borke.
++## Als glatter Holzton (Rauheit 0,7) glänzte die Fläche im Gegenlicht hell,
++## und die Töne der Ecken lasen sich als Punktreihen.
+ const HAELFTE := {"hoehe": 24.5, "radius": 2.05, "radius_oben": 1.25, "krumm": 0.9,
+ 		"anlauf": 0.0, "brettwurzeln": 0, "aeste": 4, "ast_start": 0.8, "ast_steil": 0.25,
+ 		"ast_laenge": 5.5, "spalt_tiefe": 0.16, "spalt_bis": 0.85, "rippen_tiefe": 0.2,
+-		"drehung": 0.75, "pilze": 2, "efeu": 2, "spalt_farbe": Color(0.15, 0.11, 0.075)}
++		"drehung": 0.75, "pilze": 2, "efeu": 2, "spalt_farbe": Color(0.42, 0.32, 0.22),
++		"spalt_borke": true}
+ ## Ansatz im Fuß: Die unterste Kante der Hälften (1 m unter dem Ansatz,
+ ## `Riesenstamm.VERSENKT`) liegt bei 2,6 m, 1,27 m neben der Achse (bei r
+ ## 1,1 waren es 0,75 m, bei 1,5 0,95 m: Die dickeren Hälften rücken
+@@ -239,9 +248,19 @@ const HAUPTAESTE: Array[Vector4] = [Vector4(0.56, 0.15, 9.0, 0.22),
+ ## LAPPEN_R 4,4: Mit 3,5 standen sie aus der Ferne (s 90, 140) als eigene
+ ## Stockwerke unter der Schirmkrone – eine Pagode aus Pilzhüten; größer
+ ## überlappen sie zu EINER Krone von gut 13 bis 29 m Höhe.
++## R3 (Bild-Jury R3: „kleine orange Popcorn-Tupfer", Vorschlag „breiter
++## und flacher als Schirm, mit dunkler Unterseite"): Die Lappen weiter
++## (LAPPEN_R 5 statt 4,4) – sie wachsen mit der Schirmkrone zu EINER Haube
++## zusammen –, die Schirmkrone ohne die kleinen Zweigballen
++## (`nebenzentren`: 2–3 m große Buckel auf der Haube) und die Unterseite
++## dunkel (TON_UNTEN). Flache Lappen (`Kronenwolke` Variante 1) lagen auf
++## ihren vier Höhen als Teller übereinander – eine Pagode (eigene Prüfung
++## bei s 60), darum rund wie bisher (LAPPEN_VARIANTE 0).
+ const AST_R := Vector2(0.6, 0.22)
+-const LAPPEN_R := 4.4
++const LAPPEN_R := 5.0
+ const LAPPEN_HOCH := 1.0
++const LAPPEN_VARIANTE := 0
++const LAPPEN_BALLEN := 5
+ ## Die Hälften der Fernform so viel dicker (Radius): Auf 300 m und mehr
+ ## lasen sie sich als Striche (Bild-Jury R2: „mindestens 2× Strichbreite").
+ ## Dazu sind die Hälften selbst dicker (HAELFTE); fern oben r 1,5 statt
+@@ -475,7 +494,8 @@ static func _ansatz(i: int) -> Transform3D:
+ static func kronen_netz(fern: bool) -> ArrayMesh:
+ 	return Bauspeicher.netz("l05_eiche_kronen", [HAELFTE, KRONE_HAELFTE_R, HAELFTE_ANSATZ, HAELFTE_NEIGUNG,
+ 			HAELFTE_SAAT, KRONE_R, FERN_SKALA, BALLEN_HOCH, HAUPTAESTE, AST_R, LAPPEN_R,
+-			LAPPEN_HOCH, fern], func() -> ArrayMesh: return _kronen_bauen(fern))
++			LAPPEN_HOCH, LAPPEN_VARIANTE, LAPPEN_BALLEN, fern],
++			func() -> ArrayMesh: return _kronen_bauen(fern))
+ 
+ 
+ static func _kronen_bauen(fern: bool) -> ArrayMesh:
+@@ -490,8 +510,8 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
+ 		var seite := -1.0 if i == 0 else 1.0
+ 		var haelfte := Riesenstamm.netz(_haelfte_krone(i))
+ 		var spitzen: PackedVector3Array = haelfte.get_meta("ast_spitzen")
+-		var o := {"zentren": spitzen, "nebenzentren": haelfte.get_meta("zweig_spitzen"),
+-				"radius": KRONE_R, "variante": 1, "saat": HAELFTE_SAAT[i] + 101}
++		var o := {"zentren": spitzen, "radius": KRONE_R, "variante": 1,
++				"saat": HAELFTE_SAAT[i] + 101}
+ 		var lage := _ansatz(i)
+ 		var fern_netz := Kronenwolke.fern(o)
+ 		# Fernkrone um ihre Mitte vergrößert (siehe FERN_SKALA).
+@@ -515,8 +535,8 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
+ 		# Eiche; fern um ihre eigene Mitte vergrößert wie die Schirmkrone.
+ 		for k in HAUPTAESTE.size():
+ 			var mitte_l: Vector3 = (hauptast(i, k)["spitze"] as Vector3) + Vector3.UP * LAPPEN_HOCH
+-			var ol := {"mitte": mitte_l, "radius": LAPPEN_R, "variante": 0, "ballen": 5,
+-					"saat": HAELFTE_SAAT[i] + 201 + k}
++			var ol := {"mitte": mitte_l, "radius": LAPPEN_R, "variante": LAPPEN_VARIANTE,
++					"ballen": LAPPEN_BALLEN, "saat": HAELFTE_SAAT[i] + 201 + k}
+ 			var lappen := Kronenwolke.fern(ol) if fern else Kronenwolke.netz(ol)
+ 			var lage_l := Transform3D(Basis.from_scale(Vector3.ONE * FERN_SKALA),
+ 					mitte_l * (1.0 - FERN_SKALA)) if fern else Transform3D.IDENTITY
+@@ -598,6 +618,11 @@ static func _netzhuelle(netz: Mesh) -> AABB:
+ ## (`_nebelarm`), der geteilte Kronenstoff bleibt, wie er ist.
+ const DURCHLICHT := 0.62
+ const TON_OBEN := Vector3(1.9, 1.3, 0.85)
++## Unterseite der Kronen (R3, Bild-Jury: „mit dunkler Unterseite"): rund
++## halb so hell wie die Vorgabe des Kronenstoffs (0,46/0,44/0,9). Das
++## Durchlicht folgt dem Ton, glimmt also unten schwächer – die Krone
++## bekommt Volumen statt als gleichmäßig orange Fläche zu stehen.
++const TON_UNTEN := Vector3(0.24, 0.2, 0.34)
+ 
+ 
+ func _golden(stoff: Material) -> Material:
+@@ -605,6 +630,7 @@ func _golden(stoff: Material) -> Material:
+ 			and stoff != Kronenwolke.stoff(LAUB_FERN, false):
+ 		(stoff as ShaderMaterial).set_shader_parameter("durchlicht", DURCHLICHT)
+ 		(stoff as ShaderMaterial).set_shader_parameter("ton_oben", TON_OBEN)
++		(stoff as ShaderMaterial).set_shader_parameter("ton_unten", TON_UNTEN)
+ 	return stoff
+ 
+ 
+diff --git a/scenes/levels/level05/gelaende.gd b/scenes/levels/level05/gelaende.gd
+index d931f81..34ef225 100644
+--- a/scenes/levels/level05/gelaende.gd
++++ b/scenes/levels/level05/gelaende.gd
+@@ -712,8 +712,13 @@ static func _abstand_lauf(p: Vector2, lauf: Array[Vector2]) -> float:
+ ## statt −0,1 … 0,25) und grün statt ganz Waldboden – brauner Waldboden auf
+ ## dunklem Fels verschwand im Schatten. Simse und Farn: `L05Wegbauten`,
+ ## `L05Rasen`.
+-const SUEDWAND_STREIFEN := Vector2(-0.3, 0.1)
+-const SUEDWAND_MOOS := 1.0
++## R3 (Bild-Jury R3, Tobel D: „Rechts füllt die Südwand 20–30 % des Bilds
++## als dunkle, glatte grüne Fläche"): schmalere Streifen (−0,05 … 0,25) und
++## höchstens 0,65 des Fels bewachsen – dazwischen bleibt der Fels mit seinen
++## Bänken stehen (Stoff des Geländes, `schicht_dichte`); die Wand gliedert
++## sich in Fels und Moos statt einer grünen Fläche.
++const SUEDWAND_STREIFEN := Vector2(-0.05, 0.25)
++const SUEDWAND_MOOS := 0.65
+ const SUEDWAND_WALDBODEN := 0.35
+ 
+ 
+diff --git a/scenes/levels/level05/rasen.gd b/scenes/levels/level05/rasen.gd
+index 73320ee..447c505 100644
+--- a/scenes/levels/level05/rasen.gd
++++ b/scenes/levels/level05/rasen.gd
+@@ -115,6 +115,12 @@ const FARN_STRECKEN: Array[Vector4] = [Vector4(184.0, 262.0, 0.11, 1.0),
+ ## (wie die Simse in `L05Wegbauten._tobel_steine`).
+ const SUEDWAND_FARN := Vector3(188.0, 262.0, 1.5)
+ const SUEDWAND_FARN_HOCH := Vector2(0.6, 10.0)
++## R3 (Bild-Jury R3, Tobel D: „Simse und Farn sind nicht zu erkennen"): Die
++## Büschel der Südwand in voller Größe (statt 0,8) und SUEDWAND_FARN_HELL
++## mal so hell – im Schatten der Nordseite standen sie dunkel auf dunklem
++## Moos.
++const SUEDWAND_FARN_GROSS := 1.0
++const SUEDWAND_FARN_HELL := 1.4
+ const FARN_BAND := 12.0
+ const SICHT_FARN := 44.0
+ ## Länge der Stücke des Farns entlang s (m).
+@@ -123,6 +129,38 @@ const STUECK := 32.0
+ const HANDY := 0.5
+ const SAAT := 5801
+ 
++## UNTERWUCHS AUF DEN KRONEN (Bild-Jury L05 R3, schwerer Mangel
++## „Gesamtbild A–D": „ein gerader Hohlweg, links und rechts darüber eine
++## offene, flache Rasenebene … wie ein Entwässerungsgraben im Golfrasen";
++## Vorschlag: die Böschungskronen bis q ≈ 8–20 mit niedrigem, dichtem
++## Bewuchs füllen). Hinter der Wandkrone wachsen Dickichte aus niedrigen
++## Büschen und Brombeeren (`Kronenwolke`, 0,6–1,6 m hoch, 140–260 Dreiecke)
++## in Gruppen, dazwischen Lücken – kein Band wie eine Parkhecke (Bild-Jury
++## R1). Die Gruppen kommen aus einem Rauschen (UNTER_GRUPPE m), dicht an der
++## Krone (UNTER_RAND) und lichter nach außen (UNTER_BAND m).
++## WARUM hier und nicht im Wald: Es ist Bodenbewuchs wie der Farn – je
++## Stück ein MultiMesh mit harter Sichtweite (SICHT_UNTER, wie Gras 42, Laub
++## 46, Farn 44 m), gesichert als Lagen im Bauspeicher. Die Sichtweite des
++## Walds (120 m ohne Aufploppen) hätte das Band bis 120 m vor der Kamera
++## gezeichnet: bei s 140 rund das Dreifache an Dreiecken.
++## WARUM nur A–C (UNTER_STRECKEN bis s 182): Im Tobel D stehen die Bilder
++## schon bei 0,99 der Primitivgrenze (Bild-Jury R3, Budget: 743k von 750k
++## bei s 240); dort tragen Farn, Birken und die Wände das Bild. Mit 52 m
++## Sichtweite kostet der Bewuchs aus C in D nichts (Kamera dort ≥ 25 m
++## hinter dem Ende).
++## Strecken: s von, s bis, Dichte (Büsche je m Krone und Seite), Seite.
++const UNTER_STRECKEN: Array[Vector4] = [
++	Vector4(6.0, 122.0, 2.6, 1.0), Vector4(6.0, 122.0, 2.6, -1.0),
++	Vector4(122.0, 182.0, 1.8, 1.0), Vector4(122.0, 182.0, 1.8, -1.0),
++]
++const UNTER_RAND := 0.5
++const UNTER_BAND := 11.0
++const UNTER_GRUPPE := 7.0
++const SICHT_UNTER := 52.0
++## Laub des Unterwuchses: dunkler und grüner als die Hangkronen
++## (`L05Wald.LAUB` 0,34/0,42/0,15) – Schatten unter dem Wald.
++const UNTER_LAUB := Color(0.17, 0.34, 0.1)
++
+ var level: Level05
+ var bau: Bau
+ var _farn_stoff: ShaderMaterial
+@@ -135,6 +173,7 @@ var _tabelle_von := 0.0
+ ## (`haufen_daten`), "farn": Vector2i(Stück, Form + 3 · Gruppe) -> {lagen,
+ ## farben}}.
+ var _laub_farn := {}
++var _unter_rauschen: FastNoiseLite
+ 
+ 
+ ## Die Schritte: liegen die Lagen im Bauspeicher (`schluessel`, im
+@@ -325,7 +364,7 @@ func _laub_und_farn() -> void:
+ 	var laub := {}
+ 	for i: int in haufen:
+ 		laub[i] = haufen_daten(haufen_fertig(haufen[i] as Bodenstreu.Haufen))
+-	_laub_farn = {"laub": laub, "farn": _kupferfarn(anteil)}
++	_laub_farn = {"laub": laub, "farn": _kupferfarn(anteil), "unter": _unterwuchs(anteil)}
+ 	_laub_farn_einhaengen(_laub_farn)
+ 
+ 
+@@ -359,6 +398,101 @@ func _kupferfarn(anteil: float) -> Dictionary:
+ 	return felder
+ 
+ 
++## Unterwuchs hinter den Wandkronen (siehe UNTER_STRECKEN): je Meter Krone
++## und Seite `dichte` Würfe, quer UNTER_RAND … UNTER_RAND + UNTER_BAND hinter
++## der Krone, nah an ihr dichter; ein Rauschen fasst sie zu Dickichten mit
++## Lücken. Felder wie beim Farn: Vector2i(Stück, Form + 3 · Gruppe), Gruppe 0
++## Krone q > 0, 1 Krone q < 0.
++func _unterwuchs(anteil: float) -> Dictionary:
++	var rng := PropWerkzeug.zufall(SAAT + 21)
++	_unter_rauschen = FastNoiseLite.new()
++	_unter_rauschen.seed = SAAT + 22
++	_unter_rauschen.frequency = 1.0 / UNTER_GRUPPE
++	_unter_rauschen.fractal_octaves = 2
++	var stamm_frei: Array[Vector2] = []
++	if level.wald != null:
++		for f in level.wald.fuesse + level.wald.tor_fuesse:
++			stamm_frei.append(Vector2(f.x, f.z))
++	var felder := {}
++	for st in UNTER_STRECKEN:
++		var gruppe := 0 if st.w > 0.0 else 1
++		for zug: Dictionary in Level05.ZUEGE:
++			if String(zug["art"]) != "auf" or float(zug["seite"]) != st.w:
++				continue
++			var s := maxf(st.x, float(zug["von"]))
++			var bis := minf(st.y, float(zug["bis"]))
++			while s < bis:
++				s += 1.0
++				var innen := _wandkrone(zug, s)
++				if is_nan(innen):
++					continue
++				var wuerfe := st.z * anteil
++				while wuerfe > 0.0:
++					if rng.randf() > wuerfe:
++						break
++					wuerfe -= 1.0
++					var ss := s + rng.randf_range(-0.5, 0.5)
++					var tief := pow(rng.randf(), 2.0) * UNTER_BAND
++					var q := st.w * (innen + UNTER_RAND + tief)
++					var p := LevelWerkzeuge.punkt_frei(level.verlauf, ss, q)
++					# Dickichte: Rauschen hebt die Dichte fleckweise, nah an der
++					# Krone mehr (sie säumt die Kante, ohne sie abzuschließen).
++					var n := _unter_rauschen.get_noise_2d(p.x, p.z)
++					var w := clampf(0.62 + 1.3 * n, 0.12, 1.0) * lerpf(1.0, 0.5, tief / UNTER_BAND)
++					var wahl := rng.randf()
++					var form := rng.randi_range(0, 2)
++					var mass := rng.randf_range(0.9, 1.5)
++					var dreh := rng.randf() * TAU
++					var ton := rng.randf_range(0.8, 1.12)
++					if wahl > w:
++						continue
++					if not _kiste_frei(ss, q):
++						continue
++					var frei := true
++					for f in stamm_frei:
++						if f.distance_squared_to(Vector2(p.x, p.z)) < 1.4 * 1.4:
++							frei = false
++							break
++					if not frei:
++						continue
++					var y := hoehe(p.x, p.z)
++					if is_nan(y):
++						continue
++					_unter_setzen(felder, ss, Vector3(p.x, y - 0.12, p.z), form, mass, dreh, ton,
++							gruppe)
++	return felder
++
++
++## Ein Stück Unterwuchs in sein Feld (wie `_farn_setzen`). Form 2 ist die
++## Brombeere: flach, dunkler und rötlicher.
++func _unter_setzen(felder: Dictionary, s: float, ort: Vector3, form: int, mass: float,
++		dreh: float, ton: float, gruppe: int) -> void:
++	var lage := Transform3D(Basis(Vector3.UP, dreh) * Basis.from_scale(Vector3.ONE * mass), ort)
++	var schluessel := Vector2i(floori(s / STUECK), form + 3 * gruppe)
++	if not felder.has(schluessel):
++		var leer: Array[Transform3D] = []
++		felder[schluessel] = {"lagen": leer, "farben": PackedColorArray()}
++	var e: Dictionary = felder[schluessel]
++	(e["lagen"] as Array[Transform3D]).append(lage)
++	var farben: PackedColorArray = e["farben"]
++	if form == 2:
++		farben.append(Color(ton * 0.98, ton * 0.8, ton * 0.74))
++	else:
++		farben.append(Color(ton, ton * 1.02, ton * 0.9))
++	e["farben"] = farben
++
++
++## Die drei Formen des Unterwuchses (Bauspeicher über `Kronenwolke.netz`):
++## breiter Busch, schmaler hoher Busch, flache Brombeere.
++static func unter_netze() -> Array[ArrayMesh]:
++	return [Kronenwolke.netz({"radius": 1.0, "hoehe": 1.15, "variante": 1, "ballen": 3,
++				"karten": 10, "saat": SAAT + 23}),
++			Kronenwolke.netz({"radius": 0.75, "hoehe": 1.5, "variante": 0, "ballen": 2,
++				"karten": 8, "saat": SAAT + 24}),
++			Kronenwolke.netz({"radius": 1.25, "hoehe": 0.75, "variante": 1, "ballen": 3,
++				"karten": 12, "saat": SAAT + 25})]
++
++
+ ## Ein Farn an `ort` (Form, Größe, Drehung und Ton nach `rng`) in sein Feld:
+ ## Vector2i(Stück, Form + 3 · Gruppe), Gruppe 0 Krone rechts (q > 0), 1 Krone
+ ## links, 2 Südwand. WARUM je Gruppe ein eigenes Feld: Ohne Grafik liest
+@@ -379,6 +513,8 @@ func _farn_setzen(felder: Dictionary, rng: RandomNumberGenerator, s: float, ort:
+ 	(e["lagen"] as Array[Transform3D]).append(lage)
+ 	var farben: PackedColorArray = e["farben"]
+ 	var v := rng.randf_range(0.8, 1.15)
++	if gruppe == 2:
++		v *= SUEDWAND_FARN_HELL
+ 	farben.append(Color(v * rng.randf_range(0.95, 1.08), v, v * rng.randf_range(0.85, 1.0)))
+ 	e["farben"] = farben
+ 
+@@ -403,7 +539,8 @@ func _suedwand_farn(felder: Dictionary, rng: RandomNumberGenerator, anteil: floa
+ 			var w := mitte - rechts * d
+ 			var y := level.gelaende.hoehe(w.x, w.z)
+ 			if not is_nan(y) and y - mitte.y >= hoch:
+-				_farn_setzen(felder, rng, s, Vector3(w.x, y - 0.1, w.z) - rechts * 0.1, 0.8, 2)
++				_farn_setzen(felder, rng, s, Vector3(w.x, y - 0.1, w.z) - rechts * 0.1,
++						SUEDWAND_FARN_GROSS, 2)
+ 				break
+ 			d += 0.25
+ 
+@@ -428,6 +565,22 @@ func _laub_farn_einhaengen(d: Dictionary) -> void:
+ 		Bodenstreu.feld(wurzel, "Kupferfarn %d %d" % [schluessel.x, schluessel.y],
+ 				netze[schluessel.y % 3], lagen, e["farben"] as PackedColorArray, SICHT_FARN,
+ 				_farn_stoff)
++	# Unterwuchs (siehe UNTER_STRECKEN): eigene Wurzel, im Kronenstoff
++	# (Instanzfarben tönen ihn), ohne Schatten wie alle Kronen.
++	if d.has("unter"):
++		var unter := Node3D.new()
++		unter.name = "Unterwuchs"
++		level.deko.add_child(unter)
++		var formen := unter_netze()
++		var stoff := Kronenwolke.stoff(UNTER_LAUB)
++		var uf: Dictionary = d["unter"]
++		for schluessel: Vector2i in uf:
++			var e: Dictionary = uf[schluessel]
++			var lagen: Array[Transform3D] = []
++			lagen.assign(e["lagen"])
++			Bodenstreu.feld(unter, "Unterwuchs %d %d" % [schluessel.x, schluessel.y],
++					formen[schluessel.y % 3], lagen, e["farben"] as PackedColorArray, SICHT_UNTER,
++					stoff)
+ 
+ 
+ ## Rasenbau fertig, dann ablegen: die Lagen aus Rasenbau (`Bau.zustand`)
+diff --git a/scenes/levels/level05/saum.gd b/scenes/levels/level05/saum.gd
+index 2e95bfb..3d9dfe0 100644
+--- a/scenes/levels/level05/saum.gd
++++ b/scenes/levels/level05/saum.gd
+@@ -112,9 +112,21 @@ const UFER_MOOS := Vector4(258.0, 264.0, 276.0, 279.0)
+ ## Lückenstreifen 67–88, in Level 01 11). Jetzt ist nur die Lippe hell –
+ ## Narbe, Wurzelfasern, die Lippensteine auf der Decke –, ab 0,4 m Tiefe ist
+ ## die Albedo unter 0,1 wie in Level 01 (Entwurf §8.4).
++## R3 (Bild-Jury R3, Mangel „Lücken": „ein exakt rechteckiger, rein
++## schwarzer Schlitz mit schnurgeraden Lippen … Die Flanken als Erdprofil
++## mit Verlauf von hell nach dunkel statt Schwarz ab 0,4 m"): Unter
++## STIRN_TIEFE.x fällt die Verdeckung jetzt stetig ab, auf ein Drittel je
++## STIRN_ABKLINGEN Meter (0,33 bei 0,4 m, 0,13 bei 0,9 m, 0,05 bei 1,5 m)
++## – ein Erdprofil, das ins Dunkle geht, statt einer Kante bei 0,4 m; das
++## helle Band ist schmal wie vorher, darunter liegt kein gleich helles
++## Stück mehr (R2: „Stufe"). Die Lippe bricht unregelmäßig aus
++## (STIRN_AUSBRUCH: bis so tief, in Buckeln nach `Kanten.welle`), und in
++## der Tiefe liegt Dunst (`L05Stimmung._lueckendunst`).
+ const STIRN_HELL := 0.62
+ const STIRN_DUNKEL := 0.025
+ const STIRN_TIEFE := Vector2(0.1, 0.4)
++const STIRN_ABKLINGEN := 0.45
++const STIRN_AUSBRUCH := 0.14
+ ## Landeseite (die Lippe näher an der Kamera, deren Stirn vom Spalt weg
+ ## zeigt): Die Grasnarbe hängt so viel weiter über den Spalt (m, an ihrem
+ ## Rand; bis höchstens STIRN_NAH_MAX) und deckt den unteren Teil der fernen
+@@ -127,8 +139,17 @@ const STIRN_NAH_MAX := 0.6
+ const LUECKE_SPIEL := 0.002
+ ## Löss der Wände (Ton der Erde im Stoff der Kanten) und Rotocker des
+ ## Sandsteins am Sonnenhang (Ton der warmen Schichtbänke).
++## R3 (Bild-Jury R3, Tobel D: „Links steht dieselbe orange Lösswand wie in
++## B"; Entwurf §5 D: rotockerfarbene Sandsteinbänder): Der Sandstein röter
++## (1,24/0,78/0,58 statt 1,12/0,86/0,68), weniger entsättigt
++## (SANDSTEIN_GRAU statt der Vorgabe 0,3 des Stoffs) und in engeren Bänken
++## (SCHICHT_DICHTE je m statt 0,35): Auf der 5 m hohen Wand standen zwei
++## Bänke, kaum heller als der Löss. Der Löss selbst bleibt (er trägt keine
++## Bänke, `fels` 0 in `Level05.ZUEGE`).
+ const LOESS := Color(1.15, 1.0, 0.74)
+-const SANDSTEIN := Color(1.12, 0.86, 0.68)
++const SANDSTEIN := Color(1.24, 0.78, 0.58)
++const SANDSTEIN_GRAU := 0.15
++const SCHICHT_DICHTE := 0.6
+ 
+ 
+ ## Bauschritte: der Stoff, je Seite und Zug „… wird vermessen", die Stirnen
+@@ -213,7 +234,8 @@ const RELIEF := 0.18
+ static func thema() -> Dictionary:
+ 	return {"erde": Materialbibliothek.waldweg().albedo_texture,
+ 			"uniforms": {"erde_ton": LOESS, "fels_warm": SANDSTEIN, "erde_kachel": ERDE_KACHEL,
+-				"relief": RELIEF}}
++				"relief": RELIEF, "fels_grau_anteil": SANDSTEIN_GRAU,
++				"schicht_dichte": SCHICHT_DICHTE}}
+ 
+ 
+ # ================================================================ Formen
+@@ -556,9 +578,16 @@ static func _profil_stirn(_i: int, probe: Dictionary, level: Level05, kante: flo
+ 	var p := Kanten.profil_stirn(probe, kante, grund, halb, erdig, 0.45, level.weg)
+ 	for j in range(4, p.anzahl()):
+ 		var c := p.farbe[j]
+-		c.r = lerpf(STIRN_HELL, STIRN_DUNKEL,
+-				smoothstep(STIRN_TIEFE.x, STIRN_TIEFE.y, kante - p.y[j]))
++		var tief := maxf(kante - p.y[j] - STIRN_TIEFE.x, 0.0)
++		c.r = STIRN_DUNKEL + (STIRN_HELL - STIRN_DUNKEL) * exp(-tief / STIRN_ABKLINGEN)
+ 		p.farbe[j] = c
++	# Ausbrüche der Lippe (siehe STIRN_AUSBRUCH): Narbe und Lippe sacken in
++	# Buckeln von gut 1–2 m ab, die Wand darunter folgt bis 0,33 m.
++	var bogen: float = probe["bogen"]
++	var aus := STIRN_AUSBRUCH * smoothstep(0.1, 0.7, Kanten.welle(bogen * 0.55, 41.0)) \
++			* (0.6 + 0.4 * Kanten.welle(bogen * 2.1, 43.0))
++	for j in range(1, mini(6, p.anzahl())):
++		p.y[j] -= maxf(aus, 0.0) * (1.0 if j < 4 else 0.5)
+ 	if nah:
+ 		for j in range(1, 4):
+ 			p.o[j] = minf(p.o[j] + STIRN_NAH * float(j) / 3.0, STIRN_NAH_MAX)
+@@ -637,9 +666,16 @@ static func _querlinien(level: Level05) -> Array:
+ 		var vorwaerts := 1.0 if h_a > h_b else -1.0
+ 		var graben := naht > Level05.SUHLGRABEN.x - 0.01 and naht < Level05.SUHLGRABEN.y + 0.01
+ 		var weit := (Level05.SUHLGRABEN.y - Level05.SUHLGRABEN.x) * 0.5 + 0.05 if graben else 0.6
+-		linien.append(_querlinie(level, naht, -vorwaerts,
++		var linie := _querlinie(level, naht, -vorwaerts,
+ 				_profil_stufe.bind(level, maxf(h_a, h_b), minf(h_a, h_b), weit, graben),
+-				maxf(h_a, h_b), 5301 + nummer))
++				maxf(h_a, h_b), 5301 + nummer)
++		# Setzstufen ohne Karten (Bild-Jury R3, Treppen): Halme und Wurzeln
++		# unter der Narbe standen dort als Zickzack-Fries über die ganze
++		# Breite und an den Enden als tiefschwarze, gezackte Silhouetten
++		# (unbeleuchtete Rückseiten) – die Kante tragen die Stufenwurzeln
++		# (`L05Wegbauten.stufenwurzel`). An den Stirnen der Lücken bleiben sie.
++		linie["karten"] = false
++		linien.append(linie)
+ 		nummer += 1
+ 	return linien
+ 
+diff --git a/scenes/levels/level05/stimmung.gd b/scenes/levels/level05/stimmung.gd
+index c99d23b..2a13b51 100644
+--- a/scenes/levels/level05/stimmung.gd
++++ b/scenes/levels/level05/stimmung.gd
+@@ -197,6 +197,23 @@ const NEBEL_SAAT := 5801
+ ## der Südwand nicht zu sehen.
+ const NEBEL_STAERKE := 0.42
+ 
++## Dunst in der Tiefe der Lücken L1–L5 (`_lueckendunst`, R3; Bild-Jury R3,
++## Mangel „Lücken": „ein exakt rechteckiger, rein schwarzer Schlitz … In
++## der Tiefe Wasser oder Nebel andeuten, bei Luma ≤ 30"): je Lücke eine
++## Nebeltafel (`GelaendeBau.nebeltafeln`) quer über den Spalt, ihre Mitte
++## DUNST_UNTER unter der fernen Lippe, DUNST_HOCH hoch – am dichtesten
++## knapp 1 m über ihrem Fuß, also 2–2,5 m unter der Lippe, wo die Kamera
++## über die nahe Lippe hinweg gerade noch hineinsieht. Dunkel und kühl
++## (DUNST_FARBE, deckend DUNST_STAERKE): Über dem Schwarz der Tiefe liegt
++## ein Schleier von gut 25–30 Luma, nichts Helles. Nicht am Wehr (dort steht
++## das Weißwasser) und nicht im Regler der Zonen (der färbte ihn auf das
++## Nebellicht).
++const DUNST_FARBE := Color(0.13, 0.14, 0.17)
++const DUNST_STAERKE := 0.8
++const DUNST_NAH := Vector2(2.0, 6.0)
++const DUNST_HOCH := 2.8
++const DUNST_UNTER := 1.6
++
+ ## Krähen über der Eiche: so hoch über der Mitte der Kerbe kreisen sie, so
+ ## weit, so viele; beim Wecken steigen sie in KRAEHEN_DAUER s um KRAEHEN_HUB
+ ## m, der Umlauf (U/min) geht von ruhig auf aufgeschreckt, der Flügelschlag
+@@ -254,6 +271,7 @@ static func anlegen(level_: Level05) -> L05Stimmung:
+ 	st._pollen_und_staub()
+ 	st._laub()
+ 	st._bachnebel()
++	st._lueckendunst()
+ 	st._kraehen_setzen()
+ 	st._muehle_anlegen()
+ 	var optionen := {
+@@ -399,6 +417,26 @@ func _bachnebel() -> void:
+ 		nebel.set_shader_parameter("staerke", NEBEL_STAERKE)
+ 
+ 
++## Dunst in den Lücken (siehe DUNST_*), ein Netz für alle.
++func _lueckendunst() -> void:
++	var rng := RandomNumberGenerator.new()
++	rng.seed = SAAT + 7
++	var tafeln: Array[Dictionary] = []
++	for l: Dictionary in Level05.LUECKEN:
++		if not bool(l["erdig"]):
++			continue
++		var von: float = l["von"]
++		var bis: float = l["bis"]
++		var mitte := level.weg_punkt((von + bis) * 0.5, 0.0, 0.0)
++		mitte.y = level.boden_bei(von - 0.01) - DUNST_UNTER
++		tafeln.append({"mitte": mitte, "mass": Vector2(level.breite_bei(von) + 1.0, DUNST_HOCH),
++				"phase": rng.randf(), "kraft": 1.0})
++	var stoff := GelaendeBau.nebeltafeln(_wurzel("Lueckendunst"), tafeln, DUNST_FARBE)
++	if stoff != null:
++		stoff.set_shader_parameter("staerke", DUNST_STAERKE)
++		stoff.set_shader_parameter("nah", DUNST_NAH)
++
++
+ ## Zwei Krähen über der Hauereiche (siehe KRAEHEN_*): Mitte über der Kerbe
+ ## zwischen den Kronen (`Level05.wahrzeichen`), ohne Eiche über EICHE.
+ func _kraehen_setzen() -> void:
+diff --git a/scenes/levels/level05/wald.gd b/scenes/levels/level05/wald.gd
+index 2036877..8b92326 100644
+--- a/scenes/levels/level05/wald.gd
++++ b/scenes/levels/level05/wald.gd
+@@ -32,14 +32,14 @@ class_name L05Wald
+ ##   ist warm, damit Ocker und Kupfer als Faktoren ≤ 1 erreichbar sind (die
+ ##   Scheitelfarbe eines Netzes hat 8 Bit je Kanal).
+ ## * BAUMTORE (Entwurf §5 B) bei s 30 und 120: je Seite eine Buche
+-##   (`Baumfabrik.baum` in der vollen Fassung von `Riesenstamm.baum`: Stamm
+-##   mit TOR_AESTE Ästen ab TOR_AST_START der Höhe, an jeder Astspitze ein
+-##   Ballen der runden Krone) auf der Böschungskrone bei |q| = TOR_Q, leicht
+-##   zum Weg geneigt. Bis R2 die mittlere Fassung mit drei Ballen ab 36 %
+-##   der Höhe – sie standen als dunkle gestapelte Birnen ohne Astwerk im
+-##   Bild (Bild-Jury R2, Mangel 2: „Topiary-Kugeln"). Die
+-##   Kronen rahmen den Weg seitlich und lassen über ihm den Himmel offen –
+-##   durch das Tor sieht man die Eiche (siehe ABWEICHUNGEN).
++##   (`Baumfabrik.baum`, "krone_frei": voller Stamm mit zwei Seitenästen,
++##   darüber EINE breite Kuppel, siehe TOR_KRONE_BREIT) auf der
++##   Böschungskrone bei |q| = TOR_Q, leicht zum Weg geneigt. Bis R2 die
++##   mittlere Fassung mit drei Ballen ab 36 % der Höhe – dunkle gestapelte
++##   Birnen (Bild-Jury R2: „Topiary-Kugeln"), in R2 ein Ballen an jeder von
++##   vier Astspitzen – ein Totem aus Kugeln (Bild-Jury R3). Die Kronen rahmen
++##   den Weg seitlich und lassen über ihm den Himmel offen – durch das Tor
++##   sieht man die Eiche (siehe ABWEICHUNGEN).
+ ## * GEBÜSCH (Kronenwolke, 2–4 m) in Gruppen auf den Kronen über Hohlweg und
+ ##   Terrassen, wo K3 keinen Baum zulässt, und am Rand der Haine; Sträucher
+ ##   (M24, im Instanzton wie die Kronen) am Rand der Haine; TOTHOLZ an der
+@@ -243,18 +243,30 @@ const BIRKEN_RECHTS := 0.3
+ ## Kronenradius, je m).
+ const TORE: Array[float] = [30.0, 120.0]
+ const TOR_Q := 10.5
+-## Torbuchen in der vollen Fassung (siehe Kopf, BAUMTORE): so viele Äste,
+-## ab diesem Anteil der Höhe, so steil (rad), so viele Blattkarten.
+-## Steil (1,0 rad) und mit kleineren Kronen bis 2,0 m: Mit fünf Ästen ab
+-## 42 % und 0,7 rad schnitt jede Fassung Sichtlinien zur Eiche (14–63
+-## Stellen je Tor), die Wahrzeichenprobe fiel auf 71,9 % (eigene Messung;
+-## die tor_krone verdeckte die bildlinke Krone von s 206 bis 266). Dazu
+-## Fassungen, die aufrecht stehen oder sich vom Weg weg neigen (Neigung
+-## 0 und −0,6).
+-const TOR_AESTE := 4
+-const TOR_AST_START := 0.4
+-const TOR_AST_STEIL := 1.0
++## Torbuchen in der vollen Fassung (siehe Kopf, BAUMTORE): so viele
++## Blattkarten. Bis R2 mit vier steilen Ästen ab 40 % (an jeder ein Ballen)
++## und kleinen Kronen bis 2,0 m: Mit fünf Ästen ab 42 % und 0,7 rad schnitt
++## jede Fassung Sichtlinien zur Eiche (14–63 Stellen je Tor), die
++## Wahrzeichenprobe fiel auf 71,9 % (eigene Messung; die tor_krone verdeckte
++## die bildlinke Krone von s 206 bis 266). Dazu Fassungen, die aufrecht
++## stehen oder sich vom Weg weg neigen (Neigung 0 und −0,6).
+ const TOR_KARTEN := 60
++## R3 (Bild-Jury R3, Torbuchen: „dünne, gerade Stangen mit
++## übereinandergestapelten dunklen Kugeln (Totem, Formschnitt), aus der
++## Ferne graue Lutscher"; Vorschlag: „eine echte Buchenkrone: breit, oben
++## geschlossen, mit seitlichen Ästen und Lichtlöchern"): Die Krone ist jetzt
++## EINE breite, hohe Kuppel (`Baumfabrik.baum`, "krone_frei", `Kronenwolke`
++## Variante 0 mit TOR_BALLEN Ballen) über einem vollen Stamm mit zwei
++## Seitenästen, TOR_KRONE_BREIT mal so weit wie der Radius der Fassung
++## (TOR_WAHL) und TOR_KRONE_HOCH der Baumhöhe hoch (sie reicht so bis
++## gut zur halben Höhe hinab – keine Kugel auf einem Stiel), der Stamm
++## TOR_RADIUS stark. Bis R3 saß an jeder Astspitze
++## ein Ballen – vier Kugeln übereinander. Die Lichtlöcher bringt der
++## aufgelöste Körper der Nahkrone (`Kronenwolke`, NAH). Fern ohne Karten.
++const TOR_KRONE_BREIT := 1.6
++const TOR_KRONE_HOCH := 0.48
++const TOR_BALLEN := 6
++const TOR_RADIUS := 0.62
+ ## TOR_FERN (R2): Eine volle Torbuche hat 1,4–1,5k Dreiecke im Stamm und
+ ## 2,0–2,2k in der Krone, die mittlere Fassung bis R1 zusammen 0,7k. Ohne
+ ## Sichtgrenze standen alle vier in jedem Bild, auch 100–200 m weit im
+@@ -647,6 +659,7 @@ func _tor_baum(s: float, seite: float, saat: int) -> void:
+ 	# Fernfassung (siehe TOR_FERN): derselbe Baum „schlicht".
+ 	var of: Dictionary = (beste["o"] as Dictionary).duplicate()
+ 	of["schlicht"] = true
++	of["karten"] = 0
+ 	var bf := Baumfabrik.baum(of)
+ 	_nah.setze("tor_stamm_fern", bf["stamm"] as ArrayMesh, lage, Color(0.92, 0.92, 0.92))
+ 	_nah.setze("tor_krone_fern", bf["krone"] as ArrayMesh, lage, ton)
+@@ -687,10 +700,10 @@ func _tor_suche(lage: Transform3D, richtung: Vector2, saat: int) -> Dictionary:
+ ## K1 oder die Stammprobe nicht hält.
+ func _tor_fassung(lage: Transform3D, richtung: Vector2, saat: int, hoch: float,
+ 		neigung: float, krone: float) -> Dictionary:
+-	var o := {"hoehe": hoch, "radius": 0.46, "krone_radius": krone,
+-			"variante": 0, "aeste": TOR_AESTE, "ast_start": TOR_AST_START,
+-			"ast_steil": TOR_AST_STEIL, "karten": TOR_KARTEN, "moos": 0.6,
+-			"neigung": richtung * neigung, "saat": saat}
++	var o := {"hoehe": hoch, "radius": TOR_RADIUS, "krone_radius": krone * TOR_KRONE_BREIT,
++			"krone_frei": true, "variante": 0, "krone_hoehe": hoch * TOR_KRONE_HOCH,
++			"ballen": TOR_BALLEN, "karten": TOR_KARTEN,
++			"moos": 0.6, "neigung": richtung * neigung, "saat": saat}
+ 	var b := Baumfabrik.baum(o)
+ 	var huelle := lage * (b["huelle"] as AABB)
+ 	if not rahmen.weg_frei(huelle, TOR_FREI_Q, Waldrahmen.FREI_H):
+@@ -701,7 +714,7 @@ func _tor_fassung(lage: Transform3D, richtung: Vector2, saat: int, hoch: float,
+ 		var t := float(k) / 11.0
+ 		achse.append(lage * (Vector3(0.0, t * hoch * 0.95, 0.0)
+ 				+ Baumfabrik.neigung_bei(b, t * 0.95)))
+-	if not rahmen.stamm_frei(lage.origin, achse[achse.size() - 1], 0.46, 0.0, 0.2, achse):
++	if not rahmen.stamm_frei(lage.origin, achse[achse.size() - 1], TOR_RADIUS, 0.0, 0.2, achse):
+ 		rahmen.zaehle("tor_stamm")
+ 		return {}
+ 	return {"b": b, "o": o, "huelle": huelle, "hoch": hoch, "neigung": neigung, "krone": krone,
+diff --git a/scenes/levels/level05/wasser.gd b/scenes/levels/level05/wasser.gd
+index 4a80177..7b6949e 100644
+--- a/scenes/levels/level05/wasser.gd
++++ b/scenes/levels/level05/wasser.gd
+@@ -220,6 +220,16 @@ const BACH_SCHRITT := 1.5
+ ## `L05Gelaende.BETT_BREITE` breit).
+ const BACH_TIEFE := 0.22
+ const BACH_BREITE := 2.8
++## R3 (Bild-Jury R3, Tobel D: „Der Bach ist ein gerader, gleich breiter
++## Kanal mit hellem Rand"; Vorschlag: „mit Kurven, wechselnder Breite und
++## Steinen im Wasser"): Die Breite wechselt zwischen BACH_ENGE und 1 mal
++## BACH_BREITE, und der Lauf pendelt im Bett, so weit es die Breite lässt
++## (BACH_PENDEL des freien Raums) – beides aus zwei Sinuswellen über s, kein
++## Zufall. Wo er schmaler ist, liegt der nasse Grund des Betts frei. Das
++## Bett selbst (`L05Gelaende.BETT_BREITE` 3 m) bleibt, wie es ist – es
++## gehört zum Gelände und zum Ufer. Steine im Wasser: `L05Wegbauten`.
++const BACH_ENGE := 0.68
++const BACH_PENDEL := 0.85
+ ## Die Schnelle (Schaum) der Läufe nach dem Gefälle (`Bachband`) mal so
+ ## viel: Der Tobel fällt bis 9 %, und mit der vollen Schnelle stand der Bach
+ ## im Rückblick als weißer Streifen neben dem Weg (Entwurf §5 D: „kühl
+@@ -526,10 +536,10 @@ func _laeufe() -> Array:
+ 		# Stromab nie steigend: Das Bett folgt der geglätteten Decke, und
+ 		# wo seine Tiefe wechselt, stiege es sonst um Zentimeter.
+ 		spiegel = minf(spiegel, _bett_spiegel(s))
+-		var p := level.weg_punkt(s, _bett_q(s))
++		var p := level.weg_punkt(s, _bett_q(s) + bach_pendel(s))
+ 		p.y = spiegel
+ 		punkte.append(p)
+-		breiten.append(BACH_BREITE)
++		breiten.append(bach_breite(s))
+ 		s += BACH_SCHRITT
+ 	# Ins Unterwasser: am Fuß des Wehrs entlang, dann seinem Lauf nach.
+ 	var unter: Array[Vector2] = [Vector2(282.0, -7.0), Vector2(286.0, -7.4)]
+@@ -999,11 +1009,25 @@ func _rinnsal(seite: float) -> PackedVector3Array:
+ ## Ort auf dem Spiegel des Tobelbachs an `s` (Level-Koordinaten): Mitte des
+ ## Betts, Höhe des Spiegels – für den Bachnebel der Stimmung (`L05Stimmung`).
+ func bach_ort(s: float) -> Vector3:
+-	var p := level.weg_punkt(s, _bett_q(s))
++	var p := level.weg_punkt(s, _bett_q(s) + bach_pendel(s))
+ 	p.y = _bach_spiegel(s)
+ 	return p
+ 
+ 
++## Breite des Tobelbachs an `s` (siehe BACH_ENGE): zwischen BACH_ENGE und 1
++## mal BACH_BREITE, in Wellen von gut 25 und 80 m.
++static func bach_breite(s: float) -> float:
++	var w := 0.5 + 0.5 * sin(s * 0.24 + 1.3 * sin(s * 0.077 + 0.4))
++	return BACH_BREITE * lerpf(BACH_ENGE, 1.0, w)
++
++
++## Versatz des Laufs im Bett an `s` (q, m): höchstens BACH_PENDEL des Raums,
++## den die Breite dort lässt – das Wasser bleibt im Bett.
++static func bach_pendel(s: float) -> float:
++	var frei := maxf(L05Gelaende.BETT_BREITE - bach_breite(s), 0.0) * 0.5
++	return frei * BACH_PENDEL * sin(s * 0.13 + 2.1)
++
++
+ ## Spiegel des Tobelbachs an `s` (wie `_laeufe`: stromab nie steigend).
+ func _bach_spiegel(s: float) -> float:
+ 	var spiegel := INF
+diff --git a/scenes/levels/level05/wegbauten.gd b/scenes/levels/level05/wegbauten.gd
+index c29fcfe..3d274e4 100644
+--- a/scenes/levels/level05/wegbauten.gd
++++ b/scenes/levels/level05/wegbauten.gd
+@@ -208,6 +208,17 @@ const STUFE_SCHLINGERN := 0.035
+ const STUFE_KNOTEN := 1.3
+ ## Steine: Sandstein im Tobel (Rotocker), Löss an der Böschungsbank.
+ const SANDSTEIN_TON := Color(1.0, 0.84, 0.7)
++## Findlinge der Gasse (`findling_netz`, R3): granitgrau statt Sandstein, aus
++## so vielen Blöcken, je so viel höher bzw. niedriger als der Körper, um so
++## viel ineinandergeschoben (m).
++const GRANIT_TON := Color(0.8, 0.84, 0.88)
++const FINDLING_TEILE := 3
++const FINDLING_HOCH := Vector2(-0.1, 0.08)
++const FINDLING_UEBERLAPP := 0.12
++## Rundung der Oberkante je Block (m, von–bis): Mit 0,28–0,4 und 0,22 m
++## Überlappung lasen sich die drei Blöcke im Bild noch als EIN langer
++## Quader mit einer Fuge (eigene Prüfung bei s 240).
++const FINDLING_RUNDUNG := Vector2(0.45, 0.6)
+ const LOESS_TON := Color(1.0, 0.92, 0.74)
+ ## Laterne der Rastplätze (Entwurf §8.4: Wegpfahl mit leuchtendem Netz).
+ const LATERNE := Color(1.0, 0.68, 0.32)
+@@ -1173,7 +1184,7 @@ static func _wurzelbogen(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: fl
+ 		_holz(ob, Transform3D.IDENTITY, punkte, PackedFloat32Array([r, r * 0.9, r * 0.75,
+ 				r * 0.6, r * 0.45, r * 0.3]), o)
+ 		nr += 1
+-	_wurzelansaetze(st, links, rechts, halb_z, kaputt, saat + 400)
++	_wurzelansaetze(st, ob, links, rechts, halb_z, kaputt, saat + 400)
+ 	if kaputt:
+ 		_truemmer(st, rng, halb_z, 2, Vector2(0.12, 0.15), Vector2(0.6, 1.0), wurzel)
+ 		_truemmer(st, rng, halb_z, 4, Vector2(0.03, 0.04), Vector2(0.5, 1.1),
+@@ -1186,7 +1197,15 @@ static func _wurzelbogen(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: fl
+ ## Stange quer über dem Weg wie die Hürden:
+ ##   * je Seite zwei WURZELANSÄTZE, dicke Wurzeln, die aus der Lösswand
+ ##     kommen (über 1 m unter der Narbe) und zum Ende des Bogens hinauf
+-##     laufen – der Bogen wächst sichtbar aus den Wänden;
++##     laufen – der Bogen wächst sichtbar aus den Wänden. Sie gehören seit
++##     R3 zum Netz „Oben" und gehen mit dem Bogen aus (Bild-Jury R3, Mangel
++##     „Nahblende"): Unter NAH_GRENZE standen sie ohne den Bogen als zwei
++##     spitz zulaufende, pelzige Büschel von je gut 200 × 300 Bildpunkten
++##     links und rechts im Vordergrund. Riegel und Hängewurzeln bleiben im
++##     Netz „Optik": Sie SIND das Hindernis, und der Durchlass kommt bei
++##     14,5–16 m Anlauf unten ins Bild (Juryprobe R3, Kamera) – nur 5–6,5 m
++##     vor der Kamera; blendete man sie dort aus, käme er erst gut 11 m vor
++##     der Stirn (Entwurf §8.4: Ankündigung ab ≈ 14 m);
+ ##   * beidseits der Gasse HÄNGEWURZELN unter dem Riegel, alle gut
+ ##     HAENGE_ABSTAND von UNTERWURZEL_INNEN bis an die Wand, in zwei Reihen,
+ ##     bis HAENGE_UNTEN (0,95–1,07 m, die Unterkante des Körpers) hinab: ein
+@@ -1206,8 +1225,8 @@ const HAENGE_R := Vector2(0.055, 0.035)
+ const ANSATZ_R := Vector2(0.3, 0.16)
+ 
+ 
+-static func _wurzelansaetze(st: SurfaceTool, links: float, rechts: float, halb_z: float,
+-		kaputt: bool, saat: int) -> void:
++static func _wurzelansaetze(st: SurfaceTool, ob: SurfaceTool, links: float, rechts: float,
++		halb_z: float, kaputt: bool, saat: int) -> void:
+ 	var rng := PropWerkzeug.zufall(saat)
+ 	var wurzel := {"ton": WURZEL_TON, "moos": 0.55, "seiten": 9, "buckel": 0.1}
+ 	for seite: float in [-1.0, 1.0]:
+@@ -1224,7 +1243,7 @@ static func _wurzelansaetze(st: SurfaceTool, links: float, rechts: float, halb_z
+ 			o["saat"] = saat + int(seite) * 7 + k
+ 			o["anfang"] = "stumpf"
+ 			o["ende"] = "spitz"
+-			_holz(st, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
++			_holz(ob, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
+ 					PackedFloat32Array([ANSATZ_R.x, ANSATZ_R.x * 0.8, ANSATZ_R.y])), o)
+ 		# Hängewurzeln: unter dem Riegel (in seiner Ebene, im Körper ab
+ 		# DUCK_UNTEN) von neben der Gasse bis an die Wand, bis HAENGE_UNTEN
+@@ -1480,9 +1499,23 @@ static func _gerinne(st: SurfaceTool, von: float, bis: float, saat: int) -> void
+ # ================================================================ Hürden
+ 
+ ## Wurzelhürde (Entwurf §1 Nr. 12, §8.4): eine Wurzel quer über den Weg, so
+-## dick wie der Körper tief ist, der Rücken flach auf HUERDE_HOEHE und hell
+-## abgewetzt, die Flanken bemoost; an den Enden taucht sie in die Wände.
+-## Daneben eine dünne Nebenwurzel, flach im Boden.
++## dick wie der Körper tief ist, der Rücken flach auf HUERDE_HOEHE, die
++## Flanken bemoost; an den Enden taucht sie in die Wände. Daneben eine dünne
++## Nebenwurzel, flach im Boden.
++## R3 (Bild-Jury R3, Mangel „Hürden": „gerade Rohre über die ganze Breite mit
++## einem rosafarbenen Lichtband wie Kunststoff, die Enden flach
++## abgeschnitten"): ein liegender Stamm statt eines Rohrs – Knoten und
++## Wülste (HUERDE_KNOTEN: der Halbmesser schwankt, an Knoten bis 4 cm über
++## den Körper hinaus), der Rücken matt in Borke statt in der hellen
++## Eigenfarbe (die tiefe Sonne legte auf sie einen Glanz; Option
++## „oben_borke"), an einem Ende ein Wurzelteller, der in der Wand steht
++## (`_wurzelteller`: der Teller HUERDE_TELLER_VOR, die Ansätze der Wurzeln
++## gut 0,2 m vor der Leitlinie, alles andere in der Wand), am
++## anderen zwei kurze Aststummel, die schräg in den Boden gehen – beide
++## Enden nahe der Wand, wo man über die Hürde nicht läuft, ohne an die Wand
++## zu stoßen.
++const HUERDE_KNOTEN := 1.13
++const HUERDE_TELLER_VOR := 0.18
+ ##
+ ## `huerde_koerper` baut den Körper (mit Stolperzone, Optik nur als Marke),
+ ## `huerde_netz` die Wurzel in einen Sammler; beide für jedes Korridorlevel.
+@@ -1513,10 +1546,30 @@ static func huerde_netz(sa: Sammler, level: KorridorLevel, s: float, rand: Rand,
+ 	stuetzen.append_array([Vector3(rechts - 0.4, y, 0.0), Vector3(rechts + 0.5, 0.8, -0.05),
+ 			Vector3(rechts + 1.4, 1.6, -0.15)])
+ 	var linie := _glatt(stuetzen, 3)
+-	_holz(sa.holz, lage, linie, _radien(linie.size(), PackedFloat32Array([0.24, r, r * 0.97, r,
+-			0.36])), {"saat": saat, "seiten": 11, "hoch": hoch, "buckel": 0.04, "moos": 0.85,
+-			"ton": WURZEL_TON, "oben": KorridorLevel.HUERDE_HOEHE,
++	# Halbmesser mit Knoten und Wülsten (siehe Kopf), fest nach der Saat.
++	var rk := PropWerkzeug.zufall(saat + 31)
++	var dicke := PackedFloat32Array([0.24])
++	for k in 9:
++		dicke.append(r * (HUERDE_KNOTEN if rk.randf() < 0.3 else rk.randf_range(0.9, 1.02)))
++	dicke.append(0.36)
++	_holz(sa.holz, lage, linie, _radien(linie.size(), dicke), {"saat": saat, "seiten": 11,
++			"hoch": hoch, "buckel": 0.07, "moos": 0.85, "ton": WURZEL_TON,
++			"oben": KorridorLevel.HUERDE_HOEHE, "oben_borke": true,
+ 			"klemm_x": Vector2(-links - 0.3, rechts + 0.3), "anfang": "spitz", "ende": "spitz"})
++	var teller_links := rk.randf() < 0.5
++	_wurzelteller(sa, lage, -links if teller_links else rechts, -1.0 if teller_links else 1.0,
++			saat + 40)
++	# Aststummel am anderen Ende, schräg vor und hinter dem Stamm in den Boden.
++	var ende_x := rechts - 0.9 if teller_links else -links + 0.9
++	for k in 2:
++		var vorn := 1.0 if k == 0 else -1.0
++		var x0 := ende_x + rk.randf_range(-0.35, 0.35)
++		var stummel := PackedVector3Array([Vector3(x0, 0.45, 0.0),
++				Vector3(x0 + rk.randf_range(-0.15, 0.15), 0.3, vorn * 0.42),
++				Vector3(x0 + rk.randf_range(-0.25, 0.25), -0.05, vorn * 0.62)])
++		_holz(sa.holz, lage, _glatt(stummel, 3), _radien(7, PackedFloat32Array([0.1, 0.075,
++				0.05])), {"saat": saat + 50 + k, "seiten": 7, "moos": 0.7, "ton": WURZEL_TON,
++				"buckel": 0.1, "anfang": "stumpf", "ende": "splitter"})
+ 	var neben := _glatt(PackedVector3Array([Vector3(-links - 0.6, 0.2, -0.32),
+ 			Vector3(-2.0, 0.08, -0.16), Vector3(0.6, 0.02, -0.12), Vector3(1.8, -0.12, -0.2)]), 3)
+ 	_holz(sa.holz, lage, neben, _radien(neben.size(), PackedFloat32Array([0.12, 0.1, 0.07])),
+@@ -1524,6 +1577,32 @@ static func huerde_netz(sa: Sammler, level: KorridorLevel, s: float, rand: Rand,
+ 			"ende": "spitz"})
+ 
+ 
++## Wurzelteller eines liegenden Stamms an der Wand `wand` (Abstand der
++## Leitlinie von der Mitte) auf der Seite `seite`: ein Erdteller, aus dem
++## die Wurzeln strahlenförmig in die Wand laufen, fast ganz hinter der
++## Leitlinie (der Teller HUERDE_TELLER_VOR davor, die Wurzeln gut 0,2 m).
++static func _wurzelteller(sa: Sammler, lage: Transform3D, wand: float, seite: float,
++		saat: int) -> void:
++	var rng := PropWerkzeug.zufall(saat)
++	var mitte := Vector3(seite * (wand + 0.25 - HUERDE_TELLER_VOR), 0.62, 0.0)
++	var teller := _getoent(kiesel(Vector3(0.5, 1.5, 1.6), saat, 0.5), Color(0.62, 0.48, 0.34))
++	sa.stein(teller, lage * Transform3D(Basis(Vector3.FORWARD, rng.randf_range(-0.2, 0.2)),
++			mitte))
++	for k in 7:
++		var w := TAU * (float(k) + rng.randf_range(-0.25, 0.25)) / 7.0
++		var lang := rng.randf_range(0.55, 0.95)
++		var richtung := Vector3(0.0, sin(w), cos(w))
++		var punkte := PackedVector3Array([
++				mitte + Vector3(-seite * 0.2, 0.0, 0.0) + richtung * 0.15,
++				mitte + Vector3(seite * 0.05, 0.0, 0.0) + richtung * lang * 0.6,
++				mitte + Vector3(seite * 0.35, 0.0, 0.0) + richtung * lang])
++		if punkte[2].y < -0.1:
++			continue
++		_holz(sa.holz, lage, _glatt(punkte, 3), _radien(7, PackedFloat32Array([0.09, 0.05,
++				0.02])), {"saat": saat + 10 + k, "seiten": 6, "moos": 0.4, "ton": WURZEL_TON,
++				"buckel": 0.12, "anfang": "stumpf", "ende": "spitz"})
++
++
+ # ================================================================ Steine
+ 
+ ## Findling der Findlingsgasse: `Findling.netz` genau auf den Körper, im
+@@ -1563,12 +1642,44 @@ static func findling_netz(sa: Sammler, level: KorridorLevel, s: float, q: float,
+ 	# Kante höchstens 7,6 cm in die Rundung ein (zuvor 3,6 cm). Der
+ 	# starre Rahmen reicht: Der Weg dreht sich über die Tiefe eines Steins um
+ 	# 0,004 rad, an seinen Enden 4–5 mm Versatz zum Körper (gemessen).
+-	var o := {"saat": saat, "moos": 0.8, "ecke": 0.07, "beulen": 0.004, "unruhe": 0.005,
+-			"anlauf": 0.0, "umriss": 0.0, "rundung": 0.3, "fuge_tiefe": 0.012}
+-	var netz := _getoent(Findling.netz(groesse, o), SANDSTEIN_TON)
+-	sa.stein(netz, lage)
+-	sa.kranz(_fussring(netz, -groesse.y * 0.5, 0.7), lage)
+-	_aussen_brocken(sa, lage, groesse, signf(q), saat, SANDSTEIN_TON, true, -groesse.y * 0.5)
++	# R3 (Bild-Jury R3, Mangel „Findlingsgasse": „immer noch lange
++	# Sandstein-Quader … Sarkophage oder Steinbänke"): nicht EIN Block über
++	# die ganze Breite, sondern FINDLING_TEILE gerundete Blöcke
++	# nebeneinander, verschieden breit und hoch (FINDLING_HOCH: höchstens
++	# 8 cm über und 10 cm unter dem Körper), die sich um FINDLING_UEBERLAPP
++	# ineinanderschieben – wo zwei sich treffen, runden beide ihre Kanten
++	# ab, und im Umriss steht eine Kerbe. Granitgrau statt Sandstein
++	# (GRANIT_TON), mehr Moos, der Fuß tiefer im Kranz. Die Flanken bleiben
++	# auf dem Körper (Ecke 7 cm wie vorher); nur an den Kerben liegt die
++	# Oberkante bis gut 0,3 m unter ihm – dort steht man nicht.
++	var rt := PropWerkzeug.zufall(saat + 77)
++	var anteile := PackedFloat32Array()
++	var summe := 0.0
++	for k in FINDLING_TEILE:
++		anteile.append(rt.randf_range(0.8, 1.25))
++		summe += anteile[k]
++	var x0 := -groesse.x * 0.5
++	for k in FINDLING_TEILE:
++		var breite_k := groesse.x * anteile[k] / summe
++		var links_rand := k == 0
++		var rechts_rand := k == FINDLING_TEILE - 1
++		var lo := x0 - (0.0 if links_rand else FINDLING_UEBERLAPP)
++		var hi := x0 + breite_k + (0.0 if rechts_rand else FINDLING_UEBERLAPP)
++		var b := hi - lo
++		var mitte_x := (lo + hi) * 0.5
++		var hoch := groesse.y + rt.randf_range(FINDLING_HOCH.x, FINDLING_HOCH.y)
++		var g := Vector3(b, hoch, groesse.z)
++		var o := {"saat": saat + k * 13, "moos": 0.95, "ecke": 0.07, "beulen": 0.006,
++				"unruhe": 0.006, "anlauf": 0.0, "umriss": 0.0,
++				"rundung": rt.randf_range(FINDLING_RUNDUNG.x, FINDLING_RUNDUNG.y),
++				"fuge_tiefe": 0.012}
++		var lage_k := lage * Transform3D(Basis.IDENTITY,
++				Vector3(mitte_x, (hoch - groesse.y) * 0.5, 0.0))
++		var netz := _getoent(Findling.netz(g, o), GRANIT_TON)
++		sa.stein(netz, lage_k)
++		sa.kranz(_fussring(netz, -hoch * 0.5, 0.8), lage_k)
++		x0 += breite_k
++	_aussen_brocken(sa, lage, groesse, signf(q), saat, GRANIT_TON, true, -groesse.y * 0.5)
+ 
+ 
+ ## R2 (Bild-Jury R2, Mangel 5: „F1 und F2 sind Quader … bei s 247 stehen
+@@ -1752,7 +1863,15 @@ const UFERSTEIN_LUECKE := 0.35
+ const SIMS_STRECKE := Vector2(188.0, 258.0)
+ const SIMS_SCHRITT := 3.2
+ const SIMS_HOCH := Vector2(1.2, 10.0)
+-const SIMS_VOR := 0.6
++## R3 (Bild-Jury R3, Tobel D: „Simse und Farn sind nicht zu erkennen"):
++## Die Simse ragen SIMS_VOR (0,95 statt 0,6) aus dem Hang, sind ein Drittel
++## dicker und nur oben am Rand bemoost (SIMS_MOOS statt 0,9) – mit Moos über
++## die ganze Platte lagen sie grün auf grünem Hang. Steine im Wasser: an
++## jedem Uferstein-Schritt mit BACHSTEIN_ANTEIL einer mitten im Lauf, halb
++## eingetaucht (eigener Zufall je Stelle).
++const SIMS_VOR := 0.95
++const SIMS_MOOS := 0.4
++const BACHSTEIN_ANTEIL := 0.3
+ ## Uferfelsen vor der offenen Uferwand (s von, bis; Abstand in m).
+ const UFERFELS_STRECKE := Vector2(262.5, 274.0)
+ const UFERFELS_SCHRITT := 1.5
+@@ -1773,7 +1892,7 @@ static func _tobel_steine(sa: Sammler, level: Level05) -> void:
+ 				continue
+ 			var g := Vector3(rng.randf_range(0.35, 0.85), rng.randf_range(0.22, 0.45),
+ 					rng.randf_range(0.3, 0.7))
+-			var weit := L05Wasser.BACH_BREITE * 0.5 + rng.randf_range(-0.25, 0.3)
++			var weit := L05Wasser.bach_breite(s) * 0.5 + rng.randf_range(-0.25, 0.3)
+ 			var p := mitte + rechts * seite * weit
+ 			p.y = mitte.y - g.y * 0.2
+ 			var dreh := Basis(Vector3.UP, rng.randf() * TAU) \
+@@ -1781,6 +1900,17 @@ static func _tobel_steine(sa: Sammler, level: Level05) -> void:
+ 			sa.stein(_getoent(kiesel(g, 5600 + nr, 0.35, -g.y * 0.3), SANDSTEIN_TON),
+ 					Transform3D(dreh, p))
+ 			nr += 1
++		# Steine im Wasser (siehe BACHSTEIN): eigener Zufall, der Zug der
++		# Ufersteine bleibt, wie er war.
++		var wurf := PropWerkzeug.zufall(5650 + int(s * 10.0))
++		if wurf.randf() < BACHSTEIN_ANTEIL:
++			var g := Vector3(wurf.randf_range(0.4, 0.9), wurf.randf_range(0.3, 0.5),
++					wurf.randf_range(0.35, 0.7))
++			var p := mitte + rechts * L05Wasser.bach_breite(s) * wurf.randf_range(-0.3, 0.3)
++			p.y = mitte.y - g.y * 0.15
++			sa.stein(_getoent(kiesel(g, 5660 + nr, 0.25, -g.y * 0.25), SANDSTEIN_TON),
++					Transform3D(Basis(Vector3.UP, wurf.randf() * TAU), p))
++			nr += 1
+ 		s += UFERSTEIN_SCHRITT * rng.randf_range(0.6, 1.4)
+ 	s = SIMS_STRECKE.x
+ 	while s < SIMS_STRECKE.y:
+@@ -1797,11 +1927,12 @@ static func _tobel_steine(sa: Sammler, level: Level05) -> void:
+ 			if not is_nan(y) and y - mitte.y >= hoch:
+ 				var g := Vector3(rng.randf_range(2.6, 4.6), rng.randf_range(0.35, 0.65),
+ 						rng.randf_range(1.3, 1.8))
++				g.y *= 1.35
+ 				# Lang den Weg entlang (x), quer zur Wand (z zum Weg hin).
+ 				var lage := Transform3D(Basis(vor, Vector3.UP, rechts).orthonormalized()
+ 						* Basis(Vector3.UP, rng.randf_range(-0.15, 0.15)),
+ 						Vector3(w.x, y - g.y * 0.35, w.z) - rechts * (g.z * 0.5 - SIMS_VOR))
+-				sa.stein(_getoent(kiesel(g, 5700 + nr, 0.9), SANDSTEIN_TON), lage)
++				sa.stein(_getoent(kiesel(g, 5700 + nr, SIMS_MOOS), SANDSTEIN_TON), lage)
+ 				nr += 1
+ 				break
+ 			d += 0.25
+@@ -1815,7 +1946,7 @@ static func _tobel_steine(sa: Sammler, level: Level05) -> void:
+ 		var rechts := LevelWerkzeuge.richtung(level.verlauf, s).cross(Vector3.UP).normalized()
+ 		var g := Vector3(rng.randf_range(1.0, 1.7), rng.randf_range(0.8, 1.4),
+ 				rng.randf_range(0.9, 1.4))
+-		var p := mitte + rechts * (L05Wasser.BACH_BREITE * 0.5 + rng.randf_range(0.0, 0.4))
++		var p := mitte + rechts * (L05Wasser.bach_breite(s) * 0.5 + rng.randf_range(0.0, 0.4))
+ 		p.y = mitte.y - 0.25 + g.y * 0.35
+ 		sa.stein(_getoent(kiesel(g, 5800 + nr, 0.8, -g.y * 0.2), SANDSTEIN_TON),
+ 				Transform3D(Basis(Vector3.UP, rng.randf() * TAU), p))
+@@ -2017,6 +2148,17 @@ static func _grabenrampe(sa: Sammler, level: Level05) -> void:
+ ## frei), schlängelt sich längs um ±STUFE_SCHLINGERN und hat Knoten
+ ## (Radius bis STUFE_KNOTEN mal dicker). Der Rücken bleibt, wo sie zu sehen
+ ## ist, bündig in der Decke (Option „oben"), also nichts zum Stolpern.
++## R3 (Bild-Jury R3, Mangel „Wurzeltreppen": „zwei schnurgerade Balken …
++## mit einem rosa-weißen Glanzstreifen auf der Oberkante … wie Bordsteine"):
++## Der Rücken trägt Borke statt der hellen Eigenfarbe (Option „oben_borke",
++## matt – die Eigenfarbe hat im Borkenstoff die Rauheit 0,7, und die tiefe
++## Sonne im Rücken der Kamera legte darauf einen Glanz), und unter ihr
++## laufen in der Setzstufe zwei dünnere Stränge in Stücken (STUFE_STRAENGE:
++## Höhe unter der Decke, Halbmesser, Tiefe in der Stufe), die aus der Erde
++## kommen und wieder in ihr verschwinden – zwischen ihnen liegt die Erde der
++## Stufe frei. Alles davon liegt in der Stufe oder unter der Narbe, nichts
++## über der Decke.
++const STUFE_STRAENGE: Array[Vector3] = [Vector3(0.27, 0.07, -0.1), Vector3(0.44, 0.05, -0.15)]
+ static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand,
+ 		saat: int) -> void:
+ 	var oben := level.boden_bei(s - 0.05)
+@@ -2056,8 +2198,34 @@ static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand
+ 	dicke.append(0.1)
+ 	_holz(sa.holz, lage, linie, _radien(linie.size(), dicke), {"saat": saat, "seiten": 9,
+ 			"moos": 0.35, "ton": WURZEL_TON, "buckel": 0.07, "oben": 0.012,
+-			"klemm_x": Vector2(-links - 0.3, rechts + 0.3), "hell": ABGEWETZT * 1.1,
++			"klemm_x": Vector2(-links - 0.3, rechts + 0.3), "oben_borke": true,
+ 			"anfang": "spitz", "ende": "spitz"})
++	# Stränge in der Setzstufe (siehe Kopf), je Strang zwei, drei Stücke.
++	var rs := PropWerkzeug.zufall(saat + 50)
++	for strang in STUFE_STRAENGE.size():
++		var f: Vector3 = STUFE_STRAENGE[strang]
++		var a := -links + rs.randf_range(0.2, 0.9)
++		while a < rechts - 1.2:
++			var b := minf(a + rs.randf_range(1.6, 3.4), rechts - 0.3)
++			var teil := PackedVector3Array()
++			var n := maxi(3, ceili((b - a) / 0.45))
++			for i in n + 1:
++				var u := float(i) / float(n)
++				# An den Enden in die Erde (z nach hinten), dazwischen leicht
++				# gewellt in der Stufe.
++				var rein := pow(absf(u * 2.0 - 1.0), 6.0)
++				teil.append(Vector3(lerpf(a, b, u),
++						-f.x + 0.05 * sin(u * 5.0 + float(saat + strang)),
++						f.z - 0.22 * rein + 0.03 * cos(u * 7.0 + float(strang))))
++			var glatt := _glatt(teil, 2)
++			var rr := PackedFloat32Array()
++			for i in glatt.size():
++				var u := float(i) / float(glatt.size() - 1)
++				rr.append(f.y * (0.6 + 0.4 * sin(u * PI)) * rs.randf_range(0.9, 1.1))
++			_holz(sa.holz, lage, glatt, rr, {"saat": saat + 60 + strang * 9,
++					"seiten": 7, "moos": 0.5, "ton": WURZEL_TON, "buckel": 0.1,
++					"anfang": "spitz", "ende": "spitz"})
++			a = b + rs.randf_range(0.5, 1.4)
+ 
+ 
+ # ================================================================ Wehr, Rastplätze
+diff --git a/scenes/props/riesenstamm.gd b/scenes/props/riesenstamm.gd
+index adfb8be..178c03d 100644
+--- a/scenes/props/riesenstamm.gd
++++ b/scenes/props/riesenstamm.gd
+@@ -81,6 +81,14 @@ const FUSS_WINKEL := 48
+ ## übergeben, liefern Bit für Bit dieselben Felder und Metadaten wie vorher;
+ ## der Portalraum ruft `netz` nicht auf (nur `borkenstoff`).
+ const SPALT_FARBE := Color(0.44, 0.4, 0.33)
++## SPALT_BORKE (Option "spalt_borke", Level 05, Bild-Jury L05 R3: „heller,
++## gepunkteter Spaltstreifen wie ein Reißverschluss"): Die Ecken der Fläche
++## tragen dann UV2.x = BORKE statt EIGEN. Der Stoff legt die Rinde darüber
++## (Furchen längs, Normalentextur, Rauheit 0,95) und multipliziert sie mit
++## dem dunklen Holzton aus `_spalt_ton` – zerfasertes, mattes Holz. Als
++## EIGEN glänzte die Fläche (Rauheit 0,7) und zeigte nur die Töne der Ecken:
++## Streifen und Punkte. Das Moos bleibt weg (Alpha 0, senkrechte Fläche).
++## NULL-PFAD: Ohne die Option ist `spalt_art` EIGEN wie zuvor.
+ ## Über diesen Anteil der Höhe läuft die Fläche an `spalt_von` und
+ ## `spalt_bis` aus (Tiefe 0 → voll): ein Riss, der sich schließt, statt
+ ## einer Stufe in der Borke.
+@@ -140,6 +148,8 @@ static func fertig(st: SurfaceTool) -> ArrayMesh:
+ ##   spalt_von, spalt_bis   über welchen Anteil der Höhe sie läuft (0, 1);
+ ##                    an beiden Enden läuft sie über SPALT_AUSLAUF aus
+ ##   spalt_farbe      Ton des verwitterten Holzes (SPALT_FARBE)
++##   spalt_borke      die Spaltfläche mit der Rindentextur statt als
++##                    glatter Holzton (siehe SPALT_BORKE)
+ ##   saat             feste Saat (1)
+ ##
+ ## Metadaten am Netz: "ast_spitzen" (PackedVector3Array, samt Leittrieb als
+@@ -371,6 +381,7 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
+ 	var spalt_an := spalt != Vector2.ZERO
+ 	if spalt_an:
+ 		spalt = spalt.normalized()
++	var spalt_art := BORKE if bool(o.get("spalt_borke", false)) else EIGEN
+ 	if schlicht_:
+ 		rippen = 0
+ 		pilze = 0
+@@ -501,7 +512,7 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
+ 			var nord := moos * (1.0 - smoothstep(0.5, maxf(2.5, hoehe * 0.45), yy))
+ 			if im_spalt:
+ 				fa.append(_spalt_ton(p, spalt, o, rauschen))
+-				ar.append(Vector2(EIGEN, 0.0))
++				ar.append(Vector2(spalt_art, 0.0))
+ 			else:
+ 				fa.append(Color(ao, ao, ao, clampf(m, 0.0, 1.0)))
+ 				ar.append(Vector2(BORKE, nord))
+diff --git a/scripts/gemeinsam/wegdecke.gd b/scripts/gemeinsam/wegdecke.gd
+index bd221ed..e02454b 100644
+--- a/scripts/gemeinsam/wegdecke.gd
++++ b/scripts/gemeinsam/wegdecke.gd
+@@ -208,6 +208,9 @@ static func kronenlicht_bei(abschnitte: Array, s: float) -> float:
+ ##                  in Level 01. Level 05 verlangt vier bis sechs (Entwurf
+ ##                  §8.4): weniger lesen sich aus 14 m nicht als Lippe
+ ##   name           hängt an den Namen des Sammelknotens an
++##   lippen_stein_hoch  Faktor auf die Höhe der Kalksteine (Vorgabe: ohne,
++##                  8–14 cm wie in Level 01). Level 05 (Bild-Jury R3: „flache
++##                  graue Scheiben") nimmt ihn für höhere, runde Brocken
+ static func lippen(eltern: Node3D, weg: Wegdaten, thema: Dictionary) -> Node3D:
+ 	var wurzel := Node3D.new()
+ 	wurzel.name = "Lueckenlippen" + (" " + String(thema["name"]) if thema.has("name") else "")
+@@ -252,7 +255,7 @@ static func _luecke(weg: Wegdaten, luecke: Dictionary, thema: Dictionary) -> Mes
+ 		if eintrag.is_empty():
+ 			continue
+ 		_lippe(st, weg, eintrag, float(lippe[1]), float(lippe[2]), mitte, holz, pilze, rng,
+-				steine)
++				steine, float(thema.get("lippen_stein_hoch", 0.0)))
+ 	var netz := st.commit()
+ 	if netz.get_surface_count() == 0:
+ 		return null
+@@ -274,7 +277,8 @@ static func _luecke(weg: Wegdaten, luecke: Dictionary, thema: Dictionary) -> Mes
+ ## Level 01.
+ static func _lippe(st: SurfaceTool, weg: Wegdaten, eintrag: Dictionary, s_lippe: float,
+ 		innen: float, mitte: Vector3, holz: bool, pilze: bool,
+-		rng: RandomNumberGenerator, steine: Vector2i = Vector2i.ZERO) -> void:
++		rng: RandomNumberGenerator, steine: Vector2i = Vector2i.ZERO,
++		thema_hoch: float = 0.0) -> void:
+ 	var von: float = eintrag["von"]
+ 	var bis: float = eintrag["bis"]
+ 	var t := inverse_lerp(von, bis, s_lippe) if bis > von else 0.0
+@@ -282,6 +286,8 @@ static func _lippe(st: SurfaceTool, weg: Wegdaten, eintrag: Dictionary, s_lippe:
+ 	var halb := lerpf(breite, float(eintrag.get("breite_ende", breite)), clampf(t, 0.0, 1.0)) * 0.5
+ 	var y := LevelWerkzeuge.eintrag_hoehe(weg.verlauf, eintrag, s_lippe)
+ 	var rahmen := {"weg": weg, "s": s_lippe, "innen": innen, "y": y, "mitte": mitte}
++	if thema_hoch > 0.0:
++		rahmen["hoch"] = thema_hoch
+ 	# Die Steine liegen in der Spur und ein Stück darüber hinaus, in zwei,
+ 	# drei GRUPPEN – gleichmäßig verteilt lasen sie sich als Bordstein
+ 	# (boden.gd:208-213).
+@@ -427,6 +433,8 @@ static func _stein(st: SurfaceTool, rahmen: Dictionary, q: float, breite_q: floa
+ 		umriss.append(Vector2(maxf(mitte2.x + ra * ca * j, VOR), q + rb * sb * j))
+ 	# Gewölbt nach Größe: kleine Steine 8, große bis 14 cm.
+ 	var hoehe := clampf(0.06 + 0.12 * minf(ra, rb), 0.08, 0.14) * rng.randf_range(0.9, 1.05)
++	if rahmen.has("hoch"):
++		hoehe *= float(rahmen["hoch"])
+ 	_kuppe(st, rahmen, umriss, mitte2, hoehe, grund, rng)
+ 
+ 
+diff --git a/shaders/himmel.gdshader b/shaders/himmel.gdshader
+index 5e6b0d6..8131c8e 100644
+--- a/shaders/himmel.gdshader
++++ b/shaders/himmel.gdshader
+@@ -69,6 +69,14 @@ uniform vec3 wolke_schatten : source_color = vec3(0.62, 0.68, 0.76);
+ // weit weg, hinter viel Luft. Sonst standen sie als die hellsten Flecken
+ // im Bild, heller als der Weg.
+ uniform float wolken_dunst = 0.0;
++// Wolkenbänke am Horizont (freiwillig, 0 = aus; Level 05, Bild-Jury L05
++// R3: „30–40 % leerer Himmel"): Bis `wolken_bank_hoehe` (Sinus des
++// Winkels) sinkt die Schwelle um bis zu `wolken_bank` – tief am Himmel
++// schließen sich die Wolken zu Bänken –, und die Ausblendung zum Horizont
++// (sonst ab 0,16) rückt bis 0,04 hinab. NULL-PFAD: Mit 0 bleiben Schwelle
++// und Ausblendung Bit für Bit, wie sie waren (a − 0 = a, mix(a, b, 0) = a).
++uniform float wolken_bank = 0.0;
++uniform float wolken_bank_hoehe = 0.14;
+ 
+ 
+ void sky() {
+@@ -93,8 +101,9 @@ void sky() {
+ 		// Ebene Wolkendecke, zum Horizont hin gestaucht.
+ 		vec2 uv = d.xz / (h + 0.12) * wolken_skala;
+ 		float n = texture(wolken, uv).r * 0.65 + texture(wolken, uv * 2.7 + vec2(0.31, 0.17)).r * 0.35;
+-		float dichte = smoothstep(wolken_menge, wolken_menge + wolken_weich, n)
+-				* smoothstep(0.015, 0.16, h);
++		float schwelle = wolken_menge - wolken_bank * (1.0 - smoothstep(0.02, wolken_bank_hoehe, h));
++		float dichte = smoothstep(schwelle, schwelle + wolken_weich, n)
++				* mix(smoothstep(0.015, 0.16, h), smoothstep(0.004, 0.04, h), clamp(wolken_bank * 4.0, 0.0, 1.0));
+ 		vec3 wolke = mix(wolke_schatten, wolke_hell, smoothstep(wolken_menge, wolken_menge + 0.35, n));
+ 		// Sonnenseitige Ränder leuchten warm – dünne Stellen stärker.
+ 		wolke += schein_farbe * licht * pow(zur_sonne, 5.0) * (1.0 - dichte * 0.6) * 0.7;

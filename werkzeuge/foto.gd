@@ -22,8 +22,23 @@ extends Node
 ##   FOTO_RADIUS   nur orbit: Abstand zur Mitte (Vorgabe 26)
 ##   FOTO_HOEHE    nur orbit: Höhe über der Mitte (Vorgabe 14)
 ##   FOTO_ASSETS   0 = mitgelieferte Naturmodelle aus, prozedural bauen
+##   FOTO_REDUZIERT 1 = wie ein Handy im Browser: `Effekte.reduziert` (halbe
+##                 Mengen, kürzere Sichtweiten, jedes Level mit einer
+##                 Schattenstufe bis 50 m), ohne MSAA und mit der
+##                 Schattenkarte des Web-Exports (`directional_shadow/size.web`,
+##                 2048 statt 4096). Die Überschreibung `.web` greift nur im
+##                 Export; ohne sie wurde die eine Schattenstufe hier mit
+##                 doppelter Auflösung beurteilt und der VRAM zu hoch
+##                 gezählt. Zum Messen des Web-Budgets und zum Ansehen der
+##                 Schatten, wie ein Handy sie zeigt.
+##   FOTO_TOUCH    1 = Touch-Tasten zeigen wie auf dem Handy. Zusammen mit
+##                 FOTO_REDUZIERT das ganze Bild eines Handys im Browser –
+##                 die Tasten kosten allein rund 70 Draw-Calls.
 ##   FOTO_ZEITMODUS 1 = Zeitmodus an (Zeitkisten im Level, Uhr im HUD)
 ##   FOTO_STATUS   1 = Statustafel aufgeklappt zeigen
+##   FOTO_SAAT     Zahl = fester Startwert für den Zufall (Phasen von
+##                 Früchten und Gegnern); schaufenster.sh setzt 1, damit
+##                 zwei Läufe desselben Stands pixelgleich werden
 ##   FOTO_SEITLICH seitlicher Versatz der Figur vom Wegmittelpunkt in Metern
 ##                 (nur verfolger/seite/nah) – zeigt, wie stark die Kamera
 ##                 seitliche Bewegungen mitnimmt
@@ -34,6 +49,18 @@ extends Node
 ##                 bild  draw  objekte  primitive  vram_mb  knoten
 ##   FOTO_BUDGET_DRAW  Draw-Calls je Bild; darüber gibt es eine WARNUNG
 ##
+## OPT-IN DES LEVELS (Baukasten Raum 1 §1.7), beides über `has_method`;
+## ein Level ohne die Methoden wird fotografiert wie bisher:
+##   foto_stelle(s, q) -> Vector3  Weltort der Figur für verfolger/seite/nah.
+##                 Ohne sie steht die Figur 1 m über der KURVE – auf einer
+##                 Terrasse schwebt sie dann oder steckt im Boden. Die
+##                 Kameras von seite und nah bleiben im selben Abstand zur
+##                 Figur wie bisher (ihr Bezugspunkt liegt 1 m unter ihr).
+##                 Bewusst nicht `weg_punkt`: Level 01 hat die Funktion, und
+##                 seine Bilder sollen bleiben, wie sie sind.
+##   pruefruhe()   einmal, nachdem die Figur stillgelegt ist: hält an, was
+##                 von selbst läuft (Keiler, Taktgefahren, Stromuhr)
+##
 ## Ausgabe je Aufnahme, eine Zeile – Bild und Kosten stehen zusammen, damit
 ## jede Verschönerung zugleich nach Aussehen UND Preis beurteilt wird:
 ##   ok   <pfad>  draw 2026  obj 2044  prim 859k  vram 94.4 MB  knoten 3555
@@ -42,9 +69,13 @@ extends Node
 ##           Renderer sie nicht (seine Schatten-Zählung bleibt immer 0),
 ##           deshalb fehlt eine eigene Spalte. Gemessen an Level 01: ohne
 ##           Sonnenschatten 1286 statt 2026 Draw-Calls bei 4 m, 480 statt
-##           1027 bei 170 m – die Schatten kosten dort also gut ein Drittel
-##           bis die Hälfte. Die Sonne läuft mit vier Schattenstufen; ein
-##           Objekt mit `cast_shadow` aus spart bis zu vier Draw-Calls.
+##           1027 bei 170 m (altes Level 01 mit vier Schattenstufen) – die
+##           Schatten kosten also gut ein Drittel bis die Hälfte. Jede
+##           Schattenstufe zeichnet jeden Schattenwerfer darin noch einmal;
+##           ein Objekt mit `cast_shadow` aus spart je Stufe einen Draw-Call.
+##           Level 01 läuft am Rechner mit zwei Stufen bis 70 m, im Web am
+##           Rechner mit zwei bis 60 m und auf dem Handy (FOTO_REDUZIERT)
+##           mit einer bis 50 m (`Level01._nach_aufbau`).
 ## obj/prim  gezeichnete Objekte und Primitive (Dreiecke), ebenfalls gesamt
 ## vram      belegter Grafikspeicher, knoten = Knoten im Baum
 ## Das sind Zählwerte, keine Zeiten: Sie stimmen unter llvmpipe (Xvfb)
@@ -64,6 +95,21 @@ func _ready() -> void:
 	# Zum Vergleichen: FOTO_ASSETS=0 zeigt die prozeduralen Props.
 	if OS.get_environment("FOTO_ASSETS") == "0":
 		Einstellungen.fremde_modelle = false
+	# FOTO_REDUZIERT=1 misst das Web-Budget (Handy im Browser). VOR dem
+	# Aufbau: Dichten, Sichtweiten und Schatten richten sich beim Bauen
+	# danach. MSAA schaltet sonst `Einstellungen._ready()` ab – das lief
+	# schon, bevor dieser Knoten entstand.
+	if OS.get_environment("FOTO_REDUZIERT") == "1":
+		Effekte.reduziert = true
+		get_tree().root.msaa_3d = Viewport.MSAA_DISABLED
+		# Die Schattenkarte des Web-Exports: Die Überschreibung `.web` gilt
+		# nur dort, hier bliebe sie 4096 groß – und die eine Schattenstufe
+		# des Handys sähe doppelt so scharf aus, wie sie ist.
+		var karte := int(ProjectSettings.get_setting(
+				"rendering/lights_and_shadows/directional_shadow/size.web", 2048))
+		var halb := bool(ProjectSettings.get_setting(
+				"rendering/lights_and_shadows/directional_shadow/16_bits", true))
+		RenderingServer.directional_shadow_atlas_set_size(karte, halb)
 	# FOTO_ZEITMODUS=1 zeigt das Level so, wie es im Zeitlauf aussieht:
 	# mit Zeitkisten und laufender Uhr. Muss VOR dem Aufbau stehen – der
 	# Umbau der Kisten passiert einmalig beim Laden des Levels.
@@ -78,6 +124,15 @@ func _ready() -> void:
 	var nummer := pfad.get_file().get_basename().to_lower().trim_prefix("level")
 	if nummer.is_valid_int():
 		Spielfluss.aktuelles_level = int(nummer)
+
+	# FOTO_SAAT=<Zahl>: fester Startwert für den Zufall. Godot mischt ihn
+	# bei jedem Start neu, und Früchte wie Gegner würfeln in `_ready()` ihre
+	# Phase (frucht.gd, gegner.gd: `randf()`) – zwei Läufe DESSELBEN Stands
+	# zeigten Früchte, Spinne und Käfer deshalb an anderer Stelle, kein
+	# einziges Bild war pixelgleich. Vor dem Laden: Die Würfe beim
+	# Instanziieren gehören schon dazu.
+	if OS.get_environment("FOTO_SAAT").is_valid_int():
+		seed(int(OS.get_environment("FOTO_SAAT")))
 
 	_szene = load(pfad).instantiate()
 	add_child(_szene)
@@ -101,6 +156,14 @@ func _ready() -> void:
 			print("HINWEIS: Aufbau meldete sich nicht, es wird trotzdem fotografiert")
 	for f in 5:
 		await get_tree().process_frame
+
+	if OS.get_environment("FOTO_TOUCH") == "1":
+		var touch := _szene.find_child("TouchControls", true, false)
+		if touch == null:
+			print("HINWEIS: keine Touch-Tasten gefunden")
+		else:
+			touch.set("erzwingen", true)
+			touch.call("_sichtbarkeit_pruefen")
 
 	# Statustafel aufklappen, um sie im Bild zu prüfen. Sie hält den Baum
 	# an – deshalb erst nach dem Aufbau und mit PROCESS_MODE_ALWAYS am
@@ -127,6 +190,10 @@ func _ready() -> void:
 		if koerper != null:
 			koerper.collision_layer = 0
 			koerper.collision_mask = 0
+	# Opt-in (siehe Kopf): Was von selbst läuft, steht für die Bilder still –
+	# der Keiler holte die stillgelegte Figur sonst ein und kostete Leben.
+	if _szene.has_method("pruefruhe"):
+		_szene.call("pruefruhe")
 	# Zum Prüfen der Schutzmasken: FOTO_SCHUTZ=3 gibt drei Ladungen.
 	if not OS.get_environment("FOTO_SCHUTZ").is_empty():
 		GameState.schutz = int(OS.get_environment("FOTO_SCHUTZ"))
@@ -210,8 +277,12 @@ func _fotografiere(stellen: PackedStringArray, modus: String) -> void:
 			if not OS.get_environment("FOTO_SEITLICH").is_empty():
 				quer_versatz = float(OS.get_environment("FOTO_SEITLICH"))
 			var mitte: Vector3 = LevelWerkzeuge.punkt(_verlauf, wert, quer_versatz, 0.0)
+			var figur_ort := mitte + Vector3.UP * 1.0
+			if _szene.has_method("foto_stelle"):
+				figur_ort = _szene.call("foto_stelle", wert, quer_versatz)
+				mitte = figur_ort - Vector3.UP * 1.0
 			if _spieler != null:
-				_spieler.global_position = mitte + Vector3.UP * 1.0
+				_spieler.global_position = figur_ort
 				# Versetzt, nicht gelaufen: Ohne Rücksetzen zeichnete Godot
 				# die Figur bis zum nächsten Physikschritt auf halbem Weg
 				# von der vorigen Stelle – bei festen 30 Bildern je Sekunde
