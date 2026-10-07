@@ -409,8 +409,14 @@ const BEGEHBARES := [
 			"groesse": Vector3(2.0, 3.2, 5.0), "oben": 2.2, "ebene": 16},
 	{"name": "G3 Trittstein", "form": "kasten", "s": 257.0, "q": 3.4,
 			"groesse": Vector3(1.4, 2.2, 1.4), "oben": 1.2, "ebene": 1},
-	{"name": "G3 Sonnensims", "form": "kasten", "s": 260.5, "q": 4.9,
-			"groesse": Vector3(1.4, 3.6, 4.0), "oben": 2.6, "ebene": 16},
+	# G3 Sonnensims 1,9 m breit statt 1,4 (bis 0,1 m an die Nische): Mit drei
+	# Kisten auf der Mitte füllte die Gasse den Sims in ganzer Breite – wer
+	# landete und nicht sofort einen Drehschlag machte, stand an der ersten
+	# Kiste fest (Spiel-Jury R3, Mangel 4: 66 Bilder ohne Fortkommen, dann
+	# gefangen). Jetzt stehen sie außen (q 5,6, KISTEN), innen bleibt ein
+	# Gang von gut 0,95 m (q 4,2–5,15) – wie an G2.
+	{"name": "G3 Sonnensims", "form": "kasten", "s": 260.5, "q": 5.15,
+			"groesse": Vector3(1.9, 3.6, 4.0), "oben": 2.6, "ebene": 16},
 	{"name": "Wehrkörper vorn", "form": "sweep", "von": 279.0, "bis": 284.0,
 			"profil": [Vector2(-3.6, -0.03), Vector2(3.6, -0.03), Vector2(3.6, -1.6),
 				Vector2(-3.6, -1.6)], "ebene": 1},
@@ -610,9 +616,10 @@ const KISTEN := [
 	# --- C (21–32), dazwischen G3 und hinter dem Wehr ---
 	{"art": Kiste.Art.NORMAL, "s": 128.6, "q": 2.2},  # Zeit 2
 	{"art": Kiste.Art.NORMAL, "s": 129.8, "q": 2.2},
-	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 259.9, "q": 4.9, "auf": "G3 Sonnensims"},
-	{"art": Kiste.Art.NORMAL, "s": 261.0, "q": 4.9, "auf": "G3 Sonnensims"},
-	{"art": Kiste.Art.LEBEN, "s": 262.1, "q": 4.9, "auf": "G3 Sonnensims"},
+	# G3: außen auf dem Sims, innen der Gang (siehe BEGEHBARES).
+	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 259.9, "q": 5.6, "auf": "G3 Sonnensims"},
+	{"art": Kiste.Art.NORMAL, "s": 261.0, "q": 5.6, "auf": "G3 Sonnensims"},
+	{"art": Kiste.Art.LEBEN, "s": 262.1, "q": 5.6, "auf": "G3 Sonnensims"},
 	{"art": Kiste.Art.NORMAL, "s": 144.5, "q": 2.2},  # Zeit 1
 	{"art": Kiste.Art.NORMAL, "s": 145.7, "q": 2.2},
 	{"art": Kiste.Art.NORMAL, "s": 291.5, "q": 2.2},  # hinter dem Wehr
@@ -689,12 +696,33 @@ const FRUECHTE := [
 	{"art": "punkte", "punkte": [Vector3(242.0, 1.8, 0.9), Vector3(244.0, 1.8, 0.9),
 			Vector3(247.0, 0.0, 0.9), Vector3(250.0, -1.8, 0.9), Vector3(252.0, -1.8, 0.9)]},
 	{"art": "punkte", "punkte": [Vector3(257.0, 3.4, 2.1), Vector3(257.8, 4.0, 3.2),
-			Vector3(258.8, 4.9, 3.5), Vector3(262.2, 4.9, 3.5), Vector3(262.2, 4.4, 3.5)]},
+			Vector3(258.8, 4.65, 3.5), Vector3(262.2, 4.65, 3.5), Vector3(262.2, 4.3, 3.5)]},
 	# --- E: 12 ---
-	# Auf der Bahn des Doppelsprungs über das Wehr (Füße im Scheitel 3,2).
-	{"art": "bogen", "von": 283.5, "bis": 289.5, "anzahl": 7, "q": 0.8, "scheitel": 3.6},
+	# Über das Wehr (WEHR_BOGEN): neben der Bahn des Doppelsprungs, schräg
+	# und höher.
+	{"art": "punkte", "punkte": WEHR_BOGEN},
 	{"art": "reihe", "von": 290.5, "bis": 295.0, "anzahl": 5, "q": 0.0},
 ]
+
+## Fruchtbogen über das Wehr L6 (Spiel-Jury R3, Mangel 5; Bild-Jury R3,
+## Kleinteile): Bis Runde 3 ein Bogen längs auf q 0,8 mit Scheitel 3,6 –
+## aus der Rückblickkamera eine senkrechte Reihe auf der Figur, kein Bogen,
+## und nichts sagte „hier zweimal springen". Jetzt läuft er schräg von
+## q 1,4 an der fernen Lippe nach q 2,4 an der nahen und steigt bis 4,1 m
+## (Füße im Scheitel des Doppelsprungs 3,2, Mitte der Figur 3,85; höher
+## nicht – K1, über |q| ≤ 3,5 nichts zwischen 4,6 und 9,2 m, die Frucht
+## reicht 0,35 m über ihre Mitte): Im Bild steht er neben der Figur als
+## Bogen, höher als jeder andere. Eingesammelt wird er im Doppelsprung auf
+## q 0 trotzdem (Anziehung ab 2,6 m, `Frucht.MAGNET_RADIUS`; der Scheitel
+## liegt 1,9 m neben und 0,25 m über der Mitte der Figur). Dazu der
+## Hinweis nach dem ersten Sturz dort (WEHR_HINWEIS).
+const WEHR_BOGEN: Array[Vector3] = [
+	Vector3(283.5, 1.4, 1.2), Vector3(284.5, 1.57, 2.81), Vector3(285.5, 1.73, 3.78),
+	Vector3(286.5, 1.9, 4.1), Vector3(287.5, 2.07, 3.78), Vector3(288.5, 2.23, 2.81),
+	Vector3(289.5, 2.4, 1.2),
+]
+## Nach dem ersten Sturz in den Wehrbruch (`_nach_sturz`): ein Hinweis.
+const WEHR_HINWEIS := "Über das Wehr: in der Luft noch einmal springen!"
 
 ## Rastplätze (§6.5): Zonen auf `boden_bei`, Breite `breite_bei` + 2. Der
 ## erste ist zugleich die Stelle des Weckens (L05Jagd.WECK_S).
@@ -730,23 +758,31 @@ const SICHTWEITEN := {"kiste": 50.0, "frucht": 40.0, "kiste_web": 40.0, "frucht_
 ## 2,8 ≈ 97 s) schenkte hier jede Stufe.
 ##
 ## ABGESTUFT STATT KLIPPE (Spiel-Jury R2, Mangel 2). Bei einer Jagd mit
-## festem Tempo ist die Uhr ohne Kisten fast fest: Die Ideallinie ohne Kiste
-## braucht gemessen 35,28 s (Jagdprobe mit Zeitmodus, 60 Hz), jeder
-## Überlebende 35–41 s. Runde 1 setzte die Richtzeit aus einem Lauf, der
-## alle Zeitkisten der Hauptlinie mitnahm (1,3 × 11,58 s → 15 s): Wer sauber,
-## aber ohne Kistenjagd lief, holte keine Stufe und sah ab s ≈ 130 „Richtzeit
-## vorbei"; Saphir verlangte 9–10 der 12 Zeitkisten. Jetzt:
-##   Saphir  37,0 s    der saubere Lauf ohne Kisten, mit gut 1,5 s Luft
-##                     (ein, zwei Stolperer)
-##   Gold    31,45 s   dazu gut 3,8 s Standzeit: zwei, drei Zeitkisten
-##   Platin  26,64 s   dazu gut 8,6 s: vier, fünf Zeitkisten
+## festem Tempo ist die Uhr ohne Kisten fast fest. Runde 1 setzte die
+## Richtzeit aus einem Lauf, der alle Zeitkisten der Hauptlinie mitnahm
+## (1,3 × 11,58 s → 15 s): Wer sauber, aber ohne Kistenjagd lief, holte keine
+## Stufe. Runde 2 setzte sie auf 37 s nach der Ideallinie OHNE Slide-Spurt.
+## SPURT GEHÖRT DAZU (Spiel-Jury R3, Mangel 2): Den Slide als Spurt lehrt
+## das Level selbst (Entwurf §6.1, Lehrfolge Nr. 4, Kistengasse 36), und im
+## Zeitmodus nutzt ihn jeder, der auf Zeit läuft. Mit 37 s gab es Gold ohne
+## eine einzige Zeitkiste und Platin mit zweien. Gemessen (Juryprobe mit
+## Zeitmodus, 60 Hz, Eintrag `Spielfluss.zeiten`; die Zeiten hängen nicht
+## von der Richtzeit ab):
+##   Ideallinie ohne Kiste, ohne Spurt          35,28 s
+##   Dauer-Slide ohne Kiste                     29,60 s
+##   Dauer-Slide, nur Gasse 36 (1 s + 3 s)      25,88 s
+##   alle Gassen mit Drehschlag                  7,62 s (mit Dauer-Slide 7,57)
+## Jetzt aus dem Dauer-Slide-Lauf, mit gut 2,4 s Luft:
+##   Saphir  32,0 s    der Spurt ohne Kiste (ein Stolperer Luft); wer ohne
+##                     Spurt läuft, braucht zwei Zeitkisten
+##   Gold    27,2 s    Spurt und 2,4 s Standzeit: eine bis zwei Zeitkisten
+##   Platin  23,04 s   Spurt und 6,6 s: drei bis vier Zeitkisten
 ## Die Zeitkisten stehen seit Runde 2 alle auf der Hauptlinie, eine in jeder
 ## Gasse, die letzte vor dem Wehr (siehe KISTEN): 15 Stück, 30 s Standzeit.
-## Ein Drehschlag im Vorbeilaufen kostet kaum Abstand zum Keiler. Was der
-## Lauf mit Zeitkisten gemessen bringt, steht in `doku/level05-neubau.md`,
-## Abschnitt R2. Dem Nutzer vorzulegen (Spiel-Jury R2: „Der Nutzer
-## entscheidet").
-const ZIELZEIT := 37.0
+## Ein Drehschlag im Vorbeilaufen kostet kaum Abstand zum Keiler. Die Stufen
+## je Lauf stehen in `doku/level05-neubau.md`, Abschnitt R3. Dem Nutzer
+## vorzulegen (Spiel-Jury R2/R3: „Der Nutzer entscheidet").
+const ZIELZEIT := 32.0
 
 # =========================================================== Proben
 
@@ -842,6 +878,22 @@ const JAGD_FEHLER_MIN := 2.5
 ## einen Sprung.
 const JAGD_REAKTION_RESPAWN := 1.0
 const JAGD_REAKTION_MIN := 6.5
+## Dauer-Slide (Spiel-Jury R3, Mangel 1; `_dauer_slide_strecken`, L05Jagd
+## Kopf, NACKEN Punkt 3): ab hier, ohne die Strecken vor Hürden (um die
+## Mitte), vor Durchlässen (vor der Stirn) und in der Findlingsgasse; je
+## Strecke höchstens dieser Abstand (Staffel + DECKEL_SPIEL + Spiel, siehe
+## dort; gemessen in doku/level05-neubau.md, R3). Vor einem Durchlass 8 m:
+## Ein Slide ist 5,7 m lang – endet er zwischen dem Slide der Ideallinie
+## (Stirn − 2) und der Stirn, steht die Figur dort auf und stolpert (so in
+## der Juryprobe R3 mit 6,5 m an D2).
+const JAGD_DAUER_VON := 31.5
+const JAGD_DAUER_HUERDE := Vector2(-5.5, 1.0)
+const JAGD_DAUER_DURCHLASS := 8.0
+const JAGD_DAUER_GASSE := Vector2(236.0, 255.0)
+const JAGD_DAUER_SLIDE_MAX: Array[Vector3] = [
+	Vector3(56.0, 110.0, 12.0), Vector3(130.0, 170.0, 10.5), Vector3(190.0, 236.0, 16.5),
+	Vector3(268.0, 282.0, 11.0),
+]
 ## Am Ufer (Entwurf §5 E): hier stehen bleiben – gefangen; hier über der
 ## Lücke gehalten – sicher.
 const JAGD_STEHEN_S := 283.5
@@ -1485,6 +1537,14 @@ func _meldung(s: float, text: String, dauer: float, unten := -1.0) -> void:
 	objekte.add_child(zone)
 
 
+## ZIEL_Q (Bild-Jury R3, Mangel „Ziel"): Auch aufgegangen stand das Portal
+## auf der Mittelachse zwischen Kamera und Figur und verdeckte sie nach der
+## Landung am Wehr fast ganz; die Kisten 291,5–294,1 sammelte man blind. Es
+## steht deshalb bildrechts neben der Achse (q < 0; die Kisten hinter dem
+## Wehr stehen bildlinks auf q +2,2): aus der Kamera bei s 311 gut 5–12°
+## neben der Figur. Der Auslöser bleibt über die ganze Breite des Weges
+## (`_ziel_ausloeser_verbreitern`, auf q 0 zurückgesetzt).
+const ZIEL_Q := -2.3
 ## ZIELPORTAL (Spiel-Jury R1, Mangel 6; Bild-Jury R1, Mangel 2): Im
 ## Rückblick steht das Portal zwischen Figur und Kamera. Sichtbar vom
 ## Anlauf auf das Wehr an verdeckte die leuchtende Kugel die Landestelle des
@@ -1505,6 +1565,7 @@ func _ziel_verbergen() -> void:
 			_zielportal = kind as Portal
 	if _zielportal == null:
 		return
+	_zielportal.position = weg_punkt(ZIEL_S, ZIEL_Q, 0.1)
 	for teil: String in ["Optik", "Lichtfleck"]:
 		var n := _zielportal.get_node_or_null(teil) as Node3D
 		if n != null:
@@ -1537,6 +1598,11 @@ func _ziel_ausloeser_verbreitern() -> void:
 	var kasten := BoxShape3D.new()
 	kasten.size = Vector3(breite_bei(ZIEL_S) + 2.0, ZIEL_AUSLOESER_HOCH, ZIEL_AUSLOESER_TIEF)
 	form.shape = kasten
+	# Das Portal steht neben der Achse (ZIEL_Q), der Kasten über dem Weg.
+	var mitte := weg_punkt(ZIEL_S, 0.0, 0.1)
+	var versatz := _zielportal.transform.affine_inverse() * mitte
+	form.position.x = versatz.x
+	form.position.z = versatz.z
 
 
 ## STOLPERSPERRE (Spiel-Jury R2, Mangel 5): Nach einem Stolpern löst keine
@@ -1607,6 +1673,31 @@ func _ziel_zeigen() -> void:
 func _vor_dem_start() -> void:
 	if jagd != null:
 		jagd.freigeben()
+	var figur := _spieler as Spieler
+	if figur != null and not figur.gestorben.is_connected(_auf_tod):
+		figur.gestorben.connect(_auf_tod)
+		nach_tod_melden(self)
+
+
+## Sturz in den Wehrbruch (siehe WEHR_BOGEN): Stirbt die Figur unter der
+## Lippe von L6, kommt nach dem Respawn einmal WEHR_HINWEIS (`nach_tod`).
+## Gefangen am Ufer zählt nicht – dort fehlte kein Doppelsprung.
+var _wehr_sturz := false
+
+
+func _auf_tod() -> void:
+	var wehr: Dictionary = LUECKEN[LUECKEN.size() - 1]
+	var s := strecke_der_figur()
+	var y := to_local(_spieler.global_position).y
+	_wehr_sturz = s >= float(wehr["von"]) - 1.0 and s <= float(wehr["bis"]) + 0.5 \
+			and y < boden_bei(float(wehr["von"])) - 0.5
+
+
+func nach_tod(_von_vorn: bool) -> void:
+	if _wehr_sturz and not _gemeldet.has(WEHR_HINWEIS):
+		_gemeldet[WEHR_HINWEIS] = true
+		GameState.zeige_nachricht(WEHR_HINWEIS, 3.0)
+	_wehr_sturz = false
 
 
 func zielzeit() -> float:
@@ -1747,7 +1838,7 @@ func sprungfaelle() -> Array[Dictionary]:
 			"kante": stein_vorn - 2.7, "von": 251.45, "landung": stein_vorn + 0.1,
 			"pflicht": false})
 	faelle.append({"name": "G3 Sonnensims", "art": "einfach", "start": Vector2(stein_s - 0.5, 3.4),
-			"ziel": Vector2(stein_s + 3.5, 4.9), "kante": stein_s, "von": stein_s - 0.25,
+			"ziel": Vector2(stein_s + 3.5, 4.65), "kante": stein_s, "von": stein_s - 0.25,
 			"landung": stein_s + 1.6, "tief_erlaubt": 0.5, "pflicht": false})
 	return faelle
 
@@ -1835,6 +1926,9 @@ func jagdfaelle() -> Array[Dictionary]:
 				"checkpoint": _rastplatz_ort(s), "rastplatz": s, "aktionen": reaktion,
 				"spur": JAGD_SPUR, "ende_dauer": 4.0, "erwartet": "ueberlebt",
 				"keiler_start": start, "min_abstand": JAGD_REAKTION_MIN})
+	faelle.append({"name": "Dauer-Slide", "checkpoint": anfang, "rastplatz": START_S,
+			"aktionen": ideal, "spur": JAGD_SPUR, "ende_s": JAGD_ENDE_S, "erwartet": "ueberlebt",
+			"dauer_slide": _dauer_slide_strecken(), "max_abstand": JAGD_DAUER_SLIDE_MAX})
 	var cp2: float = RASTPLAETZE[1]
 	var stehen: Array[Dictionary] = [{"s": cp2 - 5.0, "tun": "stehen", "wo": "Respawn"}]
 	faelle.append({"name": "Stehen nach dem Respawn an %.0f" % cp2,
@@ -1872,6 +1966,29 @@ func jagdfaelle() -> Array[Dictionary]:
 	faelle.append({"name": "Ziel", "checkpoint": _rastplatz_ort(cp5), "rastplatz": cp5,
 			"aktionen": ideal, "spur": JAGD_SPUR, "ende_ziel": 3.0, "erwartet": "ueberlebt"})
 	return faelle
+
+
+## Strecken des Dauer-Slides (Fall „Dauer-Slide"): ab dem Wecken bis ans
+## Ziel, außer vor Hürden (JAGD_DAUER_HUERDE um ihre Mitte), vor und in
+## Durchlässen (JAGD_DAUER_DURCHLASS vor der Stirn bis 0,5 m hinter dem
+## Ausgang) und in der Findlingsgasse – dort, wo der Mensch ohnehin anders
+## muss (wie die Juryprobe R3).
+func _dauer_slide_strecken() -> Array[Vector2]:
+	var sperren: Array[Vector2] = [JAGD_DAUER_GASSE]
+	for h: Dictionary in HUERDEN:
+		sperren.append(Vector2(float(h["s"]) + JAGD_DAUER_HUERDE.x, float(h["s"]) + JAGD_DAUER_HUERDE.y))
+	for d: Dictionary in DURCHLAESSE:
+		sperren.append(Vector2(float(d["s"]) - JAGD_DAUER_DURCHLASS,
+				float(d["s"]) + float(d["tiefe"]) + 0.5))
+	sperren.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+	var strecken: Array[Vector2] = []
+	var von := JAGD_DAUER_VON
+	for sp in sperren:
+		if sp.x > von:
+			strecken.append(Vector2(von, sp.x))
+		von = maxf(von, sp.y)
+	strecken.append(Vector2(von, ZIEL_S))
+	return strecken
 
 
 ## Die Aktionen aus `aktionen`, die ab dem Rastplatz `s` liegen.

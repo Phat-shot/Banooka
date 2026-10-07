@@ -110,10 +110,10 @@ class_name L05Jagd
 ##        118–170 Wurzelterrassen C       8 – der Nacken: nur Treppen und
 ##                                        Lücken, an denen man nicht
 ##                                        stolpert
-##        172–262 Tobel D                 14 – er fällt mit 1,1 m/s zurück
+##        172–234 Tobel D bis zur Kette   14 – er fällt mit 1,1 m/s zurück
 ##                                        und steht an D3 gut 13 m hinter
-##                                        der Figur, an der Findlingsgasse
-##                                        und am Sonnensims bis 14
+##                                        der Figur
+##        240–262 Findlingsgasse, G3      10 (seit R3, siehe unten)
 ##        ab 266 Mühlbach E               7,5 bis ans Ufer (Wehr)
 ##      Die Regel dahinter: An jedem Hindernis, an dem man stolpern kann
 ##      (H1, D1, H2, D2, F1, F2), liegt er im sauberen Lauf mindestens
@@ -122,11 +122,39 @@ class_name L05Jagd
 ##      Kette kosten 8 m (Entwurf §2.5: Die Kette verzeiht zwei Fehler).
 ##      Die Zahlen in der Jagdprobe (`Level05.jagdfaelle`) und im Kopf von
 ##      `doku/level05-neubau.md`, Abschnitt R2.
+##      HINTER DER KETTE 10 statt 14 m (Spiel-Jury R3, Mangel 3): Im Tobel,
+##      dem Höhepunkt, war der Druck mit 14 m bis 262 am geringsten
+##      (Ideallauf im Mittel D 12,7 m gegen B 10,3 und E 10,2). Die Kette
+##      braucht ihre 13 m an D3 weiter (zwei Fehler), danach nicht mehr:
+##      Hinter L5 rückt er auf 10 m heran – an F1/F2 bleibt ein Stolperer
+##      (5,5–6,3 m) überlebbar. Gemessen (Juryprobe „alles", Sammellauf mit
+##      Trittstein, Sims, Drehschlag erst bei 258,9): G3 bleibt erreichbar,
+##      Abstand in D höchstens bis 6,51 m herunter (mit 14 m: 8,86), 49/49
+##      Kisten; Ideallauf D im Mittel 11,56 statt 12,74 m.
 ##   Das TEMPO bleibt fest (CLAUDE.md); schneller als TEMPO läuft er nur,
 ##   solange er hinter der Staffel liegt. Die harte Klemme hatte ihn dabei
 ##   mit jedem Tempo der Figur mitgezogen, bis 13,5 m/s im Slide; jetzt höchstens
 ##   AUFHOL_TEMPO. Dem Nutzer vorzulegen (Abweichung von „Höchstabstand 15",
 ##   Entwurf §2.1).
+##   3. DECKEL (Spiel-Jury R3, Mangel 1): Wer Slide an Slide reiht (die Taste
+##      neu, sobald der letzte endet), fuhr im Mittel rund 13 m/s – gegen
+##      AUFHOL_TEMPO fiel der Keiler dabei immer weiter zurück (Jury: Abstand
+##      im Mittel B 15,1 / C 14,5 / D 16,0 / E 11,4 m statt 10,3 / 8,0 /
+##      12,7 / 10,2 im Ideallauf), und der Nacken in C und E wirkte für
+##      diese Spielweise nicht. Liegt er mehr als DECKEL_SPIEL hinter der
+##      Staffel, läuft er deshalb DECKEL_ZUSCHLAG schneller als die Figur
+##      längs des Wegs (`_figur_tempo`), mindestens AUFHOL_TEMPO, höchstens
+##      DECKEL_HOECHST – bis er wieder DECKEL_SPIEL hinter ihr ist. Läuft
+##      die Figur (8,5 m/s), ist das genau AUFHOL_TEMPO: Am Ideallauf ändert
+##      der Deckel nichts. Ein einzelner Slide bringt weiter seine 1,3 m
+##      (unter DECKEL_SPIEL); wer Slides reiht, liegt höchstens DECKEL_SPIEL
+##      weiter vorn als die Staffel erlaubt, und schneller als um
+##      DECKEL_ZUSCHLAG holt er ihn dort auch ein. WARUM nicht ein festes
+##      Tempo von 13,5 m/s (Vorschlag der Jury): Gegen 13 m/s im Mittel
+##      holte er damit nur 0,5–1 m/s auf – wo die Staffel fällt (C ab 110,
+##      E ab 262), hinge er noch Sekunden später weit hinten; und gegen die
+##      laufende Figur wäre er ein Sprint von 5 m/s. Gemessen in der
+##      Jagdprobe (Fall „Dauer-Slide", `Level05.jagdfaelle`).
 ##
 ## NACH EINEM TOD steht der Keiler VORSPRUNG hinter dem Rastplatz, an dem
 ## die Figur wieder erscheint (`vorsprung_bei`; bis Runde 2 höchstens den
@@ -191,13 +219,20 @@ const HOECHSTABSTAND := 15.0
 ## seinem TEMPO zurück.
 const HOECHST_STAFFEL: Array[Vector2] = [
 	Vector2(31.0, 15.0), Vector2(44.0, 12.0), Vector2(50.0, 9.5), Vector2(110.0, 9.5),
-	Vector2(118.0, 8.0), Vector2(170.0, 8.0), Vector2(172.0, 14.0), Vector2(262.0, 14.0),
-	Vector2(266.0, 7.5),
+	Vector2(118.0, 8.0), Vector2(170.0, 8.0), Vector2(172.0, 14.0), Vector2(234.0, 14.0),
+	Vector2(240.0, 10.0), Vector2(262.0, 10.0), Vector2(266.0, 7.5),
 ]
 ## So schnell holt er höchstens auf, wenn er weiter zurückliegt, als die
 ## Staffel erlaubt (siehe Kopf, NACKEN): 2 m/s schneller als die laufende
 ## Figur, 1,3 m/s langsamer als ihr Slide.
 const AUFHOL_TEMPO := 10.5
+## Deckel des Vorsprungs (siehe Kopf, NACKEN, Punkt 3): Liegt er mehr als
+## DECKEL_SPIEL hinter der Staffel, läuft er DECKEL_ZUSCHLAG schneller als
+## die Figur (so viel, wie AUFHOL_TEMPO über dem Lauftempo 8,5 liegt),
+## höchstens DECKEL_HOECHST (der Slide hat 13,5).
+const DECKEL_SPIEL := 2.0
+const DECKEL_ZUSCHLAG := 2.0
+const DECKEL_HOECHST := 16.0
 const FANGABSTAND := 2.0
 ## Nach dem Respawn (siehe Kopf, NACH EINEM TOD): höchstens so lange wartet
 ## er, und so weit (m, waagerecht) muss die Figur vom Checkpoint weg.
@@ -413,11 +448,18 @@ func _physics_process(delta: float) -> void:
 	if _lage == Lage.JAGD:
 		# Er läuft immer (außer gleich nach dem Respawn); liegt er weiter
 		# zurück, als die Staffel an der Stelle der Figur erlaubt, holt er
-		# mit höchstens AUFHOL_TEMPO auf (siehe Kopf, NACKEN).
+		# mit höchstens AUFHOL_TEMPO auf, jenseits des Deckels schneller
+		# (siehe Kopf, NACKEN).
 		var weiter := _keiler_s + (TEMPO * delta if laeuft else 0.0)
 		var ziel := s_figur - hoechstabstand_bei(s_figur)
 		if laeuft and ziel > weiter:
-			weiter = minf(ziel, _keiler_s + AUFHOL_TEMPO * delta)
+			var schritt := AUFHOL_TEMPO * delta
+			var hinter_deckel := ziel - DECKEL_SPIEL - _keiler_s
+			if hinter_deckel > schritt:
+				var tempo := clampf(_figur_tempo(s_figur) + DECKEL_ZUSCHLAG, AUFHOL_TEMPO,
+						DECKEL_HOECHST)
+				schritt = minf(tempo * delta, hinter_deckel)
+			weiter = minf(ziel, _keiler_s + schritt)
 		_keiler_s = weiter
 		if _keiler_s >= UFER_S:
 			_keiler_s = UFER_S
@@ -567,6 +609,18 @@ func _gassenlage(s: float, q: float) -> float:
 		return q
 	var frei := minf(q, grenze) if seite < 0.0 else maxf(q, grenze)
 	return lerpf(q, frei, w)
+
+
+## Tempo der Figur längs des Wegs an ihrer Strecke `s` (m/s, waagerecht;
+## für den Deckel, siehe Kopf, NACKEN).
+func _figur_tempo(s: float) -> float:
+	if not is_instance_valid(_figur):
+		return 0.0
+	var richtung := _level.global_transform.basis * LevelWerkzeuge.richtung(_level.verlauf, s)
+	richtung.y = 0.0
+	var v := _figur.velocity
+	v.y = 0.0
+	return v.dot(richtung.normalized())
 
 
 ## Querlage der Figur an ihrer Strecke (positiv = rechts).

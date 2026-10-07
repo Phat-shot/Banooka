@@ -65,6 +65,14 @@ extends Node
 ##   keiler_start  (frei) Vector2(soll, Spiel): Strecke des Verfolgers im
 ##                 ersten Bild nach dem Respawn
 ##   stolpern      (frei, Vorgabe 0) so oft muss die Figur stolpern
+##   dauer_slide   (frei) Array[Vector2] (von, bis): auf diesen Strecken
+##                 drückt der Lenker Slide, sobald der letzte vorbei ist (am
+##                 Boden, ohne Sprungtaste, nicht im Krabbeln) – wer Slide an
+##                 Slide reiht (Spiel-Jury L05 R3, Mangel 1)
+##   max_abstand   (frei) Array[Vector3] (von, bis, höchstens): Solange die
+##                 Figur zwischen von und bis ist und der Verfolger jagt,
+##                 darf er nicht weiter als „höchstens" hinter ihr liegen;
+##                 ausgegeben wird je Strecke Mittel und Größtwert
 ##
 ## `jagd_zustand()` liefert: lage ("schlaf" | "jagd" | "ufer"), keiler_s,
 ## keiler_y und boden_y (Level-Y des Verfolgers und `boden_bei(keiler_s)`),
@@ -74,8 +82,8 @@ extends Node
 ## FEHLER, wenn
 ##   * ein Fall nicht das erwartete Ende nimmt (Tod beim Überleben, kein Fang
 ##     in der Gegenprobe, ein Tod ohne Fang dort), zu oft oder zu selten
-##     stolpert, den Mindestabstand, den Weckabstand oder die Stelle nach dem
-##     Respawn verfehlt, in 90 s nicht fertig wird;
+##     stolpert, den Mindestabstand, den Weckabstand, einen Höchstabstand
+##     oder die Stelle nach dem Respawn verfehlt, in 90 s nicht fertig wird;
 ##   * ein Durchlass hinter dem Rastplatz nach dem Respawn nicht heil ist,
 ##     oder irgendwann sein Bruch nicht zur Stelle des Verfolgers passt
 ##     (gebrochen genau ab keiler_s ≥ Stirn − bruch_vor, Körper aus genau
@@ -153,6 +161,10 @@ var _ziel_bild := -1
 var _geschafft_vorher := 0
 var _fall_fehler: Array[String] = []
 var _durchlass_gemeldet := {}
+## Je Strecke aus "max_abstand": Größtwert, Summe, Bilder.
+var _strecken_max: Array[float] = []
+var _strecken_summe: Array[float] = []
+var _strecken_bilder: Array[int] = []
 # Tasten und Zustände des Lenkers
 var _taste_sprung := false
 var _sprung_bild := -1
@@ -308,6 +320,13 @@ func _zuruecksetzen() -> void:
 	_schweben = Vector3.INF
 	_stolper_aktion = -1
 	_stolper_phase = 0
+	_strecken_max.clear()
+	_strecken_summe.clear()
+	_strecken_bilder.clear()
+	for r: Vector3 in _fall.get("max_abstand", []):
+		_strecken_max.append(-INF)
+		_strecken_summe.append(0.0)
+		_strecken_bilder.append(0)
 	_reaktion_rest = 0
 
 
@@ -362,6 +381,21 @@ func _fall_auswerten(name: String, z: Dictionary, gefangen: bool, vorspann: Stri
 		teile.append("geschafft %d×, Keiler %s bei %.2f" % [_geschafft - _geschafft_vorher,
 				String(z["lage"]), float(z["keiler_s"])])
 	print("JAGD %-32s %s%s" % [name, ", ".join(teile), vorspann])
+	if _fall.has("max_abstand"):
+		var strecken: Array = _fall["max_abstand"]
+		var zeilen: Array[String] = []
+		for i in strecken.size():
+			var r: Vector3 = strecken[i]
+			if _strecken_bilder[i] == 0:
+				zeilen.append("%.0f–%.0f kein Bild" % [r.x, r.y])
+				_fall_fehler.append("Strecke %.0f–%.0f: kein Bild in der Jagd" % [r.x, r.y])
+				continue
+			zeilen.append("%.0f–%.0f Mittel %.2f, höchstens %.2f m (Grenze %.1f)" % [r.x, r.y,
+					_strecken_summe[i] / float(_strecken_bilder[i]), _strecken_max[i], r.z])
+			if _strecken_max[i] > r.z:
+				_fall_fehler.append("Abstand %.2f m auf %.0f–%.0f über %.1f" % [_strecken_max[i],
+						r.x, r.y, r.z])
+		print("JAGD     Abstand je Strecke: %s" % "; ".join(zeilen))
 
 	if erwartet == "gefangen":
 		if not _tot:
@@ -447,6 +481,13 @@ func _messen(z: Dictionary, s: float) -> void:
 		if abstand < _min_abstand:
 			_min_abstand = abstand
 			_min_s = s
+		var strecken: Array = _fall.get("max_abstand", [])
+		for i in strecken.size():
+			var r: Vector3 = strecken[i]
+			if s >= r.x and s < r.y:
+				_strecken_max[i] = maxf(_strecken_max[i], abstand)
+				_strecken_summe[i] += abstand
+				_strecken_bilder[i] += 1
 		if _schlief and is_nan(_weck) and not is_nan(float(z["weck_abstand"])):
 			_weck = z["weck_abstand"]
 			_weck_bild = _bild
@@ -504,6 +545,7 @@ func _steuern(s: float, am_boden: bool) -> void:
 	if _slide_los:
 		InputHub.touch_slide(false)
 		_slide_los = false
+	_dauer_slide(s, am_boden)
 	# Laufende Tasten und Zustände
 	if _taste_sprung:
 		if not am_boden:
@@ -545,6 +587,20 @@ func _steuern(s: float, am_boden: bool) -> void:
 		_spieler.global_position = _schweben
 		_spieler.velocity = Vector3.ZERO
 	InputHub.touch_bewegung = eingabe
+
+
+## Dauer-Slide (siehe Kopf, "dauer_slide"): Slide drücken, sobald der
+## letzte vorbei ist.
+func _dauer_slide(s: float, am_boden: bool) -> void:
+	if not _fall.has("dauer_slide") or not am_boden or _slide_los or _taste_sprung:
+		return
+	if float(_spieler.get("sliding")) > 0.0 or _spieler.get("kriechen") == true:
+		return
+	for r: Vector2 in _fall["dauer_slide"]:
+		if s >= r.x and s <= r.y:
+			InputHub.touch_slide(true)
+			_slide_los = true
+			return
 
 
 ## Löst eine Aktion aus; false, wenn sie noch warten muss (nicht am Boden).
