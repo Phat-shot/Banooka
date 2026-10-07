@@ -32,8 +32,9 @@ class_name L05Saum
 ##          Bett, Fuß unter das Bett des Geländes. Erde und Moos am Ufer,
 ##          Schichtfels an der Wehrwand („fels").
 ##   Stirn  an den Lippen der sechs Lücken `Kanten.profil_stirn` mit der
-##          Wegmaske; unter der Narbe zur Tiefe hin dunkel
-##          (STIRN_VERDECKUNG; Entwurf §8.4: dunkle Flanke).
+##          Wegmaske; unter einer schmalen hellen Lippe schnell dunkel
+##          (STIRN_HELL…STIRN_DUNKEL; Entwurf §8.4: dunkle Flanke), an der
+##          Landeseite mit längerer Grasnarbe über dem Spalt (STIRN_NAH).
 ##   Stufe  an jeder Stufe der Decke (Suhlgraben, Wurzeltreppen S1–S3): eine
 ##          angestrahlte Setzstufe aus Löss mit Narbe nach der Wegmaske; am
 ##          Graben läuft ihr Fuß als Schlammsohle bis in seine Mitte.
@@ -97,16 +98,27 @@ const KRONE_ZACKE := 0.3
 const KRONE_ZACKE_DICHTE := 0.32
 const NARBE_WECHSEL := 0.15
 ## Stirnen der Lücken: Verdeckung (Faktor auf die Albedo, `fels_schichten`)
-## unter der Narbe nach der Tiefe unter der Lippe – oben STIRN_VERDECKUNG.x,
-## ab STIRN_VERDECKUNG.z m Tiefe STIRN_VERDECKUNG.y. Bis Runde 1 trug die
-## ganze Flanke die Verdeckung von `Kanten.profil_stirn` (0,12–0,3) mal
-## 0,45: Gerendert („unshaded", linear) lag die Albedo mitten auf allen
-## zwölf Flanken bei 0,002–0,004 (Entwurf §8.4: ≤ 0,1), und im Bild
-## standen die Lücken als schwarze Rechtecke ohne Tiefe (Bild-Jury R1,
-## Mangel 6; gemessen bei s 220 Median 0 von 255). Jetzt zeigt die Flanke
-## oben Löss und Wurzelfasern und verläuft nach unten ins Dunkel; die
-## dunkle Flanke des Entwurfs beginnt eine Armlänge unter der Lippe.
-const STIRN_VERDECKUNG := Vector3(0.7, 0.05, 2.4)
+## unter der Narbe nach der Tiefe unter der Lippe – bis STIRN_TIEFE.x
+## STIRN_HELL, ab STIRN_TIEFE.y STIRN_DUNKEL, dazwischen weich.
+## GESCHICHTE: Bis Runde 1 trug die ganze Flanke die Verdeckung von
+## `Kanten.profil_stirn` (0,12–0,3) mal 0,45 – gerendert 0,002–0,004, die
+## Lücken standen als schwarze Rechtecke (Bild-Jury R1, Mangel 6). Runde 1
+## hellte die Flanke bis 2,4 m Tiefe auf (0,7 oben); damit lag im Anlauf
+## genau das helle Band im Bild: Die Kamera sieht über die nahe Lippe nur
+## die oberen 1–2 m der fernen Stirn, und die lasen sich als erdbraune
+## Stufe oder Bordkante statt als Abgrund (Bild-Jury R2, Mangel 1; Luma im
+## Lückenstreifen 67–88, in Level 01 11). Jetzt ist nur die Lippe hell –
+## Narbe, Wurzelfasern, die Lippensteine auf der Decke –, ab 0,4 m Tiefe ist
+## die Albedo unter 0,1 wie in Level 01 (Entwurf §8.4).
+const STIRN_HELL := 0.62
+const STIRN_DUNKEL := 0.025
+const STIRN_TIEFE := Vector2(0.1, 0.4)
+## Landeseite (die Lippe näher an der Kamera, deren Stirn vom Spalt weg
+## zeigt): Die Grasnarbe hängt so viel weiter über den Spalt (m, an ihrem
+## Rand; bis höchstens STIRN_NAH_MAX) und deckt den unteren Teil der fernen
+## Stirn – so liegt die Lücke im Bild zwischen zwei Rasenkanten.
+const STIRN_NAH := 0.28
+const STIRN_NAH_MAX := 0.6
 ## Ein Querschnitt gilt erst so weit hinter einer Lippe als in der Lücke (m;
 ## siehe `_luecke`). Kleiner als der Querschnitt knapp innerhalb der Lippe
 ## (`Kanten.feste_strecken`: 2 × EPS = 1 cm).
@@ -524,16 +536,21 @@ static func _ab_in_luecke(p: GelaendeSaum.Profil, s: float, l: Dictionary) -> vo
 
 
 ## Stirn an der Lippe einer Lücke (`Kanten.profil_stirn` mit der Wegmaske):
-## unter der Narbe zur Tiefe hin dunkel (STIRN_VERDECKUNG), bis auf den
-## Grund. Die Punkte 0–3 (Lippe und Narbe) bleiben, wie sie sind.
+## unter einer schmalen hellen Lippe schnell dunkel (STIRN_HELL …
+## STIRN_DUNKEL, siehe dort), bis auf den Grund. Die Punkte 0–3 (Lippe und
+## Narbe) behalten ihre Farbe; an der Landeseite (`nah`) hängt die Narbe
+## weiter über den Spalt (STIRN_NAH).
 static func _profil_stirn(_i: int, probe: Dictionary, level: Level05, kante: float,
-		grund: float, halb: float, erdig: bool) -> GelaendeSaum.Profil:
+		grund: float, halb: float, erdig: bool, nah: bool) -> GelaendeSaum.Profil:
 	var p := Kanten.profil_stirn(probe, kante, grund, halb, erdig, 0.45, level.weg)
 	for j in range(4, p.anzahl()):
 		var c := p.farbe[j]
-		c.r = lerpf(STIRN_VERDECKUNG.x, STIRN_VERDECKUNG.y,
-				smoothstep(0.2, STIRN_VERDECKUNG.z, kante - p.y[j]))
+		c.r = lerpf(STIRN_HELL, STIRN_DUNKEL,
+				smoothstep(STIRN_TIEFE.x, STIRN_TIEFE.y, kante - p.y[j]))
 		p.farbe[j] = c
+	if nah:
+		for j in range(1, 4):
+			p.o[j] = minf(p.o[j] + STIRN_NAH * float(j) / 3.0, STIRN_NAH_MAX)
 	return p
 
 
@@ -597,7 +614,8 @@ static func _querlinien(level: Level05) -> Array:
 			var vorwaerts := 1.0 if ende == 0 else -1.0
 			var kante := weg.boden_bei(s - 0.01 * vorwaerts)
 			linien.append(_querlinie(level, s, -vorwaerts,
-					_profil_stirn.bind(level, kante, grund, halb, erdig), kante, 5201 + nummer))
+					_profil_stirn.bind(level, kante, grund, halb, erdig, ende == 1), kante,
+					5201 + nummer))
 			nummer += 1
 	# Stufen der Decke (Graben, Treppen; die Absätze haben Rampen).
 	for st: Vector3 in _stufen(weg):

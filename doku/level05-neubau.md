@@ -1065,6 +1065,76 @@ Klangprobe, Fotos `--fixed-fps 30` mit festem Zufall).
 Ungeprüft: ein Lauf von Hand, der Klang auf einem Gerät, die Bilder auf
 einer echten GPU (alle Bilder llvmpipe).
 
+### R2 Mängel der Spiel- und der Bild-Jury
+
+Wie in R1 steht jeder Punkt im Kopf des geänderten Moduls; hier die
+Übersicht mit den Messungen. Gemessen mit der Jagdprobe, der Sprungprobe,
+dem LevelCheck und der Juryprobe der Spiel-Jury (Jagdprobe mit Zusatzfällen,
+Scratch), 60 Hz, frischer Benutzerordner je Lauf.
+
+**Spiel**
+- **Kisten-Edelstein unmöglich (schwer):** Die Gasse am Sonnensims liegt
+  hinter dem Simsende (263,6/264,8/266,0 statt 260,0–262,4), die
+  LEBEN-Kiste als Lohn auf dem Sims (262,1, Mangel 6), dafür eine
+  NORMAL-Kiste hinter dem Wehr (291,5). Sammellauf „Alles einsammeln“ ohne
+  Tod (G1 per Doppelsprung, A samt Graben, alle Gassen mit Drehschlag, die
+  Kiste 80,4 und G2 per Doppelsprung mit Bauchplatscher, G3 über den
+  Trittstein, vom Simsende Sprung mit Platscher auf die Gasse, Drehschlag):
+  49/49, Band „Alle Kisten!“, Abschluss `kisten: true` – in drei Varianten
+  des Platschers an G2 (83,6/84,0/84,4). Vorher 45/49.
+- **Richtzeit als Klippe (mittel):** `ZIELZEIT` 37 s statt 15 s – Saphir für
+  den sauberen Lauf ohne Kisten, Gold 31,45 s, Platin 26,64 s (Vorschlag
+  der Jury; dem Nutzer vorzulegen). Die Zeitkisten stehen alle auf der
+  Hauptlinie (Liste in Zählreihenfolge, `KISTEN`), je Gasse eine, in der
+  ersten Gasse von B zwei, die letzte bei 272,2 vor dem Wehr; 15 Stück,
+  30 s. Gemessen (Juryprobe mit Zeitmodus): Ideallinie ohne Kisten
+  35,28 s → Saphir; jede zweite Kistenreihe 19,57 s → Platin; alle Reihen
+  7,58 s; am Ziel Frost 0,00 (vorher verfielen dort 2,0 s, in einem
+  Zwischenstand mit zwei Zeitkisten in der Simsgasse 1,45 s).
+- **Keiler nie nah (mittel):** `L05Jagd` holt mit höchstens 10,5 m/s auf
+  (`AUFHOL_TEMPO`) statt mit jedem Tempo der Figur mitgezogen zu werden,
+  und die Staffel folgt der Strecke: Wecken 15, B 9,5, C 8 (Nacken), D 14
+  (fällt zurück), E 7,5 m. Jagdprobe 23 Fälle, 0 Fehler: Ideallauf
+  Mindestabstand 7,35 m (am Wehr; vorher 10,44), in C 7,7–7,8 m nach
+  dem Sprung über L2; neu „Ein Fehler“ an H1/D1/H2/D2: 6,08 / 3,91 / 3,37
+  / 3,95 m; Stolpern an D3 und D4 4,46 m (vorher 3,74); Gegenprobe
+  gefangen. Kettenprobe der Jury (D3 × D4, 28 Fälle): alle überleben,
+  11,93 m (vorher 11,74). Ein Slide gibt jetzt auch im Nacken Vorsprung
+  (13,5 gegen 10,5 m/s). Nach dem Respawn steht er überall 12 m zurück und
+  holt die Staffel auf; „Reaktion 1,0 s“ hält an allen Rastplätzen
+  ≥ 7,1 m (`JAGD_REAKTION_MIN` 6,5 statt 8: im Nacken steht er ohnehin so
+  nah).
+- **Ziel neben dem Portal (leicht):** Der Auslöser des Zielportals ist in
+  Level 05 ein Kasten über die ganze Breite (`_ziel_ausloeser_verbreitern`,
+  nur die Form des Knotens). Juryprobe „Ziel“ auf q 1,6 und 2,0: geschafft
+  (vorher nach 90 s nicht).
+- **Doppeltes Stolpern (leicht):** Stolpersperre 0,6 s nach dem Stolpern,
+  solange die Figur waagerecht innerhalb 1,5 m bleibt (Überschreibung des
+  Handlers in `level05.gd`, die geteilte Datei bleibt). Hürde 0,6 m zu spät
+  gesprungen: H1 1× gestolpert, 8,65 m (vorher 2×, 6,70 m), H2 1×, 5,96 m
+  (vorher 2×, 7,04). Sprungprobe der Hürden zeilengleich zu vorher.
+- **LEBEN-Kiste ohne Wert (leicht):** auf dem Sims (siehe oben).
+
+**Bild**
+- **Lücken als Stufe (schwer):** Die ferne Stirn ist nur an der Lippe hell
+  (bis 0,1 m 0,62), ab 0,4 m Tiefe dunkel (0,025; `L05Saum`, STIRN_*); an
+  der Landeseite hängt die Grasnarbe 0,28 m weiter über den Spalt. Im
+  Wehrbruch steht eine Walze aus Weißwasser bis gut einen halben Meter
+  unter die Lippe (`L05Wasser`, WEHR_WALZE). Luma 0–255 im Streifen
+  zwischen ferner und naher Lippe (q −2 … 2, aus der Kamera projiziert,
+  Früchte ausgenommen; Gegenmessung an den Bildern der Jury):
+
+  | Stelle | Jury R2 (eigene Messung) | jetzt |
+  |---|---|---|
+  | L1, s 72 | 81,5 | 29,4 (Median 0) |
+  | L5, s 226 | 63,2 | 14,2 (Median 0) |
+  | L6, s 280 | 78,7 | 66,0 – Weißwasser |
+  | L6, s 284 | 69,3 | 62,3 – Weißwasser |
+
+  Am Wehr ist der Streifen hell, weil dort die Walze steht – die Jury
+  verlangt beides (Luma ≤ 30 und Weißwasser bis unter die Lippe); die
+  Stirn darüber ist dunkel.
+
 ---
 
 ## 14. Abweichungen vom Entwurf
@@ -1087,9 +1157,11 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
 | Baumtore | Kronen über dem Weg | Kronen seitlich | Wahrzeichenprobe 81,5 % statt 91,8 % |
 | Schatten | zwei Stufen | orthogonal | mit zwei Stufen 755k–785k Primitive (Grenze 750k) |
 | Licht | Startwerte §8.3 | Sonne 17° hoch, 1,5, Himmelslicht 0,45, Kantenlicht 0,3, Umgebung × 0,62, Belichtung 0,9, Nebel 12 → 210 m (bis R1: Sonne 26°, 1,25, Kantenlicht 0,18, Belichtung 1,15, Nebel 16 → 240 m) | mit den Startwerten Helligkeit 51–74 und kühl nur 3,6–9,8 %; mit den Werten bis R1 parkartig hell gegen Level 01 (Bild-Jury R1) |
-| Richtzeit | vorläufig 46 s | 15 s (bis R1 48 s) | 1,3 × Uhr eines Laufs, der die Zeitkisten mitnimmt (11,58 s); mit 48 s holte jeder Kistensammler Platin (Spiel-Jury R1, Variante a – dem Nutzer vorzulegen) |
+| Richtzeit | vorläufig 46 s | 37 s (R1: 15 s, davor 48 s) | Saphir für den sauberen Lauf ohne Kisten (35,28 s), Gold und Platin über die Zeitkisten der Hauptlinie; mit 15 s holte ohne Kistenjagd niemand eine Stufe, mit 48 s jeder Kistensammler Platin (Spiel-Jury R1/R2 – dem Nutzer vorzulegen) |
+| Keiler | Tempo 7,4, Höchstabstand 15 | Tempo 7,4, Staffel nach der Strecke (15/9,5/8/14/7,5), aufholen mit höchstens 10,5 m/s | mit 15 m bzw. der Klemme je Abschnitt hing er im sauberen Lauf immer am Höchstabstand, ein Slide gab keinen Vorsprung (Spiel-Jury R1/R2 – dem Nutzer vorzulegen) |
 | Kette D3–D4–L5 | D4 222,0, L5 228,5 | D4 223,2, L5 229,7 | aus D3 kam man im zweiten Slide an D4 an, und hinter D4 fehlte Anlauf (Spiel-Jury R1) |
-| Lücken-Stirn | dunkle Flanke (Albedo ≤ 0,1) | oben hell, ab 2,4 m Tiefe dunkel | ganz dunkel standen die Lücken als schwarze Kästen im Bild (Bild-Jury R1) |
+| Lücken-Stirn | dunkle Flanke (Albedo ≤ 0,1) | helle Lippe bis 0,1 m, ab 0,4 m dunkel (R1: hell bis 2,4 m) | ganz dunkel standen die Lücken als schwarze Kästen im Bild (Bild-Jury R1), hell bis 2,4 m als Stufen (Bild-Jury R2) |
+| Kisten | Gasse 260,0–262,4, LEBEN 291,5 | Gasse 263,6–266,0, LEBEN auf G3 | Gasse und Sims lagen nebeneinander zwischen denselben Rastplätzen, 49/49 ging nicht; hinter dem Wehr war die LEBEN-Kiste ohne Wert (Spiel-Jury R2) |
 | Werkstatt (P9) | Stationen ab 33 | 34–38, Station 33 frei | Baukasten §4 Nr. 12: Station 33 gehört dem Kameraplan |
 
 ---

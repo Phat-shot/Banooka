@@ -39,8 +39,9 @@ extends Node
 ##                   slide_halten  Slide gedrückt und gehalten bis "bis"
 ##                   stolpern      kein Slide: in den Durchlass hineinlaufen,
 ##                                 stolpern, "reaktion" s warten, dann aus
-##                                 dem Stand sliden. Stolpert sie bis "bis"
-##                                 nicht, ist das ein FEHLER
+##                                 dem Stand sliden – oder mit "danach":
+##                                 "sprung" springen (eine Hürde). Stolpert
+##                                 sie bis "bis" nicht, ist das ein FEHLER
 ##                   warten        "dauer" s stehen bleiben, dann weiter;
 ##                                 mit "sofort": true auch in der Luft (nach
 ##                                 dem Respawn: Die Figur fällt 0,6 m, und
@@ -607,8 +608,15 @@ func _stolpern_fuehren(s: float, am_boden: bool) -> void:
 			if _reaktion_rest > 0:
 				_reaktion_rest -= 1
 			elif am_boden:
-				InputHub.touch_slide(true)
-				_slide_los = true
+				if String(a.get("danach", "slide")) == "sprung":
+					InputHub.touch_sprung(true)
+					_taste_sprung = true
+					_in_luft = false
+					_sprung_bild = _bild
+					_doppel_bilder = -1
+				else:
+					InputHub.touch_slide(true)
+					_slide_los = true
 				_stolper_aktion = -1
 
 

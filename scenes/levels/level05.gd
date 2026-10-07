@@ -36,7 +36,13 @@ class_name Level05
 ## Zielportal (ENTKOMMEN_S), die Richtzeit mit Zeitkisten (ZIELZEIT) und
 ## das Bild der Eiche, der Wände, Lücken, Findlinge und des Lichts – je im
 ## Kopf des Moduls begründet, gesammelt in `doku/level05-neubau.md`
-## (Abschnitt 13, „R1“).
+## (Abschnitt 13, „R1“). Nach der zweiten Runde (R2): Kistengasse am
+## Sonnensims hinter dessen Ende, LEBEN-Kiste auf dem Sims, Zeitkisten nur
+## auf der Hauptlinie (KISTEN), Richtzeit ohne Kisten (ZIELZEIT), Nacken
+## statt Klemme in der Jagd (`L05Jagd`, Kopf), breiter Zielauslöser
+## (`_ziel_ausloeser_verbreitern`), Stolpersperre (`_durchlass_stolpern`),
+## dunkle Stirnen der Lücken (`L05Saum`) und eine Walze aus Weißwasser im
+## Wehrbruch (`L05Wasser`) – gesammelt dort in Abschnitt 13, „R2“.
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
@@ -536,67 +542,96 @@ const EICHE := {"s": -6.0, "boden_y": 27.0,
 ## ruft `sterben()` direkt). Auf q 0 nur im Lehrteil A, sonst q +2,2 bzw.
 ## +2,0 in Gassen von höchstens drei, 1,2 m auseinander, über `boden_bei`.
 ## "auf": Name eines Eintrags aus BEGEHBARES, auf dessen Oberkante sie steht.
+##
+## Die Liste steht in ZÄHLREIHENFOLGE, nicht nach der Strecke: Im Zeitmodus
+## wird jede dritte NORMAL-Kiste in der Reihenfolge, in der sie gebaut wird,
+## eine Zeitkiste (`LevelBasis._zeitkisten_setzen`, Werte 2/1/3 im Wechsel).
+## Zeitkisten stehen AUF dem Weg, nie abseits (Zeitlauf.gd, Kopf); bis
+## Runde 2 fielen fünf davon abseits oder hinter das Wehr – in den Graben,
+## auf G1 und G2 und 3 m vor das Portal, wo 2 s ihrer Standzeit am Ziel
+## verfielen (Spiel-Jury R2, Mangel 2). Deshalb stehen die Kisten der
+## Geheimnisse, des Grabens und hinter dem Wehr hier an Stellen, die keine
+## Zeitkiste werden, und jede Gasse der Hauptlinie trägt eine, die erste in
+## B zwei; die letzte steht bei 272,2, vor dem Wehr. Die Gasse hinter dem
+## Sims trägt nur eine (1 s): Mit zweien dort verfielen von den letzten drei
+## Zeitkisten (6 s in gut einer Sekunde Lauf) am Ziel noch 1,45 s (gemessen).
+## Die 15 mit „Zeit" bezeichneten Einträge sind es (in dieser Reihenfolge
+## 2, 1, 3, 2, … s, zusammen 30 s).
+##
+## Die Gasse am Sonnensims steht HINTER dem Simsende (263,6–266,0). Bis
+## Runde 2 lag sie bei 260,0–262,4 neben dem Sims: Seit G3 um 5 m nach
+## hinten gerückt war (siehe Kopf, ABWEICHUNGEN), lagen beide nebeneinander
+## zwischen denselben Rastplätzen, vom Sims erreichte der Drehschlag die
+## Gasse nicht, und zurück konnte man vor dem Keiler nicht – alle 49 Kisten
+## gingen praktisch nie (Spiel-Jury R2, Mangel 1). Von hinter dem Sims läuft
+## man jetzt auf die Gasse hinab. Die LEBEN-Kiste ist der Lohn auf dem Sims
+## (Mangel 6): Hinter dem Wehr, wo sie bis Runde 2 stand, konnte man nicht
+## mehr sterben, und beim Betreten eines Levels gibt es ohnehin wieder fünf
+## Leben (`Spielfluss.zum_level`). Auf dem Sims hilft sie vor dem Wehr, der
+## gefährlichsten Stelle; holen kann man sie nur hinter der Kette, nach CP5
+## nicht mehr – sammeln lässt sie sich also nicht durch Sterben.
 const KISTEN := [
-	# --- A: 7 NORMAL, dazu FRUCHT_MEHRFACH auf G1 ---
-	{"art": Kiste.Art.NORMAL, "s": 20.4, "q": 0.0},
-	{"art": Kiste.Art.NORMAL, "s": 21.6, "q": 0.0},
-	{"art": Kiste.Art.NORMAL, "s": 24.6, "q": 0.0},
-	{"art": Kiste.Art.NORMAL, "s": 25.8, "q": 0.0},
-	{"art": Kiste.Art.NORMAL, "s": 27.0, "q": 0.0},
+	# --- Lehrteil A und G1 (Zählung 1–5) ---
 	# Auf G1 hinten und außen: Vorn innen bleibt Platz zum Landen.
 	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 2.0, "q": 4.3, "auf": "G1 Wurzelknie"},
-	{"art": Kiste.Art.NORMAL, "s": 2.0, "q": 5.5, "auf": "G1 Wurzelknie"},
 	{"art": Kiste.Art.NORMAL, "s": 0.8, "q": 6.0, "auf": "G1 Wurzelknie"},
-	# --- B: 13 ---
-	{"art": Kiste.Art.NORMAL, "s": 36.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 2.0, "q": 5.5, "auf": "G1 Wurzelknie"},
+	{"art": Kiste.Art.NORMAL, "s": 20.4, "q": 0.0},  # Zeit 2
+	{"art": Kiste.Art.NORMAL, "s": 21.6, "q": 0.0},
+	{"art": Kiste.Art.NORMAL, "s": 24.6, "q": 0.0},  # Grabensohle
+	# --- B (6–20), dazwischen G2 und die Grabensohle ---
+	{"art": Kiste.Art.NORMAL, "s": 36.0, "q": 2.2},  # Zeit 1
 	{"art": Kiste.Art.NORMAL, "s": 37.2, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 38.4, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 65.0, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 66.2, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 67.4, "q": 2.2},
 	# G2: drei Kisten hintereinander an der Außenkante der Bank, innen bleibt
 	# ein Gang von 1,0 m (q 4,6–5,6). Zu zweit nebeneinander sperrten sie die
 	# Bank in voller Breite: Wer ohne Drehschlag landete, lief gegen sie und
-	# blieb stehen (Spiel-Jury R1, Mangel 11). Die vierte steht dafür unten
-	# am Weg, hinter dem Wasserriss in der Kistenspur.
-	{"art": Kiste.Art.NORMAL, "s": 80.4, "q": 2.2},
+	# blieb stehen (Spiel-Jury R1, Mangel 11).
 	{"art": Kiste.Art.NORMAL, "s": 84.35, "q": 6.1, "auf": "G2 Böschungsbank"},
+	{"art": Kiste.Art.NORMAL, "s": 38.4, "q": 2.2},  # Zeit 3
+	{"art": Kiste.Art.NORMAL, "s": 25.8, "q": 0.0},  # Grabensohle
 	{"art": Kiste.Art.NORMAL, "s": 85.4, "q": 6.1, "auf": "G2 Böschungsbank"},
+	{"art": Kiste.Art.NORMAL, "s": 65.0, "q": 2.2},  # Zeit 2
+	{"art": Kiste.Art.NORMAL, "s": 66.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 67.4, "q": 2.2},
+	# Die Kiste hinter dem Wasserriss in der Kistenspur.
+	{"art": Kiste.Art.NORMAL, "s": 80.4, "q": 2.2},  # Zeit 1
 	{"art": Kiste.Art.NORMAL, "s": 86.45, "q": 6.1, "auf": "G2 Böschungsbank"},
-	{"art": Kiste.Art.NORMAL, "s": 110.0, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 27.0, "q": 0.0},  # Grabensohle
+	{"art": Kiste.Art.NORMAL, "s": 110.0, "q": 2.2},  # Zeit 3
 	{"art": Kiste.Art.NORMAL, "s": 111.2, "q": 2.2},
 	{"art": Kiste.Art.NORMAL, "s": 112.4, "q": 2.2},
-	# --- C: 9 ---
-	{"art": Kiste.Art.NORMAL, "s": 128.6, "q": 2.2},
+	# --- C (21–32), dazwischen G3 und hinter dem Wehr ---
+	{"art": Kiste.Art.NORMAL, "s": 128.6, "q": 2.2},  # Zeit 2
 	{"art": Kiste.Art.NORMAL, "s": 129.8, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 144.5, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 145.7, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 152.5, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 153.7, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 167.5, "q": 2.0},
-	{"art": Kiste.Art.NORMAL, "s": 168.7, "q": 2.0},
-	{"art": Kiste.Art.NORMAL, "s": 169.9, "q": 2.0},
-	# --- D: 12, dazu FRUCHT_MEHRFACH auf G3 ---
-	{"art": Kiste.Art.NORMAL, "s": 182.0, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 183.2, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 184.4, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 200.4, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 201.6, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 237.0, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 238.2, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 260.0, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 261.2, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 262.4, "q": 2.2},
 	{"art": Kiste.Art.FRUCHT_MEHRFACH, "s": 259.9, "q": 4.9, "auf": "G3 Sonnensims"},
 	{"art": Kiste.Art.NORMAL, "s": 261.0, "q": 4.9, "auf": "G3 Sonnensims"},
-	{"art": Kiste.Art.NORMAL, "s": 262.1, "q": 4.9, "auf": "G3 Sonnensims"},
-	# --- E: 5, dazu LEBEN ---
+	{"art": Kiste.Art.LEBEN, "s": 262.1, "q": 4.9, "auf": "G3 Sonnensims"},
+	{"art": Kiste.Art.NORMAL, "s": 144.5, "q": 2.2},  # Zeit 1
+	{"art": Kiste.Art.NORMAL, "s": 145.7, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 291.5, "q": 2.2},  # hinter dem Wehr
+	{"art": Kiste.Art.NORMAL, "s": 152.5, "q": 2.2},  # Zeit 3
+	{"art": Kiste.Art.NORMAL, "s": 153.7, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 292.9, "q": 2.2},  # hinter dem Wehr
+	{"art": Kiste.Art.NORMAL, "s": 167.5, "q": 2.0},  # Zeit 2
+	{"art": Kiste.Art.NORMAL, "s": 168.7, "q": 2.0},
+	{"art": Kiste.Art.NORMAL, "s": 169.9, "q": 2.0},
+	# --- D (33–43) ---
+	{"art": Kiste.Art.NORMAL, "s": 182.0, "q": 2.2},  # Zeit 1
+	{"art": Kiste.Art.NORMAL, "s": 183.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 184.4, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 200.4, "q": 2.2},  # Zeit 3
+	{"art": Kiste.Art.NORMAL, "s": 201.6, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 294.1, "q": 2.2},  # hinter dem Wehr
+	{"art": Kiste.Art.NORMAL, "s": 237.0, "q": 2.2},  # Zeit 2
+	{"art": Kiste.Art.NORMAL, "s": 238.2, "q": 2.2},
+	# Die Gasse hinter dem Simsende von G3 (siehe oben).
+	{"art": Kiste.Art.NORMAL, "s": 264.8, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 263.6, "q": 2.2},  # Zeit 1
+	{"art": Kiste.Art.NORMAL, "s": 266.0, "q": 2.2},
+	# --- E (44–46) ---
 	{"art": Kiste.Art.NORMAL, "s": 271.0, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 272.2, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 272.2, "q": 2.2},  # Zeit 3, die letzte
 	{"art": Kiste.Art.NORMAL, "s": 273.4, "q": 2.2},
-	{"art": Kiste.Art.LEBEN, "s": 291.5, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 292.9, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 294.1, "q": 2.2},
 ]
 
 ## Früchte (§6.4, 119). Die Bögen über Lücken, Hürden und Graben liegen
@@ -676,7 +711,7 @@ const GEHEIMNISSE := [
 			"inhalt": "3 NORMAL, 7 Früchte (Spur und Bank)"},
 	{"name": "G3 Sonnensims", "auf": "G3 Sonnensims",
 			"weg": "Trittstein, dann zwei Einzelsprünge",
-			"inhalt": "FRUCHT_MEHRFACH, 2 NORMAL, 5 Früchte"},
+			"inhalt": "FRUCHT_MEHRFACH, NORMAL, LEBEN, 5 Früchte"},
 ]
 
 ## Harte Sichtweiten (Entwurf §9.5, Kostenmessung §10): Spiel und HUD sind
@@ -684,31 +719,27 @@ const GEHEIMNISSE := [
 const SICHTWEITEN := {"kiste": 50.0, "frucht": 40.0, "kiste_web": 40.0, "frucht_web": 35.0}
 
 ## Richtzeit des Zeitmodus (Entwurf §6.6), von Hand gesetzt wie in Level 06
-## (level06.gd, `zielzeit`): 1,3 × die Uhr eines Referenzlaufs, auf ganze
-## Sekunden gerundet. Die abgeleitete Formel der Basis (296 / 8,5 × 2,8
-## ≈ 97 s) schenkte hier jede Stufe.
+## (level06.gd, `zielzeit`). Die abgeleitete Formel der Basis (296 / 8,5 ×
+## 2,8 ≈ 97 s) schenkte hier jede Stufe.
 ##
-## DER REFERENZLAUF NIMMT DIE ZEITKISTEN MIT (Spiel-Jury R1, Mangel 2;
-## Variante a der Jury, dem Nutzer vorzulegen). Bis Runde 1 stand hier
-## 1,3 × 37,0 s = 48 s – die Uhr des Spieltest-Bots, der keine Kiste
-## zerbricht. Im Zeitmodus ist jede dritte Holzkiste eine Zeitkiste
-## (`LevelBasis._zeitkisten_setzen`, 1–3 s); in Level 05 stehen 13 davon mit
-## zusammen 28 s auf den Kistenreihen der Hauptlinie (q 2,2), und ein
-## Drehschlag im Vorbeilaufen kostet keinen Abstand zum Keiler (Jury:
-## Mindestabstand 13,4 statt 14,4 m). Wer sie mitnahm, holte Platin mit gut
-## 22 s Luft; Saphir und Gold waren ohne Sinn. Bei einer Jagd mit festem
-## Tempo ist die Uhr ohne Kisten fast fest (jeder Überlebende läuft
-## 35–41 s) – die einzige Stellschraube sind die Zeitkisten. Gemessen
-## (Jagdprobe mit Zeitmodus, Scratch-Fälle der Jury, 60 Hz, nach dem
-## Umbau von D4/L5 und dem Höchstabstand je Abschnitt):
-##   Ideallinie ohne Kisten                       Uhr 35,28 s
-##   dieselbe Linie, Kistenreihen mit Drehschlag  Uhr 11,58 s (Standzeit
-##                                                23,7 s, 34 Kisten)
-## 1,3 × 11,58 = 15,1 → 15 s: Gold (85 %) 12,75 s, Platin (72 %) 10,8 s.
-## Damit heißt Saphir: die meisten Zeitkisten der Hauptlinie mitnehmen
-## (gut 20 von 28 s), Gold: fast alle, Platin: dazu die Zeitkisten der
-## Geheimnisse G1–G3 oder eine schnellere Linie als die Referenz.
-const ZIELZEIT := 15.0
+## ABGESTUFT STATT KLIPPE (Spiel-Jury R2, Mangel 2). Bei einer Jagd mit
+## festem Tempo ist die Uhr ohne Kisten fast fest: Die Ideallinie ohne Kiste
+## braucht gemessen 35,28 s (Jagdprobe mit Zeitmodus, 60 Hz), jeder
+## Überlebende 35–41 s. Runde 1 setzte die Richtzeit aus einem Lauf, der
+## alle Zeitkisten der Hauptlinie mitnahm (1,3 × 11,58 s → 15 s): Wer sauber,
+## aber ohne Kistenjagd lief, holte keine Stufe und sah ab s ≈ 130 „Richtzeit
+## vorbei"; Saphir verlangte 9–10 der 12 Zeitkisten. Jetzt:
+##   Saphir  37,0 s    der saubere Lauf ohne Kisten, mit gut 1,5 s Luft
+##                     (ein, zwei Stolperer)
+##   Gold    31,45 s   dazu gut 3,8 s Standzeit: zwei, drei Zeitkisten
+##   Platin  26,64 s   dazu gut 8,6 s: vier, fünf Zeitkisten
+## Die Zeitkisten stehen seit Runde 2 alle auf der Hauptlinie, eine in jeder
+## Gasse, die letzte vor dem Wehr (siehe KISTEN): 15 Stück, 30 s Standzeit.
+## Ein Drehschlag im Vorbeilaufen kostet kaum Abstand zum Keiler. Was der
+## Lauf mit Zeitkisten gemessen bringt, steht in `doku/level05-neubau.md`,
+## Abschnitt R2. Dem Nutzer vorzulegen (Spiel-Jury R2: „Der Nutzer
+## entscheidet").
+const ZIELZEIT := 37.0
 
 # =========================================================== Proben
 
@@ -788,11 +819,22 @@ const JAGD_REAKTION := 0.25
 const JAGD_ZOEGERN := 0.3
 const JAGD_ZOEGERN_LANG := 1.2
 const JAGD_ZOEGERN_VOR := 1.5
+## Mindestabstand im Ideallauf (Entwurf P1: 10 m; seit R2 rückt der Keiler
+## im Nacken heran: C 8 m, E 7,5 m, minus ein Sprung – L05Jagd, Kopf) und
+## nach EINEM Fehler an einer Hürde oder einem Durchlass in B (Spiel-Jury
+## R2, Mangel 3; über dem Fangabstand 2 mit einem halben Meter Luft).
+const JAGD_IDEAL_MIN := 6.0
+const JAGD_FEHLER_MIN := 2.5
 ## Nach dem Respawn so lange stehen, bevor es losgeht (Spiel-Jury R1,
 ## Mangel 5: „Reaktionsfall ≥ 0,8 s"), und der Abstand, der dann mindestens
-## bleiben soll – gut der halbe Weg von VORSPRUNG zum Fangabstand.
+## bleiben soll. Bis Runde 2 gut der halbe Weg von VORSPRUNG zum Fangabstand
+## (8 m); seit dem Nacken (L05Jagd, Kopf) steht er in C und E ohnehin auf
+## 8 bzw. 7,5 m heran, und der Doppelsprung am Wehr kostet dort noch einen
+## halben Meter (gemessen an CP5: 7,10 m bei s 287,8, im Ideallauf 7,35 m).
+## Geprüft wird also: Die Reaktion drückt ihn nicht unter den Nacken minus
+## einen Sprung.
 const JAGD_REAKTION_RESPAWN := 1.0
-const JAGD_REAKTION_MIN := 8.0
+const JAGD_REAKTION_MIN := 6.5
 ## Am Ufer (Entwurf §5 E): hier stehen bleiben – gefangen; hier über der
 ## Lücke gehalten – sicher.
 const JAGD_STEHEN_S := 283.5
@@ -1361,6 +1403,7 @@ func _spiel_setzen() -> void:
 	# in der Kamerabahn.
 	portale_auf(START_S, ZIEL_S, 0.0)
 	_ziel_verbergen()
+	_ziel_ausloeser_verbreitern()
 
 
 func _fruechte_setzen() -> void:
@@ -1462,7 +1505,74 @@ func _ziel_verbergen() -> void:
 			n.scale = Vector3.ONE * 0.05
 
 
-func _physics_process(_delta: float) -> void:
+## ZIELAUSLÖSER (Spiel-Jury R2, Mangel 4): Der Auslöser des Zielportals
+## ist ein Zylinder mit r 1,04 auf q 0 (ZielPortal.tscn); die Wehrkrone ist
+## 7 m breit. Wer auf q ≥ 1,6 lief – etwa an der Kistengasse hinter dem
+## Wehr entlang –, lief am Portal vorbei an die Querwand bei 300 und musste
+## zurück ins Bild (gemessen: q 1,6 und 2,0 in 90 s nicht geschafft, q 1,1
+## geschafft). Hier bekommt NUR dieses Portal einen Kasten über die ganze
+## Breite des Weges plus 1 m je Seite, ZIEL_AUSLOESER_TIEF lang (so tief wie
+## der Zylinder auf seiner Mitte) und so hoch wie er. Die Form des Knotens
+## wird ersetzt, nicht die Ressource der geteilten Szene. Gegen einen
+## zweiten Aufruf schützt das Portal selbst (`Portal._ausgeloest`); es
+## saugt die Figur von dort, wo sie den Kasten betritt, in seine Mitte.
+const ZIEL_AUSLOESER_TIEF := 2.08
+const ZIEL_AUSLOESER_HOCH := 2.3
+
+
+func _ziel_ausloeser_verbreitern() -> void:
+	if _zielportal == null:
+		return
+	var form := _zielportal.get_node_or_null("Kollision") as CollisionShape3D
+	if form == null:
+		push_warning("Level 05: Zielportal ohne Knoten \"Kollision\" – Auslöser bleibt schmal")
+		return
+	var kasten := BoxShape3D.new()
+	kasten.size = Vector3(breite_bei(ZIEL_S) + 2.0, ZIEL_AUSLOESER_HOCH, ZIEL_AUSLOESER_TIEF)
+	form.shape = kasten
+
+
+## STOLPERSPERRE (Spiel-Jury R2, Mangel 5): Nach einem Stolpern löst keine
+## Stolperzone dieses Levels für STOLPER_SPERRE s nach dessen Ende ein
+## zweites aus. WARUM: Wer an einer Hürde 0,6 m zu spät sprang, stolperte in
+## der Luft, landete vor der Zone und lief gleich wieder hinein – zweimal
+## gestolpert (H1 Mindestabstand 6,70 m, H2 7,04 m), während wer gar nicht
+## sprang nur einmal stolperte (7,75 / 7,99 m). Der späte Versuch wog also
+## schwerer als keiner; auch der Spieltest-Bot stolperte an H2 zweimal,
+## 0,5 s auseinander. Die Sperre gilt für Hürden, Durchlässe und Findlinge
+## gleich. Sie hält nur, solange die Figur waagerecht höchstens
+## STOLPER_SPERRE_WEITE von der Stelle des Stolperns bleibt – wer hochspringt
+## und zurückfällt, bleibt dort; wer weiterläuft oder versetzt wird (Proben
+## setzen die Figur zwischen zwei Versuchen zurück), verlässt sie. Zwei
+## Hindernisse liegen nirgends näher als 9 m (D3–D4: 9,2 m), ein zweites
+## Stolpern dort zählt also weiter.
+## Umgesetzt als Überschreibung des Handlers aus `KorridorLevel` – die Zonen
+## rufen ihn über ihre Verbindung (`_stolperzone`); die geteilte Datei und
+## jedes andere Level (auch die Werkstatt) bleiben, wie sie sind.
+const STOLPER_SPERRE := 0.6
+const STOLPER_SPERRE_WEITE := 1.5
+var _stolper_sperre := 0.0
+var _stolper_ort := Vector3.ZERO
+
+
+func _durchlass_stolpern(koerper: Node3D, dauer: float) -> void:
+	var figur := koerper as Spieler
+	if figur == null or _stolper_sperre > 0.0:
+		return
+	if figur.invuln <= 0.0:
+		_stolper_sperre = dauer + STOLPER_SPERRE
+		_stolper_ort = figur.global_position
+	figur.stolpern(dauer)
+
+
+func _physics_process(delta: float) -> void:
+	if _stolper_sperre > 0.0:
+		_stolper_sperre = maxf(_stolper_sperre - delta, 0.0)
+		if _spieler != null:
+			var weg := _spieler.global_position - _stolper_ort
+			weg.y = 0.0
+			if weg.length() > STOLPER_SPERRE_WEITE:
+				_stolper_sperre = 0.0
 	if _ziel_offen or _zielportal == null or _spieler == null:
 		return
 	if strecke_der_figur() >= ENTKOMMEN_S \
@@ -1661,7 +1771,12 @@ func jagd_zustand() -> Dictionary:
 ## Checkpoint, die Figur stirbt und erscheint dort – genau so stellt das
 ## Spiel den Keiler (L05Jagd.nach_tod).
 ##   Ideallauf     vom Start bis hinter das Wehr: kein Tod vor CP1, Abstand
-##                 beim Wecken 15, Mindestabstand ≥ 10 (gerechnet 12,8)
+##                 beim Wecken 15, Mindestabstand ≥ JAGD_IDEAL_MIN (Entwurf
+##                 P1: 10; seit R2 rückt der Keiler im Nacken auf 8 bzw.
+##                 7,5 m heran, L05Jagd, Kopf)
+##   Ein Fehler    je einmal Stolpern an H1, D1, H2, D2 (Spiel-Jury R2,
+##                 Mangel 3: „ein Fehler bleibt überall überlebbar"),
+##                 Mindestabstand ≥ JAGD_FEHLER_MIN
 ##   Rastplatz s   Respawn: Keiler bei s − `L05Jagd.vorsprung_bei(s)`,
 ##                 Durchlässe dahinter heil, 3 s weiter ohne Tod; nur die
 ##                 Aktionen ab dem Rastplatz (die davor lösten sonst gleich
@@ -1686,9 +1801,20 @@ func jagdfaelle() -> Array[Dictionary]:
 	var faelle: Array[Dictionary] = [
 		{"name": "Ideallauf", "checkpoint": anfang, "rastplatz": START_S, "aktionen": ideal,
 				"spur": JAGD_SPUR, "ende_s": JAGD_ENDE_S, "erwartet": "ueberlebt",
-				"min_abstand": 10.0,
+				"min_abstand": JAGD_IDEAL_MIN,
 				"weck_abstand": Vector2(L05Jagd.WECK_S - L05Jagd.SCHLAF_S, 0.2)},
 	]
+	var cp1: float = RASTPLAETZE[0]
+	for name_f: String in ["H1", "D1 Wurzelbogen", "H2", "D2 Wurzelbogen"]:
+		var fehler := _jagdlinie({name_f: "stolpern"})
+		var stelle := 0.0
+		for a: Dictionary in fehler:
+			if String(a.get("wo", "")) == name_f:
+				stelle = float(a["s"])
+		faelle.append({"name": "Ein Fehler an %s" % name_f, "checkpoint": _rastplatz_ort(cp1),
+				"rastplatz": cp1, "aktionen": _aktionen_ab(fehler, cp1), "spur": JAGD_SPUR,
+				"ende_s": stelle + 18.0, "erwartet": "ueberlebt", "stolpern": 1,
+				"min_abstand": JAGD_FEHLER_MIN})
 	for s in RASTPLAETZE:
 		var ab := _aktionen_ab(ideal, s)
 		var start := Vector2(s - L05Jagd.vorsprung_bei(s), 0.1)
@@ -1756,8 +1882,9 @@ func _rastplatz_ort(s: float) -> Vector3:
 
 ## Die Aktionen eines Laufs, nach `s` sortiert (Schema im Kopf der
 ## Jagdprobe). `abw` je Name eines Durchlasses "halten" oder "stolpern", je
-## Lücke "zoegern" oder "zoegern_lang", am Wehr "stehen" oder "schweben";
-## sonst der Ideallauf.
+## Hürde "stolpern" (hineinlaufen, nach der Reaktion springen), je Lücke
+## "zoegern" oder "zoegern_lang", am Wehr "stehen" oder "schweben"; sonst
+## der Ideallauf.
 func _jagdlinie(abw: Dictionary) -> Array[Dictionary]:
 	var aktionen: Array[Dictionary] = []
 	for d: Dictionary in DURCHLAESSE:
@@ -1773,8 +1900,13 @@ func _jagdlinie(abw: Dictionary) -> Array[Dictionary]:
 			_:
 				aktionen.append({"s": stirn - JAGD_SLIDE_VOR, "tun": "slide", "wo": name_d})
 	for h: Dictionary in HUERDEN:
+		var name_h: String = h["name"]
 		var vorn := float(h["s"]) - HUERDE_ZONE_LAENGE * 0.5
-		aktionen.append({"s": vorn - JAGD_HUERDE_VOR, "tun": "sprung", "wo": String(h["name"])})
+		if String(abw.get(name_h, "")) == "stolpern":
+			aktionen.append({"s": vorn - 3.0, "tun": "stolpern", "bis": vorn + 1.0,
+					"reaktion": JAGD_REAKTION, "danach": "sprung", "wo": name_h})
+		else:
+			aktionen.append({"s": vorn - JAGD_HUERDE_VOR, "tun": "sprung", "wo": name_h})
 	for l: Dictionary in LUECKEN:
 		var name_l: String = l["name"]
 		var kante: float = l["von"]

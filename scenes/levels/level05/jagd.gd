@@ -5,10 +5,13 @@ class_name L05Jagd
 ##
 ## Der Keiler ist kein Gegner mit Trefferzone, sondern eine Stelle `s` auf
 ## dem Verlauf, die mit festem Tempo (TEMPO, knapp unter dem Lauftempo 8,5)
-## der Figur nachläuft und nie weiter als HOECHSTABSTAND zurückfällt. Wer
-## läuft, hält ihn hinten; wer steht, stolpert oder zögert, wird eingeholt –
-## ab FANGABSTAND ist die Figur tot. So steht es in CLAUDE.md („festes
-## Tempo"), und die Konstanten sind die alten aus level05.gd unverändert.
+## der Figur nachläuft und nicht weit zurückfällt: Liegt er weiter hinten,
+## als HOECHST_STAFFEL an der Stelle der Figur erlaubt, holt er mit
+## höchstens AUFHOL_TEMPO auf (siehe unten, NACKEN). Wer läuft, hält ihn
+## hinten; wer steht, stolpert oder zögert, wird eingeholt – ab FANGABSTAND
+## ist die Figur tot. So steht es in CLAUDE.md („festes Tempo knapp unter
+## dem Lauftempo, holt auf, wer stehen bleibt oder stolpert"); TEMPO,
+## VORSPRUNG, FANGABSTAND und die Stolperdauer sind die alten aus level05.gd.
 ##
 ## ABLAUF (Lage):
 ##   SCHLAF   bei SCHLAF_S / SCHLAF_Q in der Suhle, rührt sich nicht. Vor CP1
@@ -21,8 +24,9 @@ class_name L05Jagd
 ##            1,4 m früher, der Abstand also nicht mehr 15; und wer sie mit
 ##            einem Doppelsprung überspringt, weckt ihn trotzdem.
 ##   JAGD     mit TEMPO, Höhe aus `boden_bei` plus Hopser (unten), seitlich
-##            QUER_ANTEIL der Querlage der Figur. Höchstens so weit hinter
-##            der Figur, wie HOECHST_STAFFEL an ihrer Stelle sagt (unten).
+##            QUER_ANTEIL der Querlage der Figur. Liegt er weiter zurück, als
+##            HOECHST_STAFFEL an ihrer Stelle sagt, holt er mit höchstens
+##            AUFHOL_TEMPO auf (unten, NACKEN).
 ##   UFER     bei UFER_S bleibt er stehen (das gebrochene Wehr L6 beginnt
 ##            bei 284) und schnaubt – als ZUSTAND, nicht als Augenblick: Er
 ##            bleibt am Ufer stehen und schnaubt weiter, auch wenn die Figur
@@ -85,23 +89,50 @@ class_name L05Jagd
 ## hinter dem Rastplatz sind damit wieder heil (Entwurf §6.5); die, über die
 ## er schon hinaus steht, bleiben gebrochen.
 ##
-## HÖCHSTABSTAND JE ABSCHNITT (Spiel-Jury R1, Mangel 3). Mit 15 m über die
-## ganze Strecke war der Keiler im sauberen Lauf nie „im Nacken" (Jagdprobe:
-## Mindestabstand 14,44 m; 26 Bildpunkte hoch bei 720p) und die Jagd stieg
-## nicht an. Jetzt zieht er näher heran, je weiter der Hang hinab geht:
-## beim Wecken 15, im Hohlweg 14, auf den Terrassen 13, im Tobel 12, am
-## Mühlbach 11 (HOECHST_STAFFEL, linear über die Übergänge, damit er nicht
-## springt). Das TEMPO bleibt fest (CLAUDE.md); er läuft nur dann schneller,
-## wenn ihn der Höchstabstand mitzieht – wie vorher hinter einer Figur, die
-## mit 8,5 m/s läuft. WARUM nicht enger (die Jury schlug 14/12/10/9 vor):
-## Die Kette D3–D4–L5 soll zwei Fehler verzeihen (Entwurf §2.5). Zweimal
-## Stolpern kostet dort gemessen 8,3 m (Jagdprobe, P1b: 15 → 6,66); mit
-## 10 m bliebe 1,7 m, unter dem Fangabstand. Mit 12 m bleiben gut 3,6 m.
-## Dem Nutzer vorzulegen (Abweichung von „Höchstabstand 15", Entwurf §2.1).
+## NACKEN (Spiel-Jury R1, Mangel 3, und R2, Mangel 3). Die Leitidee:
+## „hinter mir die Hauer, ein Slide gibt Vorsprung, jeder Sprung kostet
+## welchen". Bis Runde 2 hielt eine harte Klemme den Keiler auf einem
+## Höchstabstand je Abschnitt (15/14/13/12/11 m): Im sauberen Lauf hing er
+## immer daran (Jury: B 13,5–15, C 12,7–13,5, D 11,5–12,8, E 11,0–11,7 m,
+## 27–29 Bildpunkte hoch), ein Sprung kostete höchstens 0,5 m, und ein Slide
+## gab NICHTS – die Klemme zog ihn mit 13,5 m/s mit. Jetzt zwei Dinge:
+##   1. Er holt nur mit AUFHOL_TEMPO auf (10,5 m/s, 2 m/s schneller als die
+##      laufende Figur), nicht mit jedem Tempo. Ein Slide (13,5 m/s, 0,42 s)
+##      gibt also auch im Nacken 1,3 m Vorsprung, den er erst in gut einer
+##      halben Sekunde wieder aufholt; ohne Klemme (Strecken, auf denen
+##      die Staffel steigt) gibt er 1,85 m gegen sein TEMPO.
+##   2. Die Staffel folgt der Strecke, nicht den Abschnitten: Wo kein
+##      Hindernis steht, an dem man stolpern kann, rückt er heran; vor der
+##      Kette lässt er sich zurückfallen. HOECHST_STAFFEL (Abstand über der
+##      Strecke der Figur, linear dazwischen):
+##        31 Wecken                       15 (Abstand beim Wecken)
+##        44–110 Hohlweg B                9,5 (H1, D1, L1, H2, D2)
+##        118–170 Wurzelterrassen C       8 – der Nacken: nur Treppen und
+##                                        Lücken, an denen man nicht
+##                                        stolpert
+##        172–262 Tobel D                 14 – er fällt mit 1,1 m/s zurück
+##                                        und steht an D3 gut 13 m hinter
+##                                        der Figur, an der Findlingsgasse
+##                                        und am Sonnensims bis 14
+##        ab 266 Mühlbach E               7,5 bis ans Ufer (Wehr)
+##      Die Regel dahinter: An jedem Hindernis, an dem man stolpern kann
+##      (H1, D1, H2, D2, F1, F2), liegt er im sauberen Lauf mindestens
+##      9,5 m zurück – EIN Fehler dort kostet gemessen 5,5–6,3 m (Jury R2)
+##      und bleibt überlebbar; an D3 mindestens 12 m – ZWEI Fehler in der
+##      Kette kosten 8 m (Entwurf §2.5: Die Kette verzeiht zwei Fehler).
+##      Die Zahlen in der Jagdprobe (`Level05.jagdfaelle`) und im Kopf von
+##      `doku/level05-neubau.md`, Abschnitt R2.
+##   Das TEMPO bleibt fest (CLAUDE.md); schneller als TEMPO läuft er nur,
+##   solange er hinter der Staffel liegt. Die harte Klemme hatte ihn dabei
+##   mit jedem Tempo der Figur mitgezogen, bis 13,5 m/s im Slide; jetzt höchstens
+##   AUFHOL_TEMPO. Dem Nutzer vorzulegen (Abweichung von „Höchstabstand 15",
+##   Entwurf §2.1).
 ##
 ## NACH EINEM TOD steht der Keiler VORSPRUNG hinter dem Rastplatz, an dem
-## die Figur wieder erscheint (höchstens den Höchstabstand dort,
-## `vorsprung_bei`) – genau, nicht über `get_closest_offset` des
+## die Figur wieder erscheint (`vorsprung_bei`; bis Runde 2 höchstens den
+## Höchstabstand dort – mit dem Nacken in C und E stünde er dann 8 bzw.
+## 7,5 m hinter ihr; er holt die Staffel nach dem Losgehen mit
+## AUFHOL_TEMPO auf) – genau, nicht über `get_closest_offset` des
 ## Checkpoints: Der Checkpoint liegt 0,6 m über der Decke, die Decke bis
 ## 0,64 m neben der Kurve, und am Gefälle lag die Strecke daraus bis
 ## 0,083 m zu kurz (gemessen an CP2, an CP4 0,080). Liegt der Rastplatz vor
@@ -131,7 +162,9 @@ class_name L05Jagd
 ##
 ## RUHE (`pruefruhe`, Entwurf §1 Nr. 16): Für Sprungprobe, LevelCheck und
 ## Fotos fängt er nicht und läuft nicht von selbst. Er steht dann in der
-## Ruhestellung: VORSPRUNG hinter der Figur (am Ufer höchstens bis UFER_S),
+## Ruhestellung: so weit hinter der Figur, wie er im sauberen Lauf dort
+## höchstens stünde (`ruhe_abstand`: VORSPRUNG, im Nacken die Staffel; am
+## Ufer höchstens bis UFER_S),
 ## vor WECK_S schlafend an seinem Platz – und bleibt dort, wohin die Probe
 ## die Figur auch setzt (jedes Bild neu gestellt), mit Hopser, Neigung und
 ## gebrochenen Durchlässen wie im Spiel an dieser Stelle. Ein Durchlass
@@ -152,12 +185,19 @@ const TEMPO := 7.4
 const VORSPRUNG := 12.0
 ## Abstand beim Wecken und Maß der Nähe (`naehe`, Augenglut, Lautstärke).
 const HOECHSTABSTAND := 15.0
-## Höchstabstand je Stelle der Figur (siehe Kopf), Vector2(s, Abstand),
-## linear dazwischen, davor und dahinter wie am Rand.
+## Höchstabstand je Stelle der Figur (siehe Kopf, NACKEN), Vector2(s,
+## Abstand), linear dazwischen, davor und dahinter wie am Rand. Wo die
+## Staffel fällt, holt er mit AUFHOL_TEMPO auf; wo sie steigt, fällt er mit
+## seinem TEMPO zurück.
 const HOECHST_STAFFEL: Array[Vector2] = [
-	Vector2(31.0, 15.0), Vector2(41.0, 14.0), Vector2(115.0, 14.0), Vector2(125.0, 13.0),
-	Vector2(178.0, 13.0), Vector2(188.0, 12.0), Vector2(262.0, 12.0), Vector2(272.0, 11.0),
+	Vector2(31.0, 15.0), Vector2(44.0, 12.0), Vector2(50.0, 9.5), Vector2(110.0, 9.5),
+	Vector2(118.0, 8.0), Vector2(170.0, 8.0), Vector2(172.0, 14.0), Vector2(262.0, 14.0),
+	Vector2(266.0, 7.5),
 ]
+## So schnell holt er höchstens auf, wenn er weiter zurückliegt, als die
+## Staffel erlaubt (siehe Kopf, NACKEN): 2 m/s schneller als die laufende
+## Figur, 1,3 m/s langsamer als ihr Slide.
+const AUFHOL_TEMPO := 10.5
 const FANGABSTAND := 2.0
 ## Nach dem Respawn (siehe Kopf, NACH EINEM TOD): höchstens so lange wartet
 ## er, und so weit (m, waagerecht) muss die Figur vom Checkpoint weg.
@@ -371,10 +411,14 @@ func _physics_process(delta: float) -> void:
 		wecken()
 	var laeuft := _lage == Lage.JAGD and not _wartet(delta)
 	if _lage == Lage.JAGD:
-		# Er läuft immer (außer gleich nach dem Respawn) – und fällt nie
-		# weiter zurück als der Höchstabstand an der Stelle der Figur.
+		# Er läuft immer (außer gleich nach dem Respawn); liegt er weiter
+		# zurück, als die Staffel an der Stelle der Figur erlaubt, holt er
+		# mit höchstens AUFHOL_TEMPO auf (siehe Kopf, NACKEN).
 		var weiter := _keiler_s + (TEMPO * delta if laeuft else 0.0)
-		_keiler_s = maxf(weiter, s_figur - hoechstabstand_bei(s_figur))
+		var ziel := s_figur - hoechstabstand_bei(s_figur)
+		if laeuft and ziel > weiter:
+			weiter = minf(ziel, _keiler_s + AUFHOL_TEMPO * delta)
+		_keiler_s = weiter
 		if _keiler_s >= UFER_S:
 			_keiler_s = UFER_S
 			_lage_setzen(Lage.UFER)
@@ -389,8 +433,7 @@ func _physics_process(delta: float) -> void:
 		_figur.sterben()
 
 
-## Höchstabstand an der Stelle `s` der Figur (siehe Kopf, HÖCHSTABSTAND JE
-## ABSCHNITT).
+## Höchstabstand an der Stelle `s` der Figur (siehe Kopf, NACKEN).
 static func hoechstabstand_bei(s: float) -> float:
 	var erster: Vector2 = HOECHST_STAFFEL[0]
 	if s <= erster.x:
@@ -403,8 +446,15 @@ static func hoechstabstand_bei(s: float) -> float:
 	return HOECHST_STAFFEL[HOECHST_STAFFEL.size() - 1].y
 
 
-## Abstand des Keilers hinter einem Rastplatz `s` nach dem Respawn.
-static func vorsprung_bei(s: float) -> float:
+## Abstand des Keilers hinter einem Rastplatz `s` nach dem Respawn (siehe
+## Kopf, NACH EINEM TOD): überall VORSPRUNG.
+static func vorsprung_bei(_s: float) -> float:
+	return VORSPRUNG
+
+
+## Abstand in der Ruhestellung der Proben an der Stelle `s` der Figur (siehe
+## Kopf, RUHE): so weit, wie er im sauberen Lauf höchstens zurückliegt.
+static func ruhe_abstand(s: float) -> float:
 	return minf(VORSPRUNG, hoechstabstand_bei(s))
 
 
@@ -454,7 +504,7 @@ func _ruhestellung(versetzt: bool) -> void:
 		if _lage != Lage.SCHLAF or versetzt:
 			_einschlafen()
 		return
-	_keiler_s = minf(s_figur - vorsprung_bei(s_figur), UFER_S)
+	_keiler_s = minf(s_figur - ruhe_abstand(s_figur), UFER_S)
 	_lage_setzen(Lage.UFER if _keiler_s >= UFER_S else Lage.JAGD)
 	_stellen(_keiler_s, _gassenlage(_keiler_s, _querlage(s_figur) * QUER_ANTEIL), versetzt)
 	_durchlaesse_pruefen()

@@ -259,6 +259,17 @@ const FALL_TIEF := Color(0.2, 0.38, 0.42)
 ## so viele Punkte (je 0,05 s Wurf) in den Fall hinein.
 const WEHR_KANTE := 4.5
 const SCHUSS_UEBER := 4
+## WALZE (Bild-Jury R2, Mangel 1): Der Schuss wölbt sich über die Länge
+## des Bruchs um WEHR_WALZE × seine Breite auf und liegt WEHR_WALZE_UEBER
+## höher als sein Spiegel – eine Walze aus Weißwasser, deren Scheitel gut
+## einen halben Meter unter der Lippe der Wehrkrone steht (Spiegel 2,7–2,9,
+## Scheitel 3,6–3,8, Lippe 4,16). WARUM: Lag der Schuss flach auf dem
+## Spiegel, sah die Kamera im Anlauf über die nahe Lippe nur die Stirn
+## der fernen und darunter einen dünnen hellen Strich – der 5-m-Bruch, an
+## dem der Doppelsprung Pflicht ist, las sich als Stufe. Die Walze ist nur
+## Optik; die Zone bleibt auf 2,6 darunter (`probe`).
+const WEHR_WALZE := 0.16
+const WEHR_WALZE_UEBER := 0.08
 ## Der Fall an der rechten Kante: Wölbung (Anteil der Breite, die zweite
 ## Lage 1,4-mal), Tempo und Farben – fast weiß auch zwischen den
 ## Schaumstreifen, sonst stand er von der Seite als hellblaue Glasscheibe
@@ -993,8 +1004,8 @@ static func _wurf(start: Vector3, richtung: Vector3, tempo: float, ende_y: float
 ## (WEHRFALL_*). WARUM getrennt: Begann ein Band schon über dem Teich, lag
 ## sein Anfang als weißes Blatt mit harter Kante auf dem Spiegel, und als
 ## EIN Band (eine Farbe, ein Bauch für Schuss und Fall) las sich der Fall
-## von der Seite als durchsichtige, hellblaue Scheibe (Prüfung P6). Ein
-## Bauch auf dem Schuss wölbte ihn nach oben. Rückgabe: beide Knoten.
+## von der Seite als durchsichtige, hellblaue Scheibe (Prüfung P6). Der
+## Schuss wölbt sich zur Walze (WEHR_WALZE). Rückgabe: beide Knoten.
 func _weisswasser() -> Array[Wasserfall]:
 	var bruch: Dictionary = Level05.LUECKEN[5]
 	var mitte := (float(bruch["von"]) + float(bruch["bis"])) * 0.5
@@ -1003,7 +1014,7 @@ func _weisswasser() -> Array[Wasserfall]:
 	var schuss := PackedVector3Array()
 	for q: float in [WEHR_KANTE, 2.5, 0.0, -2.5, -WEHR_Q]:
 		var p := LevelWerkzeuge.punkt_frei(level.verlauf, mitte, q)
-		p.y = wehr_spiegel(q) + 0.04
+		p.y = wehr_spiegel(q) + 0.04 + WEHR_WALZE_UEBER
 		schuss.append(p)
 	var fall := PackedVector3Array([schuss[schuss.size() - 1]])
 	fall.append_array(_wurf(fall[0], aussen, 2.0, _unter_spiegel(mitte) + 0.03))
@@ -1014,7 +1025,7 @@ func _weisswasser() -> Array[Wasserfall]:
 		schuss.append(fall[i])
 	var baender: Array[Wasserfall] = []
 	var oben := Wasserfall.band(self, schuss, breite, {"name": "Weißwasser",
-			"breite_ende": breite + 0.2, "bauch": 0.05, "tempo": 4.2, "spalten": 8,
+			"breite_ende": breite + 0.2, "bauch": WEHR_WALZE, "tempo": 4.2, "spalten": 8,
 			"schritt": 0.35, "farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF,
 			"richtung": aussen, "ferne": 1.0})
 	# Der Fall in zwei Lagen (ein Netz, `_baender_vereinen`): Der Stoff deckt
