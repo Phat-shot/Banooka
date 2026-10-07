@@ -54,7 +54,7 @@ ambient_light_source = 2
 ambient_light_color = Color(0.4, 0.44, 0.6, 1)
 ambient_light_energy = 0.62
 tonemap_mode = 3
-tonemap_exposure = 1.15
+tonemap_exposure = 0.9
 tonemap_white = 6.0
 glow_enabled = true
 glow_intensity = 0.5
@@ -66,11 +66,11 @@ fog_mode = 1
 fog_light_color = Color(0.5, 0.58, 0.76, 1)
 fog_light_energy = 1.0
 fog_sun_scatter = 0.0
-fog_density = 0.85
+fog_density = 0.9
 fog_sky_affect = 0.0
 fog_depth_curve = 1.4
-fog_depth_begin = 16.0
-fog_depth_end = 240.0
+fog_depth_begin = 12.0
+fog_depth_end = 210.0
 adjustment_enabled = true
 adjustment_brightness = 1.0
 adjustment_contrast = 1.06
@@ -83,9 +83,9 @@ script = ExtResource("1_level")
 environment = SubResource("Umgebung")
 
 [node name="Sonne" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.819152, 0.251439, -0.515527, 0, 0.898794, 0.438371, 0.573576, 0.359093, -0.736249, 0, 30, 0)
-light_color = Color(1, 0.8, 0.56, 1)
-light_energy = 1.25
+transform = Transform3D(-0.819152, 0.167697, -0.548514, 0, 0.956305, 0.292372, 0.573576, 0.239497, -0.783359, 0, 30, 0)
+light_color = Color(1, 0.74, 0.48, 1)
+light_energy = 1.5
 light_specular = 0.4
 shadow_enabled = true
 shadow_bias = 0.04
@@ -103,7 +103,7 @@ sky_mode = 1
 [node name="Kantenlicht" type="DirectionalLight3D" parent="."]
 transform = Transform3D(-0.382683, -0.315985, 0.868163, 0, 0.939693, 0.34202, -0.92388, 0.130885, -0.359605, 0, 30, 0)
 light_color = Color(0.62, 0.7, 0.95, 1)
-light_energy = 0.18
+light_energy = 0.3
 light_specular = 0.3
 sky_mode = 1
 

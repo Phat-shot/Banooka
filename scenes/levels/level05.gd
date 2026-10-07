@@ -29,7 +29,14 @@ class_name Level05
 ## Tiefennebel und Bildrahmen in Level05.tscn; Zonen, Horizont, Bewegung
 ## in der Luft, Krähen und Mühle in `L05Stimmung`). Durchlässe, Hürde,
 ## Findlinge, Wurzeltreppe und Wehrbruch zeigt die Werkstatt einzeln
-## (Stationen 34–38, P9).
+## (Stationen 34–38, P9). Nach der ersten Runde der Spiel- und der
+## Bild-Jury (R1) kamen dazu: Sicht durch die Durchlässe (Freiraum K5,
+## Nahblende), Höchstabstand je Abschnitt und Warten nach dem Respawn
+## (`L05Jagd`), Keilerklänge, D4/L5 1,2 m weiter hinten, das verborgene
+## Zielportal (ENTKOMMEN_S), die Richtzeit mit Zeitkisten (ZIELZEIT) und
+## das Bild der Eiche, der Wände, Lücken, Findlinge und des Lichts – je im
+## Kopf des Moduls begründet, gesammelt in `doku/level05-neubau.md`
+## (Abschnitt 13, „R1“).
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
@@ -148,7 +155,7 @@ class_name Level05
 ##   * Verlauf aus dichten Punkten statt aus den zwölf (siehe VERLAUF).
 ##   * Überlappende Rampen als eine (siehe WEG).
 ##   * Leitlinien 5,7 bzw. 7 statt 5 m (siehe LEITLINIEN).
-##   * G2 2,0 m breit (q 4,6–6,6) statt 1,4, die vier Kisten zu zweit hinten
+##   * G2 2,0 m breit (q 4,6–6,6) statt 1,4, die Kisten hintereinander außen
 ##     auf der Bank: In einer Reihe deckten sie die ganze Bank, und kein
 ##     Slide-Sprung kam hinauf (Sprungprobe: jede Stelle prallte an der
 ##     vordersten Kiste ab). Die Nische dahinter beginnt schon bei 78.
@@ -221,7 +228,13 @@ const KURVE_ENDE := 332.0
 const START_S := 6.0
 const ZIEL_S := 296.0
 ## Ab hier „Entkommen!" – nur als Meldung, Ziel ist allein das Zielportal.
-const ENTKOMMEN_S := 289.0
+## 0,6 m hinter der Lippe des Wehrbruchs (L6 endet bei 289,0), die Zone
+## beginnt auf der Decke (`_meldung`, "unten" 0): Bis Runde 1 lag sie ab
+## 288,8 und reichte 1 m unter die Decke – eine Figur, die in den letzten
+## Dezimetern der Lücke fiel, bekam „Entkommen!" und „Autsch!" im selben
+## Bild, und beim echten Entkommen kam die Meldung nicht mehr (Spiel-Jury
+## R1, Mangel 8). Ab hier steht auch das Zielportal (`_ziel_zeigen`).
+const ENTKOMMEN_S := 289.6
 ## Hinweis vor dem Gatter Ü (Entwurf §5 A, JS6).
 const HINWEIS_S := 11.0
 const HINWEIS_SLIDE := "Slide: kurz antippen, nicht halten"
@@ -275,7 +288,7 @@ const LUECKEN := [
 			"erdig": true},
 	{"name": "L4 Seitenrinne", "von": 194.0, "bis": 197.5, "tod_y": 9.0, "grund_y": 7.9,
 			"erdig": true},
-	{"name": "L5 Mühlrinne", "von": 228.5, "bis": 231.5, "tod_y": 7.25, "grund_y": 6.0,
+	{"name": "L5 Mühlrinne", "von": 229.7, "bis": 232.7, "tod_y": 7.25, "grund_y": 6.0,
 			"erdig": true},
 	{"name": "L6 Wehrbruch", "von": 284.0, "bis": 289.0, "tod_y": 2.6, "grund_y": 1.0,
 			"erdig": false},
@@ -339,7 +352,7 @@ const DURCHLAESSE := [
 	{"name": "D1 Wurzelbogen", "s": 58.0, "tiefe": 1.8},
 	{"name": "D2 Wurzelbogen", "s": 104.0, "tiefe": 1.8},
 	{"name": "D3 Fluderjoch", "s": 214.0, "tiefe": 1.6},
-	{"name": "D4 Fluderjoch", "s": 222.0, "tiefe": 1.6},
+	{"name": "D4 Fluderjoch", "s": 223.2, "tiefe": 1.6},
 ]
 ## Hürden: "s" ihre Mitte (Körper 0,7 × 0,6, Zone 1,0 × 0,8; §1 Nr. 12).
 const HUERDEN := [
@@ -377,7 +390,8 @@ const BEGEHBARES := [
 	# G2 2,0 m breit statt 1,4 (bis an die Nische): Vier Kisten in einer
 	# Reihe deckten die ganze Bank, und kein Slide-Sprung kam mehr hinauf
 	# (Sprungprobe: jede Stelle prallte an der vordersten Kiste ab). Jetzt
-	# stehen sie zu zweit hinten, vorn bleiben 3 m zum Landen.
+	# stehen drei hintereinander an der Außenkante (KISTEN), vorn bleiben gut
+	# 2 m zum Landen und innen ein Gang von 1 m.
 	{"name": "G2 Böschungsbank", "form": "kasten", "s": 84.5, "q": 5.6,
 			"groesse": Vector3(2.0, 3.2, 5.0), "oben": 2.2, "ebene": 16},
 	{"name": "G3 Trittstein", "form": "kasten", "s": 257.0, "q": 3.4,
@@ -540,10 +554,15 @@ const KISTEN := [
 	{"art": Kiste.Art.NORMAL, "s": 65.0, "q": 2.2},
 	{"art": Kiste.Art.NORMAL, "s": 66.2, "q": 2.2},
 	{"art": Kiste.Art.NORMAL, "s": 67.4, "q": 2.2},
-	{"art": Kiste.Art.NORMAL, "s": 85.5, "q": 5.1, "auf": "G2 Böschungsbank"},
-	{"art": Kiste.Art.NORMAL, "s": 85.5, "q": 6.1, "auf": "G2 Böschungsbank"},
-	{"art": Kiste.Art.NORMAL, "s": 86.5, "q": 5.1, "auf": "G2 Böschungsbank"},
-	{"art": Kiste.Art.NORMAL, "s": 86.5, "q": 6.1, "auf": "G2 Böschungsbank"},
+	# G2: drei Kisten hintereinander an der Außenkante der Bank, innen bleibt
+	# ein Gang von 1,0 m (q 4,6–5,6). Zu zweit nebeneinander sperrten sie die
+	# Bank in voller Breite: Wer ohne Drehschlag landete, lief gegen sie und
+	# blieb stehen (Spiel-Jury R1, Mangel 11). Die vierte steht dafür unten
+	# am Weg, hinter dem Wasserriss in der Kistenspur.
+	{"art": Kiste.Art.NORMAL, "s": 80.4, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 84.35, "q": 6.1, "auf": "G2 Böschungsbank"},
+	{"art": Kiste.Art.NORMAL, "s": 85.4, "q": 6.1, "auf": "G2 Böschungsbank"},
+	{"art": Kiste.Art.NORMAL, "s": 86.45, "q": 6.1, "auf": "G2 Böschungsbank"},
 	{"art": Kiste.Art.NORMAL, "s": 110.0, "q": 2.2},
 	{"art": Kiste.Art.NORMAL, "s": 111.2, "q": 2.2},
 	{"art": Kiste.Art.NORMAL, "s": 112.4, "q": 2.2},
@@ -580,7 +599,13 @@ const KISTEN := [
 	{"art": Kiste.Art.NORMAL, "s": 294.1, "q": 2.2},
 ]
 
-## Früchte (§6.4, 119). Schema wie Level 01: "reihe" gleichmäßig von–bis auf
+## Früchte (§6.4, 119). Die Bögen über Lücken, Hürden und Graben liegen
+## 0,8 m (am Graben 1,0 m) neben der Wegmitte, abwechselnd links und rechts:
+## Längs auf q 0 stand jeder Bogen aus der Rückblickkamera als senkrechte
+## Säule genau auf der Figur (Spiel-Jury R1, Mangel 9; Bild-Jury R1,
+## Mangel 11). Eingesammelt werden sie trotzdem (Anziehung ab 2,6 m,
+## `Frucht.MAGNET_RADIUS`).
+## Schema wie Level 01: "reihe" gleichmäßig von–bis auf
 ## Höhe "h" (Vorgabe 0,9), auf Wunsch quer von "q" nach "q_ende"; "boden"
 ## dasselbe auf 0,35 m (weist auf den Slide, Durchlässe); "bogen" über eine
 ## Lücke, "scheitel" = Höhe der mittleren Frucht über der Decke; "punkte"
@@ -592,32 +617,32 @@ const FRUECHTE := [
 	{"art": "boden", "von": 13.6, "bis": 16.6, "anzahl": 4, "q": 0.0},
 	# Über den Suhlgraben auf der Bahn des Slide-Sprungs: Scheitel 2,4 über
 	# dem Weg ist 3,2 über der Grabensohle (gemessen wird an der Decke).
-	{"art": "bogen", "von": 23.0, "bis": 28.6, "anzahl": 6, "q": 0.0, "scheitel": 3.2},
+	{"art": "bogen", "von": 23.0, "bis": 28.6, "anzahl": 6, "q": -1.0, "scheitel": 3.2},
 	{"art": "punkte", "punkte": [Vector3(3.6, 4.6, 1.6), Vector3(3.0, 4.6, 2.6),
 			Vector3(2.6, 4.6, 3.4), Vector3(0.8, 4.6, 3.7), Vector3(0.4, 4.6, 3.7),
 			Vector3(2.0, 4.9, 4.4)]},
 	# --- B: 32 ---
-	{"art": "bogen", "von": 43.0, "bis": 45.0, "anzahl": 3, "q": 0.0, "scheitel": 1.9},
+	{"art": "bogen", "von": 43.0, "bis": 45.0, "anzahl": 3, "q": 0.8, "scheitel": 1.9},
 	{"art": "boden", "von": 54.6, "bis": 57.6, "anzahl": 4, "q": 0.0},
-	{"art": "bogen", "von": 74.5, "bis": 78.5, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	{"art": "bogen", "von": 74.5, "bis": 78.5, "anzahl": 6, "q": 0.8, "scheitel": 2.2},
 	# G2: eine Spur hinauf und oben über den Kisten.
 	{"art": "punkte", "punkte": [Vector3(79.6, 3.9, 1.2), Vector3(80.4, 4.4, 2.0),
 			Vector3(81.2, 4.9, 2.8), Vector3(81.8, 5.2, 3.3), Vector3(83.0, 5.4, 3.1),
 			Vector3(84.2, 5.6, 3.1), Vector3(86.0, 5.6, 4.0)]},
-	{"art": "bogen", "von": 92.0, "bis": 94.0, "anzahl": 3, "q": 0.0, "scheitel": 1.9},
+	{"art": "bogen", "von": 92.0, "bis": 94.0, "anzahl": 3, "q": -0.8, "scheitel": 1.9},
 	{"art": "boden", "von": 100.6, "bis": 103.6, "anzahl": 4, "q": 0.0},
 	{"art": "reihe", "von": 112.0, "bis": 118.0, "anzahl": 5, "q": 0.0},
 	# --- C: 21 ---
 	{"art": "reihe", "von": 125.4, "bis": 127.4, "anzahl": 3, "q": 0.0},
-	{"art": "bogen", "von": 135.8, "bis": 140.2, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	{"art": "bogen", "von": 135.8, "bis": 140.2, "anzahl": 6, "q": -0.8, "scheitel": 2.2},
 	{"art": "reihe", "von": 149.4, "bis": 151.4, "anzahl": 3, "q": 0.0},
-	{"art": "bogen", "von": 159.8, "bis": 164.2, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	{"art": "bogen", "von": 159.8, "bis": 164.2, "anzahl": 6, "q": 0.8, "scheitel": 2.2},
 	{"art": "reihe", "von": 173.4, "bis": 175.4, "anzahl": 3, "q": 0.0},
 	# --- D: 30 ---
-	{"art": "bogen", "von": 193.5, "bis": 198.0, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	{"art": "bogen", "von": 193.5, "bis": 198.0, "anzahl": 6, "q": -0.8, "scheitel": 2.2},
 	{"art": "boden", "von": 210.6, "bis": 213.6, "anzahl": 4, "q": 0.0},
-	{"art": "boden", "von": 218.6, "bis": 221.6, "anzahl": 4, "q": 0.0},
-	{"art": "bogen", "von": 228.0, "bis": 232.0, "anzahl": 6, "q": 0.0, "scheitel": 2.2},
+	{"art": "boden", "von": 219.8, "bis": 222.8, "anzahl": 4, "q": 0.0},
+	{"art": "bogen", "von": 229.2, "bis": 233.2, "anzahl": 6, "q": 0.8, "scheitel": 2.2},
 	# Durch die Findlingsgasse: rechts an F1 vorbei, links an F2.
 	{"art": "punkte", "punkte": [Vector3(242.0, 1.8, 0.9), Vector3(244.0, 1.8, 0.9),
 			Vector3(247.0, 0.0, 0.9), Vector3(250.0, -1.8, 0.9), Vector3(252.0, -1.8, 0.9)]},
@@ -625,7 +650,7 @@ const FRUECHTE := [
 			Vector3(258.8, 4.9, 3.5), Vector3(262.2, 4.9, 3.5), Vector3(262.2, 4.4, 3.5)]},
 	# --- E: 12 ---
 	# Auf der Bahn des Doppelsprungs über das Wehr (Füße im Scheitel 3,2).
-	{"art": "bogen", "von": 283.5, "bis": 289.5, "anzahl": 7, "q": 0.0, "scheitel": 3.6},
+	{"art": "bogen", "von": 283.5, "bis": 289.5, "anzahl": 7, "q": 0.8, "scheitel": 3.6},
 	{"art": "reihe", "von": 290.5, "bis": 295.0, "anzahl": 5, "q": 0.0},
 ]
 
@@ -648,7 +673,7 @@ const GEHEIMNISSE := [
 			"inhalt": "FRUCHT_MEHRFACH, 2 NORMAL, 6 Früchte"},
 	{"name": "G2 Böschungsbank", "auf": "G2 Böschungsbank",
 			"weg": "Slide-Sprung oder Doppelsprung, Einzelsprung nicht",
-			"inhalt": "4 NORMAL, 7 Früchte (Spur und Bank)"},
+			"inhalt": "3 NORMAL, 7 Früchte (Spur und Bank)"},
 	{"name": "G3 Sonnensims", "auf": "G3 Sonnensims",
 			"weg": "Trittstein, dann zwei Einzelsprünge",
 			"inhalt": "FRUCHT_MEHRFACH, 2 NORMAL, 5 Früchte"},
@@ -659,43 +684,31 @@ const GEHEIMNISSE := [
 const SICHTWEITEN := {"kiste": 50.0, "frucht": 40.0, "kiste_web": 40.0, "frucht_web": 35.0}
 
 ## Richtzeit des Zeitmodus (Entwurf §6.6), von Hand gesetzt wie in Level 06
-## (level06.gd, `zielzeit`): 1,3 × die Zeit des Spieltest-Bots, auf ganze
+## (level06.gd, `zielzeit`): 1,3 × die Uhr eines Referenzlaufs, auf ganze
 ## Sekunden gerundet. Die abgeleitete Formel der Basis (296 / 8,5 × 2,8
 ## ≈ 97 s) schenkte hier jede Stufe.
 ##
-## BOT-ZEIT ist, was die Uhr des Zeitmodus zeigt: vom fertigen Aufbau bis
-## zum Zielportal (`Zeitlauf.beginnen` … `beenden`), im Spieltest "uhr".
-## Gemessen (werkzeuge/spieltest.sh, TEST_LEVEL=5, Bild für Bild mit 60 Hz,
-## zwei Läufe gleich): ohne Tod, mit zwei Stolperern, 37,0 s. P8 nahm
-## stattdessen die "dauer" des Spieltests, 40,7 s – die läuft erst 0,8 s
-## nach dem Aufbau los und enthält die 4,5 s Schlussmeldung im Level; mit
-## 53 s holte schon der Bot mit zwei Stolperern und ohne Zeitkiste Platin.
-##
-## 1,3 × 37,0 = 48,1 → 48 s (ein dritter Lauf: 36,9 s, auch 48): Gold
-## (85 %) 40,8 s, Platin (72 %) 34,56 s.
-##
-## WAS DIE STUFEN HIER BEDEUTEN – gemessen, nicht wie §6.6 es hoffte
-## („Saphir für Überlebende mit ein, zwei Fehlern, Gold für einen sauberen
-## Lauf"). Der Keiler läuft ab dem Wecken mit festem Tempo: Jede Sekunde
-## Stehen kostet 7,4 m Abstand, Laufen holt 1,1 m/s zurück, höchstens bis
-## 15 m; bei 2 m fängt er. Wer überlebt, kann also kaum langsam sein.
-## Jagdprobe (60 Hz, vom Respawn am Start bis ins Zielportal):
-##   Ideallauf                                    35,0 s
-##   Stolpern an D3 und D4                        ≈ 36,6 s
-##   dazu 1,0 s Zögern vor L5                     gefangen
-##   drei Pausen je 1,7 s (s 36, 150, 265)        ≈ 40,1 s, je 1,9 s gefangen
-## Gerechnet: Der Keiler läuft ab dem Wecken von s 16 mindestens 7,4 m/s;
-## wer s 284,5 (sicher hinter dem Ufer) später als (284,5 − 2 − 16) / 7,4
-## ≈ 36,0 s nach dem Wecken erreicht, ist gefangen – bis ins Ziel also
-## höchstens ≈ 41 s. Damit:
-##   Gold     fast jeder Überlebende, der vor dem Wecken (Abschnitt A, die
-##            Suhle) und hinter dem Ufer nicht trödelt;
-##   Saphir   praktisch nur, wer genau dort trödelt;
-##   Platin   nur mit Zeitkisten (je 1–3 s) oder schneller als die
-##            Ideallinie der Probe (§6.6 rechnete den Ideallauf zu 34,4 s).
-## Die Formel 1,3 × Bot ist verbindlich (§6.6, Baukasten §4 Nr. 13) und
-## bleibt; bei einer Jagd mit festem Tempo trägt Saphir damit kaum.
-const ZIELZEIT := 48.0
+## DER REFERENZLAUF NIMMT DIE ZEITKISTEN MIT (Spiel-Jury R1, Mangel 2;
+## Variante a der Jury, dem Nutzer vorzulegen). Bis Runde 1 stand hier
+## 1,3 × 37,0 s = 48 s – die Uhr des Spieltest-Bots, der keine Kiste
+## zerbricht. Im Zeitmodus ist jede dritte Holzkiste eine Zeitkiste
+## (`LevelBasis._zeitkisten_setzen`, 1–3 s); in Level 05 stehen 13 davon mit
+## zusammen 28 s auf den Kistenreihen der Hauptlinie (q 2,2), und ein
+## Drehschlag im Vorbeilaufen kostet keinen Abstand zum Keiler (Jury:
+## Mindestabstand 13,4 statt 14,4 m). Wer sie mitnahm, holte Platin mit gut
+## 22 s Luft; Saphir und Gold waren ohne Sinn. Bei einer Jagd mit festem
+## Tempo ist die Uhr ohne Kisten fast fest (jeder Überlebende läuft
+## 35–41 s) – die einzige Stellschraube sind die Zeitkisten. Gemessen
+## (Jagdprobe mit Zeitmodus, Scratch-Fälle der Jury, 60 Hz, nach dem
+## Umbau von D4/L5 und dem Höchstabstand je Abschnitt):
+##   Ideallinie ohne Kisten                       Uhr 35,28 s
+##   dieselbe Linie, Kistenreihen mit Drehschlag  Uhr 11,58 s (Standzeit
+##                                                23,7 s, 34 Kisten)
+## 1,3 × 11,58 = 15,1 → 15 s: Gold (85 %) 12,75 s, Platin (72 %) 10,8 s.
+## Damit heißt Saphir: die meisten Zeitkisten der Hauptlinie mitnehmen
+## (gut 20 von 28 s), Gold: fast alle, Platin: dazu die Zeitkisten der
+## Geheimnisse G1–G3 oder eine schnellere Linie als die Referenz.
+const ZIELZEIT := 15.0
 
 # =========================================================== Proben
 
@@ -713,6 +726,19 @@ const K2_MIN := 5.3
 const KAMERA_UEBER_FIGUR := 3.45
 ## K1: Dreiecke werden in Punkten höchstens so weit auseinander abgetastet.
 const K1_RASTER := 1.0
+## K5 (`_freiraum_k5`): Fenster vor der Stirn eines Durchlasses (sauberer
+## Slide, Sprungprobe P1a: −3,75 … −0,5) und vor der Zone einer Hürde
+## (−2,75 … −1,0), Schritt, Punkte der Figur Vector2(q, Höhe über der
+## Decke) – Füße, Brust (auch 0,25 m seitlich), Kopf –, Breite des
+## Streifens, dessen Dreiecke zählen, und der Anteil freier Stellen, den
+## die Brust mindestens braucht (Spiel-Jury R1: „Brust frei ≥ 70 %").
+const K5_DUCK := Vector2(3.75, 0.5)
+const K5_HUERDE := Vector2(2.75, 1.0)
+const K5_SCHRITT := 0.25
+const K5_PUNKTE: Array[Vector2] = [Vector2(0.0, 0.25), Vector2(0.0, 0.7), Vector2(-0.25, 0.7),
+		Vector2(0.25, 0.7), Vector2(0.0, 1.15)]
+const K5_QUER := 0.6
+const K5_BRUST_MIN := 0.7
 ## K1: Ein Dreieck, dessen Schwerpunkt weiter als K1_WEIT + sein Umkreis von
 ## der Kurve liegt, kann keinen Punkt im freien Raum haben: Dort liegt jeder
 ## Punkt höchstens √(K1_Q² + (K1_OBEN + 0,64)²) ≈ 10,5 m von ihr (0,64 =
@@ -762,6 +788,11 @@ const JAGD_REAKTION := 0.25
 const JAGD_ZOEGERN := 0.3
 const JAGD_ZOEGERN_LANG := 1.2
 const JAGD_ZOEGERN_VOR := 1.5
+## Nach dem Respawn so lange stehen, bevor es losgeht (Spiel-Jury R1,
+## Mangel 5: „Reaktionsfall ≥ 0,8 s"), und der Abstand, der dann mindestens
+## bleiben soll – gut der halbe Weg von VORSPRUNG zum Fangabstand.
+const JAGD_REAKTION_RESPAWN := 1.0
+const JAGD_REAKTION_MIN := 8.0
 ## Am Ufer (Entwurf §5 E): hier stehen bleiben – gefangen; hier über der
 ## Lücke gehalten – sicher.
 const JAGD_STEHEN_S := 283.5
@@ -1325,10 +1356,11 @@ func _spiel_setzen() -> void:
 	for s in RASTPLAETZE:
 		_rastplatz(s)
 	_meldung(HINWEIS_S, HINWEIS_SLIDE, 2.4)
-	_meldung(ENTKOMMEN_S + 0.2, "Entkommen!", 2.4)
+	_meldung(ENTKOMMEN_S + 0.4, "Entkommen!", 2.4, 0.0)
 	# Ohne Lichtsäule (siehe `portale_auf`): Im Rückblick stünde sie mitten
 	# in der Kamerabahn.
 	portale_auf(START_S, ZIEL_S, 0.0)
+	_ziel_verbergen()
 
 
 func _fruechte_setzen() -> void:
@@ -1380,8 +1412,10 @@ func _auf_rastplatz(koerper: Node3D, s: float) -> void:
 		GameState.zeige_nachricht("Rastplatz", 1.2)
 
 
-## Meldung, die beim ersten Durchlaufen von `s` einmal erscheint.
-func _meldung(s: float, text: String, dauer: float) -> void:
+## Meldung, die beim ersten Durchlaufen von `s` einmal erscheint. Die Zone
+## ist 0,8 m tief und RASTPLATZ_HOEHE hoch, ihre Unterkante `unten` über der
+## Decke (Vorgabe 1 m darunter, wie die Rastplätze).
+func _meldung(s: float, text: String, dauer: float, unten := -1.0) -> void:
 	var zone := Area3D.new()
 	zone.name = "Meldung %.0f" % s
 	zone.collision_layer = 0
@@ -1392,13 +1426,64 @@ func _meldung(s: float, text: String, dauer: float) -> void:
 	kasten.size = Vector3(breite_bei(s) + 2.0, RASTPLATZ_HOEHE, 0.8)
 	form.shape = kasten
 	zone.add_child(form)
-	zone.position = weg_punkt(s, 0.0, RASTPLATZ_HOEHE * 0.5 - 1.0)
+	zone.position = weg_punkt(s, 0.0, RASTPLATZ_HOEHE * 0.5 + unten)
 	zone.rotation.y = LevelWerkzeuge.drehung(verlauf, s)
 	zone.body_entered.connect(func(koerper: Node3D) -> void:
 		if koerper is Spieler and not _gemeldet.has(text):
 			_gemeldet[text] = true
 			GameState.zeige_nachricht(text, dauer))
 	objekte.add_child(zone)
+
+
+## ZIELPORTAL (Spiel-Jury R1, Mangel 6; Bild-Jury R1, Mangel 2): Im
+## Rückblick steht das Portal zwischen Figur und Kamera. Sichtbar vom
+## Anlauf auf das Wehr an verdeckte die leuchtende Kugel die Landestelle des
+## Pflicht-Doppelsprungs (289–291) und die Figur bis auf die Ohren (Bilder
+## s 280–289). Es bleibt deshalb unsichtbar – Ring, Scheibe, Funken,
+## Schein und Bodenfleck; der Auslöser wirkt immer –, bis die Figur
+## ENTKOMMEN_S erreicht (hinter der Lippe, auf der Decke), dann geht es mit
+## einem Lichtschlag auf wie das Startportal (`Portal._startauftritt`).
+## Gemessen wird die Strecke der Figur und nicht über die Zone der Meldung:
+## So steht es auch, wenn eine Probe oder ein Foto die Figur dorthin setzt.
+var _zielportal: Portal = null
+var _ziel_offen := false
+
+
+func _ziel_verbergen() -> void:
+	for kind in objekte.get_children():
+		if kind is Portal and (kind as Portal).ist_ziel:
+			_zielportal = kind as Portal
+	if _zielportal == null:
+		return
+	for teil: String in ["Optik", "Lichtfleck"]:
+		var n := _zielportal.get_node_or_null(teil) as Node3D
+		if n != null:
+			n.visible = false
+			n.scale = Vector3.ONE * 0.05
+
+
+func _physics_process(_delta: float) -> void:
+	if _ziel_offen or _zielportal == null or _spieler == null:
+		return
+	if strecke_der_figur() >= ENTKOMMEN_S \
+			and to_local(_spieler.global_position).y >= boden_bei(ENTKOMMEN_S) - 0.5:
+		_ziel_zeigen()
+
+
+func _ziel_zeigen() -> void:
+	_ziel_offen = true
+	var tween := create_tween().set_parallel(true)
+	for teil: String in ["Optik", "Lichtfleck"]:
+		var n := _zielportal.get_node_or_null(teil) as Node3D
+		if n == null:
+			continue
+		n.visible = true
+		tween.tween_property(n, "scale", Vector3.ONE, Portal.EINBLEND_ZEIT) \
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var optik := _zielportal.get_node_or_null("Optik") as Node3D
+	if optik != null:
+		Effekte.aufblitzen(_zielportal, optik.global_position,
+				_zielportal.farbe().lightened(0.3), _zielportal.radius * 2.6, 0.22)
 
 
 ## Die Jagd beginnt erst, wenn die Figur losdarf (nach dem Rundgang).
@@ -1471,7 +1556,7 @@ func sprungfaelle() -> Array[Dictionary]:
 	var fenster := {"L1 Wasserriss": 1.75, "L2 Terrasse": 1.85, "L3 Terrasse": 1.85,
 			"L4 Seitenrinne": 1.25, "L5 Mühlrinne": 1.75}
 	var anlauf := {"L1 Wasserriss": 70.0, "L2 Terrasse": 131.3, "L3 Terrasse": 155.3,
-			"L4 Seitenrinne": 189.0, "L5 Mühlrinne": 224.1}
+			"L4 Seitenrinne": 189.0, "L5 Mühlrinne": 225.3}
 	for l: Dictionary in LUECKEN:
 		var name_l: String = l["name"]
 		if not fenster.has(name_l):
@@ -1577,8 +1662,15 @@ func jagd_zustand() -> Dictionary:
 ## Spiel den Keiler (L05Jagd.nach_tod).
 ##   Ideallauf     vom Start bis hinter das Wehr: kein Tod vor CP1, Abstand
 ##                 beim Wecken 15, Mindestabstand ≥ 10 (gerechnet 12,8)
-##   Rastplatz s   Respawn: Keiler bei s − 12, Durchlässe dahinter heil,
-##                 3 s weiter ohne Tod
+##   Rastplatz s   Respawn: Keiler bei s − `L05Jagd.vorsprung_bei(s)`,
+##                 Durchlässe dahinter heil, 3 s weiter ohne Tod; nur die
+##                 Aktionen ab dem Rastplatz (die davor lösten sonst gleich
+##                 nach dem Respawn aus – Spiel-Jury R1, Mangel 12)
+##   Reaktion s    dasselbe, aber die Figur steht nach dem Respawn erst
+##                 JAGD_REAKTION_RESPAWN s (Spiel-Jury R1, Mangel 5): Der
+##                 Keiler wartet, bis sie sich regt (L05Jagd, RESPAWN_WARTEN)
+##   Stehen        nach dem Respawn an CP2 stehen bleiben: gefangen – das
+##                 Warten des Keilers ist begrenzt (Gegenprobe)
 ##   Krabbeln      an jedem Durchlass die Taste gehalten (gerechnet 6,5 m)
 ##   Stolpern      an D3 und D4 (gerechnet 5,4 m), dasselbe mit 0,3 s
 ##                 Zögern vor L5 (gerechnet 3,2 m)
@@ -1598,9 +1690,23 @@ func jagdfaelle() -> Array[Dictionary]:
 				"weck_abstand": Vector2(L05Jagd.WECK_S - L05Jagd.SCHLAF_S, 0.2)},
 	]
 	for s in RASTPLAETZE:
+		var ab := _aktionen_ab(ideal, s)
+		var start := Vector2(s - L05Jagd.vorsprung_bei(s), 0.1)
 		faelle.append({"name": "Rastplatz %.0f" % s, "checkpoint": _rastplatz_ort(s),
-				"rastplatz": s, "aktionen": ideal, "spur": JAGD_SPUR, "ende_dauer": 3.0,
-				"erwartet": "ueberlebt", "keiler_start": Vector2(s - L05Jagd.VORSPRUNG, 0.1)})
+				"rastplatz": s, "aktionen": ab, "spur": JAGD_SPUR, "ende_dauer": 3.0,
+				"erwartet": "ueberlebt", "keiler_start": start})
+		var reaktion: Array[Dictionary] = [{"s": s - 5.0, "tun": "warten",
+				"dauer": JAGD_REAKTION_RESPAWN, "sofort": true, "wo": "Respawn"}]
+		reaktion.append_array(ab)
+		faelle.append({"name": "Reaktion %.1f s an %.0f" % [JAGD_REAKTION_RESPAWN, s],
+				"checkpoint": _rastplatz_ort(s), "rastplatz": s, "aktionen": reaktion,
+				"spur": JAGD_SPUR, "ende_dauer": 4.0, "erwartet": "ueberlebt",
+				"keiler_start": start, "min_abstand": JAGD_REAKTION_MIN})
+	var cp2: float = RASTPLAETZE[1]
+	var stehen: Array[Dictionary] = [{"s": cp2 - 5.0, "tun": "stehen", "wo": "Respawn"}]
+	faelle.append({"name": "Stehen nach dem Respawn an %.0f" % cp2,
+			"checkpoint": _rastplatz_ort(cp2), "rastplatz": cp2, "aktionen": stehen,
+			"spur": JAGD_SPUR, "ende_dauer": 6.0, "erwartet": "gefangen"})
 	var halten := {}
 	for d: Dictionary in DURCHLAESSE:
 		halten[String(d["name"])] = "halten"
@@ -1633,6 +1739,15 @@ func jagdfaelle() -> Array[Dictionary]:
 	faelle.append({"name": "Ziel", "checkpoint": _rastplatz_ort(cp5), "rastplatz": cp5,
 			"aktionen": ideal, "spur": JAGD_SPUR, "ende_ziel": 3.0, "erwartet": "ueberlebt"})
 	return faelle
+
+
+## Die Aktionen aus `aktionen`, die ab dem Rastplatz `s` liegen.
+static func _aktionen_ab(aktionen: Array[Dictionary], s: float) -> Array[Dictionary]:
+	var ab: Array[Dictionary] = []
+	for a in aktionen:
+		if float(a["s"]) >= s:
+			ab.append(a)
+	return ab
 
 
 func _rastplatz_ort(s: float) -> Vector3:
@@ -1715,6 +1830,9 @@ func _jagdlinie(abw: Dictionary) -> Array[Dictionary]:
 ##   K3      Gelände und Saum verdecken die Kronen der Eiche nicht
 ##           (`_freiraum_k3`).
 ##   K4      kein Stammfuß bei |q| < 8 (`_freiraum_k4`, Zählung des Walds).
+##   K5      die Figur bleibt aus der Kamera zu sehen, wo es zählt: im
+##           sauberen Slide-Fenster jedes Durchlasses und im Sprungfenster
+##           jeder Hürde (`_freiraum_k5`).
 ## Werte aus der Kamera des Levels (`hoehe`, `abstand`).
 func freiraumprobe() -> PackedStringArray:
 	var zeilen := PackedStringArray()
@@ -1753,8 +1871,109 @@ func freiraumprobe() -> PackedStringArray:
 	zeilen.append_array(k3["zeilen"] as PackedStringArray)
 	stellen += int(k3["stellen"])
 	zeilen.append_array(_freiraum_k4())
+	var k5 := _freiraum_k5(hoehe, abstand)
+	zeilen.append_array(k5["zeilen"] as PackedStringArray)
+	stellen += int(k5["stellen"])
 	zeilen.append("GEPRUEFT %d" % stellen)
 	return zeilen
+
+
+## K5 (Spiel-Jury R1, Mangel 1; Bild-Jury R1, Mangel 1): Sieht die Kamera
+## die Figur, wenn der Spieler entscheiden muss? Fenster: das saubere
+## Slide-Fenster jedes Durchlasses (K5_DUCK vor der Stirn, Sprungprobe) und
+## das Sprungfenster jeder Hürde (K5_HUERDE vor ihrer Zone). An jeder Stelle
+## (alle K5_SCHRITT m) Strecken von der eingeschwungenen Kamera (Kurve bei
+## s − abstand, `hoehe` darüber, Mitte des Weges) zu den Punkten K5_PUNKTE
+## der Figur (q, Höhe über der Decke) gegen die Dreiecke der heilen Optik
+## ALLER Durchlässe – durch D4 schaut man beim Anlauf auf D3. Ein Treffer
+## zählt nicht, wo die Nahblende ihn zu mehr als der Hälfte ausdünnt
+## (`L05Wegbauten.NAH_ABSTAND`, `NAH_HOEHE`, Höhe im Rahmen des
+## Durchlasses). Getestet werden nur Dreiecke, die über |x| ≤ K5_QUER im
+## Rahmen ihres Durchlasses reichen (die Strecken laufen über der Mitte).
+## ABWEICHUNG, wenn die Brust (Punkte mit Höhe 0,7) in einem Fenster an
+## weniger als K5_BRUST_MIN der Stellen frei ist.
+func _freiraum_k5(hoehe: float, abstand: float) -> Dictionary:
+	var zeilen := PackedStringArray()
+	var optiken: Array[Dictionary] = []
+	for i in durchlass_koerper.size():
+		var koerper := durchlass_koerper[i]
+		if not is_instance_valid(koerper):
+			continue
+		var optik := koerper.get_node_or_null("Optik") as MeshInstance3D
+		if optik == null or optik.mesh == null:
+			continue
+		var lage := global_transform.affine_inverse() * optik.global_transform
+		var dreiecke := PackedVector3Array()
+		var faces := optik.mesh.get_faces()
+		for k in range(0, faces.size() - 2, 3):
+			var a := faces[k]
+			var b := faces[k + 1]
+			var c := faces[k + 2]
+			if minf(a.x, minf(b.x, c.x)) > K5_QUER or maxf(a.x, maxf(b.x, c.x)) < -K5_QUER:
+				continue
+			dreiecke.append(lage * a)
+			dreiecke.append(lage * b)
+			dreiecke.append(lage * c)
+		optiken.append({"s": float(DURCHLAESSE[i]["s"]), "dreiecke": dreiecke,
+				"innen": lage.affine_inverse()})
+	var fenster: Array[Dictionary] = []
+	for d: Dictionary in DURCHLAESSE:
+		var stirn: float = d["s"]
+		fenster.append({"name": String(d["name"]), "von": stirn - K5_DUCK.x, "bis": stirn - K5_DUCK.y})
+	for h: Dictionary in HUERDEN:
+		var vorn := float(h["s"]) - HUERDE_ZONE_LAENGE * 0.5
+		fenster.append({"name": String(h["name"]), "von": vorn - K5_HUERDE.x,
+				"bis": vorn - K5_HUERDE.y})
+	var stellen := 0
+	for f in fenster:
+		var frei := {}
+		var gesamt := {}
+		var si: float = f["von"]
+		while si <= float(f["bis"]) + 0.001:
+			var auge := verlauf.sample_baked(clampf(si - abstand, 0.0, verlauf.get_baked_length()))
+			auge.y += hoehe
+			for p: Vector2 in K5_PUNKTE:
+				var ziel := weg_punkt(si, p.x, p.y)
+				var schluessel := "%.2f" % p.y
+				gesamt[schluessel] = int(gesamt.get(schluessel, 0)) + 1
+				if _k5_frei(auge, ziel, si, abstand, optiken):
+					frei[schluessel] = int(frei.get(schluessel, 0)) + 1
+			stellen += 1
+			si += K5_SCHRITT
+		var teile := PackedStringArray()
+		for schluessel: String in gesamt:
+			var anteil := float(frei.get(schluessel, 0)) / float(gesamt[schluessel])
+			teile.append("%s m %.0f %%" % [schluessel.replace(".", ","), anteil * 100.0])
+			if schluessel == "0.70" and anteil < K5_BRUST_MIN:
+				zeilen.append("ABWEICHUNG K5 %s: Brust nur zu %.0f %% frei (mindestens %.0f %%)"
+						% [String(f["name"]), anteil * 100.0, K5_BRUST_MIN * 100.0])
+		print("  Freiraum K5 %-16s s %.2f–%.2f: frei %s" % [String(f["name"]), float(f["von"]),
+				float(f["bis"]), ", ".join(teile)])
+	return {"zeilen": zeilen, "stellen": stellen}
+
+
+## Ist die Strecke Kamera → Figur frei (siehe `_freiraum_k5`)? Getestet
+## werden nur Durchlässe zwischen Figur und Kamera.
+func _k5_frei(auge: Vector3, ziel: Vector3, s: float, abstand: float,
+		optiken: Array[Dictionary]) -> bool:
+	for o in optiken:
+		var os: float = o["s"]
+		if os < s - 3.0 or os > s - abstand + 1.0:
+			continue
+		var dreiecke: PackedVector3Array = o["dreiecke"]
+		var innen: Transform3D = o["innen"]
+		for k in range(0, dreiecke.size() - 2, 3):
+			var treffer: Variant = Geometry3D.segment_intersects_triangle(auge, ziel,
+					dreiecke[k], dreiecke[k + 1], dreiecke[k + 2])
+			if treffer == null:
+				continue
+			var p: Vector3 = treffer
+			var sicht := maxf(smoothstep(L05Wegbauten.NAH_ABSTAND.x, L05Wegbauten.NAH_ABSTAND.y,
+					p.distance_to(auge)), 1.0 - smoothstep(L05Wegbauten.NAH_HOEHE.x,
+					L05Wegbauten.NAH_HOEHE.y, (innen * p).y))
+			if sicht >= 0.5:
+				return false
+	return true
 
 
 ## K4 (Entwurf §7.1, Paket P7): kein Stammfuß bei |q| < 8 – gezählt vom

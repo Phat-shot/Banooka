@@ -67,6 +67,17 @@ class_name Keiler
 ##   Wasserschwall  Tropfen und Gischt aus dem Gerinne (D3/D4), beide im
 ##                Stoff ALPHA (`Effekte.rauch`): Funken (additiv) leuchteten
 ##                im Schatten wie Glut statt wie Wasser
+##
+## TON (Spiel-Jury R1, Mangel 4 – bis dahin war er stumm): Der Galopp läuft
+## als Schleife („keiler_lauf", `Klang`) auf einem eigenen Spieler, solange
+## er rennt, lauter, je näher er ist (GALOPP_LAUT nach `naehe`), weich ein-
+## und ausgeblendet; im Hopser setzt er aus. Am Ufer schnaubt er hörbar
+## („keiler_schnauben", bei jedem Stoß). Wecken und Durchbruch spielt die
+## Jagd (`L05Jagd`), sie weiß, wann es wirklich geschieht – hier ruft
+## `erwachen()`/`durchbrechen()` auch das Versetzen und die Proben nicht.
+## Der Ton ist nicht räumlich (wie die Mühle): Die Kamera steht im Rückblick
+## 21 m vor der Figur, der Keiler 30–36 m – ein räumlicher Ton wäre dort
+## fast immer gleich leise.
 
 ## Sprünge je Sekunde im vollen Galopp. 7,4 m/s bei gut 3,3 m je Sprung.
 const TAKT := 2.2
@@ -74,9 +85,12 @@ const TAKT := 2.2
 const ERWACHEN := 0.5
 ## Lage des liegenden Leibs relativ zum Knoten: Versatz (x quer, y, z
 ## zurück = hangauf) und Drehung um die Hochachse (PI = mit der Schnauze
-## zum Start, 0,5 zur Wegmitte hin).
+## zum Start, 1,2 zur Wegmitte hin). Mit 0,5 lag er im Startbild mit dem
+## Rücken zur Kamera, den Kopf abgewandt im Schatten – ein dunkler Klumpen
+## (Bild-Jury R1, Mangel 9); quer gedreht zeigt er Schnauze, Ohren und
+## Hauer im Umriss.
 const SCHLAF_VERSATZ := Vector3(0.25, -0.82, 2.0)
-const SCHLAF_DREHUNG := PI + 0.5
+const SCHLAF_DREHUNG := PI + 1.2
 const SCHLAF_ROLLEN := 0.1
 ## Atemzüge im Schlaf (rad/s) und Abstand der Wölkchen im Lauf (s).
 const ATEM_SCHLAF := 1.6
@@ -87,12 +101,20 @@ const SCHNAUB_TAKT := 1.6
 const ATEM_VOR := 0.12
 ## Augen: Glut ohne und mit voller Nähe (Emissionsstärke).
 const GLUT := Vector2(0.5, 1.5)
+## Galopp (siehe Kopf, TON): Lautstärke ohne und mit voller Nähe, und wie
+## schnell sie folgt (1/s).
+const GALOPP_LAUT := Vector2(0.4, 1.0)
+const GALOPP_WEICH := 6.0
+const SCHNAUB_LAUT := 0.8
 
 ## Farben (linear, Faktoren auf die Felltextur).
 const FELL := Color(0.11, 0.085, 0.068)
 const BAUCH := Color(0.065, 0.05, 0.042)
 const RUECKEN := Color(0.2, 0.158, 0.118)
-const BORSTE := Color(0.33, 0.26, 0.19)
+## Borstenkamm: hell angegraut (Bild-Jury R1, Mangel 9: Schlafend las sich
+## der Keiler am Start als dunkler Klumpen, „wie ein Stein"). Mit
+## (0,33/0,26/0,19) verschwand der Kamm im Fell.
+const BORSTE := Color(0.56, 0.47, 0.34)
 const SCHEIBE := Color(0.24, 0.15, 0.13)
 const HAUER := Color(0.86, 0.8, 0.65)
 const HAUER_WURZEL := Color(0.5, 0.44, 0.34)
@@ -100,7 +122,7 @@ const HUF := Color(0.042, 0.037, 0.033)
 const AUGE := Color(1.0, 0.36, 0.1)
 ## Staub der Fahne und der Puffs: golden im Abendlicht (Entwurf §8.4).
 const GOLDSTAUB := Color(0.96, 0.76, 0.46, 0.85)
-const DAMPF := Color(0.9, 0.93, 1.0, 0.42)
+const DAMPF := Color(0.92, 0.95, 1.0, 0.55)
 ## Gischt und Tropfen im Schatten des Tobels: gedämpft, nicht leuchtend.
 const GISCHT := Color(0.88, 0.94, 1.0, 0.7)
 const TROPFEN := Color(0.58, 0.68, 0.76, 0.95)
@@ -180,6 +202,9 @@ var _atem := 0.0
 var _staub_an := false
 ## Physikbild des letzten `aktualisiere` (siehe Kopf, TAKT).
 var _angetrieben := -1
+## Galopp (siehe Kopf, TON) und sein aktueller Pegel (linear).
+var _galopp: AudioStreamPlayer
+var _galopp_pegel := 0.0
 
 
 func _ready() -> void:
@@ -227,6 +252,12 @@ func _baue() -> void:
 	_staub.scale_amount_min = 0.9
 	_staub.scale_amount_max = 1.6
 	_staub.color = Color(GOLDSTAUB.r, GOLDSTAUB.g, GOLDSTAUB.b, 0.45)
+
+	_galopp = AudioStreamPlayer.new()
+	_galopp.name = "Galopp"
+	_galopp.bus = "Master"
+	_galopp.stream = Klang.strom("keiler_lauf")
+	add_child(_galopp)
 
 
 static func _glied(eltern: Node3D, bezeichnung: String, netz: Mesh, stoff: Material,
@@ -346,6 +377,24 @@ func _physics_process(delta: float) -> void:
 	_haltung_setzen()
 	_staub_setzen(_schlaf < 0.5 and _tempo > 0.5 and _luft_ziel < 0.5 and not _ufer)
 	_atmen(delta)
+	_galopp_regeln(delta)
+
+
+## Galopp (siehe Kopf, TON): Pegel weich zum Ziel, Spieler an und aus.
+func _galopp_regeln(delta: float) -> void:
+	if _galopp == null or _galopp.stream == null:
+		return
+	var rennt := _schlaf < 0.5 and _tempo > 0.5 and _luft_ziel < 0.5 and not _ufer
+	var ziel := lerpf(GALOPP_LAUT.x, GALOPP_LAUT.y, _naehe) if rennt else 0.0
+	_galopp_pegel = lerpf(_galopp_pegel, ziel, 1.0 - exp(-GALOPP_WEICH * delta))
+	var pegel := Klang.schleifen_pegel(_galopp_pegel)
+	if pegel < 0.005:
+		if _galopp.playing:
+			_galopp.stop()
+		return
+	_galopp.volume_db = linear_to_db(pegel)
+	if not _galopp.playing:
+		_galopp.play()
 
 
 ## Die ganze Haltung aus dem Zustand: Laufhaltung, darüber Hopser, Ufer und
@@ -423,12 +472,14 @@ func _atmen(delta: float) -> void:
 	if _atem > 0.0:
 		return
 	if _schlaf > 0.5:
-		# Ausatmen, wenn sich der Leib senkt.
+		# Ausatmen, wenn sich der Leib senkt – deutlich, damit man ihn am
+		# Start als Tier liest (siehe BORSTE).
 		_atem = TAU / ATEM_SCHLAF
-		_schnauben_stoss(0.55)
+		_schnauben_stoss(0.9)
 	elif _ufer and _tempo < 0.5:
 		_atem = SCHNAUB_TAKT
 		_schnauben_stoss(1.0)
+		Klang.spiele("keiler_schnauben", 1.0, SCHNAUB_LAUT)
 	elif _tempo > 0.5:
 		_atem = ATEM_LAUF
 		_schnauben_stoss(0.7)
@@ -628,11 +679,13 @@ static func _kopf_bauen() -> ArrayMesh:
 		_strang(st, PackedVector3Array([fuss, fuss.lerp(spitze, 0.5), spitze]),
 				PackedFloat32Array([0.13, 0.1, 0.0]), PackedColorArray([FELL, FELL, RUECKEN]),
 				6, 0.45, Vector3.BACK)
-		# Hauer: aus dem Unterkiefer nach außen und oben gebogen.
+		# Hauer: aus dem Unterkiefer nach außen und oben gebogen, kräftig – sie
+		# sind das Zeichen des Keilers, auch schlafend am Start (Bild-Jury R1,
+		# Mangel 9; vorher Ø 14 cm am Ansatz und 0,4 m hoch: im Bild kaum).
 		var hauer := PackedVector3Array([Vector3(0.16 * seite, -0.6, -1.12),
-				Vector3(0.28 * seite, -0.56, -1.22), Vector3(0.38 * seite, -0.4, -1.24),
-				Vector3(0.41 * seite, -0.22, -1.16), Vector3(0.38 * seite, -0.08, -1.04)])
-		_strang(st, hauer, PackedFloat32Array([0.07, 0.062, 0.05, 0.034, 0.0]),
+				Vector3(0.3 * seite, -0.56, -1.24), Vector3(0.43 * seite, -0.38, -1.28),
+				Vector3(0.47 * seite, -0.14, -1.2), Vector3(0.42 * seite, 0.03, -1.05)])
+		_strang(st, hauer, PackedFloat32Array([0.095, 0.085, 0.068, 0.045, 0.0]),
 				PackedColorArray([HAUER_WURZEL, HAUER, HAUER, HAUER, HAUER]), 7, 1.0,
 				Vector3.FORWARD)
 	return Riesenstamm.fertig(st)

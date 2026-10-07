@@ -271,6 +271,8 @@ const BUSCH_RASTER := 4.5
 const BUSCH_AB := 8.5
 const BUSCH_STRECKE := Vector2(-4.0, 270.0)
 const BUSCH_DICHTE := 0.32
+## Dichte an der Wandkrone (Anteil) und Breite des Übergangs (m) dahinter.
+const BUSCH_SAUM := Vector2(0.3, 7.0)
 ## Saaten (je Schritt ein eigener Zufall, Reihenfolge egal).
 const SAAT := 5701
 
@@ -719,9 +721,14 @@ func _gebuesch() -> void:
 			var sq := level.gelaende.projektion(p.x, p.y)
 			if absf(sq.y) < BUSCH_AB or sq.x < BUSCH_STRECKE.x or sq.x > BUSCH_STRECKE.y:
 				continue
-			# In Gruppen: ein feines Rauschen hebt die Dichte fleckweise.
+			# In Gruppen: ein feines Rauschen hebt die Dichte fleckweise. An der
+			# Wandkrone setzt das Gebüsch dünn ein (BUSCH_SAUM): Mit voller
+			# Dichte ab BUSCH_AB säumte es die Kronen als Strauchband wie eine
+			# Parkhecke (Bild-Jury R1, Mangel 4).
 			var w := BUSCH_DICHTE * clampf(0.2 + 1.6 * _rauschen.get_noise_2d(p.x * 2.3, p.y * 2.3)
-					+ 0.5, 0.0, 2.0) * (1.0 - smoothstep(30.0, NAH_WEIT, absf(sq.y)))
+					+ 0.5, 0.0, 2.0) * (1.0 - smoothstep(30.0, NAH_WEIT, absf(sq.y))) \
+					* lerpf(BUSCH_SAUM.x, 1.0, smoothstep(BUSCH_AB, BUSCH_AB + BUSCH_SAUM.y,
+						absf(sq.y)))
 			if wurf > w * anteil:
 				continue
 			if not rahmen.platz(p, BUSCH_AB - 3.0, NAH_WEIT) or not rahmen.staemme.frei(p, 1.6):

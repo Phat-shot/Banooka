@@ -63,12 +63,13 @@ class_name L05Wasser
 ## kein Teil des Wassers tödlich, das Wasser im Bruch über der Zone.
 ##
 ## KOSTEN (Entwurf §10: Wasser und Mühlrad 10 Zeichenaufrufe, Handy 8),
-## alles ohne Schatten: Bach, Teich, Bruch und Gerinne in EINEM Netz im
-## Stoff des Bachs (1); Schlamm (1) und Pfützen (1) der Suhle; die
-## Rinnsale (1), die Fälle der Gerinne (1), der Schuss (1) und der Fall
-## (1) des Weißwassers je als ein Band; Rad (1) und Böcke (1). Zusammen
-## 9; zugleich im Bild höchstens 6 (am Mühlbach), weil Suhle und
-## Rinnsale nur von Nahem zu sehen sind. Sichtweiten siehe SICHT_*; der
+## alles ohne Schatten: Bach, Teich und Bruch in EINEM Netz im Stoff des
+## Bachs (1), das Wasser in den Gerinnen in einem zweiten mit Nahblende (1,
+## seit den Mängeln der Runde 1, siehe `_flaechen_bauen`); Schlamm (1) und
+## Pfützen (1) der Suhle; die Rinnsale (1), die Fälle der Gerinne (1), der
+## Schuss (1) und der Fall (1) des Weißwassers je als ein Band; Rad (1)
+## und Böcke (1). Zusammen 10; zugleich im Bild höchstens 6 (am
+## Mühlbach), weil Suhle und Rinnsale nur von Nahem zu sehen sind. Sichtweiten siehe SICHT_*; der
 ## Bach ohne: Eine Sichtweite zählt ab der Mitte der Hülle, die des Bachs
 ## (Tobel bis Feldrand) liegt weit vom Bild.
 ##
@@ -152,14 +153,19 @@ const DECKE_PFUETZE := 0.035
 ## 0,11/0,15/0,10 bis 0,36/0,42/0,25): satt dunkelbraun, im Mittel
 ## 0,16/0,12/0,06. Mit 0,95/0,62/0,50 (P6) lag er bei 0,22/0,18/0,09, mit
 ## 0,85/0,42/0,34 stand er von oben orangerot im Bild, mit 1,45/0,74/0,62
-## lachsrot.
-const SCHLAMM_TON := Color(0.68, 0.42, 0.32)
+## lachsrot. Mit der tieferen Sonne aus R1 liegt die Mulde fast ganz im
+## Schatten ihres Rands; dort ging der Schlamm mit 0,68/0,42/0,32 ins
+## Schwarze über (gerendert im Mittel 12/9/7 von 255), daher etwas heller.
+const SCHLAMM_TON := Color(0.82, 0.54, 0.4)
 ## Nass glänzend (Rauheit), aber mit wenig Spiegelung (`metallic_specular`,
 ## Vorgabe 0,5): Die Kamera sieht die Suhle flach, und dort warf sie den
 ## Himmel als graulila Schleier zurück (Prüfung P6; im Bild verglichen:
 ## Rauheit 0,14/0,45/0,6, Spiegelung 0,5/0,3/0,2). So bleibt sie braun, und
-## das Licht bricht sich nur noch streifig an der Normalmap.
-const SCHLAMM_RAU := 0.14
+## das Licht bricht sich nur noch streifig an der Normalmap. Rauheit 0,42
+## statt 0,14: Glatt spiegelte die ganze Fläche den lila Abendhimmel, und die
+## Suhle stand im Startbild als graue Asphaltbahn (Bild-Jury R1, Mangel 9);
+## den Glanz tragen jetzt die Pfützen allein.
+const SCHLAMM_RAU := 0.42
 const SCHLAMM_GLANZ := 0.2
 ## Texturmaßstab (Wiederholungen je Meter).
 const SCHLAMM_UV := 0.18
@@ -343,15 +349,22 @@ static func _sicht() -> float:
 
 # ================================================================ Flächen
 
-## Bach, Teich, Bruch und Gerinne (ein Netz) und die Suhle – aus dem
+## Bach, Teich und Bruch (ein Netz), das Gerinnewasser und die Suhle – aus dem
 ## Bauspeicher oder neu (das Ufer tastet das gezeichnete Gelände ab).
 func _flaechen_bauen() -> void:
 	var netze: Dictionary = Bauspeicher.wert(_schluessel(), func() -> Variant:
 		var suhle := _suhle_netze()
-		return {"bach": _bach_netz(), "schlamm": suhle["schlamm"], "pfuetzen": suhle["pfuetzen"]})
-	var bach := _knoten("Bach", netze["bach"] as Mesh, Bachband.stoff(BACH_THEMA), 0.0)
+		return {"bach": _bach_netz(), "gerinne": _gerinne_netz(), "schlamm": suhle["schlamm"],
+				"pfuetzen": suhle["pfuetzen"]})
+	var stoff := Bachband.stoff(BACH_THEMA)
+	var bach := _knoten("Bach", netze["bach"] as Mesh, stoff, 0.0)
 	# Die Wellen heben die Fläche um bis zu 0,05 m (wie `Bachband.bauen`).
 	bach.extra_cull_margin = 0.5
+	# Das Wasser in den Gerinnen blendet nahe der Kamera aus wie die Joche
+	# selbst (`L05Wegbauten.nahblende`) – sonst schwebte es dort allein.
+	var gerinne := _knoten("Gerinnewasser", netze["gerinne"] as Mesh,
+			L05Wegbauten.nahblende(stoff, L05Wegbauten.NAH_IMMER), 0.0)
+	gerinne.extra_cull_margin = 0.5
 	bruch_netze.clear()
 	bruch_netze.append(bach)
 	_knoten("Suhle", netze["schlamm"] as Mesh, _schlamm_stoff(), SICHT_RINNSAL)
@@ -389,6 +402,14 @@ func _bach_netz() -> ArrayMesh:
 	hilf.free()
 	_teich(netz)
 	_bruch(netz)
+	return netz.fertig()
+
+
+## Das Wasser in den Gerinnen der Fluderjoche als eigenes Netz im Stoff des
+## Bachs: Es blendet nahe der Kamera aus wie die Joche (siehe
+## `_flaechen_bauen`); bis Runde 1 hing es am Netz des Bachs.
+func _gerinne_netz() -> ArrayMesh:
+	var netz := Bachband.Netz.new()
 	for d: Dictionary in Level05.DURCHLAESSE:
 		if L05Wegbauten.art(d) == "joch":
 			_gerinne_wasser(netz, d)

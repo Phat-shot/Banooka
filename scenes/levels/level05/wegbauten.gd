@@ -120,6 +120,23 @@ const SICHT_RAND := 5.0
 ## lasen sich von oben als Bretterboden.
 const RIEGEL_OBEN := 1.4
 const RIEGEL_HOCH := 0.24
+## SICHTBARER Riegel (Spiel-Jury R1, Mangel 1; Bild-Jury R1, Mangel 1): nur
+## an der Stirn, eine schmale Kante von RIEGEL_KANTE bis RIEGEL_OBEN, und
+## halb so dick wie vorher. Der KÖRPER bleibt 0,95–4,4 auf Ebene 16 und die
+## Stolperzone an der Stirn (`KorridorLevel.duckdurchlass`). WARUM: Die
+## Kamera schaut aus 21 m und 3,5–5,6 m Höhe auf die Figur; ein massiver
+## Riegel von 0,45 m Höhe zwischen beiden deckt immer ein 0,45 m hohes Band
+## der 1,3 m großen Figur, zwei Riegel (Stirn und Ausgang, 1,6–1,8 m
+## auseinander) fast den ganzen Rumpf – und das genau im Slide-Fenster
+## (Bilder s 212, 220: nur der Kopf über dem Riegel). Mit der Kante allein
+## steht die Brust im sauberen Slide-Fenster zu 76–100 % frei
+## (`Level05.freiraumprobe`, K5). Wer aufrecht hineinläuft, stößt mit dem
+## Kopf (bis 1,30) an die Kante; darunter, wo man nur im Slide durchkommt,
+## ist sie hell abgewetzt (Entwurf §8.4: „Unterkante hell").
+const RIEGEL_KANTE := 1.25
+## Halbe Höhe des Kantenquerschnitts vor dem Plattdrücken (knapp mehr als
+## die halbe Kante, 0,075): So liegen Ober- und Unterseite auf der Kante.
+const RIEGEL_HOCH_KANTE := 0.09
 ## Breite der Bresche im Bruch: so weit um die Mitte fehlt alles.
 const BRESCHE := 1.5
 ## Das Gerinne (Unterkante, Rand) über der Decke und sein Halbmesser.
@@ -140,6 +157,19 @@ const BOGEN_FLACH := 3.7
 ## Kopfstangen des Gatters (Achse) und Halbmesser.
 const GATTER_KOPF := 4.28
 const GATTER_KOPF_R := 0.11
+## Abstand der Stangen des Gatters und der Latten der Joche (nur in der
+## Stirnebene, siehe `_gatter`, `_fluderjoch`). Das Gatter mit 0,9 statt
+## 0,6 m: Im Startbild stand die Figur hinter 20 Stangen wie hinter
+## Gittern (Bild-Jury R1, Mangel 9), mit 0,9 m sind es 14 (Leitlinien bei
+## s 17 auf ±6,6 m, gerechnet nach `_quer_stellen`).
+const GATTER_STANGEN := 0.9
+const JOCH_LATTEN := 0.7
+## Gasse über der Wegmitte (zwischen den Achsen der innersten Stangen,
+## Latten und Strähnen, `_quer_stellen`): Die Figur läuft auf q 0, und die
+## Sichtlinie aus der Kamera kreuzt die Durchlässe wegen der Kurve bis
+## 0,16 m neben der Mitte. Stand dort eine Latte (D3/D4: x 0,1), lag sie im
+## ganzen Anlauf vor der Figur (K5, Kopf 0 % frei).
+const GASSE := 0.9
 
 ## Farben im Borkenstoff (linear; Eigenfarbe: ALBEDO = COLOR.rgb).
 ## Abgewetzt: Rücken und Unterkanten, an denen Wild und Wetter reiben. Hell
@@ -164,6 +194,29 @@ const LOESS_TON := Color(1.0, 0.92, 0.74)
 ## Laterne der Rastplätze (Entwurf §8.4: Wegpfahl mit leuchtendem Netz).
 const LATERNE := Color(1.0, 0.68, 0.32)
 const LATERNE_STAERKE := 2.4
+
+## NAHBLENDE (Bild-Jury R1, Mangel 1 und 8). Im Rückblick steht jeder
+## Durchlass erst dicht vor der Kamera und rückt dann zur Figur hin. Bogen,
+## Strähnen, Kopfstangen, Latten und Gerinne liegen in 2–4,6 m Höhe, kaum
+## unter der Kamera: Aus 4–7 m Abstand standen sie mitten im Bild – die
+## Hauptwurzel von D1 verdeckte bei s 43 die Figur samt Hürde H1, die von D2
+## bei s 90 (H2), das Gerinne von D3 lag bei s 196 als Brett quer über dem
+## unteren Bildfünftel. Darum dünnt die Optik der Durchlässe nahe der Kamera
+## aus: unter NAH_ABSTAND.x ganz, bis NAH_ABSTAND.y weich (ein Raster aus
+## verworfenen Bildpunkten, wie es der Compatibility-Renderer ohne Alpha
+## kann), und nur über NAH_HOEHE.x (darüber voll ab NAH_HOEHE.y, Höhe über
+## der Decke im Rahmen des Durchlasses). Die Riegelkante und alles unter
+## 1,9 m bleiben immer stehen: Sie kündigen den Durchlass an, wenn er unten
+## ins Bild kommt (13–14,5 m vor der Figur, 6,5–8 m vor der Kamera). Der
+## Körper ist davon unberührt. Stoff: eine Abschrift des Borkenstoffs mit
+## erweitertem Shader (`nahblende`); der geteilte Stoff bleibt, wie er ist.
+const NAH_ABSTAND := Vector2(6.5, 10.0)
+const NAH_HOEHE := Vector2(1.9, 2.7)
+## Höhe für Stoffe ohne Rahmen eines Durchlasses (das Wasser im Gerinne):
+## alles blendet nach dem Abstand aus.
+const NAH_IMMER := Vector2(-100000.0, -99999.0)
+static var _nah_shader := {}
+static var _nah_stoffe := {}
 
 ## Optik der Begehbaren, die dieses Modul zeichnet (Level05 gibt ihnen nur
 ## eine leere Marke, `Level05._begehbar_optik`).
@@ -765,12 +818,62 @@ static func _durchlass_netz(level: KorridorLevel, d: Dictionary, kaputt: bool, r
 	var mi := MeshInstance3D.new()
 	mi.name = "Optik"
 	mi.mesh = netz
-	mi.material_override = Riesenstamm.borkenstoff()
+	mi.material_override = nahblende(Riesenstamm.borkenstoff())
 	mi.transform = lage
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.visibility_range_end = _sicht()
 	mi.visibility_range_end_margin = SICHT_RAND
 	return mi
+
+
+## Abschrift von `stoff` mit NAHBLENDE (siehe dort): derselbe Shader, um
+## einen Vorspann erweitert, der Bildpunkte nahe der Kamera verwirft, dazu
+## dieselben Werte. `hoehe`: ab welcher Höhe im Modellraum (y) die Blende
+## greift und ab wo ganz. Je Stoff, Höhe und Abstand nur einmal gebaut.
+static func nahblende(stoff: ShaderMaterial, hoehe: Vector2 = NAH_HOEHE,
+		abstand: Vector2 = NAH_ABSTAND) -> ShaderMaterial:
+	var schluessel := "%d %s %s" % [stoff.get_instance_id(), hoehe, abstand]
+	if _nah_stoffe.has(schluessel):
+		return _nah_stoffe[schluessel]
+	var basis := stoff.shader
+	var shader: Shader = _nah_shader.get(basis.get_instance_id())
+	if shader == null:
+		shader = Shader.new()
+		shader.code = _nahcode(basis.code)
+		_nah_shader[basis.get_instance_id()] = shader
+	var neu := ShaderMaterial.new()
+	neu.shader = shader
+	for u: Dictionary in basis.get_shader_uniform_list():
+		var name_u: StringName = u["name"]
+		neu.set_shader_parameter(name_u, stoff.get_shader_parameter(name_u))
+	neu.set_shader_parameter("nah_abstand", abstand)
+	neu.set_shader_parameter("nah_hoehe", hoehe)
+	neu.render_priority = stoff.render_priority
+	_nah_stoffe[schluessel] = neu
+	return neu
+
+
+## Der Shader mit Vorspann (siehe `nahblende`): Gleichförmige Werte und die
+## Höhe im Modellraum vor `vertex()`, das Verwerfen am Anfang von
+## `fragment()` – nach Abstand zur Kamera (VERTEX ist dort im Raum der
+## Kamera) und Höhe, gerastert über ein Rauschen aus FRAGCOORD.
+static func _nahcode(code: String) -> String:
+	var kopf := "\n// Nahblende (L05Wegbauten.nahblende)\nuniform vec2 nah_abstand = vec2(6.5, 10.0);\n" \
+			+ "uniform vec2 nah_hoehe = vec2(1.9, 2.7);\nvarying float v_nah_hoehe;\n\n"
+	var blende := "\n\t{\n\t\tfloat nah_sicht = max(smoothstep(nah_abstand.x, nah_abstand.y, length(VERTEX)),\n" \
+			+ "\t\t\t\t1.0 - smoothstep(nah_hoehe.x, nah_hoehe.y, v_nah_hoehe));\n" \
+			+ "\t\tfloat nah_raster = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));\n" \
+			+ "\t\tif (nah_sicht < 1.0 && nah_sicht <= nah_raster) {\n\t\t\tdiscard;\n\t\t}\n\t}"
+	var neu := code
+	if neu.contains("void vertex() {"):
+		neu = neu.replace("void vertex() {", kopf + "void vertex() {\n\tv_nah_hoehe = VERTEX.y;")
+	else:
+		neu = neu.replace("void fragment() {", kopf
+				+ "void vertex() {\n\tv_nah_hoehe = VERTEX.y;\n}\n\nvoid fragment() {")
+	if not neu.contains("v_nah_hoehe = VERTEX.y") or not neu.contains("void fragment() {"):
+		push_error("L05Wegbauten.nahblende: Shader ohne vertex()/fragment() – keine Nahblende")
+		return code
+	return neu.replace("void fragment() {", "void fragment() {" + blende)
 
 
 ## Durchhang eines gebrochenen Stücks, das bei `fest` (x) noch hält und bei
@@ -781,15 +884,17 @@ static func _durchhang(x: float, fest: float, lose: float, tief: float) -> float
 
 
 ## Ein Riegel quer über den Durchlass von x `von` bis `bis` auf der Tiefe
-## `z`, Achse auf der Mitte zwischen DUCK_UNTEN und RIEGEL_OBEN, geklemmt
-## über [−klemm, klemm]. `kaputt`: in zwei Stücken, die von den Enden her
-## durchhängen und in der Bresche gesplittert enden. `o` wie `_holz`.
+## `z`, Achse auf der Mitte zwischen RIEGEL_KANTE und RIEGEL_OBEN (der
+## sichtbaren Kante, siehe dort), geklemmt über [−klemm, klemm]. `kaputt`:
+## in zwei Stücken, die von den Enden her durchhängen und in der Bresche
+## gesplittert enden. `o` wie `_holz`; "hoch" darin sollte
+## RIEGEL_HOCH_KANTE / r sein.
 static func _riegel(st: SurfaceTool, von: float, bis: float, z: float, r: float, klemm: float,
 		kaputt: bool, bruch: Vector2, durchhang: Vector2, o: Dictionary, welle: float = 0.03) -> void:
-	var y := (KorridorLevel.DUCK_UNTEN + RIEGEL_OBEN) * 0.5
+	var y := (RIEGEL_KANTE + RIEGEL_OBEN) * 0.5
 	var oo := o.duplicate()
 	oo["oben"] = RIEGEL_OBEN
-	oo["unten"] = KorridorLevel.DUCK_UNTEN
+	oo["unten"] = RIEGEL_KANTE
 	oo["klemm_x"] = Vector2(-klemm, klemm)
 	var saat: int = o.get("saat", 1)
 	if not kaputt:
@@ -865,17 +970,22 @@ static func _gatter(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float, kap
 		oq["saat"] = saat + int(x * 5.0)
 		_stange(st, Transform3D.IDENTITY, Vector3(x, 4.48, zr + 0.3), Vector3(x, 4.46, -zr - 0.3),
 				0.09, 0.085, oq)
-	# Riegel: Spaltholz, die Spaltfläche nach außen (zur Kamera am Ausgang).
+	# Riegel nur an der Stirn (+z, siehe RIEGEL_KANTE): Spaltholz, die
+	# Spaltfläche nach außen. Die Zufallszüge bleiben in der Reihenfolge wie
+	# mit zwei Riegeln (der Ausgang zieht sie, baut aber nichts).
 	for k in 2:
 		var z := zr if k == 0 else -zr
 		var o := holz.duplicate()
 		o["saat"] = saat + 11 + k
 		o["spalt"] = Vector3(0.0, 0.0, signf(z))
 		o["moos"] = 0.45
-		o["hoch"] = RIEGEL_HOCH / 0.28
-		_riegel(st, px.x - 0.12, px.y + 0.12, z, 0.28, maxf(links, rechts) + 0.25, kaputt,
-				Vector2(-BRESCHE + rng.randf_range(-0.2, 0.1), BRESCHE - rng.randf_range(0.0, 0.3)),
-				Vector2(rng.randf_range(0.38, 0.5), rng.randf_range(0.32, 0.45)), o)
+		o["hoch"] = RIEGEL_HOCH_KANTE / 0.16
+		var bresche := Vector2(-BRESCHE + rng.randf_range(-0.2, 0.1),
+				BRESCHE - rng.randf_range(0.0, 0.3))
+		var hang := Vector2(rng.randf_range(0.38, 0.5), rng.randf_range(0.32, 0.45))
+		if k == 0:
+			_riegel(st, px.x - 0.12, px.y + 0.12, z, 0.16, maxf(links, rechts) + 0.25, kaputt,
+					bresche, hang, o)
 		# Kopfstange
 		var ok := holz.duplicate()
 		ok["saat"] = saat + 21 + k
@@ -884,18 +994,14 @@ static func _gatter(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float, kap
 		_stange(st, Transform3D.IDENTITY, Vector3(px.x - 0.1, GATTER_KOPF, z),
 				Vector3(px.y + 0.1, GATTER_KOPF + 0.02, z), GATTER_KOPF_R, GATTER_KOPF_R * 0.92, ok,
 				1.2)
-	# Stangen alle 0,5 m in beiden Ebenen, auf gleicher Höhe quer (so liegen
-	# sie im Rückblick hintereinander und lassen die Lücken offen), Ø 6–7 cm:
-	# Mit 8–10 cm war die Figur dahinter aus der Kamera nur in 12 von 42
-	# Stellungen frei.
-	var x := -links + 0.3
+	# Stangen nur in der Stirnebene, alle GATTER_STANGEN m, Ø 6–7 cm. Bis
+	# Runde 1 standen sie in beiden Ebenen (Stirn jede zweite, Ausgang alle
+	# 0,5 m): Aus der Kamera lagen die Ebenen nicht deckungsgleich, und die
+	# Figur stand dahinter wie im Käfig (Bild-Jury R1, Mangel 9).
 	var nr := 0
-	while x < rechts - 0.25:
+	for x in _quer_stellen(-links + 0.3, rechts - 0.25, GATTER_STANGEN):
 		for k in 2:
-			# Vorn (an der Stirn, weg von der Kamera) nur jede zweite: Aus der
-			# Kamera über dem Weg liegen die Ebenen nicht deckungsgleich, und
-			# doppelt so viele Striche lasen sich als dichtes Gitter.
-			if k == 0 and nr % 2 == 1:
+			if k == 1:
 				continue
 			var z := zr if k == 0 else -zr
 			var o := holz.duplicate()
@@ -925,7 +1031,6 @@ static func _gatter(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float, kap
 				var sack := _durchhang(x, fest, lose, 0.42)
 				_stange(st, Transform3D.IDENTITY, Vector3(x, unten - sack, z), Vector3(x + kipp, oben, z),
 						r, r * 0.85, o, 1.0)
-		x += 0.5
 		nr += 1
 	if kaputt:
 		_truemmer(st, rng, zr, 3, Vector2(0.1, 0.13), Vector2(0.5, 1.0), holz)
@@ -941,28 +1046,27 @@ static func _wurzelbogen(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float
 	var krone_l := rand.krone(-1.0, mitte)
 	var krone_r := rand.krone(1.0, mitte)
 	var wurzel := {"ton": WURZEL_TON, "moos": 0.5, "seiten": 9, "buckel": 0.09}
-	var y := (KorridorLevel.DUCK_UNTEN + RIEGEL_OBEN) * 0.5
-	# Riegel: drei Wurzeln über die Tiefe, die aus der Wand kommen und in die
-	# andere Wand tauchen; über dem Weg flach auf 0,95–1,40. Die äußeren
-	# liegen so weit innen, dass Achse, Welle (3 cm) und Halbmesser samt
-	# Buckeln (0,31 · 1,1) in ±tiefe/2 bleiben – mit Welle 0,12 standen sie
-	# bis 16 cm vor der Stirn bzw. hinter dem Ausgang, Optik ohne Körper.
-	# Flach auf DUCK_UNTEN schon ab 0,1 m vor der Leitlinie: Stieg die
-	# Wurzel erst dort zur Wand, lag ihre Unterkante am Rand bis 4 cm über
-	# dem Körper. Der Rücken bleibt Borke mit Moos (`oben_borke`): Hell
-	# abgewetzt lasen sich die drei Rücken von oben (s 90) als Bretterboden,
-	# heller als der Weg; hell bleibt nur die Unterkante (§8.4).
+	var y := (RIEGEL_KANTE + RIEGEL_OBEN) * 0.5
+	# Riegel: EINE Wurzel an der Stirn (bis Runde 1 drei über die Tiefe,
+	# siehe RIEGEL_KANTE), die aus der Wand kommt und in die andere Wand
+	# taucht; über dem Weg flach auf der Kante RIEGEL_KANTE–RIEGEL_OBEN. Sie
+	# liegt so weit innen, dass Achse, Welle (3 cm) und Halbmesser samt
+	# Buckeln (r · 1,1) in ±tiefe/2 bleiben – mit Welle 0,12 standen die
+	# Wurzeln bis 16 cm vor der Stirn, Optik ohne Körper. Flach schon ab
+	# 0,1 m vor der Leitlinie: Stieg die Wurzel erst dort zur Wand, lag ihre
+	# Unterkante am Rand über der Kante. Der Rücken bleibt Borke mit Moos
+	# (`oben_borke`): Hell abgewetzt lasen sich die Rücken von oben (s 90)
+	# als Bretterboden; hell bleibt nur die Unterkante (§8.4).
 	var halb_z := tiefe * 0.5
-	var r_riegel := 0.31
+	var r_riegel := 0.18
 	var welle := 0.03
-	for k in 3:
-		var zc := lerpf(halb_z - r_riegel * 1.1 - welle, -(halb_z - r_riegel * 1.1 - welle),
-				float(k) / 2.0)
+	for k in 1:
+		var zc := halb_z - r_riegel * 1.1 - welle
 		var o := wurzel.duplicate()
 		o["saat"] = saat + k * 5
-		o["hoch"] = RIEGEL_HOCH / 0.29
+		o["hoch"] = RIEGEL_HOCH_KANTE / r_riegel
 		o["oben"] = RIEGEL_OBEN
-		o["unten"] = KorridorLevel.DUCK_UNTEN
+		o["unten"] = RIEGEL_KANTE
 		o["klemm_x"] = Vector2(-links - 0.25, rechts + 0.25)
 		o["oben_borke"] = true
 		o["anfang"] = "spitz"
@@ -977,8 +1081,8 @@ static func _wurzelbogen(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float
 		stuetzen.append_array([Vector3(rechts + 0.1, y, zc), Vector3(rechts + 0.75, 1.4, zc),
 				Vector3(rechts + 1.6, 2.4, zc + 0.2)])
 		var linie := _glatt(stuetzen, 3)
-		var radien := _radien(linie.size(), PackedFloat32Array([0.2, r_riegel, 0.3, 0.29, 0.3,
-				r_riegel, 0.2]))
+		var radien := _radien(linie.size(), PackedFloat32Array([0.2, r_riegel, r_riegel,
+				r_riegel * 0.95, r_riegel, r_riegel, 0.2]))
 		if not kaputt:
 			_holz(st, Transform3D.IDENTITY, linie, radien, o)
 		else:
@@ -1031,17 +1135,19 @@ static func _wurzelbogen(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float
 		o["moos"] = 0.6
 		_holz(st, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
 				PackedFloat32Array([0.12, 0.24, BOGEN_R, BOGEN_R * 0.9, BOGEN_R, 0.24, 0.12])), o)
-	# Vorhang: Strähnen alle 0,3 m vom Bogen hinab bis knapp über den Riegel,
-	# Ø 5–7 cm (mit 7–10 cm verdeckte bei s 90 eine Strähne die Figur fast).
-	var x := -links + 0.35
+	# Vorhang: Strähnen alle 0,45 m vom Bogen hinab, Ø 4,4–6 cm; nur gut
+	# jede vierte reicht bis knapp über den Riegel, die übrigen enden in
+	# 2,3–3,4 m. Bis Runde 1 hingen sie alle 0,3 m, drei von vier bis auf
+	# den Riegel – durch dieses Band schaut die Kamera im Slide-Fenster auf
+	# die Figur (Spiel-Jury R1, Mangel 1).
 	var nr := 0
-	while x < rechts - 0.3:
+	for x in _quer_stellen(-links + 0.35, rechts - 0.3, 0.45):
 		var seite := 1.0 if nr % 2 == 0 else -1.0
 		var z := 0.18 * seite + rng.randf_range(-0.06, 0.06)
 		var oben := _bogen_y(bogen, x) - 0.06
-		var lang := rng.randf() < 0.72
+		var lang := rng.randf() < 0.28
 		var unten := RIEGEL_OBEN + rng.randf_range(0.02, 0.3) if lang \
-				else rng.randf_range(2.0, 3.2)
+				else rng.randf_range(2.3, 3.4)
 		if kaputt and absf(x) < BRESCHE + 0.7:
 			unten = oben - rng.randf_range(0.3, 1.2)
 		elif kaputt and absf(x) < BRESCHE + 1.6:
@@ -1055,15 +1161,32 @@ static func _wurzelbogen(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float
 		var o := {"ton": STRAEHNE_TON, "moos": 0.1, "seiten": 5, "buckel": 0.12,
 				"saat": saat + 60 + nr, "anfang": "stumpf",
 				"ende": "splitter" if kaputt and absf(x) < BRESCHE + 0.7 else "spitz"}
-		var r := rng.randf_range(0.026, 0.036)
+		var r := rng.randf_range(0.022, 0.03)
 		_holz(st, Transform3D.IDENTITY, punkte, PackedFloat32Array([r, r * 0.9, r * 0.75,
 				r * 0.6, r * 0.45, r * 0.3]), o)
-		x += 0.3
 		nr += 1
 	if kaputt:
 		_truemmer(st, rng, halb_z, 2, Vector2(0.12, 0.15), Vector2(0.6, 1.0), wurzel)
 		_truemmer(st, rng, halb_z, 4, Vector2(0.03, 0.04), Vector2(0.5, 1.1),
 				{"ton": STRAEHNE_TON, "moos": 0.1, "seiten": 5})
+
+
+## Querlagen (x) für Stangen, Latten und Strähnen im Abstand `abstand`
+## zwischen `von` und `bis`, beidseits der Gasse GASSE über der Mitte,
+## aufsteigend.
+static func _quer_stellen(von: float, bis: float, abstand: float) -> PackedFloat32Array:
+	var links := PackedFloat32Array()
+	var rechts := PackedFloat32Array()
+	var x := GASSE * 0.5
+	while x <= maxf(-von, bis):
+		if -x >= von:
+			links.append(-x)
+		if x <= bis:
+			rechts.append(x)
+		x += abstand
+	links.reverse()
+	links.append_array(rechts)
+	return links
 
 
 ## Höhe des Bogens (Achse) bei x, linear zwischen seinen Punkten.
@@ -1113,7 +1236,9 @@ static func _fluderjoch(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
 			os["saat"] = saat + 40 + b * 2 + k
 			os["seiten"] = 6
 			_stange(st, Transform3D.IDENTITY, a, e, 0.06, 0.055, os)
-	# Zangen: Halbhölzer vorn und hinten, die Spaltfläche nach außen.
+	# Zange: ein Halbholz an der Stirn, die Spaltfläche nach außen, als
+	# schmale Kante (RIEGEL_KANTE); bis Runde 1 vorn und hinten, 0,95–1,40.
+	# Die Zufallszüge des Ausgangs bleiben, gebaut wird dort nichts.
 	var klemm := maxf(links, rechts) + 0.25
 	for k in 2:
 		var z := zz if k == 0 else -zz
@@ -1121,17 +1246,23 @@ static func _fluderjoch(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
 		o["saat"] = saat + 50 + k
 		o["spalt"] = Vector3(0.0, 0.0, signf(z))
 		o["spalt_tiefe"] = 0.3
-		o["hoch"] = RIEGEL_HOCH / 0.27
-		_riegel(st, bock_x.x - 0.35, bock_x.y + 0.3, z - signf(z) * 0.1, 0.27, klemm, kaputt,
-				Vector2(-BRESCHE * 0.6 + rng.randf_range(-0.3, 0.2), BRESCHE * 0.5
-				+ rng.randf_range(-0.2, 0.3)), Vector2(rng.randf_range(0.35, 0.5),
-				rng.randf_range(0.3, 0.45)), o, 0.0)
-	# Latten alle 0,42 m in beiden Ebenen, gespalten, die Fläche nach außen.
+		o["hoch"] = RIEGEL_HOCH_KANTE / 0.16
+		var bresche := Vector2(-BRESCHE * 0.6 + rng.randf_range(-0.3, 0.2), BRESCHE * 0.5
+				+ rng.randf_range(-0.2, 0.3))
+		var hang := Vector2(rng.randf_range(0.35, 0.5), rng.randf_range(0.3, 0.45))
+		if k == 0:
+			_riegel(st, bock_x.x - 0.35, bock_x.y + 0.3, z - signf(z) * 0.08, 0.16, klemm,
+					kaputt, bresche, hang, o, 0.0)
+	# Latten nur an der Stirn, alle JOCH_LATTEN m, gespalten, die Fläche nach
+	# außen, Ø 9–10 cm. Bis Runde 1 alle 0,42 m in beiden Ebenen, Ø 12–13 cm:
+	# Durch D4 schaut die Kamera beim Anlauf auf D3 (Band 2,9–3,3 m), und die
+	# Figur stand dahinter wie im Käfig (Bild s 212; Spiel-Jury R1, Mangel 1).
 	var gerinne_unten := GERINNE_RAND - GERINNE_R
-	var x := -links + 0.3
 	var nr := 0
-	while x < rechts - 0.25:
+	for x in _quer_stellen(-links + 0.3, rechts - 0.25, JOCH_LATTEN):
 		for k in 2:
+			if k == 1:
+				continue
 			var z := (zz - 0.04) if k == 0 else -(zz - 0.04)
 			var o := holz.duplicate()
 			o["saat"] = saat + 100 + nr * 2 + k
@@ -1141,7 +1272,7 @@ static func _fluderjoch(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
 			o["spalt_tiefe"] = 0.2
 			o["anfang"] = "stumpf"
 			o["ende"] = "stumpf"
-			var r := rng.randf_range(0.058, 0.066)
+			var r := rng.randf_range(0.045, 0.05)
 			var unten := RIEGEL_OBEN - 0.08
 			var oben := gerinne_unten + 0.12
 			if not kaputt:
@@ -1159,7 +1290,6 @@ static func _fluderjoch(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
 				var sack := _durchhang(x, fest, lose, 0.4)
 				_stange(st, Transform3D.IDENTITY, Vector3(x, unten - sack, z), Vector3(x, oben, z),
 						r, r, o, 1.0)
-		x += 0.42
 		nr += 1
 	_gerinne(st, -(links + GERINNE_LINKS), rechts + GERINNE_RECHTS, saat + 200)
 	if kaputt:
@@ -1333,7 +1463,9 @@ static func findling_netz(sa: Sammler, level: KorridorLevel, s: float, q: float,
 	var lage := _scher_lage(level, s, q, groesse.z)
 	lage.origin.y += groesse.y * 0.5
 	# Flanken und Ecken auf dem Körper: Grundriss als Rechteck mit Ecken von
-	# 4 cm (`Findling` Option „ecke"), ohne Anlauf und Umrisssprünge; Beulen,
+	# 7 cm (`Findling` Option „ecke"; die Ecke liegt damit 2 cm hinter den
+	# Flächen des Körpers, 3 cm hinter seiner Kante), ohne Anlauf und
+	# Umrisssprünge; Beulen,
 	# Unruhe und Facetten zusammen gut 1 cm, die Schichtfugen 1,2 cm tief
 	# (Option „fuge_tiefe", Vorgabe 8 cm) – sie lesen sich über ihr dunkles
 	# Band, nicht über die Tiefe; die Körnung gibt der Stoff.
@@ -1342,12 +1474,15 @@ static func findling_netz(sa: Sammler, level: KorridorLevel, s: float, q: float,
 	# Umrisssprüngen der Vorgabe lag die sichtbare Flanke 9–37 cm hinter dem
 	# Körper, an der Gassenecke der Stirn (im Band der Stolperzone) bis 1,4 m:
 	# Man stolperte an einer Ecke, die man noch weit weg sah. Die Gestalt
-	# kommt jetzt aus den Sandsteinbändern, der Oberkante (rundum 7–22 cm
-	# gerundet, darunter bleibt die Flanke auf dem Körper) und dem Moos. Der
+	# kommt jetzt aus den Sandsteinbändern, der Oberkante (rundum 9–30 cm
+	# gerundet, darunter bleibt die Flanke auf dem Körper) und dem Moos. Mit
+	# Ecken von 4 cm und Kanten bis 22 cm standen die Steine als Kästen im
+	# Bild (Bild-Jury R1, Mangel 7); wer oben steht, sinkt 10 cm vor der
+	# Kante höchstens 7,6 cm in die Rundung ein (zuvor 3,6 cm). Der
 	# starre Rahmen reicht: Der Weg dreht sich über die Tiefe eines Steins um
 	# 0,004 rad, an seinen Enden 4–5 mm Versatz zum Körper (gemessen).
-	var o := {"saat": saat, "moos": 0.8, "ecke": 0.04, "beulen": 0.004, "unruhe": 0.005,
-			"anlauf": 0.0, "umriss": 0.0, "rundung": 0.22, "fuge_tiefe": 0.012}
+	var o := {"saat": saat, "moos": 0.8, "ecke": 0.07, "beulen": 0.004, "unruhe": 0.005,
+			"anlauf": 0.0, "umriss": 0.0, "rundung": 0.3, "fuge_tiefe": 0.012}
 	var netz := _getoent(Findling.netz(groesse, o), SANDSTEIN_TON)
 	sa.stein(netz, lage)
 	sa.kranz(_fussring(netz, -groesse.y * 0.5, 0.7), lage)
@@ -1412,7 +1547,8 @@ static func _bankwurzeln(sa: Sammler, level: Level05) -> void:
 	var h := g * 0.5
 	var boden := -(float(e["oben"]) - h.y)
 	for k in 2:
-		# Vorn (+z, wo man landet), die Kisten stehen hinten (z −0,5 … −2,5).
+		# Vorn (+z, wo man landet); die Kisten stehen außen in einer Reihe
+		# (x +0,5, z +0,15 … −1,95), die vordere über der hinteren Wurzel.
 		var z := 0.2 + 1.4 * float(k)
 		# An der Wegseite mit der Achse 0,12 m im Kasten (Halbmesser dort ≤ 0,1):
 		# Mit 0,05 standen die Wurzeln 3–6 cm vor der Bank in den Weg.

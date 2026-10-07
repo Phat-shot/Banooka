@@ -14,13 +14,18 @@ class_name L05Stimmung
 ##   ferne Hügel ab 4,3° (`huegel_hoehe` 0,075 ≥ 0,07, Jury JT10: Weltkante)
 ##   und eine Waldkante unter dem Horizont. Die Sonne ist LIGHT0 des
 ##   Himmels; ihr Schein (0,1) liegt hinter der Kamera und färbt nur, was
-##   zur Seite sieht. Tiefennebel 16 → 240 m, Dichte 0,85, Kurve 1,4 in
+##   zur Seite sieht. Tiefennebel 12 → 210 m, Dichte 0,9, Kurve 1,4 in
 ##   einem kühlen Graublau (0,50/0,58/0,76) – aus ihm kommt der kühle Anteil
 ##   des Bildes und die Tiefe hangauf. Sättigung 1,0 (vorher 1,25), Kontrast
 ##   1,06, Glow 0,5 ab 1,0. `Bildrahmen` 0,32 in einem warmen Schwarz
 ##   (0,05/0,03/0,02). Dazu `horizont()` als grober Ring (`_horizont`).
-## * SONNE: 26° hoch, rechts hinter der Kamera (Licht fällt nach
-##   (0,52/−0,44/0,74): hangauf und nach q > 0), warm (1,0/0,80/0,56).
+## * SONNE: 17° hoch, rechts hinter der Kamera (Licht fällt nach
+##   (0,55/−0,29/0,78): hangauf und nach q > 0), warm (1,0/0,74/0,48),
+##   1,5. Bis R1 26° hoch, (1,0/0,80/0,56), 1,25, Belichtung 1,15, Nebel
+##   16 → 240 m bei 0,85: Die Bild-Jury fand das Bild parkartig hell gegen
+##   Level 01 (Helligkeit 61–86 gegen 45–64), die Sonne zu hoch und zu
+##   wenig warm, zu wenig Dunst (R1, Mangel 4). Die Richtung über dem
+##   Boden blieb (gleiches Verhältnis x/z).
 ##   Sie steht fest in der Welt, die Laufrichtung dreht sich unter ihr: 35°
 ##   zur Laufrichtung bei s 0–30 und 180, 26–27° bei s 90–120, 40° bei
 ##   s 240–270 (gerechnet aus KURVE, Tangente über ±1 m; Spanne 26–41°).
@@ -35,22 +40,30 @@ class_name L05Stimmung
 ##   §10: 750k), orthogonal 686k–707k bei gleichem Bild.
 ## * WEITERE LICHTER (nur Licht, nicht im Himmel: `sky_mode` 1):
 ##   Himmelslicht (0,52/0,62/0,95) von oben, kühles Kantenlicht aus ONO
-##   (0,62/0,70/0,95) 0,18 – es hellt die Schattenseite der rechten Wand
-##   kühl auf –, warmes Bodenlicht (0,86/0,66/0,42) 0,14 von unten.
+##   (0,62/0,70/0,95) 0,3 – es hellt die Schattenseite der rechten Wand
+##   kühl auf; bis R1 0,18, mit der tieferen Sonne und Belichtung 1,0 lag
+##   die Südwand des Tobels dann fast schwarz (Bild-Jury R1, Mangel 5:
+##   „dunkle Schattenseite“; bei s 196 im Mittel 22/26/25 von 255) –,
+##   warmes Bodenlicht (0,86/0,66/0,42) 0,14 von unten.
 ## * ABWEICHUNGEN von den Startwerten des Entwurfs (§8.3: „Startwerte,
 ##   ungeprüft"), erzwungen von den Farbzielen des Kontaktbogens:
 ##   Mit Sonne 1,0, Himmelslicht 0,38, Umgebung × 0,42 und Belichtung 1,0
 ##   lag die Helligkeit der acht Fotostellen bei 51–74 (vorher L05 33–100)
-##   und der Weg nicht mehr klar am hellsten. Jetzt Sonne 1,25,
-##   Himmelslicht 0,45, Umgebung × 0,62, Belichtung 1,15 (Weiß 6).
+##   und der Weg nicht mehr klar am hellsten. Bis R1 Sonne 1,25,
+##   Himmelslicht 0,45, Umgebung × 0,62, Belichtung 1,15 (Weiß 6); seit R1
+##   Sonne 1,5 (tiefer, sie trifft flacher) und Belichtung 0,9 (mit 1,0
+##   Helligkeit 55–76 an den Fotostellen der Jury, Level 01 dort 45–64).
 ##   Mit den Nebelfarben des Entwurfs (graugrün in A, lila-grau in B–E)
 ##   kam der kühle Anteil nur auf 3,6–9,8 % (Ziel ≥ 12 %): Ein Grau mit
 ##   wenig Sättigung zählt der Bogen nicht als kühl. Die Nebelfarben (Szene
 ##   und Zonen) und der Dunst des Himmels sind deshalb blauer, bei etwa
 ##   gleicher Helligkeit; Licht- und Nebelfaktoren der Zonen wie im Entwurf.
-##   Gemessen (8 Stellen, Desktop): Helligkeit 62–86, warm 21–41 %, kühl
-##   17–26 %, Weg-Luma (P80) 176–195 über der hellsten Kachel außerhalb
-##   (118–130), warme Akzente 1,4–3,3 %.
+##   Gemessen (8 Stellen, Desktop, P8): Helligkeit 62–86, warm 21–41 %,
+##   kühl 17–26 %, Weg-Luma (P80) 176–195 über der hellsten Kachel
+##   außerhalb (118–130), warme Akzente 1,4–3,3 %. Nach R1 (Fotostellen
+##   der Bild-Jury, 10 Stellen Desktop): Helligkeit 50–70, warm 23–41 %,
+##   kühl 18–24 % (`kontaktbogen.py`); Weg-Luma und Akzente nicht neu
+##   gemessen.
 ##
 ## SONNE, zwei Stellungen bei s 60 verglichen (Entwurf §8.3, JT7; Bildpaar
 ## im Bericht): 35° rechts (Entwurf) und 55° (Jury). Gewählt 35°: Mit 55°
@@ -62,7 +75,7 @@ class_name L05Stimmung
 ##
 ## ZONEN (§8.3, `Stimmungsregler`, Baukasten G5): Regler nach der Strecke
 ## s, Werte relativ zur Szene (`licht_faktor` auf das Umgebungslicht,
-## `nebel_faktor` verkürzt die Nebelstrecke 16 → 240 m):
+## `nebel_faktor` verkürzt die Nebelstrecke 12 → 210 m):
 ##   A Suhle            0–31     Licht 0,75  Nebel 0,9   (0,44/0,50/0,58)
 ##   B Hohlweg         31–120         1,1         0,85   (0,50/0,58/0,76)
 ##   C Wurzelterrassen 120–180        1,15        0,8    (0,54/0,60/0,76)

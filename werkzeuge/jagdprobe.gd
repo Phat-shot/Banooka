@@ -41,7 +41,11 @@ extends Node
 ##                                 stolpern, "reaktion" s warten, dann aus
 ##                                 dem Stand sliden. Stolpert sie bis "bis"
 ##                                 nicht, ist das ein FEHLER
-##                   warten        "dauer" s stehen bleiben, dann weiter
+##                   warten        "dauer" s stehen bleiben, dann weiter;
+##                                 mit "sofort": true auch in der Luft (nach
+##                                 dem Respawn: Die Figur fällt 0,6 m, und
+##                                 der Lenker liefe ihr sonst im Fallen schon
+##                                 davon)
 ##                   stehen        stehen bleiben bis zum Ende des Falls
 ##                   schweben      an der Strecke "an" über der Decke
 ##                                 festhalten (über einer Lücke)
@@ -569,7 +573,7 @@ func _ausloesen(a: Dictionary, i: int, am_boden: bool) -> bool:
 			_stolper_aktion = i
 			_stolper_phase = 0
 		"warten":
-			if not am_boden:
+			if not am_boden and not bool(a.get("sofort", false)):
 				return false
 			_warten_rest = roundi(float(a["dauer"]) * 60.0)
 		"stehen":

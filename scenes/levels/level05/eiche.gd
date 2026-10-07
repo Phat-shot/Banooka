@@ -7,25 +7,27 @@ class_name L05Eiche
 ##
 ## WAS HIER ENTSTEHT (im Rahmen der Eiche: +X = q > 0, im Rückblick
 ## BILDLINKS; −Z = hangab, zum Weg und zur Kamera):
-## * FUSS: r 1,9, 5 m hoch, 7 Brettwurzeln; oben verjüngt er sich in die
+## * FUSS: r 2,15, 5,5 m hoch, 7 Brettwurzeln; oben verjüngt er sich in die
 ##   beiden Hälften hinein. Vorn ein schmaler heller Riss: Der Spalt läuft
 ##   bis in den Fuß hinab.
-## * Zwei STAMMHÄLFTEN, r 1,1 → 0,6, nach außen geneigt (`Riesenstamm.netz`
+## * Zwei STAMMHÄLFTEN, r 1,5 → 0,75, nach außen geneigt (`Riesenstamm.netz`
 ##   mit `neigung` und `krumm`): ein gespaltener Zwiesel. Ihre Spaltflächen
 ##   (Option `spalt`, hell und verwittert) schauen schräg nach innen und zur
 ##   Kamera – eine helle Innenkante des V, so liest es sich als Spalt und
 ##   nicht als zwei Bäume. Oben spreizen je vier Äste flach in die Krone.
 ## * Zwei SCHIRMKRONEN (`Kronenwolke` Variante 1) an den Astspitzen,
-##   gemessen an der Fernkrone: Mitten bei q −12,8 und +12,3, Y 54,5 und
-##   54,9, 16,6 und 15,7 m breit, 7,5 und 7,3 m hoch – flach und breit, EINE
-##   Lage Ballen. Dazwischen die Himmelskerbe (KERBE, 9,0 m).
+##   gemessen an der Fernkrone: Mitten bei q −12,2 und +12,3, Y 54,9 und
+##   55,1, 15,4 und 15,7 m breit, je 7,1 m hoch – flach und breit, EINE
+##   Lage Ballen. Dazwischen die Himmelskerbe (KERBE, 9,0 m). Das Laub
+##   herbstgolden mit Durchlicht (GOLDEN, LAUB).
 ## * FERNFORM ab WECHSEL (Handy WECHSEL_HANDY, Entwurf §9.5): dieselben
 ##   Stämme als `Riesenstamm.schlicht` (ohne Äste), die Kronen als
 ##   `Kronenwolke.fern`, über `visibility_range` (Abstand Kamera – Mitte
 ##   der Hülle). Siehe WECHSEL: ohne Überlappung, Fernkrone in Größe und Ton
 ##   an die Nahkrone angeglichen.
-## * EIGENER NEBEL (`Nebelstoff.nebelarm`): Kronen und Hälften zu 0,45
-##   (NEBEL_KRONE, NEBEL_STAMM) – eine dunkle Silhouette mit goldenen
+## * EIGENER NEBEL (`Nebelstoff.nebelarm`): Kronen zu 0,3, Hälften zu 0,4
+##   (NEBEL_KRONE, NEBEL_STAMM; bis R1 beide 0,45, die Bild-Jury fand die
+##   Eiche nicht golden) – eine dunkle Silhouette mit goldenen
 ##   Kronen vor dem Dunst. „Für die Kuppe 0,7" des Entwurfs trägt der Fuß
 ##   der Fernform (NEBEL_KUPPE): Was auf der Kuppe steht, geht mit ihr in
 ##   den Dunst über, statt als dunkler Klotz auf dem hellen Hang zu stehen.
@@ -45,7 +47,9 @@ class_name L05Eiche
 ##     Fuß samt Anlauf (r 1,9 · 1,35 = 2,57) schon 0,57 m auf dem
 ##     Startboden, die Brettwurzeln reichten bis 5,3 m von der Achse – bis
 ##     s −0,7: Die Figur liefe durch Wurzeln und stünde im Stamm. Bei −9,5
-##     reicht kein Punkt des Stamms über s −5,1 (gemessen). Die Kuppe des
+##     reicht kein Punkt des Stamms über s −5,1 (gemessen), mit dem
+##     dickeren Fuß aus R1 (r 2,15) über s −4,8 – noch 0,8 m vor der
+##     Querwand. Die Kuppe des
 ##     Geländes bleibt bei s −6 (`Level05.EICHE`); 3,5 m neben ihrem
 ##     Scheitel liegt sie 0,03 m tiefer, die Eiche steht auf Y 26,83 (dem
 ##     tiefsten Boden unter ihrem Anlauf, siehe `rahmen`).
@@ -60,7 +64,7 @@ class_name L05Eiche
 ##     sollen nach dem Entwurf bei Y ≈ 55 liegen (gemessen 54,5 und 54,9).
 ##
 ## NEBEL. `Nebelstoff` rechnet Tiefennebel wie die Szene (Level05.tscn,
-## Entwurf §8.3: 16 → 240 m, Kurve 1,4). Beim Bau stellt `nebel_einstellen`
+## Entwurf §8.3: 16 → 240 m, seit R1 12 → 210 m, Kurve 1,4). Beim Bau stellt `nebel_einstellen`
 ## die eigenen Stoffe auf den Nebel der Szene; danach führt sie der
 ## Stimmungsregler nach der Strecke nach (`L05Stimmung`, Option
 ## "nebelstoffe" = `nebel_stoffe`). Die Brücke für den Exponentialnebel, der
@@ -101,18 +105,24 @@ const KRONE_R := 7.0
 const BALLEN_HOCH := 1.0
 ## Laub der Hauereiche: etwas wärmer als `Farben.LAUB` – im Abendlicht soll
 ## sie golden leuchten (Entwurf §8.1), nicht kühl grün.
-const LAUB := Color(0.3, 0.46, 0.15)
+const LAUB := Color(0.54, 0.42, 0.13)
 
-## Fuß (siehe Kopf). Oben auf r 0,45 verjüngt: Dort steckt er ganz in den
-## beiden Hälften (jede r 1,1, 0,75 m neben der Achse; vorn decken sie
-## zwischen sich 0,5 m). Mit r 0,8 stand sein offener Kopf als dunkler
-## Klotz zwischen ihnen (Prüfung P4). Vorn ein schmaler heller Riss ab 40 %
-## der Höhe: flach (6 % des Radius, an der Kamera rund 1 m breit) – mit
-## 15 % las er sich als helle, kantige Planke.
-const FUSS := {"hoehe": 5.0, "radius": 1.9, "radius_oben": 0.45, "brettwurzeln": 7,
-		"wurzel_reichweite": 2.4, "wurzel_hoehe": 2.4, "wurzel_dicke": 0.6, "anlauf": 0.35,
-		"krumm": 0.0, "oben": "offen", "pilze": 1, "efeu": 1, "spalt": Vector2(0.0, -1.0),
-		"spalt_tiefe": 0.06, "spalt_von": 0.4, "saat": 5501}
+## Fuß (siehe Kopf). Oben auf r 0,6 verjüngt: Dort steckt er ganz in den
+## beiden Hälften (jede r 1,5, 0,95 m neben der Achse). Mit r 0,8 zwischen
+## Hälften von r 1,1 stand sein offener Kopf als dunkler Klotz zwischen
+## ihnen (Prüfung P4). Vorn ein schmaler heller Riss ab 40 % der Höhe: flach
+## (6 % des Radius, an der Kamera rund 1 m breit) – mit 15 % las er sich als
+## helle, kantige Planke. ALT UND KNORRIG (Bild-Jury R1, Mangel 3: „keine
+## alte gespaltene Eiche"): Fuß r 2,15 statt 1,9 und 5,5 statt 5 m hoch,
+## höhere Brettwurzeln, tiefere Rippen, dunkles Holz im Spalt, je zwei
+## Gruppen Pilze und Efeu; die Hälften r 1,5 statt 1,1 (oben 0,75 statt
+## 0,6), krummer (0,9 statt 0,5), mit Rippen, Pilzen und Efeu. Mit r 1,1 auf
+## 24,5 m standen sie im Bild als zwei dünne Stangen.
+const FUSS := {"hoehe": 5.5, "radius": 2.15, "radius_oben": 0.6, "brettwurzeln": 7,
+		"wurzel_reichweite": 2.4, "wurzel_hoehe": 3.0, "wurzel_dicke": 0.6, "anlauf": 0.35,
+		"krumm": 0.0, "oben": "offen", "pilze": 2, "efeu": 2, "spalt": Vector2(0.0, -1.0),
+		"spalt_tiefe": 0.06, "spalt_von": 0.4, "rippen_tiefe": 0.12,
+		"spalt_farbe": Color(0.25, 0.19, 0.13), "saat": 5501}
 ## Stammhälften: gemeinsame Optionen; je Seite dazu `neigung`, `spalt` und
 ## `saat` (`_haelfte`). Ansatz HAELFTE_ANSATZ (x seitlich, y Höhe) im Fuß.
 ## SCHIRM: Die vier Äste gehen erst ab 80 % der Höhe ab, flach (0,25 rad)
@@ -121,27 +131,33 @@ const FUSS := {"hoehe": 5.0, "radius": 1.9, "radius_oben": 0.45, "brettwurzeln":
 ## 0,5 rad lagen die Spitzen über 5,5 m verteilt, und jede Krone las sich
 ## als zwei, drei gestapelte Ballen – eine Pagode aus Tellern (Prüfung P4,
 ## wie Level 01 in Welle 6). 24,5 m: siehe Kopf, ABWEICHUNGEN.
-const HAELFTE := {"hoehe": 24.5, "radius": 1.1, "radius_oben": 0.6, "krumm": 0.5,
+const HAELFTE := {"hoehe": 24.5, "radius": 1.5, "radius_oben": 0.75, "krumm": 0.9,
 		"anlauf": 0.0, "brettwurzeln": 0, "aeste": 4, "ast_start": 0.8, "ast_steil": 0.25,
-		"ast_laenge": 5.5, "spalt_tiefe": 0.3, "spalt_bis": 0.85}
+		"ast_laenge": 5.5, "spalt_tiefe": 0.3, "spalt_bis": 0.85, "rippen_tiefe": 0.13,
+		"pilze": 1, "efeu": 1, "spalt_farbe": Color(0.25, 0.19, 0.13)}
 ## Ansatz im Fuß: Die unterste Kante der Hälften (1 m unter dem Ansatz,
-## `Riesenstamm.VERSENKT`) liegt bei 2,4 m, wo der Fuß noch r 1,9 hat – sie
-## steckt also ganz in ihm.
-const HAELFTE_ANSATZ := Vector2(0.75, 3.4)
+## `Riesenstamm.VERSENKT`) liegt bei 2,6 m, 0,95 m neben der Achse (bei r
+## 1,1 waren es 0,75 m: Die dickeren Hälften rücken auseinander, sonst
+## stünden sie ineinander).
+const HAELFTE_ANSATZ := Vector2(0.95, 3.6)
 ## Saat je Hälfte (0: q < 0, 1: q > 0): je Seite die erste ab 5502 bzw.
 ## 6502, deren Krone nicht vor oder hinter den Stamm zieht (Mittel der
-## Astspitzen längs ≤ 0,8 m vom Leittrieb, gemessen 0,21 und 0,44) und
-## deren Äste nicht weit in die Kerbe greifen (keine Spitze mehr als 2,5 m
-## innerhalb der Achse, gemessen 2,26 und 2,32) – an den Metadaten
-## "ast_spitzen" von `Riesenstamm.netz`. Die Kronen werden so etwa so tief
-## wie breit (Fernkrone 16,6 × 17,8 und 15,7 × 15,7 m). Einmal vorab
-## gesucht (Hilfsskript außerhalb des Projekts), nicht zur Laufzeit.
-const HAELFTE_SAAT: Array[int] = [5572, 6560]
+## Astspitzen längs ≤ 0,8 m vom Leittrieb, gemessen −0,44 und 0,29) und
+## deren Äste nicht weit in die Kerbe greifen – an den Metadaten
+## "ast_spitzen" von `Riesenstamm.netz`. Mit den dicken Hälften (R1) neu
+## gesucht: Die Äste setzen an der Borke an, der Radius verschiebt also
+## jede Spitze, und die alten Saaten 5572/6560 lagen 0,92 m längs bzw.
+## griffen 1,8 m weiter in die Kerbe. Gemessen gegen die geneigte Achse in
+## der Höhe der Spitze: höchstens 3,19 und 3,43 m innerhalb (die alten
+## Saaten mit r 1,1 im selben Maß 2,89 und 3,02; der Radius bringt in Höhe
+## der Äste 0,3 m mehr). Fernkronen 15,4 × 17,1 und 15,7 × 20,1 m. Einmal
+## vorab gesucht (Hilfsskript außerhalb des Projekts), nicht zur Laufzeit.
+const HAELFTE_SAAT: Array[int] = [5550, 6574]
 ## Versatz der Spitze je Hälfte (x nach außen, z nach hinten): so gewählt,
 ## dass die innerste Ecke der Fernkrone (mit FERN_SKALA) genau KERBE/2
 ## neben der Mitte liegt (vorab mit dem Sekantenverfahren gesucht, Fehler
-## < 0,005 m).
-const HAELFTE_NEIGUNG: Array[Vector2] = [Vector2(12.647, 0.6), Vector2(11.88, 0.6)]
+## < 0,005 m; für die dicken Hälften und ihre Saaten neu, R1).
+const HAELFTE_NEIGUNG: Array[Vector2] = [Vector2(12.275, 0.6), Vector2(12.490, 0.6)]
 ## Spaltfläche der Hälften: schaut mehr nach innen (x) als zur Kamera (z) –
 ## eine helle Innenkante des V. Frontal zur Kamera deckte sie vier Fünftel
 ## der Hälfte, aus der Ferne las sich der Stamm dann als blasses Brett.
@@ -172,15 +188,15 @@ const RAND := 4.0
 ## Fläche, mit LAUB_FERN mittlere Farbe auf ±1 Stufe gleich (91/67/13
 ## gegen 91/68/14). Was bleibt, ist der Glanz der Karten.
 const FERN_SKALA := 1.07
-const LAUB_FERN := Color(0.376, 0.549, 0.173)
+const LAUB_FERN := Color(0.66, 0.51, 0.16)
 ## Eigener Nebel (siehe Kopf).
-const NEBEL_KRONE := 0.45
-const NEBEL_STAMM := 0.45
+const NEBEL_KRONE := 0.3
+const NEBEL_STAMM := 0.4
 const NEBEL_KUPPE := 0.7
 
 ## Borke der Eiche: Rinde der Bibliothek, etwas wenig Moos oben (Licht).
 const BORKE := {"moos_oben": 0.35, "moos_nord": 0.6}
-const BORKE_FERN := {"fern": true, "moos_oben": 0.35}
+const BORKE_FERN := {"fern": true, "moos_oben": 0.35, "farbe": Color(0.5, 0.43, 0.36)}
 
 var level: Level05
 ## Die Eiche im Level (Gruppe GRUPPE).
@@ -224,9 +240,9 @@ func _bauen() -> void:
 
 	var kronen_fern := kronen_netz(true)
 	var kn := _knoten("KronenNah", kronen_netz(false),
-			_nebelarm(Kronenwolke.stoff(LAUB), NEBEL_KRONE), false)
+			_golden(_nebelarm(Kronenwolke.stoff(LAUB), NEBEL_KRONE)), false)
 	var kf := _knoten("KronenFern", kronen_fern,
-			_nebelarm(Kronenwolke.stoff(LAUB_FERN, false), NEBEL_KRONE), false)
+			_golden(_nebelarm(Kronenwolke.stoff(LAUB_FERN, false), NEBEL_KRONE)), false)
 	var nah: Array[MeshInstance3D] = [stamm_nah, kn]
 	var fern: Array[MeshInstance3D] = [stamm_fern, kf]
 	_wechsel_setzen(nah, fern, wechsel)
@@ -428,6 +444,23 @@ static func _netzhuelle(netz: Mesh) -> AABB:
 	if netz is ArrayMesh and (netz as ArrayMesh).custom_aabb.has_volume():
 		a = a.merge((netz as ArrayMesh).custom_aabb)
 	return a
+
+
+## GOLDEN (Bild-Jury R1, Mangel 3; Entwurf §8.1: „Dort leuchtet nur die
+## Hauereiche golden"): Die Kronen tragen herbstgoldenes Laub (LAUB,
+## LAUB_FERN) und mehr Durchlicht als der übrige Wald, oben wärmer – im
+## Abendlicht glimmen sie von innen. Nur auf den eigenen Abschriften
+## (`_nebelarm`), der geteilte Kronenstoff bleibt, wie er ist.
+const DURCHLICHT := 0.62
+const TON_OBEN := Vector3(1.9, 1.3, 0.85)
+
+
+func _golden(stoff: Material) -> Material:
+	if stoff is ShaderMaterial and stoff != Kronenwolke.stoff(LAUB) \
+			and stoff != Kronenwolke.stoff(LAUB_FERN, false):
+		(stoff as ShaderMaterial).set_shader_parameter("durchlicht", DURCHLICHT)
+		(stoff as ShaderMaterial).set_shader_parameter("ton_oben", TON_OBEN)
+	return stoff
 
 
 # ================================================================ Nebel

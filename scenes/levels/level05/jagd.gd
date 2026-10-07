@@ -21,7 +21,8 @@ class_name L05Jagd
 ##            1,4 m früher, der Abstand also nicht mehr 15; und wer sie mit
 ##            einem Doppelsprung überspringt, weckt ihn trotzdem.
 ##   JAGD     mit TEMPO, Höhe aus `boden_bei` plus Hopser (unten), seitlich
-##            QUER_ANTEIL der Querlage der Figur.
+##            QUER_ANTEIL der Querlage der Figur. Höchstens so weit hinter
+##            der Figur, wie HOECHST_STAFFEL an ihrer Stelle sagt (unten).
 ##   UFER     bei UFER_S bleibt er stehen (das gebrochene Wehr L6 beginnt
 ##            bei 284) und schnaubt – als ZUSTAND, nicht als Augenblick: Er
 ##            bleibt am Ufer stehen und schnaubt weiter, auch wenn die Figur
@@ -84,12 +85,32 @@ class_name L05Jagd
 ## hinter dem Rastplatz sind damit wieder heil (Entwurf §6.5); die, über die
 ## er schon hinaus steht, bleiben gebrochen.
 ##
+## HÖCHSTABSTAND JE ABSCHNITT (Spiel-Jury R1, Mangel 3). Mit 15 m über die
+## ganze Strecke war der Keiler im sauberen Lauf nie „im Nacken" (Jagdprobe:
+## Mindestabstand 14,44 m; 26 Bildpunkte hoch bei 720p) und die Jagd stieg
+## nicht an. Jetzt zieht er näher heran, je weiter der Hang hinab geht:
+## beim Wecken 15, im Hohlweg 14, auf den Terrassen 13, im Tobel 12, am
+## Mühlbach 11 (HOECHST_STAFFEL, linear über die Übergänge, damit er nicht
+## springt). Das TEMPO bleibt fest (CLAUDE.md); er läuft nur dann schneller,
+## wenn ihn der Höchstabstand mitzieht – wie vorher hinter einer Figur, die
+## mit 8,5 m/s läuft. WARUM nicht enger (die Jury schlug 14/12/10/9 vor):
+## Die Kette D3–D4–L5 soll zwei Fehler verzeihen (Entwurf §2.5). Zweimal
+## Stolpern kostet dort gemessen 8,3 m (Jagdprobe, P1b: 15 → 6,66); mit
+## 10 m bliebe 1,7 m, unter dem Fangabstand. Mit 12 m bleiben gut 3,6 m.
+## Dem Nutzer vorzulegen (Abweichung von „Höchstabstand 15", Entwurf §2.1).
+##
 ## NACH EINEM TOD steht der Keiler VORSPRUNG hinter dem Rastplatz, an dem
-## die Figur wieder erscheint – genau, nicht über `get_closest_offset` des
+## die Figur wieder erscheint (höchstens den Höchstabstand dort,
+## `vorsprung_bei`) – genau, nicht über `get_closest_offset` des
 ## Checkpoints: Der Checkpoint liegt 0,6 m über der Decke, die Decke bis
 ## 0,64 m neben der Kurve, und am Gefälle lag die Strecke daraus bis
 ## 0,083 m zu kurz (gemessen an CP2, an CP4 0,080). Liegt der Rastplatz vor
 ## WECK_S – Start oder Game Over –, schläft er wieder an seinem Platz.
+## Er läuft erst los, wenn die Figur sich regt (RESPAWN_REGUNG: ein Schritt
+## vom Checkpoint, ein Sprung, ein Drehschlag), spätestens nach
+## RESPAWN_WARTEN Sekunden (Spiel-Jury R1, Mangel 5: Rannte er im selben
+## Bild los, war man nach 1,4 s Stehen gefangen, mit 1,2 s Reaktion blieben
+## 2,8 m). Bis dahin steht er (Tempo 0).
 ##
 ## HALTUNGEN rufe ich am Keiler nur, wenn er sie kennt (`has_method`; die
 ## Optik steht in keiler.gd, Paket P5). Ruft:
@@ -129,8 +150,19 @@ const KEILER := preload("res://scenes/enemies/Keiler.tscn")
 ## Sekunden an den Fersen.
 const TEMPO := 7.4
 const VORSPRUNG := 12.0
+## Abstand beim Wecken und Maß der Nähe (`naehe`, Augenglut, Lautstärke).
 const HOECHSTABSTAND := 15.0
+## Höchstabstand je Stelle der Figur (siehe Kopf), Vector2(s, Abstand),
+## linear dazwischen, davor und dahinter wie am Rand.
+const HOECHST_STAFFEL: Array[Vector2] = [
+	Vector2(31.0, 15.0), Vector2(41.0, 14.0), Vector2(115.0, 14.0), Vector2(125.0, 13.0),
+	Vector2(178.0, 13.0), Vector2(188.0, 12.0), Vector2(262.0, 12.0), Vector2(272.0, 11.0),
+]
 const FANGABSTAND := 2.0
+## Nach dem Respawn (siehe Kopf, NACH EINEM TOD): höchstens so lange wartet
+## er, und so weit (m, waagerecht) muss die Figur vom Checkpoint weg.
+const RESPAWN_WARTEN := 1.0
+const RESPAWN_REGUNG := 0.3
 ## Stolperdauer an Hürden, Durchlässen und Findlingen (`Spieler.stolpern`).
 const STOLPER_DAUER := 0.45
 ## Schlafplatz in der Suhle und die Stelle des Weckens (= CP1).
@@ -201,6 +233,10 @@ var _durchlaesse: Array[StaticBody3D] = []
 var _gebrochen: Array[bool] = []
 ## Wie oft er gefangen hat (für Proben).
 var _faenge := 0
+## Nach dem Respawn: Restzeit, bis er ohnehin losläuft (0 = läuft), und
+## der Ort, an dem die Figur erschien (siehe Kopf, NACH EINEM TOD).
+var _respawn_rest := 0.0
+var _respawn_ort := Vector3.INF
 
 
 ## Bauschritt des Levels: Keiler und Jagd anlegen, der Keiler schläft.
@@ -213,6 +249,10 @@ static func anlegen(level: Level05) -> L05Jagd:
 	jagd.name = "Jagd"
 	jagd._level = level
 	level.add_child(jagd)
+	# Die Keilerklänge entstehen beim ersten Abholen (`Klang.ABRUF`): jetzt,
+	# unter dem Ladeschirm, nicht erst im Bild, in dem er erwacht.
+	for name: String in Klang.ABRUF:
+		Klang.strom(name)
 	jagd._keiler = KEILER.instantiate() as Keiler
 	level.objekte.add_child(jagd._keiler)
 	jagd._figur = level.get_tree().get_first_node_in_group("spieler") as Spieler
@@ -284,6 +324,8 @@ func zustand() -> Dictionary:
 		"ufer_s": UFER_S,
 		"fangabstand": FANGABSTAND,
 		"vorsprung": VORSPRUNG,
+		"hoechstabstand": hoechstabstand_bei(_level.strecke_der_figur()),
+		"wartet": _respawn_rest > 0.0,
 		"bruch_vor": BRUCH_VOR,
 	}
 
@@ -295,6 +337,7 @@ func wecken() -> void:
 	_weck_abstand = _level.strecke_der_figur() - SCHLAF_S
 	_lage = Lage.JAGD
 	_haltung("erwachen")
+	Klang.spiele("keiler_wecken")
 
 
 func nach_tod(_von_vorn: bool) -> void:
@@ -305,10 +348,12 @@ func nach_tod(_von_vorn: bool) -> void:
 	if s_cp < WECK_S - WECK_SPIEL:
 		_einschlafen()
 		return
-	_keiler_s = minf(s_cp - VORSPRUNG, UFER_S)
+	_keiler_s = minf(s_cp - vorsprung_bei(s_cp), UFER_S)
 	_lage_setzen(Lage.UFER if _keiler_s >= UFER_S else Lage.JAGD)
 	_stellen(_keiler_s, 0.0, true)
 	_durchlaesse_pruefen()
+	_respawn_rest = RESPAWN_WARTEN if _lage == Lage.JAGD else 0.0
+	_respawn_ort = GameState.checkpoint
 
 
 func _physics_process(delta: float) -> void:
@@ -324,9 +369,12 @@ func _physics_process(delta: float) -> void:
 		if s_figur < WECK_S:
 			return
 		wecken()
+	var laeuft := _lage == Lage.JAGD and not _wartet(delta)
 	if _lage == Lage.JAGD:
-		# Er läuft immer – und fällt nie weiter zurück als HOECHSTABSTAND.
-		_keiler_s = maxf(_keiler_s + TEMPO * delta, s_figur - HOECHSTABSTAND)
+		# Er läuft immer (außer gleich nach dem Respawn) – und fällt nie
+		# weiter zurück als der Höchstabstand an der Stelle der Figur.
+		var weiter := _keiler_s + (TEMPO * delta if laeuft else 0.0)
+		_keiler_s = maxf(weiter, s_figur - hoechstabstand_bei(s_figur))
 		if _keiler_s >= UFER_S:
 			_keiler_s = UFER_S
 			_lage_setzen(Lage.UFER)
@@ -334,17 +382,51 @@ func _physics_process(delta: float) -> void:
 	var abstand := s_figur - _keiler_s
 	var naehe := 1.0 - clampf(abstand / HOECHSTABSTAND, 0.0, 1.0)
 	_stellen(_keiler_s, _gassenlage(_keiler_s, _querlage(s_figur) * QUER_ANTEIL))
-	_keiler.aktualisiere(delta, 1.0 if _lage == Lage.JAGD else 0.0, naehe)
+	_keiler.aktualisiere(delta, 1.0 if laeuft else 0.0, naehe)
 	if abstand <= FANGABSTAND and _figur.invuln <= 0.0:
 		_faenge += 1
 		gefangen.emit(abstand)
 		_figur.sterben()
 
 
+## Höchstabstand an der Stelle `s` der Figur (siehe Kopf, HÖCHSTABSTAND JE
+## ABSCHNITT).
+static func hoechstabstand_bei(s: float) -> float:
+	var erster: Vector2 = HOECHST_STAFFEL[0]
+	if s <= erster.x:
+		return erster.y
+	for i in HOECHST_STAFFEL.size() - 1:
+		var a: Vector2 = HOECHST_STAFFEL[i]
+		var b: Vector2 = HOECHST_STAFFEL[i + 1]
+		if s <= b.x:
+			return lerpf(a.y, b.y, (s - a.x) / (b.x - a.x))
+	return HOECHST_STAFFEL[HOECHST_STAFFEL.size() - 1].y
+
+
+## Abstand des Keilers hinter einem Rastplatz `s` nach dem Respawn.
+static func vorsprung_bei(s: float) -> float:
+	return minf(VORSPRUNG, hoechstabstand_bei(s))
+
+
+## Wartet er noch auf die Figur (siehe Kopf, NACH EINEM TOD)? Zählt die
+## Restzeit herunter; regt sich die Figur, ist es sofort vorbei.
+func _wartet(delta: float) -> bool:
+	if _respawn_rest <= 0.0:
+		return false
+	var weg := _figur.global_position - _respawn_ort
+	weg.y = 0.0
+	if weg.length() > RESPAWN_REGUNG or _figur.velocity.y > 1.0 or _figur.spinning > 0.0:
+		_respawn_rest = 0.0
+		return false
+	_respawn_rest -= delta
+	return _respawn_rest > 0.0
+
+
 func _einschlafen() -> void:
 	_lage = Lage.SCHLAF
 	_keiler_s = SCHLAF_S
 	_weck_abstand = NAN
+	_respawn_rest = 0.0
 	_stellen(SCHLAF_S, SCHLAF_Q, true)
 	_haltung("schlafen")
 	_durchlaesse_pruefen()
@@ -372,7 +454,7 @@ func _ruhestellung(versetzt: bool) -> void:
 		if _lage != Lage.SCHLAF or versetzt:
 			_einschlafen()
 		return
-	_keiler_s = minf(s_figur - VORSPRUNG, UFER_S)
+	_keiler_s = minf(s_figur - vorsprung_bei(s_figur), UFER_S)
 	_lage_setzen(Lage.UFER if _keiler_s >= UFER_S else Lage.JAGD)
 	_stellen(_keiler_s, _gassenlage(_keiler_s, _querlage(s_figur) * QUER_ANTEIL), versetzt)
 	_durchlaesse_pruefen()
@@ -580,4 +662,5 @@ func _durchlass_stellen(i: int, gebrochen: bool, wirkung: bool = false) -> void:
 		if koerper.has_meta("gerinne"):
 			wasser = _level.to_global(_level.weg_punkt(mitte, q, float(koerper.get_meta("gerinne"))))
 		_haltung("durchbrechen", [ort, wasser])
+		Klang.spiele("keiler_bruch")
 	L05Wegbauten.bruch_stellen(koerper, gebrochen)

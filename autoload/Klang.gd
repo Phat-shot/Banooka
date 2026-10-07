@@ -40,8 +40,21 @@ const MUEHLE_SAAT := 5291
 ## Schleifen: Sie entstehen nicht beim Start, sondern beim ersten Abholen
 ## (`strom`) – die Mühle braucht nur Level 05, und gebaut kostet sie beim
 ## Programmstart rund 35–50 ms (gemessen, Rechner; auf dem Handy das
-## Mehrfache). Level 05 holt sie beim Laden, unter dem Ladeschirm.
-const SCHLEIFEN: Array[String] = ["muehle"]
+## Mehrfache). Level 05 holt sie beim Laden, unter dem Ladeschirm. Ebenso
+## der Galopp des Keilers („keiler_lauf", `_bau_galopp`).
+const SCHLEIFEN: Array[String] = ["muehle", "keiler_lauf"]
+## Einzelklänge, die ebenfalls erst beim ersten `strom()` entstehen: der
+## Keiler aus Level 05 (Spiel-Jury L05 R1, Mangel 4 – bis dahin war der
+## Verfolger stumm). Level 05 holt sie beim Laden ab (`L05Jagd.anlegen`).
+const ABRUF: Array[String] = ["keiler_wecken", "keiler_bruch", "keiler_schnauben"]
+## Eigener Startwert der Keilerklänge (wie MUEHLE_SAAT): `_zufall` und
+## damit alle übrigen Klänge bleiben unberührt.
+const KEILER_SAAT := 7717
+## Galopp: ein Sprung dauert 1 / `Keiler.TAKT` (2,2 je Sekunde), die
+## Schleife hält vier; die Hufe eines Sprungs schlagen zu diesen Anteilen.
+const GALOPP_SPRUNG := 1.0 / 2.2
+const GALOPP_SPRUENGE := 4
+const GALOPP_HUFE: Array[float] = [0.0, 0.15, 0.42, 0.55]
 
 ## Wellenformen der Tonbausteine.
 enum Welle { SINUS, DREIECK, RECHTECK }
@@ -113,7 +126,7 @@ func _input(event: InputEvent) -> void:
 func spiele(name: String, tonhoehe: float = 1.0, staerke: float = 1.0) -> void:
 	if stumm or lautstaerke <= 0.001 or not _freigegeben:
 		return
-	var strom_ := _kloenge.get(name) as AudioStreamWAV
+	var strom_ := strom(name)
 	if strom_ == null:
 		push_warning("Klang unbekannt: %s" % name)
 		return
@@ -170,7 +183,7 @@ func stumm_schalten(an: bool) -> void:
 ## auch der Schleifen, die erst beim ersten `strom()` entstehen.
 func namen() -> PackedStringArray:
 	var liste := PackedStringArray(_kloenge.keys())
-	for name: String in SCHLEIFEN:
+	for name: String in SCHLEIFEN + ABRUF:
 		if not liste.has(name):
 			liste.append(name)
 	liste.sort()
@@ -178,9 +191,9 @@ func namen() -> PackedStringArray:
 
 
 ## Der fertige Klang zu einem Namen, oder null. Eine Schleife (SCHLEIFEN)
-## entsteht hier beim ersten Abholen.
+## und ein Klang aus ABRUF entstehen hier beim ersten Abholen.
 func strom(name: String) -> AudioStreamWAV:
-	if not _kloenge.has(name) and SCHLEIFEN.has(name):
+	if not _kloenge.has(name) and (SCHLEIFEN.has(name) or ABRUF.has(name)):
 		_schleifen_bauen(name)
 	return _kloenge.get(name) as AudioStreamWAV
 
@@ -424,11 +437,101 @@ func _bau_menue_wahl() -> PackedFloat32Array:
 	return p
 
 
-## Baut eine Schleife aus SCHLEIFEN (siehe `strom`).
+## Baut eine Schleife aus SCHLEIFEN oder einen Klang aus ABRUF (siehe
+## `strom`).
 func _schleifen_bauen(name: String) -> void:
 	match name:
 		"muehle":
 			_kloenge["muehle"] = _schleife(_bau_muehle(), 0.5, MUEHLE_LAENGE)
+		"keiler_lauf":
+			_kloenge["keiler_lauf"] = _keiler_klang(_bau_galopp, 0.55,
+					GALOPP_SPRUNG * float(GALOPP_SPRUENGE))
+		"keiler_wecken":
+			_kloenge["keiler_wecken"] = _keiler_klang(_bau_keiler_wecken, 0.7)
+		"keiler_bruch":
+			_kloenge["keiler_bruch"] = _keiler_klang(_bau_keiler_bruch, 0.75)
+		"keiler_schnauben":
+			_kloenge["keiler_schnauben"] = _keiler_klang(_bau_keiler_schnauben, 0.6)
+
+
+## Ein Keilerklang aus seinem eigenen Zufall (KEILER_SAAT): `bauer` füllt
+## den Puffer, `pegel` wie bei `_fertig`; mit `schleife` > 0 eine Schleife
+## dieser Länge (`_schleife_gefaltet`).
+func _keiler_klang(bauer: Callable, pegel: float, schleife: float = 0.0) -> AudioStreamWAV:
+	var gemeinsam := _zufall
+	_zufall = RandomNumberGenerator.new()
+	_zufall.seed = KEILER_SAAT
+	var p: PackedFloat32Array = bauer.call()
+	_zufall = gemeinsam
+	if schleife > 0.0:
+		return _schleife_gefaltet(p, pegel, schleife)
+	return _fertig(p, pegel)
+
+
+## Wecken (Entwurf L05 §0: „knackt ein Ast"): ein trockener Ast bricht –
+## zwei Knacke und ein Splittern –, dann fährt der Keiler mit einem rauen
+## Grunzen hoch, das in ein Quieken kippt, zuletzt ein Schnauben.
+func _bau_keiler_wecken() -> PackedFloat32Array:
+	var p := _puffer(1.1)
+	_rauschen(p, 0.0, 0.03, 1.0, 7000.0, 3000.0, 1500.0, 0.001, 3.0)
+	_ton(p, 0.0, 0.06, 320.0, 180.0, 0.35, Welle.SINUS, 0.001, 3.0)
+	_rauschen(p, 0.04, 0.05, 0.8, 6000.0, 2500.0, 1500.0, 0.001, 3.0)
+	for k in 4:
+		var t := 0.09 + float(k) * 0.03 + _zufall.randf_range(0.0, 0.015)
+		_rauschen(p, t, 0.02, 0.35, 5000.0, 3000.0, 1800.0, 0.001, 3.0)
+	_ton(p, 0.28, 0.42, 105.0, 150.0, 0.5, Welle.RECHTECK, 0.03, 1.2)
+	_ton(p, 0.28, 0.42, 210.0, 420.0, 0.22, Welle.DREIECK, 0.05, 1.4)
+	_rauschen(p, 0.28, 0.42, 0.35, 900.0, 600.0, 150.0, 0.03, 1.3)
+	_rauschen(p, 0.76, 0.26, 0.8, 2200.0, 600.0, 300.0, 0.01, 2.0)
+	return p
+
+
+## Durchbruch: Holz splittert (ein Krachen, dann Splitter), dumpfer Stoß
+## des Schädels, Grollen, ein paar fallende Stücke.
+func _bau_keiler_bruch() -> PackedFloat32Array:
+	var p := _puffer(0.75)
+	_rauschen(p, 0.0, 0.06, 1.0, 7000.0, 2500.0, 1200.0, 0.001, 3.0)
+	_ton(p, 0.0, 0.25, 95.0, 45.0, 0.9, Welle.SINUS, 0.002, 2.5)
+	_rauschen(p, 0.0, 0.5, 0.45, 600.0, 150.0, 60.0, 0.005, 1.5)
+	for k in 6:
+		var t := 0.02 + float(k) * 0.045 + _zufall.randf_range(0.0, 0.02)
+		_rauschen(p, t, 0.04, 0.6, 5000.0, 2000.0, 1500.0, 0.001, 3.0)
+	for k in 4:
+		var t := 0.26 + float(k) * 0.09 + _zufall.randf_range(0.0, 0.03)
+		var f := _zufall.randf_range(380.0, 560.0)
+		_ton(p, t, 0.035, f, f * 0.7, 0.3, Welle.DREIECK, 0.001, 4.0)
+	return p
+
+
+## Schnauben am Ufer: zwei Stöße aus der Wurfscheibe, der zweite mit
+## flatternden Lefzen.
+func _bau_keiler_schnauben() -> PackedFloat32Array:
+	var p := _puffer(0.5)
+	_rauschen(p, 0.0, 0.18, 0.9, 1800.0, 500.0, 250.0, 0.01, 1.6)
+	_rauschen(p, 0.22, 0.24, 1.0, 1500.0, 400.0, 200.0, 0.01, 1.4)
+	_ton(p, 0.22, 0.2, 72.0, 55.0, 0.35, Welle.RECHTECK, 0.02, 1.5)
+	return p
+
+
+## Galopp (Schleife über GALOPP_SPRUENGE Sprünge): je Sprung vier Hufe –
+## ein dumpfer Schlag mit etwas Erde, unterschiedlich stark –, jeden
+## zweiten Sprung ein kurzes Grunzen. Was über das Ende hinausreicht, legt
+## `_schleife_gefaltet` an den Anfang: So schließt die Schleife ohne Naht.
+func _bau_galopp() -> PackedFloat32Array:
+	var laenge := GALOPP_SPRUNG * float(GALOPP_SPRUENGE)
+	var p := _puffer(laenge + 0.25)
+	var staerken: Array[float] = [1.0, 0.75, 0.95, 0.7]
+	for k in GALOPP_SPRUENGE:
+		var t0 := float(k) * GALOPP_SPRUNG
+		for i in GALOPP_HUFE.size():
+			var t := t0 + GALOPP_HUFE[i] * GALOPP_SPRUNG + _zufall.randf_range(0.0, 0.008)
+			var f := 125.0 - 10.0 * float(i % 2)
+			_ton(p, t, 0.07, f, f * 0.45, 0.9 * staerken[i], Welle.SINUS, 0.002, 3.0)
+			_rauschen(p, t, 0.06, 0.45 * staerken[i], 1500.0, 500.0, 200.0, 0.002, 3.0)
+		if k % 2 == 1:
+			_ton(p, t0 + 0.3, 0.16, 96.0, 80.0, 0.3, Welle.RECHTECK, 0.02, 1.6)
+			_rauschen(p, t0 + 0.3, 0.16, 0.22, 700.0, 400.0, 120.0, 0.02, 1.5)
+	return p
 
 
 ## Mühlrad am Mühlbach (Level 05), als nahtlose Schleife von MUEHLE_LAENGE:
@@ -475,6 +578,36 @@ func _bau_muehle() -> PackedFloat32Array:
 		_ton(p, t, 0.05, f, f * 1.4, 0.18, Welle.SINUS, 0.005, 2.0)
 	_zufall = gemeinsam
 	return p
+
+
+## Wie `_schleife`, aber für Ereignisse statt eines Rauschbetts: Was über
+## `laenge` hinausreicht, wird zum Anfang ADDIERT, nicht überblendet – so
+## klingt ein Huf, der über die Naht reicht, genau wie jeder andere.
+func _schleife_gefaltet(werte: PackedFloat32Array, pegel: float, laenge: float) -> AudioStreamWAV:
+	var n := mini(int(laenge * ABTASTRATE), werte.size())
+	if n == 0:
+		return null
+	for i in range(n, werte.size()):
+		werte[i % n] += werte[i]
+	werte.resize(n)
+	var spitze := 0.0
+	for wert in werte:
+		spitze = maxf(spitze, absf(wert))
+	var faktor := (pegel / spitze) if spitze > 0.0 else 0.0
+	var daten := PackedByteArray()
+	daten.resize(n * 2)
+	for i in n:
+		var v := clampf(werte[i] * faktor, -1.0, 1.0)
+		daten.encode_s16(i * 2, int(round(v * 32767.0)))
+	var strom_ := AudioStreamWAV.new()
+	strom_.format = AudioStreamWAV.FORMAT_16_BITS
+	strom_.mix_rate = ABTASTRATE
+	strom_.stereo = false
+	strom_.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	strom_.loop_begin = 0
+	strom_.loop_end = n
+	strom_.data = daten
+	return strom_
 
 
 ## Menü, bestätigt: zwei Glöckchen eine Quarte aufwärts (G5–C6), kürzer

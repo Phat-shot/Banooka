@@ -32,8 +32,8 @@ class_name L05Saum
 ##          Bett, Fuß unter das Bett des Geländes. Erde und Moos am Ufer,
 ##          Schichtfels an der Wehrwand („fels").
 ##   Stirn  an den Lippen der sechs Lücken `Kanten.profil_stirn` mit der
-##          Wegmaske; unter der Narbe dunkel (Verdeckung × DUNKEL – Albedo
-##          höchstens 0,1, Entwurf §8.4: dunkle Flanke).
+##          Wegmaske; unter der Narbe zur Tiefe hin dunkel
+##          (STIRN_VERDECKUNG; Entwurf §8.4: dunkle Flanke).
 ##   Stufe  an jeder Stufe der Decke (Suhlgraben, Wurzeltreppen S1–S3): eine
 ##          angestrahlte Setzstufe aus Löss mit Narbe nach der Wegmaske; am
 ##          Graben läuft ihr Fuß als Schlammsohle bis in seine Mitte.
@@ -86,12 +86,27 @@ const STUFE_SPIEL := 0.02
 ## Welle der Kronenhöhe entlang der Seite (m) und ihr Maßstab (1/m).
 const KRONE_WELLE := 0.35
 const KRONE_WELLE_DICHTE := 0.045
-## Stirnen der Lücken: Verdeckung unter der Narbe mal DUNKEL. Gerendert
-## (Modus „unshaded", linear; Gegenprobe Tafel sRGB 0,5 → 0,216 statt 0,214)
-## liegt die Albedo mitten auf allen zwölf Flanken bei 0,002–0,004, im 95.
-## Perzentil höchstens 0,006 (Entwurf §8.4: ≤ 0,1) – seit das Gelände dort
-## hinter der Stirn liegt (`L05Gelaende.LUECKE_HINTER`).
-const DUNKEL := 0.45
+## Dazu ein feines Zacken der Krone (m, 1/m) und ein Wechsel der Narbe
+## (Anteil): Mit der Welle allein (22 m lang) lag die Oberkante der
+## Lösswände auf Bildlänge linealgerade, der Hohlweg las sich wie ein
+## Betonkanal (Bild-Jury R1, Mangel 5: „Oberkante in Höhe und Grundriss
+## verrauschen, ±0,3–0,5 m"). Die Narbe tritt höchstens × (1 + NARBE_WECHSEL)
+## vor: 0,45 · 1,15 = 0,52 m, die Linien liegen bei |q| ≥ 4,1 – K1 (über
+## |q| ≤ 3,5 frei) bleibt.
+const KRONE_ZACKE := 0.3
+const KRONE_ZACKE_DICHTE := 0.32
+const NARBE_WECHSEL := 0.15
+## Stirnen der Lücken: Verdeckung (Faktor auf die Albedo, `fels_schichten`)
+## unter der Narbe nach der Tiefe unter der Lippe – oben STIRN_VERDECKUNG.x,
+## ab STIRN_VERDECKUNG.z m Tiefe STIRN_VERDECKUNG.y. Bis Runde 1 trug die
+## ganze Flanke die Verdeckung von `Kanten.profil_stirn` (0,12–0,3) mal
+## 0,45: Gerendert („unshaded", linear) lag die Albedo mitten auf allen
+## zwölf Flanken bei 0,002–0,004 (Entwurf §8.4: ≤ 0,1), und im Bild
+## standen die Lücken als schwarze Rechtecke ohne Tiefe (Bild-Jury R1,
+## Mangel 6; gemessen bei s 220 Median 0 von 255). Jetzt zeigt die Flanke
+## oben Löss und Wurzelfasern und verläuft nach unten ins Dunkel; die
+## dunkle Flanke des Entwurfs beginnt eine Armlänge unter der Lippe.
+const STIRN_VERDECKUNG := Vector3(0.7, 0.05, 2.4)
 ## Ein Querschnitt gilt erst so weit hinter einer Lippe als in der Lücke (m;
 ## siehe `_luecke`). Kleiner als der Querschnitt knapp innerhalb der Lippe
 ## (`Kanten.feste_strecken`: 2 × EPS = 1 cm).
@@ -173,9 +188,18 @@ static func speicher() -> String:
 ## getönt) – Wände, Narbe von unten, Ufer; die warmen Schichtbänke des
 ## Sandsteins in Rotocker (Tobel, Sonnenhang, Entwurf §5 D). Rasen, Moos und
 ## Kalk wie in Level 01 (die Wegdecke trägt denselben Rasen).
+## Die Erde der Wände in größerem Maß (ERDE_KACHEL statt 0,4) und mit
+## weniger Relief: Im feinen Maß der Wegdecke flimmerten die Risse des Lösses
+## auf den Wänden als Rauschen, mit pixeligen hellen Strichen auf der
+## Schattenseite (Bild-Jury R1, Mangel 5).
+const ERDE_KACHEL := 0.22
+const RELIEF := 0.18
+
+
 static func thema() -> Dictionary:
 	return {"erde": Materialbibliothek.waldweg().albedo_texture,
-			"uniforms": {"erde_ton": LOESS, "fels_warm": SANDSTEIN}}
+			"uniforms": {"erde_ton": LOESS, "fels_warm": SANDSTEIN, "erde_kachel": ERDE_KACHEL,
+				"relief": RELIEF}}
 
 
 # ================================================================ Formen
@@ -199,8 +223,11 @@ static func thema() -> Dictionary:
 static func form_auf(level: Level05, zug: Dictionary, s: float) -> Dictionary:
 	var w := Level05.zug_werte(zug, s)
 	var deck := level.weg.boden_bei(s)
+	var seite: float = zug["seite"]
 	var krone := level.decke_glatt(s) + w[0] \
-			+ KRONE_WELLE * Kanten.welle(s * KRONE_WELLE_DICHTE, 61.0 + float(zug["seite"]))
+			+ KRONE_WELLE * Kanten.welle(s * KRONE_WELLE_DICHTE, 61.0 + seite) \
+			+ KRONE_ZACKE * Kanten.welle(s * KRONE_ZACKE_DICHTE, 83.0 + seite) \
+			* smoothstep(0.6, 2.0, w[0])
 	var ueb := uebergabe(zug, s)
 	var hoch := maxf(krone - deck, 0.06)
 	var band := 1.0
@@ -211,7 +238,8 @@ static func form_auf(level: Level05, zug: Dictionary, s: float) -> Dictionary:
 	var f := clampf(hoch, 0.1, 1.0)
 	var k := 1.0 / tan(deg_to_rad(clampf(w[1], 25.0, 88.0)))
 	return {"krone": deck + hoch, "deck": deck, "hoch": hoch, "f": f, "k": k,
-			"lauf": k * (hoch - 0.55 * f), "narbe": w[2] * smoothstep(0.15, 1.2, hoch),
+			"lauf": k * (hoch - 0.55 * f), "narbe": w[2] * smoothstep(0.15, 1.2, hoch)
+					* (1.0 + NARBE_WECHSEL * Kanten.welle(s * 0.7, 97.0 + seite)),
 			"band": band, "weit": KRONE_WEIT * band, "ueb": ueb,
 			"winkel": w[1], "fels": w[3]}
 
@@ -496,13 +524,15 @@ static func _ab_in_luecke(p: GelaendeSaum.Profil, s: float, l: Dictionary) -> vo
 
 
 ## Stirn an der Lippe einer Lücke (`Kanten.profil_stirn` mit der Wegmaske):
-## unter der Narbe dunkel, bis auf den Grund.
+## unter der Narbe zur Tiefe hin dunkel (STIRN_VERDECKUNG), bis auf den
+## Grund. Die Punkte 0–3 (Lippe und Narbe) bleiben, wie sie sind.
 static func _profil_stirn(_i: int, probe: Dictionary, level: Level05, kante: float,
 		grund: float, halb: float, erdig: bool) -> GelaendeSaum.Profil:
 	var p := Kanten.profil_stirn(probe, kante, grund, halb, erdig, 0.45, level.weg)
-	for j in range(6, p.anzahl()):
+	for j in range(4, p.anzahl()):
 		var c := p.farbe[j]
-		c.r *= DUNKEL
+		c.r = lerpf(STIRN_VERDECKUNG.x, STIRN_VERDECKUNG.y,
+				smoothstep(0.2, STIRN_VERDECKUNG.z, kante - p.y[j]))
 		p.farbe[j] = c
 	return p
 

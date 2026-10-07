@@ -6,7 +6,8 @@
 > erzwungen – etwa die Leitlinien (5,7 m statt 5, an den Geheimnissen 7 m),
 > die Eiche (Achse bei s −9,5, Kerbe 9 m statt 7), das Mühlrad (q −8,5),
 > der Schatten (orthogonal statt zwei Stufen) und die Richtzeit (48 s statt
-> vorläufig 46). Abschnitt 13 nennt Paket für Paket, was gebaut und was
+> vorläufig 46, seit den Mängeln der Jury-Runde R1 15 s mit Zeitkisten).
+> Abschnitt 13 nennt Paket für Paket (und R1), was gebaut und was
 > gemessen wurde, Abschnitt 14 die Abweichungen, Abschnitt 15, was offen
 > oder ungeprüft ist. Maßgeblich sind die Daten in
 > `scenes/levels/level05.gd` und die Kopfkommentare der Module unter
@@ -222,7 +223,7 @@ s270 (-8.5, 5.57, -268.8) s300 (-6.1, 3.00, -298.7) s330 (-4.6, 2.25, -328.6)
 | 0–31 | A Suhle | 26,0 (Graben 25,2) | Rückblick | G1 0–2/q+5; Start 6; Keiler schläft 16/q−4,5; Ü 17,0–18,6; Suhlgraben 23,5–28,1; CP1 und Wecken 31 |
 | 31–120 | B Hohlweg | 26,0 → 18,5 | Rückblick | Kistengasse 36; H1 44; D1 58,0–59,8; L1 75,0–78,0; G2 82–87/q+5; H2 93; D2 104,0–105,8 |
 | 120–180 | C Wurzelterrassen | 18,5 → 12,5 in 5 × 1,2 | Rückblick, Kamera 3,2–5 m über der Figur | CP2 122; S1 126; L2 136,3–139,7; S2 150; L3 160,3–163,7; S3 174; CP3 178 |
-| 180–265 | D Tobel | 12,5 → 6,0 | Rückblick | L4 194,0–197,5; CP4 204; D3 214,0–215,6; D4 222,0–223,6; L5 228,5–231,5; Findlingsgasse 244/250; G3 252–258 |
+| 180–265 | D Tobel | 12,5 → 6,0 | Rückblick | L4 194,0–197,5; CP4 204; D3 214,0–215,6; D4 223,2–224,8; L5 229,7–232,7; Findlingsgasse 244/250; G3 252–258 |
 | 265–300 | E Mühlbach | 6,0 → 3,0 (Wehrkrone 4,16) | Rückblick | CP5 268; Keiler hält bei 282; L6 Wehr 284,0–289,0; „Entkommen!“ ab 289; Mühlrad 291/q−7; Ziel 296 |
 | 300–332 | Auslauf | 3,0 → 2,2 | Kamera bleibt am Kurvenende stehen | nur Kulisse |
 
@@ -290,9 +291,12 @@ Es gibt eine Ebene mit Höhenstufen, keine übereinanderliegenden Wege.
 **Spiel:**
 - L4 Seitenrinne mit 3,5 m, das engste Pflichtfenster mit 1,40 m. Danach CP4 bei 204.
 - **Kette:**
-  - D3 bei 214,0–215,6, D4 bei 222,0–223,6.
+  - D3 bei 214,0–215,6, D4 bei 223,2–224,8 (bis R1 222,0–223,6).
   - Zwischen D3 und D4 liegt keine Kiste.
-  - L5 bei 228,5–231,5. Wer an D4 spät slidet, springt aus dem Slide (Slide-Sprung von selbst).
+  - L5 bei 229,7–232,7 (bis R1 228,5–231,5). D4 und L5 liegen seit R1
+    1,2 m weiter hinten: Wer aus D3 sofort wieder slidet, kommt nicht
+    mehr im Slide an D4 an, und hinter D4 bleibt Anlauf bis L5 (Spiel-Jury
+    R1, Mangel 7). Der Slide-Sprung an L5 bleibt Kür.
 - **Findlingsgasse:**
   - F1 bei 244, q −2,2, 4,6 × 1,6 × 1,4.
   - F2 bei 250, q +2,2.
@@ -340,9 +344,9 @@ Es gibt eine Ebene mit Höhenstufen, keine übereinanderliegenden Wege.
 | L1 Wasserriss | 75,0–78,0 | Einzel | 3,0 | 0 | 4,38 | 1,38 | 1,95 m |
 | L2, L3 Terrasse | 136,3 / 160,3 | Einzel | 3,4 | −1,2 | 5,00 | 1,60 | 2,10 m |
 | L4 Seitenrinne | 194,0–197,5 | Einzel | 3,5 | 0 | 4,38 | 0,88 | 1,40 m / 0,165 s |
-| L5 Mühlrinne | 228,5–231,5 | Einzel (Slide-Sprung bei spätem Slide) | 3,0 | 0 | 4,38 / 5,31 | 1,38 | ≥ 1,75 m |
+| L5 Mühlrinne | 229,7–232,7 | Einzel (Slide-Sprung Kür) | 3,0 | 0 | 4,38 / 5,31 | 1,38 | 1,75 m |
 | L6 Wehr | 284,0–289,0 | **Doppel** | 5,0 | 0 | 7,08 | 2,08 | 2,6 m; Einzel 0; Slide-Sprung (Kür) 0,80 m |
-| Ü, D1–D4 | 17 / 58 / 104 / 214 / 222 | Slide | Tiefe 1,6 bzw. 1,8 | – | Slide 5,6 | – | 3,4 bzw. 3,1 m sauber, 5,7 m ohne Stolpern |
+| Ü, D1–D4 | 17 / 58 / 104 / 214 / 223,2 | Slide | Tiefe 1,6 bzw. 1,8 | – | Slide 5,6 | – | 3,4 bzw. 3,1 m sauber, 5,7 m ohne Stolpern |
 | S1–S3 | 126 / 150 / 174 | hinablaufen | 2 × 0,6 | – | – | – | – |
 | Findlingsgasse | 244 / 250 | ausweichen | ≥ 1 m quer | – | – | – | – |
 
@@ -966,6 +970,101 @@ und die Freiraumprobe in G6-teil (`49511c8`).
     - Die Protokolle von Level 01 (LevelCheck, Sprungprobe, Bauzeit) sind
       nach der Normalisierung gleich.
 
+### R1 Mängel der Spiel- und der Bild-Jury
+
+Jeder Punkt ist im Kopf des geänderten Moduls begründet; hier die
+Übersicht mit den Messungen (Jagd-, Sprung-, Wahrzeichenprobe, LevelCheck,
+Klangprobe, Fotos `--fixed-fps 30` mit festem Zufall).
+
+**Spiel**
+- **Figur hinter Riegeln und Latten (schwer):** Die Durchlässe tragen ihre
+  Riegel nur noch an der Stirn, Unterkante 1,25 m (`RIEGEL_KANTE`), das
+  Gatter Stangen nur in der Stirnebene alle 0,9 m, die Joche Latten alle
+  0,7 m, alle mit einer Gasse von 0,9 m über der Wegmitte (`GASSE`). Was
+  näher als 6,5–10 m vor der Kamera und höher als 1,9–2,7 m liegt, blendet
+  ein Raster aus (`L05Wegbauten.nahblende`; so auch das Gerinnewasser).
+  Neue Probe K5 im LevelCheck (`level05.gd`, `_freiraum_k5`): Sichtlinien
+  Kamera → Figur im Anlauf jedes Durchlasses und jeder Hürde. Vorher Brust
+  (0,7 m) frei zu 0–29 % (Ü 29, D1 0, D2 0, D3 10, D4 5, H2 58 %), jetzt
+  79 % an allen fünf Durchlässen, H1/H2 100 %; Kopf 64–79 %.
+- **Zeitmodus (mittel):** Richtzeit 15 s statt 48 s, Referenz mit den
+  Zeitkisten der Hauptlinie (Variante a der Jury, dem Nutzer vorzulegen):
+  Ideallinie ohne Kisten 35,28 s, mit den Kistenreihen 11,58 s (34 Kisten,
+  23,7 s Standzeit); Gold 12,75 s, Platin 10,8 s.
+- **Keiler nie nah (mittel):** Höchstabstand je Abschnitt 15 → 14 → 13 →
+  12 → 11 m (`L05Jagd.HOECHST_STAFFEL`). Ideallauf Mindestabstand 10,44 m
+  (vorher 14,44); „Stolpern an D3 und D4“ überlebt mit 3,74 m.
+- **Keiler stumm (mittel):** vier neue Klänge (`Klang.gd`, additiv, eigene
+  Saat): Galopp als Schleife nach Nähe, Wecken, Durchbruch, Schnauben.
+  Klangprobe 22 Klänge, 0 Fehler; die Kennwerte der 18 alten (Dauer,
+  Samples, Pegel, Spitze, RMS) zeilengleich zu HEAD.
+- **Respawn (mittel):** Der Keiler wartet bis 1 s, bis die Figur sich regt
+  (`RESPAWN_WARTEN`). Fälle „Reaktion 1,0 s“ an allen fünf Rastplätzen
+  überleben (Mindestabstand 11,6 m), „Stehen nach dem Respawn“ wird
+  gefangen (Gegenprobe).
+- **Zielportal (mittel):** Es ist verborgen, bis die Figur das Ufer hinter
+  dem Wehr erreicht (`ENTKOMMEN_S` 289,6), und wächst dann auf.
+- **D3 → D4 (mittel):** D4 auf 223,2, L5 auf 229,7–232,7. Kettenprobe D3 ×
+  D4 im Raster (40 Fälle): alle überleben, Mindestabstand 11,74 m.
+  Sprungprobe L5 Fenster 1,75 m.
+- **Leicht:** Meldung „Entkommen!“ erst über dem Ufer; Fruchtbögen 0,8–1,0 m
+  neben der Wegmitte; G2-Kisten aus der Bahn (eine am Weg, drei auf der
+  Bank); Jagdprobe: Rastplatzfälle mit den Aktionen ab dem Rastplatz,
+  „warten“ mit `sofort`.
+
+**Bild**
+- **Figur hinter D1/D2-Bogen und Jochkäfig (schwer):** wie oben (K5,
+  Nahblende); Fotos bei 43, 90, 196, 220 zeigen die Figur frei.
+- **Zielportal im Vordergrund (schwer):** verborgen bis zum Ufer (oben).
+- **Hauereiche (schwer):** Fuß r 2,15, Hälften r 1,5 statt 1,1, krummer,
+  mit Rippen, Pilzen, Efeu, dunklem Spaltholz; Laub herbstgolden mit
+  Durchlicht. Saaten der Hälften neu gesucht (5550/6574), Neigung neu
+  gerechnet (Kerbe 9,0 m). Wahrzeichenprobe 91,8 % (wie vorher), Kerbe im
+  Schlussbild 17,7 px (vorher 18,2; Grenze 16).
+- **Parkartig, zu hell (mittel):** Sonne 17° statt 26°, wärmer, 1,5;
+  Belichtung 0,9 statt 1,15; Kantenlicht 0,3 statt 0,18 (hellt die
+  Schattenseite); Nebel 12 → 210 m, Dichte 0,9; Gebüsch an den
+  Wandkronen dünner (`BUSCH_SAUM`). Helligkeit siehe Tabelle unten.
+- **Wände (mittel):** Oberkante mit Zacken (±0,3 m, `KRONE_ZACKE`), Narbe
+  wechselnd; Erde in gröberem Maß, weniger Relief; Moos- und Farnstreifen
+  in der Südwand.
+- **Lücken als schwarze Kästen (mittel):** Verdeckung der Stirn nach der
+  Tiefe (`STIRN_VERDECKUNG`, oben 0,7, ab 2,4 m 0,05). L5 bei s 218
+  (Fläche der Lücke, Luma 0–255): Mittel 9 → 28, 90. Perzentil 1 → 72.
+- **Klobige Findlinge (mittel):** Ecken 7 statt 4 cm, Oberkante bis 30
+  statt 22 cm gerundet (Abstand zum Körper höchstens 2–3 cm).
+- **Startbild (mittel):** Keiler schläft quer (Schnauze, Ohren, Hauer im
+  Umriss), Kamm und Hauer heller bzw. größer; Suhle rau (0,42) und
+  heller getönt statt Asphaltglanz; Gatter mit 14 statt 20 Stangen.
+- **Vordergrund (mittel):** Nahblende (oben). „Totholzast“ bei s 30 ist H1
+  und kündigt die Hürde an – kein Mangel.
+
+**Messungen nach R1** (Desktop, gleiche Fotostellen wie die Jury):
+
+| | vorher (Bild-Jury R1) | nach R1 |
+|---|---|---|
+| Desktop 8/30/60/90/140/196/218/250/280/296: Helligkeit | 61–86 | 50–70 (Level 01 laut Jury 45–64) |
+| warm / kühl (Ziel ≤ 55 % / ≥ 12 %) | 21–42 % / 17–25 % | 23–41 % / 18–24 % |
+| Draw-Calls / Primitive / VRAM | 177–305 / ≤ 704k / 101,0 MB | 182–302 / ≤ 705k / 100,0 MB |
+| Handy 8/60/90/140/218/250/280/296: Draw-Calls / Primitive / VRAM | 243–324 / ≤ 635k / 76,7 MB | 243–320 / ≤ 621k / 75,9 MB |
+| Seite 40/150/240/286: Helligkeit | 54–67 | 41–50 |
+| Wahrzeichenprobe / Kerbe s 296 | 91,8 % / 18,2 px | 91,8 % / 17,7 px |
+| LevelCheck / Sprungprobe / Jagdprobe | 0/0 (ohne K5), 21 Fälle, 13 Fälle | 0/0 samt K5, 21 Fälle 0 Fehler, 19 Fälle 0 Fehler (neu: Reaktion 1,0 s an fünf Rastplätzen, Stehen nach dem Respawn) |
+
+- **Bauzeit** (Level 05 allein, frischer Benutzerordner, je drei Läufe
+  abwechselnd gegen HEAD auf derselben Maschine): kalt 14,3–15,7 s (HEAD
+  15,8–16,7 s), größter Schritt 419–655 ms (HEAD 534–576 ms), Runde 2
+  0,38–0,50 s (HEAD 0,37–0,43 s); in beiden Ständen 58 Bilder bis zum
+  Ende des Aufbaus.
+- **Werkstatt:** LevelCheck 0 Fehler, 0 Warnungen; Sprungprobe 22 Fälle
+  0 Fehler, zeilengleich zu HEAD.
+- **Wächter:** `parse.sh` SAUBER (208 Skripte); `pruefe.sh` SAUBER; `wache`
+  6 von 6 Bildern pixelgleich, Kosten +0; Protokolle von Level 01
+  (LevelCheck, Sprungprobe, Bauzeit) nach der Normalisierung gleich.
+
+Ungeprüft: ein Lauf von Hand, der Klang auf einem Gerät, die Bilder auf
+einer echten GPU (alle Bilder llvmpipe).
+
 ---
 
 ## 14. Abweichungen vom Entwurf
@@ -983,28 +1082,34 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
 | Zielportal | mit Lichtsäule | ohne | die Freiraumprobe K1 fand die Säule in der Kamerabahn |
 | Figur | Szene setzt sie später | schon am Start in Level05.tscn | am alten Ort lag sie in der Todeszone (Leben 5 → 4 beim Laden) |
 | Wecken | über die Zone des Rastplatzes | nach der Strecke der Figur | die Zone ist 2 m tief, ihr Eintritt läge 1,4 m früher (Abstand nicht mehr 15 m); nach der Strecke weckt ihn auch, wer die Zone mit einem Doppelsprung überspringt |
-| Eiche | Achse s −6, Kerbe 7 m, Kronen Y ≈ 55 | s −9,5, Kerbe 9 m, Kronen Y 54,5/54,9 an Ästen | Fuß und Brettwurzeln reichten über die Querwand; 7 m sind im Schlussbild nur 13,4 px; Kronen um eine feste Mitte lasen sich als Schirmpinien |
+| Eiche | Achse s −6, Kerbe 7 m, Kronen Y ≈ 55 | s −9,5, Kerbe 9 m, Kronen Y 54,9/55,1 an Ästen; seit R1 Hälften r 1,5, Laub golden | Fuß und Brettwurzeln reichten über die Querwand; 7 m sind im Schlussbild nur 13,4 px; Kronen um eine feste Mitte lasen sich als Schirmpinien; mit r 1,1 standen die Hälften als Stangen im Bild (Bild-Jury R1) |
 | Mühlrad | q −7 | q −8,5, in Fließrichtung gedreht | Schaufeln ohne Wasser darüber (33 Punkte, jetzt 0) |
 | Baumtore | Kronen über dem Weg | Kronen seitlich | Wahrzeichenprobe 81,5 % statt 91,8 % |
 | Schatten | zwei Stufen | orthogonal | mit zwei Stufen 755k–785k Primitive (Grenze 750k) |
-| Licht | Startwerte §8.3 | Sonne 1,25, Himmelslicht 0,45, Umgebung × 0,62, Belichtung 1,15, Nebel und Dunst blauer | mit den Startwerten Helligkeit 51–74 und kühl nur 3,6–9,8 % |
-| Richtzeit | vorläufig 46 s | 48 s | 1,3 × Uhrzeit des Bots (37,0 s) |
+| Licht | Startwerte §8.3 | Sonne 17° hoch, 1,5, Himmelslicht 0,45, Kantenlicht 0,3, Umgebung × 0,62, Belichtung 0,9, Nebel 12 → 210 m (bis R1: Sonne 26°, 1,25, Kantenlicht 0,18, Belichtung 1,15, Nebel 16 → 240 m) | mit den Startwerten Helligkeit 51–74 und kühl nur 3,6–9,8 %; mit den Werten bis R1 parkartig hell gegen Level 01 (Bild-Jury R1) |
+| Richtzeit | vorläufig 46 s | 15 s (bis R1 48 s) | 1,3 × Uhr eines Laufs, der die Zeitkisten mitnimmt (11,58 s); mit 48 s holte jeder Kistensammler Platin (Spiel-Jury R1, Variante a – dem Nutzer vorzulegen) |
+| Kette D3–D4–L5 | D4 222,0, L5 228,5 | D4 223,2, L5 229,7 | aus D3 kam man im zweiten Slide an D4 an, und hinter D4 fehlte Anlauf (Spiel-Jury R1) |
+| Lücken-Stirn | dunkle Flanke (Albedo ≤ 0,1) | oben hell, ab 2,4 m Tiefe dunkel | ganz dunkel standen die Lücken als schwarze Kästen im Bild (Bild-Jury R1) |
 | Werkstatt (P9) | Stationen ab 33 | 34–38, Station 33 frei | Baukasten §4 Nr. 12: Station 33 gehört dem Kameraplan |
 
 ---
 
-## 15. Offen und ungeprüft (Stand P9)
+## 15. Offen und ungeprüft (Stand R1)
 
 **Dem Nutzer vorzulegen**
-- **Richtzeit:** Bei festem Keilertempo heißt 1,3 × Bot: Gold bekommt fast
-  jeder Überlebende, Saphir kommt kaum vor, Platin braucht Zeitkisten (der
-  Ideallauf liegt mit 35,0 s über 34,56 s). Die Formel aus §6.6 gilt
-  unverändert.
+- **Richtzeit (R1):** 15 s nach Variante a der Spiel-Jury (Referenz mit
+  den Zeitkisten der Hauptlinie, siehe `level05.gd`, ZIELZEIT). Ohne
+  Zeitkisten ist im Zeitmodus keine Stufe zu holen. Die Alternativen der
+  Jury (Zeitkisten aus der Hauptlinie nehmen oder die Richtzeit ohne
+  Kisten rechnen) sind nicht gebaut.
+- **Höchstabstand je Abschnitt (R1):** 15 → 14 → 13 → 12 → 11 m – Werte der
+  Spiel-Jury, gebaut; ob die Steigerung reicht, zeigt nur ein Lauf von Hand.
 - **Nebel der Eiche:** „für die Kuppe 0,7“. Heute trägt nur der Fuß der
   Fernform 0,7.
-- **Bildfragen:** die scharfkantigen Findlinge bei s 240 und die Torbuchen
-  (zwei runde Kronen, kein Bogen). Dazu der parkartige Hohlweg in A und B:
-  Ihn räumt der Sichtkegel K3 zur Eiche.
+- **Bildfragen:** die Torbuchen (zwei runde Kronen, kein Bogen). Der
+  Hohlweg in A und B bleibt offen: Ihn räumt der Sichtkegel K3 zur Eiche.
+  Die Bänke und der Trittstein von G1–G3 sind kantig geblieben (ihre
+  Oberseiten tragen Kisten bzw. die Landung, R1 nicht geändert).
 - **Spielfigur:** die Datei `cash_banooka_rc.glb` (Risiko 2). Das klärt der
   Nutzer gesondert.
 
@@ -1023,6 +1128,10 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
   ausdrücklich ausgenommen.
 
 **Spieltest-Bot**
+- Er meldet nach Level 05 „Kisten 0/0“: Er liest den Zähler erst zurück im
+  Portalraum, wo `GameState` ihn zurückgesetzt hat (Spiel-Jury R1, leicht).
+  Das Werkzeug ist geteilt – eine Korrektur änderte die Ausgabe aller
+  Level; nicht geändert.
 - Er springt an Hürden zu spät, rund 1,1 m vor der Stirn.
 - Seine Slide-Angriffe in `_kampf` drücken Shift ohne Seite und lösen
   deshalb nie einen Slide aus. Das bleibt bewusst so, sonst liefe der Bot in

@@ -704,6 +704,12 @@ static func _abstand_lauf(p: Vector2, lauf: Array[Vector2]) -> float:
 
 # ================================================================ Farbe
 
+## Südwand: Rauschwerte, zwischen denen die Streifen einsetzen, und wie
+## viel Fels sie höchstens zu Waldboden machen (siehe `_faerben`).
+const SUEDWAND_STREIFEN := Vector2(-0.1, 0.25)
+const SUEDWAND_MOOS := 1.0
+
+
 ## Gewichte der vier Böden (R Wiese, G Waldboden, B Fels, A Schlamm): Fels,
 ## wo es steil ist; Schlamm in Betten und Mulden; Waldboden am Hohlweg und
 ## am Westhang (Buchenwald, Paket P7); Wiese in A und E und am Sonnenhang.
@@ -726,6 +732,17 @@ func _faerben(p: Vector3, n: Vector3) -> Color:
 	# trägt denselben Rasen), und die Kronen des Hohlwegs bleiben Rasen
 	# (Entwurf §9.1: Rasensaum auf den Kronen).
 	wald *= smoothstep(18.0, 30.0, u) * (1.0 - fels) * (1.0 - nass)
+	# Moos- und Farnstreifen in der Südwand des Tobels (bildrechts hinter dem
+	# Bach): Als reiner Fels stand sie im Schatten als blaugrauer Fleck mit
+	# grober Bänderung (Bild-Jury R1, Mangel 5). Streifen schräg hinab, wo
+	# Wasser über die Wand sickert; dort Waldboden statt Fels.
+	if sq.y < 0.0 and fels > 0.0:
+		var tobel := smoothstep(182.0, 192.0, s) * (1.0 - smoothstep(258.0, 268.0, s))
+		var streifen := smoothstep(SUEDWAND_STREIFEN.x, SUEDWAND_STREIFEN.y,
+				_rauschen_fein.get_noise_2d(s * 2.4 + p.y * 1.2, p.y * 0.5 + 40.0))
+		var moos := fels * streifen * tobel * SUEDWAND_MOOS
+		fels -= moos
+		wald += moos
 	# Hinter s 300 keine eigene Spur: Die zeichnet der Auslauf der Decke
 	# (`Level05._auslauf_bauen`) im Löss der Decke, das Feld bleibt Wiese.
 	var wiese := maxf(1.0 - fels - wald - nass, 0.0)
