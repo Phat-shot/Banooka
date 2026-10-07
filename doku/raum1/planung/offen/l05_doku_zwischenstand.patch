@@ -1,0 +1,508 @@
+diff --git a/ARCHITEKTUR.md b/ARCHITEKTUR.md
+index 4942556..b32a8fd 100644
+--- a/ARCHITEKTUR.md
++++ b/ARCHITEKTUR.md
+@@ -121,15 +121,20 @@ Keiler führt seit dem Neubau das Modul `L05Jagd`
+ (`scenes/levels/level05/jagd.gd`) als Stelle auf der Kurve: Er schläft in
+ der Suhle (s 16), wacht auf, sobald die Figur den ersten Rastplatz erreicht
+ (s 31, Abstand dann genau 15 m), und läuft danach immer mit `TEMPO`
+-(7,4 m/s, das Lauftempo ist 8,5), fällt nie weiter als `HOECHSTABSTAND`
+-(15 m) zurück und fängt bei `FANGABSTAND` (2 m). Am Ufer vor dem Wehr
+-(`UFER_S` 282) bleibt er stehen und schnaubt. Über Lücken, Stufen und
+-Hürden springt er (nur Optik, der Abstand rechnet auf der Strecke weiter),
+-durch Duckdurchlässe bricht er (`L05Wegbauten.bruch_stellen`: Körper und
+-Stolperzone aus, Bruch sichtbar); nach einem Tod steht er `VORSPRUNG`
+-(12 m) hinter dem Rastplatz, und die Durchlässe dahinter sind wieder heil.
+-Sein Körper (sieben Glieder, Haltungen, Staub, Splitter, Wasserschwall)
+-steht in `scenes/enemies/keiler.gd`.
++(7,4 m/s, das Lauftempo ist 8,5). Er fällt höchstens so weit zurück, wie
++`HOECHST_STAFFEL` an der Stelle der Figur sagt – hangab 15, 14, 13, 12 und
++11 m, linear über die Übergänge –, und fängt bei `FANGABSTAND` (2 m). Am
++Ufer vor dem Wehr (`UFER_S` 282) bleibt er stehen und schnaubt. Über
++Lücken, Stufen und Hürden springt er (nur Optik, der Abstand rechnet auf
++der Strecke weiter), durch Duckdurchlässe bricht er
++(`L05Wegbauten.bruch_stellen`: Körper und Stolperzone aus, Bruch
++sichtbar); nach einem Tod steht er `VORSPRUNG` (12 m, höchstens der
++Höchstabstand dort) hinter dem Rastplatz, die Durchlässe dahinter sind
++wieder heil, und er läuft erst los, wenn die Figur sich regt
++(`RESPAWN_REGUNG` 0,3 m, ein Sprung oder Drehschlag), spätestens nach
++`RESPAWN_WARTEN` (1 s). Sein Körper (sieben Glieder, Haltungen, Staub,
++Splitter, Wasserschwall) steht in `scenes/enemies/keiler.gd`, seine Klänge
++(Galopp nach Nähe, Wecken, Durchbruch, Schnauben) in `Klang.gd`.
+ 
+ Die Hindernisse sind Bauteile von `KorridorLevel`: `duckdurchlass` (Riegel
+ 0,95–4,4 m, nur im Slide oder krabbelnd zu durchqueren), `huerde`
+@@ -139,9 +144,9 @@ Kamerastrahl hindurchgeht; wer an ihre Stirn läuft, stolpert
+ (`Spieler.stolpern`, 0,45 s ohne Vortrieb, kein Schaden). Die Optiken baut
+ `L05Wegbauten` passgenau auf die Körper; die Werkstatt zeigt sie mit
+ denselben Funktionen einzeln (Stationen 34–38). Die tödlichen Lücken sind
+-3,0–3,5 m breit, das gebrochene Wehr 5,0 m (nur mit Doppelsprung). Daten,
+-Module und Messwerte: `scenes/levels/level05.gd` (Kopf) und
+-`doku/level05-neubau.md`.
++3,0–3,5 m breit, das gebrochene Wehr 5,0 m (nur mit Doppelsprung). Daten
++und Module: unten unter „Level 05“; Bauplan und Messwerte:
++`doku/raum1/level05-neubau.md`.
+ 
+ ### Bodenschatten (`scripts/bodenschatten.gd`, `class_name Bodenschatten`)
+ 
+@@ -1058,6 +1063,95 @@ Todeszonen-Überschneidung, Ränder und Nähte; `werkzeuge/Sprungprobe.tscn`
+ 
+ Den Bauplan mit allen Maßen hält `doku/level01-neubau.md` fest.
+ 
++## Level 05 (`scenes/levels/level05.gd`, `class_name Level05`)
++
++Level 05 ist nach dem Muster von Level 01 neu gebaut, aber auf dem
++gemeinsamen Baukasten für Raum 1 (unten): `level05.gd` hält alle Daten als
++Konstanten (Verlauf `KURVE` und `KURVENHOEHE`, Breiten, Lücken, Absätze,
++Terrassen, Durchlässe, Hürden, Findlinge, Begehbares, Leitlinien, Kisten,
++Früchte, Rastplätze, Geheimnisse) und rechnet daraus beim Laden die
++Wegdaten (`weg`, `Wegdaten`), vor der Schrittliste. Alle Abfragen
++(`boden_bei`, `breite_bei`, `weg_punkt`, `ist_luecke` …) gehen über `weg`.
++Die Kurve legt alle 3 m einen Punkt bei seiner 3D-Bogenlänge (statt
++`kurve_aus_punkten` durch die zwölf Stützpunkte, siehe Kopf). Die Optik
++bauen Module in `scenes/levels/level05/`, je eine Klasse mit
++`bauschritte(level: Level05)`:
++
++| Modul | Aufgabe |
++|---|---|
++| `L05Gelaende` | Hang, Kuppe der Eiche, Kämme, Mühlwiese (`GelaendeBau`, `GelaendeFeld`) |
++| `L05Saum` | Lösswände, Ufer, Wehrwände, Stirnen der Lücken, Setzstufen (`Kanten`, `GelaendeSaum`) |
++| `L05Wasser` | Suhle, Rinnsale, Tobelbach (`Bachband`), Mühlteich, Weißwasser im Wehrbruch, Mühlrad – nichts davon tödlich |
++| `L05Eiche` | die gespaltene Hauereiche hinter dem Start, nah und fern (`Riesenstamm` mit `spalt`, `Kronenwolke`, `Nebelstoff`) |
++| `L05Wegbauten` | Optiken der Durchlässe (heil und gebrochen), Hürden, Findlinge, Bänke, Treppen, Wehr, Rastpfähle passgenau auf die Körper; `nahblende` blendet, was zu nah vor der Kamera steht; auch für die Werkstatt |
++| `L05Wald`, `L05Rasen` | Hangwald in drei Stufen, Baumtore, Gebüsch, Totholz; Rasensaum, Laubstreu, Kupferfarn (`Waldrahmen`, `Baumfabrik`, `Rasenbau`) |
++| `L05Ablage` | legt fertige Knotenbäume von Wald und Rasen im `Bauspeicher` ab und hängt sie beim nächsten Laden nur noch ein |
++| `L05Stimmung` | Zonen A–E nach der Strecke (`Stimmungsregler`), Horizontring, Lichtschächte, Pollen, Staub, Laub, Bachnebel, Krähen, Mühle als Klangschleife |
++| `L05Jagd` | der Keiler (siehe „Hauerjagd“ oben) |
++
++Die Kamera schaut durchgehend zurück (`abstand` −21, `hoehe` 5,6,
++`far` 380) und prüft nur Ebene 8 (`sicht_maske = 8`): Kein Durchlass,
++keine Kiste, keine Terrasse holt sie heran. Was dafür über dem Weg frei
++bleiben muss, prüft `freiraumprobe` (Kamera mindestens 3,45 m über der
++Figur, K1 freier Raum über der Bahn, K2 Kamera über den Durchlässen,
++K3 Kronen der Eiche frei, K4 kein Stammfuß bei |q| < 8, K5 Sichtlinien zur
++Figur vor Durchlässen und Hürden). Kollision in Variante b: Decke,
++Startboden, Trittstein, Wehr und Kisten auf Ebene 1; Leitlinien und die
++Körper von Durchlässen, Hürden, Findlingen und Bänken auf Ebene 16.
++Todeszonen liegen je Lücke auf fester Höhe, dazu „Boden − 8“ überall.
++
++**Prüfungen** (Opt-in, je im Kopf beschrieben): `pruefprofil` (sicht,
++todeszonen, rand, freiraum, wasser), `freiraumprobe` und
++`wasser_zonenprobe` für `level_check.gd`; `sprungfaelle` für die
++Sprungprobe; `jagdfaelle` und `jagd_zustand` für `werkzeuge/Jagdprobe.tscn`
++(Wecken, Ideallauf, Stolpern, Ketten, Respawn; 60 Hz); `wahrzeichen` und
++`wahrzeichen_strecke` für `werkzeuge/Wahrzeichenprobe.tscn` (steht die
++Eiche frei im Bild); `duckstellen` und `lauflinie` für den Spieltest-Bot;
++`pruefruhe` (der Keiler hält für Fotos und Proben still) und
++`foto_stelle`. Sprung-, Jagd- und Wahrzeichenprobe für Level 05 laufen in
++`pruefe.sh`, Stufe 4.
++
++Den Bauplan mit allen Maßen, Messwerten und den offenen Befunden der
++Jury hält `doku/raum1/level05-neubau.md` fest.
++
++## Baukasten für Raum 1 (`scripts/gemeinsam/`)
++
++Die Level 02–05 werden auf gemeinsamen Bausteinen neu gebaut; Level 05
++nutzt sie als erstes. Jeder ist eine Abschrift eines Bauteils aus
++Level 01 – dort hängen Zustand und Daten an `Level01` und an statischen
++Merkern –, ohne den Typ `Level01` und mit dem Zustand in der Instanz.
++Level 01 selbst nutzt sie nicht und bleibt unverändert;
++`werkzeuge/Baukastenprobe.tscn` füttert die Bausteine mit den Konstanten
++von Level 01 und verlangt Gleitkomma-Gleichheit mit den Originalen.
++
++| Baustein | Aufgabe | Herkunft |
++|---|---|---|
++| `Wegdaten` | Weg als Daten: Abschnitte samt Höhen, Lücken, Begehbares, Leitlinien, Todeszonen, Ränder; Abfragen und Rohbau | `level01.gd` |
++| `Wegdecke` | Stoff der Wegdecke (`wegboden.gdshader`, unverändert) nach Thema, Lippensteine und Leuchtpilze an Lücken | `L01Boden` |
++| `Kanten` | Kantenprofile (Grasnarbe, Erdufer, Böschung, Stirn) und Bauschritte für `GelaendeSaum` | `L01Saum` |
++| `GelaendeBau` | Bauschritte für ein `GelaendeFeld` mit Bauspeicher, Stoff je Thema, Nebeltafeln | `L01Gelaende` |
++| `Bachband` | fließendes Wasser als ein Band über die Läufe eines Betts (`shaders/bach.gdshader`) | `L01Wasser` |
++| `Nebelstoff` | eigener, schwächerer Nebel in einer Abschrift eines Stoffs, für Silhouetten im Dunst | `L01Weltenbaum` |
++| `Waldrahmen`, `Baumfabrik` | Regeln für Wald neben dem Weg (Freiraum, Sichtkegel, Himmelsprobe) und die Bäume dazu | `L01Wald` |
++| `Rasenbau` | Rasen nach der Wegmaske, Streu, Rahmenfarne | `L01Rasen` |
++| `Stimmungsregler` | Licht und Nebel nach der Strecke der Figur, Zonen mit weichen Rändern | `L01Stimmung` |
++
++Dazu kamen Zusätze an geteilten Dateien, jeder mit einem Null-Pfad (ohne
++den neuen Schalter läuft derselbe Ausdruck wie vorher):
++`KorridorLevel.weg` (setzt ein Level `Wegdaten`, fragen `breite_bei`,
++`rand_bei` usw. dort nach) mit `boden_bei`, `weg_punkt`, `kiste_auf`,
++`frucht_auf`, `fruechte_bogen_auf`, `gegner_auf`, `portale_auf`,
++`sichtweiten_einrichten` und den Hindernissen `duckdurchlass`, `huerde`,
++`findling_hindernis`; `LevelBasis.NACH_TOD` (Gruppe, die nach einem Tod
++`nach_tod` bekommt) und `strecke_der_figur()`;
++`KorridorKamera.sicht_maske` (Vorgabe 1 | 8); `Riesenstamm`-Option
++`spalt`; Felder und Arten der Sprungprobe, Opt-in-Proben in
++`level_check.gd` und `pruefruhe`/`foto_stelle` in `foto.gd`. Neue
++Zufallsquellen würfeln nur mit eigenem `RandomNumberGenerator` und festem
++Startwert. Die Werkstatt zeigt die Bausteine an den Stationen 30–32
++(Unterbau, Themenbühne, Bewuchs mit Stimmungszonen). Offen ist der
++Kameraplan (Paket G6, Station 33 bleibt dafür frei).
++
+ ## Levelbau (`scripts/level_werkzeuge.gd`, `class_name LevelWerkzeuge`)
+ 
+ ```gdscript
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 859b376..e8fbb3d 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -38,7 +38,8 @@ Regeln:
+ ## Stand der Level
+ Raum 1 (Wurzelwald): 01 Wurzelschlucht (Wald) · 02 Frostgrat (Schnee) ·
+ 03 Treibgut (Sumpffluss mit Treibflößen) · 04 Katzensprung (Ritt auf der
+-Wildkatze) · 05 Hauerjagd (Flucht vor dem Keiler).
++Wildkatze) · 05 Hauerjagd (Flucht vor dem Keiler den Hauerhang hinab,
++Kamera im Rückblick; unter Durchlässen nur im Slide).
+ Raum 2 (Nebelsümpfe): 06 Wettrennen (Karts, drei Runden) ·
+ 07 Moorbrücken (Bohlenweg im Moor) · 08 Torfstich (Torfabbau: Förder-
+ bänder, Pressen, Förderbrücke zum Hangeln) · 09 Sumpfgeysir (Gasfontänen
+@@ -58,7 +59,9 @@ Raum 5 (Sand und Neon): 21 Sandgrab (Grabkammern, Gabelung) ·
+ Bauteile für neue Level stehen in `korridor_level.gd` bereit; welches
+ Vorbild welches Bauteil hervorgebracht hat, steht in
+ `doku/level-vorbilder.md`. Der Prüfstand `scenes/levels/Werkstatt.tscn`
+-zeigt jedes einzeln, Level 10 zeigt sie im Zusammenspiel.
++zeigt jedes einzeln, Level 10 zeigt sie im Zusammenspiel. Die neu gebauten
++Level haben je einen Bauplan mit Messwerten: `doku/level01-neubau.md`,
++für Raum 1 unter `doku/raum1/` (bisher Level 05).
+ 
+ Level 03 wechselt zwischen Laufen und Fahren: Zwei Abschnitte haben
+ keinen Boden, dort trägt eine `Wasserplattform` (Treibfloß) den Spieler.
+@@ -67,8 +70,10 @@ Die Steuerung bleibt dabei die normale – anders als in 04 und 06.
+ Die Level 04 und 06 laufen nicht über `move_and_slide`, sondern kleben
+ auf der Levelkurve (`Reiter`, `Rennfahrer` – beide erben von `Spieler`,
+ weil Kisten und Gegner `koerper is Spieler` prüfen). Level 05 (Hauerjagd)
+-läuft mit der normalen Figur: Der Keiler jagt immer mit festem Tempo knapp
+-unter dem Lauftempo und holt auf, wer stehen bleibt oder stolpert.
++läuft mit der normalen Figur: Der Keiler ist kein Gegner, sondern eine
++Stelle auf der Kurve (`L05Jagd`). Er jagt immer mit festem Tempo knapp
++unter dem Lauftempo, bleibt hangab höchstens 15 bis 11 m zurück und holt
++auf, wer stehen bleibt oder stolpert.
+ 
+ ## Spielsysteme
+ - **Kisten:** normal (gibt Frucht), Checkpoint (setzt Respawn), später: TNT-artig (Timer), Bounce, Eisen (unzerbrechlich)
+diff --git a/README.md b/README.md
+index f7c4899..f4debdd 100644
+--- a/README.md
++++ b/README.md
+@@ -133,15 +133,25 @@ Hauer, ganz hinten die gespaltene Hauereiche, die immer kleiner wird.
+ 
+ 49 Kisten, 119 Früchte, 5 Rastplätze, 3 Geheimnisse. Unter Durchlässen kommt
+ man nur im Slide durch, über Hürden nur im Sprung; der Slide-Sprung ist
+-Kür. Der Keiler läuft 7,4 m/s (die Figur 8,5), fällt nie weiter als 15 m
+-zurück und fängt bei 2 m; über Lücken und Stufen springt er, durch die
+-Durchlässe bricht er. Richtzeit im Zeitmodus 48 s.
+-
+-**Kosten** (Fotostellen 8–296, Stand P8): Desktop 177–305 Draw-Calls,
+-höchstens 707k Primitive, VRAM 101 MB; Handy 243–324 bei 76,7 MB. Entwurf,
+-Abweichungen und die Messwerte aller Pakete stehen in
+-`doku/level05-neubau.md`, die Module in ARCHITEKTUR.md unter
+-„Hauerjagd“. Die Hindernisse zeigt die Werkstatt einzeln (Stationen 34–38).
++Kür. Der Keiler läuft 7,4 m/s (die Figur 8,5), fällt hangab höchstens
++15 bis 11 m zurück (je Abschnitt einen Meter weniger) und fängt bei 2 m;
++über Lücken und Stufen springt er, durch die Durchlässe bricht er. Nach
++einem Tod wartet er, bis die Figur sich regt, höchstens 1 s. Richtzeit im
++Zeitmodus 15 s – gerechnet mit den Zeitkisten der Hauptlinie, ohne sie
++ist keine Stufe zu holen (die Entscheidung des Nutzers steht aus).
++
++**Kosten** (Fotostellen 8–296, Stand R1): Desktop 182–302 Draw-Calls,
++höchstens 705k Primitive (die Jury maß an s 262 bis 722k), VRAM 100 MB;
++Handy 243–320 bei 75,9 MB. Entwurf, Abweichungen und die Messwerte aller
++Pakete stehen in `doku/raum1/level05-neubau.md`, die Module in
++ARCHITEKTUR.md unter „Level 05“. Die Hindernisse zeigt die Werkstatt
++einzeln (Stationen 34–38).
++
++**Nicht abgenommen:** Die zweite Runde der Spiel- und der Bild-Jury hat
++Level 05 nicht abgenommen. Ihre 20 Befunde sind nicht bearbeitet und
++stehen im Bauplan, Abschnitt 16; schwer sind die Kisten an G3 (alle 49 sind
++so praktisch nicht zu holen), die Lücken, die sich im Anlauf als Stufen
++lesen, und das Bild der Hauereiche.
+ 
+ ## Zeitmodus
+ 
+diff --git a/doku/level-vorbilder.html b/doku/level-vorbilder.html
+index 44aa571..6f28d21 100644
+--- a/doku/level-vorbilder.html
++++ b/doku/level-vorbilder.html
+@@ -1158,7 +1158,7 @@ td.num {
+   </table></div>
+ 
+   <h3 class="tabellentitel">Neu aus dem Neubau von Level 05</h3>
+-  <p>Level 05 wurde als &bdquo;Hauerhang&ldquo; neu gebaut (Entwurf und Messwerte: <code>doku/level05-neubau.md</code>). Drei Hindernisse stehen seitdem in <code>KorridorLevel</code> (<code>scenes/levels/korridor_level.gd</code>) und taugen für jedes Korridorlevel mit <code>Wegdaten</code>. Gemeinsam ist ihnen: Der Körper liegt auf Ebene 16 (Spielergrenze) &ndash; die Figur stößt an, der Kamerastrahl geht hindurch &ndash;, seine Höhen stehen über <code>boden_bei</code> je Querschnitt (er sitzt auch am Hang satt auf), die Stolperzone (<code>Spieler.stolpern</code>, Vorgabe aus) liegt nur an der Stirn, und ohne eigene Optik steht ein grauer Platzhalter in der Form des Körpers. Die Optiken von Level 05 baut <code>L05Wegbauten</code> passgenau auf die Körper; die Werkstatt zeigt alle drei mit diesen Optiken einzeln (Stationen 34&ndash;36), jeden Durchlass heil und gebrochen.</p>
++  <p>Level 05 wurde als &bdquo;Hauerhang&ldquo; neu gebaut (Entwurf und Messwerte: <code>doku/raum1/level05-neubau.md</code>). Drei Hindernisse stehen seitdem in <code>KorridorLevel</code> (<code>scenes/levels/korridor_level.gd</code>) und taugen für jedes Korridorlevel mit <code>Wegdaten</code>. Gemeinsam ist ihnen: Der Körper liegt auf Ebene 16 (Spielergrenze) &ndash; die Figur stößt an, der Kamerastrahl geht hindurch &ndash;, seine Höhen stehen über <code>boden_bei</code> je Querschnitt (er sitzt auch am Hang satt auf), die Stolperzone (<code>Spieler.stolpern</code>, Vorgabe aus) liegt nur an der Stirn, und ohne eigene Optik steht ein grauer Platzhalter in der Form des Körpers. Die Optiken von Level 05 baut <code>L05Wegbauten</code> passgenau auf die Körper; die Werkstatt zeigt alle drei mit diesen Optiken einzeln (Stationen 34&ndash;36), jeden Durchlass heil und gebrochen.</p>
+   <div class="tabellenhuelle"><table>
+     <thead><tr><th>Werkzeug</th><th>Deckt ab</th></tr></thead>
+     <tbody>
+@@ -1168,6 +1168,21 @@ td.num {
+     </tbody>
+   </table></div>
+ 
++  <p>Darunter liegt der gemeinsame Baukasten für Raum 1 (<code>scripts/gemeinsam/</code>, Beschreibung in ARCHITEKTUR.md unter &bdquo;Baukasten für Raum 1&ldquo;): Abschriften der Bauteile aus Level 01 ohne den Typ <code>Level01</code>, gedacht für die Level 02&ndash;05. Level 05 nutzt sie als erstes.</p>
++  <div class="tabellenhuelle"><table>
++    <thead><tr><th>Werkzeug</th><th>Deckt ab</th></tr></thead>
++    <tbody>
++      <tr><td class="quelle">Wegdaten + KorridorLevel.weg</td><td>Weg als Daten (Abschnitte, Lücken, Begehbares, Leitlinien, Todeszonen); Kisten, Früchte, Gegner und Portale stehen auf <code>boden_bei</code> statt relativ zur Kurve</td></tr>
++      <tr><td class="quelle">Wegdecke, Kanten, GelaendeBau</td><td>Wegdecke nach Thema mit Lippensteinen, Kantenprofile, Gelände aus dem Bauspeicher</td></tr>
++      <tr><td class="quelle">Bachband, Nebelstoff</td><td>fließendes Wasser als ein Band; Silhouetten mit eigenem, schwächerem Nebel</td></tr>
++      <tr><td class="quelle">Waldrahmen, Baumfabrik, Rasenbau</td><td>Wald neben dem Weg nach Regeln (Freiraum, Sichtkegel, Himmel), Rasen, Streu, Rahmenfarne</td></tr>
++      <tr><td class="quelle">Stimmungsregler</td><td>Licht und Nebel nach der Strecke der Figur statt über Auslösekästen</td></tr>
++      <tr><td class="quelle">Riesenstamm, Option spalt</td><td>gespaltener Stamm (in Level 05 die Hauereiche)</td></tr>
++      <tr><td class="quelle">KorridorKamera.sicht_maske, freiraumprobe</td><td>Kamera, die mit <code>sicht_maske = 8</code> nur an Sichtsperren anstößt; was über dem Weg frei bleiben muss, prüft das Level selbst</td></tr>
++      <tr><td class="quelle">Jagdprobe, Wahrzeichenprobe</td><td>ein Verfolger auf der Strecke, nachprüfbar über Fälle; ein Wahrzeichen, das frei im Bild stehen muss</td></tr>
++    </tbody>
++  </table></div>
++
+   <h3 class="tabellentitel">Offen — aus der ersten Fassung</h3>
+   <div class="tabellenhuelle"><table>
+     <thead><tr><th>Werkzeug</th><th>Aus</th><th>Warum das Fehlen auffällt</th></tr></thead>
+diff --git a/doku/level-vorbilder.md b/doku/level-vorbilder.md
+index 50a43e5..d7360ce 100644
+--- a/doku/level-vorbilder.md
++++ b/doku/level-vorbilder.md
+@@ -1001,7 +1001,7 @@ Kopfkommentar.
+ ### Neu aus dem Neubau von Level 05
+ 
+ Level 05 wurde als „Hauerhang“ neu gebaut (Entwurf und Messwerte:
+-`doku/level05-neubau.md`). Drei Hindernisse stehen seitdem in
++`doku/raum1/level05-neubau.md`). Drei Hindernisse stehen seitdem in
+ `KorridorLevel` (`scenes/levels/korridor_level.gd`) und taugen für jedes
+ Korridorlevel mit `Wegdaten`. Gemeinsam ist ihnen: Der Körper liegt auf
+ Ebene 16 (Spielergrenze) – die Figur stößt an, der Kamerastrahl geht
+@@ -1019,6 +1019,22 @@ gebrochen.
+ | `huerde(s, optionen)` | Riegel 0,7 m hoch und 0,6 m tief, über den man springt; Stolperzone 1,0 × 0,8 m mittig darum. Gemessen: stolperfreies Absprungfenster 1,8–1,95 m, wer hineinslidet, stolpert immer – Hürde heißt springen, Durchlass heißt sliden. In Level 05 als Wurzelhürde |
+ | `findling_hindernis(s, q, breite, optionen)` | Block, 1,4 m hoch und 1,6 m tief, Breite frei wählbar, um den man herumläuft; zwei versetzt hintereinander ergeben eine Gasse mit mindestens 1 m Querversatz (Level 05: Findlingsgasse F1/F2, je 4,6 m breit). Wer frontal hineinläuft, stolpert; wer oben landet oder daneben vorbeiläuft, nicht |
+ 
++Darunter liegt der gemeinsame Baukasten für Raum 1 (`scripts/gemeinsam/`,
++Beschreibung in ARCHITEKTUR.md unter „Baukasten für Raum 1“): Abschriften
++der Bauteile aus Level 01 ohne den Typ `Level01`, gedacht für die Level
++02–05. Level 05 nutzt sie als erstes.
++
++| Werkzeug | Deckt ab |
++|---|---|
++| `Wegdaten` + `KorridorLevel.weg` | Weg als Daten (Abschnitte, Lücken, Begehbares, Leitlinien, Todeszonen); Kisten, Früchte, Gegner und Portale stehen auf `boden_bei` statt relativ zur Kurve |
++| `Wegdecke`, `Kanten`, `GelaendeBau` | Wegdecke nach Thema mit Lippensteinen, Kantenprofile, Gelände aus dem Bauspeicher |
++| `Bachband`, `Nebelstoff` | fließendes Wasser als ein Band; Silhouetten mit eigenem, schwächerem Nebel |
++| `Waldrahmen`, `Baumfabrik`, `Rasenbau` | Wald neben dem Weg nach Regeln (Freiraum, Sichtkegel, Himmel), Rasen, Streu, Rahmenfarne |
++| `Stimmungsregler` | Licht und Nebel nach der Strecke der Figur statt über Auslösekästen |
++| `Riesenstamm`, Option `spalt` | gespaltener Stamm (in Level 05 die Hauereiche) |
++| `KorridorKamera.sicht_maske`, `freiraumprobe` | Kamera, die mit `sicht_maske = 8` nur an Sichtsperren anstößt; was über dem Weg frei bleiben muss, prüft das Level selbst |
++| Jagdprobe, Wahrzeichenprobe | ein Verfolger auf der Strecke, nachprüfbar über Fälle; ein Wahrzeichen, das frei im Bild stehen muss |
++
+ ### Offen – aus der ersten Fassung
+ 
+ | Werkzeug | Aus | Warum es fehlt auffällt |
+diff --git a/doku/level05-neubau.md b/doku/raum1/level05-neubau.md
+similarity index 82%
+rename from doku/level05-neubau.md
+rename to doku/raum1/level05-neubau.md
+index 526caa8..b198a0a 100644
+--- a/doku/level05-neubau.md
++++ b/doku/raum1/level05-neubau.md
+@@ -1,15 +1,28 @@
+ # Level 05 „Hauerjagd" – Neubau: der Hauerhang
+ 
+ > **Stand:** Das ist der Entwurf, nach dem Level 05 in den Paketen P1a bis
+-> P9 neu gebaut wurde (Commits `c426f42` … P9, Abschnitt 13). In der
+-> Umsetzung haben sich einzelne Maße verschoben, jeweils von einer Messung
+-> erzwungen – etwa die Leitlinien (5,7 m statt 5, an den Geheimnissen 7 m),
+-> die Eiche (Achse bei s −9,5, Kerbe 9 m statt 7), das Mühlrad (q −8,5),
+-> der Schatten (orthogonal statt zwei Stufen) und die Richtzeit (48 s statt
+-> vorläufig 46, seit den Mängeln der Jury-Runde R1 15 s mit Zeitkisten).
+-> Abschnitt 13 nennt Paket für Paket (und R1), was gebaut und was
+-> gemessen wurde, Abschnitt 14 die Abweichungen, Abschnitt 15, was offen
+-> oder ungeprüft ist. Maßgeblich sind die Daten in
++> P9 und einer Mängelrunde (R1) neu gebaut wurde (Commits `c426f42` …
++> `62b55fb`, Abschnitt 13). In der Umsetzung haben sich einzelne Maße
++> verschoben, jeweils von einer Messung erzwungen – etwa die Leitlinien
++> (5,7 m statt 5, an den Geheimnissen 7 m), G3 (5 m später), die Kette
++> D3–D4–L5 (1,2 m weiter hinten), die Eiche (Achse bei s −9,5, Kerbe 9 m
++> statt 7), das Mühlrad (q −8,5), der Schatten (orthogonal statt zwei
++> Stufen), der Höchstabstand des Keilers (hangab 15 → 11 m statt fest
++> 15 m) und die Richtzeit (15 s mit Zeitkisten statt vorläufig 46 s). Das
++> gemessene Budget (Fotostellen 8–296, llvmpipe): am Desktop 182–302
++> Draw-Calls, höchstens 722k Primitive (s 262), VRAM 100 MB; auf Handys
++> 243–320 Draw-Calls, 621k Primitive, 75,9 MB (Grenzen 500 bzw. 450
++> Draw-Calls, 750k Primitive, 140 MB). Bauzeit kalt 7,2–8,5 s (P8, Median
++> 8,05 s; in P9 und R1 auf demselben, stärker belasteten Rechner
++> 12,6–15,7 s, der Stand davor jeweils ebenso), Runde 2 0,26–0,50 s.
++>
++> **Nicht abgenommen:** Die zweite Runde der Spiel- und der Bild-Jury (R2)
++> hat weder das Spiel noch das Bild abgenommen. Ihre Befunde sind nicht
++> bearbeitet und stehen in Abschnitt 16; schwer sind die Kisten an G3
++> (alle 49 praktisch nicht zu holen), die Lücken im Anlauf (lesen sich als
++> Stufen) und das Bild der Eiche. Abschnitt 13 nennt Paket für Paket, was
++> gebaut und was gemessen wurde, Abschnitt 14 die Abweichungen,
++> Abschnitt 15, was offen oder ungeprüft ist. Maßgeblich sind die Daten in
+ > `scenes/levels/level05.gd` und die Kopfkommentare der Module unter
+ > `scenes/levels/level05/`. Zeilenangaben wie `level05.gd:402` beziehen
+ > sich auf den Stand vor dem Neubau.
+@@ -926,7 +939,7 @@ und die Freiraumprobe in G6-teil (`49511c8`).
+ - **Richtzeit:** 48 s = 1,3 × 37,0 s Uhrzeit des Bots. Gold 40,8 s, Platin
+   34,56 s. Der Ideallauf der Jagdprobe dauert 35,0 s.
+ 
+-### P9 Werkstatt und Doku
++### P9 Werkstatt und Doku (`f5ee23f`)
+ 
+ - **Werkstatt:** neue Stationen 34–38 auf einer verlängerten Kurve. `M_ENDE`
+   steigt von 818 auf 1112, die Kurve endet bei 1122,9 m. Station 33
+@@ -970,7 +983,7 @@ und die Freiraumprobe in G6-teil (`49511c8`).
+     - Die Protokolle von Level 01 (LevelCheck, Sprungprobe, Bauzeit) sind
+       nach der Normalisierung gleich.
+ 
+-### R1 Mängel der Spiel- und der Bild-Jury
++### R1 Mängel der Spiel- und der Bild-Jury (`62b55fb`)
+ 
+ Jeder Punkt ist im Kopf des geänderten Moduls begründet; hier die
+ Übersicht mit den Messungen (Jagd-, Sprung-, Wahrzeichenprobe, LevelCheck,
+@@ -1065,6 +1078,30 @@ Klangprobe, Fotos `--fixed-fps 30` mit festem Zufall).
+ Ungeprüft: ein Lauf von Hand, der Klang auf einem Gerät, die Bilder auf
+ einer echten GPU (alle Bilder llvmpipe).
+ 
++### R2 Abnahme der Spiel- und der Bild-Jury (nicht bearbeitet)
++
++Die zweite Runde prüfte den Stand `62b55fb`: Standardproben (LevelCheck,
++Sprung-, Jagdprobe), Spieltest mit und ohne Doppelsprung, eigene Proben
++der Jury (Tod und Respawn an jedem Rastplatz, Kamera, Zählung,
++Zeitmodus, Kettenprobe D3–D4–L5, Sammellauf) und Bilder an Desktop,
++Seite und Handy neben Level 01. Ergebnis: **Spiel nicht abgenommen, Bild
++nicht abgenommen.** Die Zählung selbst stimmt (GameState, HUD und
++Abschluss-Daten nach jedem Tod und am Ziel gleich), und alle Kosten
++liegen ohne Budgetwarnung im Rahmen. Die 20 Befunde stehen mit Messwert
++und Vorschlag in Abschnitt 16; keiner davon ist bearbeitet.
++
++### Abschluss
++
++Diese Datei liegt seit dem Abschluss unter `doku/raum1/` (vorher
++`doku/level05-neubau.md`). Nachgezogen sind CLAUDE.md („Stand der
++Level“), README.md (Abschnitt Level 05), ARCHITEKTUR.md (Hauerjagd,
++Abschnitt Level 05, Baukasten für Raum 1), `doku/level-vorbilder.md`
++und `.html` (Verweis). Im Code sind nur Kommentare geändert: der Kopf
++von `level05.gd` (Stand und die schweren Befunde aus R2) und der
++Kommentar bei `ZIELZEIT` (Zeitkisten liegen auf G1 und G2, auf G3 keine;
++gemessen von der Spiel-Jury R2: 15 Zeitkisten mit 30 s). Am Spiel und am
++Bild hat sich nichts geändert.
++
+ ---
+ 
+ ## 14. Abweichungen vom Entwurf
+@@ -1094,16 +1131,22 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
+ 
+ ---
+ 
+-## 15. Offen und ungeprüft (Stand R1)
++## 15. Offen und ungeprüft (Stand Abschluss)
++
++Die Befunde der Jury-Runde R2 stehen gesondert in Abschnitt 16.
+ 
+ **Dem Nutzer vorzulegen**
+ - **Richtzeit (R1):** 15 s nach Variante a der Spiel-Jury (Referenz mit
+   den Zeitkisten der Hauptlinie, siehe `level05.gd`, ZIELZEIT). Ohne
+   Zeitkisten ist im Zeitmodus keine Stufe zu holen. Die Alternativen der
+   Jury (Zeitkisten aus der Hauptlinie nehmen oder die Richtzeit ohne
+-  Kisten rechnen) sind nicht gebaut.
+-- **Höchstabstand je Abschnitt (R1):** 15 → 14 → 13 → 12 → 11 m – Werte der
+-  Spiel-Jury, gebaut; ob die Steigerung reicht, zeigt nur ein Lauf von Hand.
++  Kisten rechnen) sind nicht gebaut. Die Spiel-Jury R2 nennt die 15 s eine
++  Klippe und schlägt eine Abstufung vor (Abschnitt 16, Nr. 2).
++- **Höchstabstand je Abschnitt (R1):** 15 → 14 → 13 → 12 → 11 m. Die
++  Spiel-Jury R1 hatte 14/12/10/9 m vorgeschlagen; gebaut ist die mildere
++  Staffel, damit zwei Stolperer in der Kette D3–D4–L5 verziehen werden
++  (Kopf von `jagd.gd`). Laut Spiel-Jury R2 hängt der Keiler damit im
++  sauberen Lauf fast immer am Höchstabstand (Abschnitt 16, Nr. 3).
+ - **Nebel der Eiche:** „für die Kuppe 0,7“. Heute trägt nur der Fuß der
+   Fernform 0,7.
+ - **Bildfragen:** die Torbuchen (zwei runde Kronen, kein Bogen). Der
+@@ -1158,3 +1201,43 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
+ 
+ **Weiter offen aus G6:** Kameraplan, `_kamera_modell`, Kameraplanprobe und
+ Station 33; der ABGLEICH-Absatz im Kopf von `level_check.gd`.
++
++---
++
++## 16. Abnahme R2: offene Befunde
++
++Die zweite Runde der Spiel- und der Bild-Jury hat den Stand `62b55fb`
++nicht abgenommen (Spiel nein, Bild nein). Keiner der Befunde ist
++bearbeitet. Die Messwerte stammen von der Jury (Juryprobe auf Basis der
++Jagdprobe, 60 Hz; Spieltest-Bot; Fotos unter llvmpipe, Luma 0–255); ihre
++Bilder und Skripte lagen in der Bauumgebung und sind nicht im Repo.
++
++**Spiel**
++
++| Nr. | Schwere | Ort | Befund (gemessen) | Vorschlag der Jury |
++|---|---|---|---|---|
++| 1 | schwer | D, s 258,5–262,5: G3 Sonnensims (q 4,2–5,6, +2,6; Kisten 259,9/261,0/262,1 auf q 4,9) neben der Kistenreihe 260,0/261,2/262,4 auf q 2,2, beide zwischen CP4 (204) und CP5 (268) | Alle 49 Kisten (der Kisten-Edelstein) sind praktisch nicht zu holen: Ein Tod setzt auf CP4 zurück, beide Gruppen müssen im selben Durchgang fallen. Vom Sims erreicht der Drehschlag die Reihe nicht (≥ 3,7 m), von der Reihe aus liegt der Sims schon hinter der Figur. 36 Varianten vom Sims: höchstens 7 von 8 Kisten. Sammellauf ohne Tod: 45/49. Ursache: P1a hat G3 um 5 m verschoben, die Reihe blieb. Die Zählung selbst stimmt. | Reihe hinter das Simsende, z. B. 263,6/264,8/266,0 auf q 2,2 (vor der Zone von CP5 bei 267); Sammellauf wiederholen (49/49, Band „Alle Kisten!“); Zeitkisten neu prüfen |
++| 2 | mittel | Zeitmodus, `ZIELZEIT` 15 s | Die Richtzeit wirkt als Klippe: Ideallinie ohne Kisten 35,28 s, keine Stufe; jede zweite Kistenreihe (6 Zeitkisten, 11 s) 24,65 s, keine Stufe; alle 12 Reihen (35 Kisten) 11,62 s = Gold, Platin (10,80 s) verfehlt. Die letzte Zeitkiste (292,8, 3 s) steht 3 m vor dem Portal, 2,0 s ihrer Standzeit verfallen. Platin braucht Zeitkisten abseits des Wegs (G1, G2, Graben 24,6/q 0) – gegen den Kopf von `Zeitlauf.gd` („stehen nie abseits“). | **Nutzerentscheidung.** Abstufung: Saphir = sauberer Lauf ohne Kisten (≈ 37 s), Gold 31,5 s (≈ 2 Zeitkisten), Platin 26,6 s (≈ 4–5); letzte Zeitkiste vor das Wehr |
++| 3 | mittel | Jagd, `L05Jagd.HOECHST_STAFFEL` 15/14/13/12/11 m | Im sauberen Lauf hängt der Keiler am Höchstabstand: B 13,54–14,96 m, C 12,67–13,48, D 11,46–12,78, E 11,00–11,66, kleinster 10,44 m. Ein Sprung kostet ≤ 0,5 m (in < 1 s zurück), ein Slide baut wegen der Klemme keinen Vorsprung auf (28 Slide-Kombinationen an D3/D4: alle 11,74 m). Keiler 27–29 px hoch, Figur 38 px (720p). Gefährlich erst nach Fehlerketten (zweimal Stolpern D3/D4: 3,74 m; 2 s Stehen nach dem Respawn: 3,6–4,2 m); ein einzelner Fehler lässt 6,3–8,5 m. „Ein Slide gibt Vorsprung, jeder Sprung kostet welchen“ ist so nicht spürbar. | Staffel nach Stellen statt Abschnitten: auf gefahrlosen Geraden (46–56, 112–120, 236–241, 272–280) bis 7–8 m heran, vor D3–D4–L5 auf 12 m zurück; oder ein kurzer Aufholspurt nach jedem Durchbruch. Danach Kettenprobe (zwei Stolperer) und Jagdprobe |
++| 4 | leicht | Ziel s 296: Auslöser des Zielportals (Zylinder r 1,04 auf q 0) auf der 7 m breiten Wehrkrone | Auf q 1,1 kommt „Level geschafft!“, auf q 1,6 und 2,0 läuft die Figur am Portal vorbei an die Querwand bei 300 und schafft es in 90 s nicht (etwa entlang der letzten Kistenreihe). Im Zeitmodus läuft beim Zurücklaufen die Uhr. | Letzte Kisten auf q ≤ 1,0 oder ein leveleigener, breiterer Auslöser, gegen Doppelaufruf geschützt; die geteilte Szene bleibt |
++| 5 | leicht | Hürden H1 (44), H2 (93), Stolperzone über `body_entered` | Ein Sprung zu spät (0,6 m vor der Zone) kostet zwei Stolperer (H1 6,70 m, H2 7,04 m Mindestabstand), gar nicht springen nur einen (7,75/7,99 m). Der Bot stolpert an H2 zweimal (24,8 und 25,3 s). | Kurze Stolpersperre nach dem ersten Stolpern (z. B. 0,6 s), in geteilten Dateien nur als Option mit Null-Pfad; danach Sprungprobe der Hürden |
++| 6 | leicht | LEBEN-Kiste s 291,5 | Ohne Spielwert: Hinter dem Wehr ist kein Tod mehr möglich, und beim Betreten eines Levels setzt `GameState.neu_beginnen()` die Leben wieder auf 5. | Vor die Kette legen (Hauptlinie nach CP4) oder als Lohn an G3 |
++
++**Bild**
++
++| Nr. | Schwere | Ort | Befund (gemessen) | Vorschlag der Jury |
++|---|---|---|---|---|
++| 7 | schwer | Tödliche Lücken im Anlauf: L1 (75–78), L5 (229,7–232,7), L6 Wehrbruch (284–289) | Im Rückblick liegt jede Lücke zwischen Figur und Kamera; zu sehen ist nur die ferne Stirn, seit R1 (`STIRN_VERDECKUNG`) oben hell. Die Lücke liest sich als Stufe oder Bordkante (20–40 px), nicht als Abgrund – ein Rückschritt gegen R1. Luma im Lückenstreifen: L1 s 72 Mittel 88 (P10 58), L5 s 226 67 (42), L6 s 280 70 (18), s 284 79 (32); in R1 L6 s 280 43 (P10 0), Level 01 s 60 11. Im Wehrbruch kein Weißwasser im Spalt, nur ein dünner heller Strich. | Ferne Stirn nur an der Oberkante schmal hell (Lippe 0,1–0,2 m mit Steinen), ab etwa 0,4 m Albedo ≤ 0,1 wie in Level 01; Tiefe zeigen (dunkler Grund, Nebel oder Wasser, Grasüberhang an der nahen Lippe); am Wehr Gischt bis knapp unter die Lippe. Abnahme: Luma der Lücke im Mittel ≤ 30, Gegenbilder bei s 72, 226, 284 |
++| 8 | schwer | Hauereiche (s −9,5) in jedem Verfolgerbild; Torbuchen bei 30 und 120 | Nah (s 8) zwei glatte, gebogene Bretter mit Efeu, ohne Brettwurzeln; ab s 30 zwei dünne Stiele mit flachen orangen Kronen ohne sichtbare Äste; ab s 130 (Fernform) zwei rosa-beige Pilzhüte auf Strichen. Im Schlussbild blass rosa statt golden (Bildregel §8.1). Die Torbuchen lesen sich als gestapelte Kugeln. | Kronen aus mehreren Lappen mit dunkler Unterkante, je Hälfte 3–5 sichtbare Hauptäste, Stämme der Fernform bei 300 m mindestens 2× Strichbreite, Fernform warm-golden und nebelarm (offene Frage „Kuppe 0,7“); Torbuchen mit Astwerk |
++| 9 | mittel | Gesamtbild A, B, C, E (s 8–180, 262–296) | Flache, kurz gemähte Rasenplatten mit vereinzelten Bäumen – ein Park neben dem Wald von Level 01. Am Start eine leere Kuppe, die zwei Lichtschächte aus §5 A sind im Bild nicht zu sehen; am Horizont stammlose Fernform-Klumpen; Birken in E als weiße Y-Geweihe. Dahinter steht der Sichtkegel K3 zur Eiche (Nutzerfrage). | Kronen der Böschung mit Unterholz, Farn und Überhängen säumen (außerhalb K1/K3), Rasen brechen, Waldkante auf q 10–20 heranrücken, Fernform als Gruppen mit Stämmen oder Hügelsilhouette, zwei Lichtschächte in A |
++| 10 | mittel | D1/D2 in der Ankündigung (Figur 14 m davor, s 44 und 90) | Die Nahblende nimmt Bogen und Strähnen weg; übrig bleibt der Riegel als 0,15 m dünne Stange (`RIEGEL_KANTE` 1,25–1,40) mit einzelnen Strähnen in der Luft. Der Durchlass sieht aus wie eine Hürde und sagt „springen“ statt „sliden“. Der Bogen erscheint erst etwa 6 m davor, als liegender Stamm. | Ein Slide-Zeichen, das die Nahblende übersteht: unten bis 1,5 m nie ausblenden, Hängewurzeln bis etwa 1,0 m oder helle Riegelunterseite bis 0,95 m, Strähnen ganz statt abgeschnitten, Bogen mit Wurzelansätzen in den Wänden. Gegenprobe s 44 und 90 |
++| 11 | mittel | F1/F2 (244/250), Trittstein G3 (257), Bänke G2 und G3, Wurzeltreppen S1–S3 | Quader mit kaum gerundeten Kanten (Sandsteinziegel), Trittstein als moosiger Würfel, Bänke mit senkrechten Wänden; bei s 247 fünf Kastenformen in einem Bild. Treppenkanten als gerade Rundhölzer wie Bordsteine. Die R1-Rundung (7 cm) ist im Bild nicht zu sehen. | Optik dort vom Körper lösen, wo Spielraum ist (außen überstehen, nie in die Gasse): Findlinge unregelmäßig mit Überhang und eingesunkenem Fuß, Bänke mit Bruchkante und Grasnarbe, Treppenkanten als krumme Wurzeln |
++| 12 | mittel | Tobel D (186–262): Bach, Südwand, Ufer bei 262 | Der Bach ist ein flaches graues Band mit gleichmäßigen Glitzerpunkten (liest sich als Schotterstraße); die Südwand eine glatte dunkle Fläche ohne Simse, Farn oder sichtbares Moos; bei s 262 ragt links ein oranges Wandstück aus Gras und Wasser. | Uferkies, Steine, Schaumlinien, dunkle Mitte, Bachnebel; Südwand mit Simsen, Moos, Farn und Efeu; das Wandstück bei 262 schließen oder versenken |
++| 13 | mittel | Rinnsale am Wasserriss L1 (Messtor s 60, s 72) | Im Vordergrund eine graublaue, scharfkantige Klinge (etwa 40 × 120 px), bei s 72 zwei Glasstäbe an den Wänden. Seit R1 bekannt. | Nah ganz ausblenden oder als weiches, unterbrochenes Tropfband mit Spritzern am Fuß |
++| 14 | mittel | Nahblende an D1, D2, D3/D4 | Das Raster ist im Standbild als Punktmuster zu sehen (linke Wand bei s 208, Spitzen der D4-Latten, Böcke); Latten enden in Pixelstaub. Flimmern in Bewegung ist ungeprüft. | Ganze Teile nach Abstand aus- und einblenden oder das Raster an Bildschirm und Zeit stabil machen; jede Latte und Strähne als Ganzes |
++| 15 | leicht | Abgewetzte Rücken: Gatter-Unterholm (17), D4-Riegel (223), H1 (44), Treppenkanten S2 | Flache, untexturierte, grauweiße Bänder wie Blech; H1 mit zugespitzten Enden wie ein Bleistift. | Holztextur hell und warm tönen statt entsättigen, Glanz dämpfen, Enden als Schnittfläche mit Jahresringen |
++| 16 | leicht | Teichmulde und Sandsteinterrasse links (262–296), Mühlteich | Rechteckige Steinbruchwand mit gerader Oberkante (seit P3 bekannt), gezackte weiße Uferlinie, aus der Seite eine dunkle Plane mit Kratzern. | Kante abflachen und bewachsen, Ufer mit Schilf und Steinen, weniger Funkeln |
++| 17 | leicht | Licht und Farbe, Himmel | Helligkeit Desktop 55–78 (Mittel 64) gegen Level 01 45–64 (56), warm 22–41 % gegen 12–33 %, kühl 18–24 % (Ziel ≥ 12 % erfüllt); am hellsten s 72 mit 78. Der Himmel ist bis auf Schleier leer. | Belichtung in A/B um etwa 10 % senken, Kronenlicht und Schächte in A, Wolkenbänke oder Abendglut am Horizont |
++| 18 | leicht | Startbild s 8 | Die Figur steht hinter den 14 Stangen des Gatters; links eine glatte orange Halbrohr-Rinne; die G1-Bank ist ein zylindrischer Stumpf. | Rinne mit Grasüberhang und unregelmäßiger Kante; prüfen, ob die Figur im Startbild vor dem Gatter stehen kann |
++| 19 | leicht | Seitenbilder 40/150/240/286; Handy s 280 | Die Böschung verdeckt seitlich den Weg, der Vordergrund trägt grobe Flecken wie ein Tarnmuster, Birkenrinde orange gestreift; auf dem Handy verdeckt die Tastenraute das Mühlrad (bekannt). | Bodentextur feiner kacheln (Detailmaske), Birkenrinde weiß mit dunklen Bändern, Mühlrad fürs Handy nach links oben, wenn es im Spiel nicht stört |
++| 20 | leicht | Leistungsbudget | Alles im Budget, ohne Budgetwarnung. Primitive aber 722k (s 262) bzw. 720k (s 240), 96 % von 750k. Draw-Calls Desktop höchstens 302 (s 280), Handy höchstens 285 (s 296). Handy s 280: 284 Draw-Calls in diesem Lauf (6 Stellen) gegen 320 im R1-Lauf (8 Stellen) – die Zahl hängt von der Stellenfolge ab, Ursache ungeprüft. | Vor weiteren Bildteilen Reserve schaffen (weniger Rasen und Farn im Tobel, Schatten nur für Nahes); für Abnahmen die Stellenfolge festschreiben |
+diff --git a/scenes/levels/level05.gd b/scenes/levels/level05.gd
+index 7211e48..9f53860 100644
+--- a/scenes/levels/level05.gd
++++ b/scenes/levels/level05.gd
+@@ -19,8 +19,8 @@ class_name Level05
+ ##     300 – 332  Auslauf          nur Kulisse, die Kamera steht bei s + 21
+ ##
+ ## NEUBAU nach dem Entwurf für Raum 1; er steht mit den Messwerten aller
+-## Pakete in `doku/level05-neubau.md`, und die „Entwurf §…“ in diesem Code
+-## meinen seine Abschnitte. Gebaut sind der
++## Pakete in `doku/raum1/level05-neubau.md`, und die „Entwurf §…“ in diesem
++## Code meinen seine Abschnitte. Gebaut sind der
+ ## ROHBAU (Pakete P1a/P1b: Verlauf, Weg, Bauteile, Spielobjekte, Jagd und
+ ## Proben, voll spielbar), der BODEN (P3: Wegdecke mit Lippen, Gelände,
+ ## Saum), die EICHE (P4), die WEGBAUTEN samt Keiler-Optik (P5), das
+@@ -35,9 +35,24 @@ class_name Level05
+ ## (`L05Jagd`), Keilerklänge, D4/L5 1,2 m weiter hinten, das verborgene
+ ## Zielportal (ENTKOMMEN_S), die Richtzeit mit Zeitkisten (ZIELZEIT) und
+ ## das Bild der Eiche, der Wände, Lücken, Findlinge und des Lichts – je im
+-## Kopf des Moduls begründet, gesammelt in `doku/level05-neubau.md`
++## Kopf des Moduls begründet, gesammelt in `doku/raum1/level05-neubau.md`
+ ## (Abschnitt 13, „R1“).
+ ##
++## STAND: Spielbar, alle Proben sauber (LevelCheck, Sprung-, Jagd- und
++## Wahrzeichenprobe). Die zweite Runde der Spiel- und der Bild-Jury (R2)
++## hat das Level NICHT abgenommen; ihre Befunde sind nicht bearbeitet und
++## stehen in der Doku, Abschnitt 16. Die schweren davon:
++##   * G3 Sonnensims (Kisten auf q 4,9) und die Kistenreihe 260,0–262,4
++##     auf q 2,2 liegen nebeneinander zwischen CP4 und CP5. Beide in einem
++##     Durchgang zu holen gelang der Jury in 36 Varianten nie – der
++##     Kisten-Edelstein (alle 49) ist damit praktisch nicht zu haben.
++##     Ursache: P1a hat G3 um 5 m verschoben (siehe ABWEICHUNGEN), die
++##     Reihe blieb, wo sie war. Vorschlag der Jury: Reihe auf
++##     263,6/264,8/266,0, danach Zeitkisten neu prüfen.
++##   * Tödliche Lücken sehen im Anlauf wie Stufen aus: Die ferne Stirn ist
++##     seit R1 oben hell (STIRN_VERDECKUNG), Luma der Lücke im Mittel 67–88.
++##   * Die Hauereiche liest sich nah als Bretter, fern als Pilzhüte.
++##
+ ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
+ ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
+ ## Begehbares, Leitlinien, Kisten, Früchte, Rastplätze, Geheimnisse) und
+@@ -707,7 +722,9 @@ const SICHTWEITEN := {"kiste": 50.0, "frucht": 40.0, "kiste_web": 40.0, "frucht_
+ ## 1,3 × 11,58 = 15,1 → 15 s: Gold (85 %) 12,75 s, Platin (72 %) 10,8 s.
+ ## Damit heißt Saphir: die meisten Zeitkisten der Hauptlinie mitnehmen
+ ## (gut 20 von 28 s), Gold: fast alle, Platin: dazu die Zeitkisten der
+-## Geheimnisse G1–G3 oder eine schnellere Linie als die Referenz.
++## Geheimnisse G1 und G2 oder eine schnellere Linie als die Referenz. Auf
++## G3 fällt keine Zeitkiste (Spiel-Jury R2, gemessen: 15 Zeitkisten mit
++## 30 s, davon 2,0/q 5,5 auf G1 und 84,1/q 6,1 auf G2).
+ const ZIELZEIT := 15.0
+ 
+ # =========================================================== Proben
