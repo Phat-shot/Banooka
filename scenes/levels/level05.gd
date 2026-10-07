@@ -667,11 +667,30 @@ const SICHTWEITEN := {"kiste": 50.0, "frucht": 40.0, "kiste_web": 40.0, "frucht_
 ## nach dem Aufbau los und enthält die 4,5 s Schlussmeldung im Level; mit
 ## 53 s holte schon der Bot mit zwei Stolperern und ohne Zeitkiste Platin.
 ##
-## 1,3 × 37,0 = 48,1 → 48 s: Gold (85 %) 40,8 s, Platin (72 %) 34,56 s.
-## Ideallauf ohne Zeitkisten ≈ 34,4 s (§6.6: A 2,7 s + ab dem Wecken
-## 30,95 s laut Jagdprobe + 0,8 s). Saphir also für jeden Überlebenden mit
-## ein, zwei Fehlern, Gold für einen sauberen Lauf, Platin nur fast perfekt
-## oder mit ein, zwei Zeitkisten (je 1–3 s) – wie §6.6 es will.
+## 1,3 × 37,0 = 48,1 → 48 s (ein dritter Lauf: 36,9 s, auch 48): Gold
+## (85 %) 40,8 s, Platin (72 %) 34,56 s.
+##
+## WAS DIE STUFEN HIER BEDEUTEN – gemessen, nicht wie §6.6 es hoffte
+## („Saphir für Überlebende mit ein, zwei Fehlern, Gold für einen sauberen
+## Lauf"). Der Keiler läuft ab dem Wecken mit festem Tempo: Jede Sekunde
+## Stehen kostet 7,4 m Abstand, Laufen holt 1,1 m/s zurück, höchstens bis
+## 15 m; bei 2 m fängt er. Wer überlebt, kann also kaum langsam sein.
+## Jagdprobe (60 Hz, vom Respawn am Start bis ins Zielportal):
+##   Ideallauf                                    35,0 s
+##   Stolpern an D3 und D4                        ≈ 36,6 s
+##   dazu 1,0 s Zögern vor L5                     gefangen
+##   drei Pausen je 1,7 s (s 36, 150, 265)        ≈ 40,1 s, je 1,9 s gefangen
+## Gerechnet: Der Keiler läuft ab dem Wecken von s 16 mindestens 7,4 m/s;
+## wer s 284,5 (sicher hinter dem Ufer) später als (284,5 − 2 − 16) / 7,4
+## ≈ 36,0 s nach dem Wecken erreicht, ist gefangen – bis ins Ziel also
+## höchstens ≈ 41 s. Damit:
+##   Gold     fast jeder Überlebende, der vor dem Wecken (Abschnitt A, die
+##            Suhle) und hinter dem Ufer nicht trödelt;
+##   Saphir   praktisch nur, wer genau dort trödelt;
+##   Platin   nur mit Zeitkisten (je 1–3 s) oder schneller als die
+##            Ideallinie der Probe (§6.6 rechnete den Ideallauf zu 34,4 s).
+## Die Formel 1,3 × Bot ist verbindlich (§6.6, Baukasten §4 Nr. 13) und
+## bleibt; bei einer Jagd mit festem Tempo trägt Saphir damit kaum.
 const ZIELZEIT := 48.0
 
 # =========================================================== Proben
@@ -819,6 +838,15 @@ const VORRECHNEN_DANN: Array[String] = ["waldboden", "fels", "wurzelfels", "pfue
 ## werden konnte der Löss ohne Eingriff in den geteilten Code nicht.
 ## Liegen sie im Bauspeicher, stößt das hier nichts an. Was nie abgeholt
 ## wird, wartet das Level beim Verlassen ab (`vorrechnungen_verwerfen`).
+##
+## GRENZE (Entscheidung K1 zu Entwurf §9.4): Kalt ≤ 8 s gilt für den
+## Spielweg aus dem Portalraum. Dort ist die Szene samt Skripten meist
+## schon vorgeladen (`Spielfluss.vorladen_naechstes`); gemessen 4,85–5,06 s
+## Aufbau, ohne Vorladen 7,6–7,8 s gesamt. Die Bauzeitprobe mit Level 05
+## allein übersetzt dazu alle Skripte und baut die Figur. Sie darf im Median
+## bis 8,5 s liegen (gemessen 8,05 und 8,07 s), warm bis 4 s (2,6–2,8 s).
+## Alle Zahlen stammen von einem Rechner. Ein langsamerer hebt sie
+## gemeinsam an; Level 01 lag in derselben Probe kalt bei 10,8–11,3 s.
 func _enter_tree() -> void:
 	if _vorgerechnet:
 		return
