@@ -116,17 +116,32 @@ zu Fuß (`_mit_bodeneffekten()`). Reiter, Rennfahrer und Flieger werden
 getragen und führen ihr Modell selbst; eine Unterklasse, die wieder läuft,
 überschreibt die Methode.
 
-**Hauerjagd (Level 05)** läuft mit der normalen Figur (`Spieler`). Früher
-klebte dort ein `Fluechtling` auf der Kurve und lief von selbst, mit
-Schwung. Jetzt führt das Level den Keiler als Abstand auf der Kurve
-(`level05.gd`): Er läuft immer mit `KEILER_TEMPO` (7,4 m/s, das Lauftempo
-ist 8,5), fällt nie weiter als `HOECHSTABSTAND` (15 m) zurück und tötet
-bei `TODESABSTAND` (2 m). Wer steht, ist aus 12 m in 1,4 s eingeholt
-(gemessen). Hindernisse sind feste Körper mit einer etwas größeren Zone;
-wer sie berührt, stolpert (`Spieler.stolpern`, 0,45 s ohne Vortrieb, kein
-Schaden). Die Jagd beginnt in `_vor_dem_start()`; nach einem Tod bekommt
-der Keiler seinen Abstand (`VORSPRUNG` 12 m) zurück. Die Spalten sind
-3,5 m breit (vorher 5 m, gebaut für den Flüchtling mit bis zu 20 m/s).
+**Hauerjagd (Level 05)** läuft mit der normalen Figur (`Spieler`). Den
+Keiler führt seit dem Neubau das Modul `L05Jagd`
+(`scenes/levels/level05/jagd.gd`) als Stelle auf der Kurve: Er schläft in
+der Suhle (s 16), wacht auf, sobald die Figur den ersten Rastplatz erreicht
+(s 31, Abstand dann genau 15 m), und läuft danach immer mit `TEMPO`
+(7,4 m/s, das Lauftempo ist 8,5), fällt nie weiter als `HOECHSTABSTAND`
+(15 m) zurück und fängt bei `FANGABSTAND` (2 m). Am Ufer vor dem Wehr
+(`UFER_S` 282) bleibt er stehen und schnaubt. Über Lücken, Stufen und
+Hürden springt er (nur Optik, der Abstand rechnet auf der Strecke weiter),
+durch Duckdurchlässe bricht er (`L05Wegbauten.bruch_stellen`: Körper und
+Stolperzone aus, Bruch sichtbar); nach einem Tod steht er `VORSPRUNG`
+(12 m) hinter dem Rastplatz, und die Durchlässe dahinter sind wieder heil.
+Sein Körper (sieben Glieder, Haltungen, Staub, Splitter, Wasserschwall)
+steht in `scenes/enemies/keiler.gd`.
+
+Die Hindernisse sind Bauteile von `KorridorLevel`: `duckdurchlass` (Riegel
+0,95–4,4 m, nur im Slide oder krabbelnd zu durchqueren), `huerde`
+(0,7 × 0,6 m, darüber springen) und `findling_hindernis` (Block, um den man
+herumläuft). Ihre Körper liegen auf Ebene 16 (Spielergrenze), damit der
+Kamerastrahl hindurchgeht; wer an ihre Stirn läuft, stolpert
+(`Spieler.stolpern`, 0,45 s ohne Vortrieb, kein Schaden). Die Optiken baut
+`L05Wegbauten` passgenau auf die Körper; die Werkstatt zeigt sie mit
+denselben Funktionen einzeln (Stationen 34–38). Die tödlichen Lücken sind
+3,0–3,5 m breit, das gebrochene Wehr 5,0 m (nur mit Doppelsprung). Daten,
+Module und Messwerte: `scenes/levels/level05.gd` (Kopf) und
+`doku/level05-neubau.md`.
 
 ### Bodenschatten (`scripts/bodenschatten.gd`, `class_name Bodenschatten`)
 

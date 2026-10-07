@@ -565,8 +565,9 @@ func _durchlaesse_pruefen(wirkung: bool = false) -> void:
 			_durchlass_stellen(i, soll, wirkung)
 
 
-## Körper und Stolperzone aus bzw. an, heile Optik und Bruch umschalten.
-## Aufgeschoben, weil das mitten im Physikschritt geschieht.
+## Körper und Stolperzone aus bzw. an, heile Optik und Bruch umschalten
+## (`L05Wegbauten.bruch_stellen`, aufgeschoben, weil das mitten im
+## Physikschritt geschieht – dieselbe Schaltung zeigt die Werkstatt).
 func _durchlass_stellen(i: int, gebrochen: bool, wirkung: bool = false) -> void:
 	_gebrochen[i] = gebrochen
 	var koerper := _durchlaesse[i]
@@ -579,10 +580,4 @@ func _durchlass_stellen(i: int, gebrochen: bool, wirkung: bool = false) -> void:
 		if koerper.has_meta("gerinne"):
 			wasser = _level.to_global(_level.weg_punkt(mitte, q, float(koerper.get_meta("gerinne"))))
 		_haltung("durchbrechen", [ort, wasser])
-	for kind in koerper.get_children():
-		if kind is CollisionShape3D:
-			kind.set_deferred("disabled", gebrochen)
-		elif kind is Area3D:
-			kind.set_deferred("monitoring", not gebrochen)
-		elif kind is Node3D:
-			(kind as Node3D).visible = gebrochen if kind.name == &"Bruch" else not gebrochen
+	L05Wegbauten.bruch_stellen(koerper, gebrochen)

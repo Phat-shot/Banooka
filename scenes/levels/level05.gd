@@ -18,14 +18,18 @@ class_name Level05
 ##     265 – 300  E Mühlbach       Wehrkrone, L6 Wehrbruch (Doppelsprung)
 ##     300 – 332  Auslauf          nur Kulisse, die Kamera steht bei s + 21
 ##
-## NEUBAU nach dem Entwurf `entwurf_l05.md` (Raum 1). Gebaut sind der
+## NEUBAU nach dem Entwurf für Raum 1; er steht mit den Messwerten aller
+## Pakete in `doku/level05-neubau.md`, und die „Entwurf §…“ in diesem Code
+## meinen seine Abschnitte. Gebaut sind der
 ## ROHBAU (Pakete P1a/P1b: Verlauf, Weg, Bauteile, Spielobjekte, Jagd und
 ## Proben, voll spielbar), der BODEN (P3: Wegdecke mit Lippen, Gelände,
 ## Saum), die EICHE (P4), die WEGBAUTEN samt Keiler-Optik (P5), das
 ## WASSER (P6: Suhle, Rinnsale, Tobelbach, Mühlteich, Weißwasser, Mühlrad),
 ## WALD und RASEN (P7) und die STIMMUNG (P8: Himmel, Sonne und Lichter,
 ## Tiefennebel und Bildrahmen in Level05.tscn; Zonen, Horizont, Bewegung
-## in der Luft, Krähen und Mühle in `L05Stimmung`).
+## in der Luft, Krähen und Mühle in `L05Stimmung`). Durchlässe, Hürde,
+## Findlinge, Wurzeltreppe und Wehrbruch zeigt die Werkstatt einzeln
+## (Stationen 34–38, P9).
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,

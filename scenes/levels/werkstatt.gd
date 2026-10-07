@@ -19,7 +19,8 @@ extends KorridorLevel
 ## die Schlucht, 20–29 die Bauteile aus Level 01 (Stämme, Kronen, Steine,
 ## Bewuchs, Zaun, Saum, Waldsetzer, Weltenbaum im Kleinen). 30–33 gehören
 ## dem Baukasten für Raum 1 (Plan `baukasten.md` §1.7), die neuen Level
-## hängen ab 34 an.
+## hängen ab 34 an: 34–38 sind die Bauteile von Level 05 (Entwurf L05 §12
+## P9), Station 33 ist noch frei (siehe unten).
 ##
 ## Station 30 „Unterbau": der Weg aus `Wegdaten` (scripts/gemeinsam/
 ## wegdaten.gd) – Terrassen ±1,2 m mit Stufenkollision, Decke ohne
@@ -79,18 +80,45 @@ extends KorridorLevel
 ## sichtbar regelt er Nebel- und Umgebungsfarbe, Umgebungslicht, Sonne und
 ## Rahmen.
 ##
-## ZWEI WEGDATEN. `weg` beschreibt den ganzen Prüfstand (die alte Strecke
-## samt Station 30 bis 32), damit `breite_bei`, `boden_bei` & Co. überall
+## Station 33 (818–910) bleibt dem Kameraplan vorbehalten (Paket G6,
+## Baukasten §4 Nr. 12: Hochblick, Seite mit Eck- und Drehblende, tiefe
+## Kamera mit Deckel). Bis dahin ist sie ein gerader Weg ohne Bauteile auf
+## dem Gelände von Station 32: Es misst Strecke und Querlage zur Kurve bis
+## zu ihrem alten Ende (`_sq_31`), und Station 33 setzt diese Kurve gerade
+## fort – so liegt ihr Weg von selbst in der Mulde zwischen Hang und Wiese.
+##
+## Station 34–38 „Wegbauten von Level 05" (Paket P9 des Neubaus): die
+## Bauteile aus `L05Wegbauten`, gebaut von DENSELBEN Funktionen wie im Level
+## – nur der Rand (wo Leitlinien und Böschungskronen stehen) kommt von hier
+## (`_rand_34`). In einem Hohlweg aus Löss (Wegdecke im Ton von Level 05,
+## 9 m breit, Leitlinien ±5,1), auf einem eigenen Gelände mit Böschungen,
+## Bach und Gruben (`_hoehe_34`):
+##   34  Duckdurchlass in den drei Optiken – Wildgatter (Tiefe 1,6),
+##       Wurzelbogen (1,8) und Fluderjoch (1,6) –, jede heil und 14 m
+##       dahinter gebrochen (`L05Wegbauten.bruch_stellen`: Körper und
+##       Stolperzone aus, Bruch sichtbar – so, wie der Keiler ihn hinterlässt)
+##   35  Wurzelhürde (`huerde`, 0,7 × 0,6, Stolperzone 1,0 × 0,8)
+##   36  Findlingsgasse (`findling_hindernis`, je 4,6 × 1,6 × 1,4, versetzt
+##       um q ±2,2 wie F1/F2)
+##   37  Wurzeltreppe aus zwei Tritten à 0,6 m, dann eine Terrassenlücke
+##       von 3,4 m mit 1,2 m Fall (wie S1 und L2), dahinter eine Rampe
+##   38  Wehrbruch: 5,0 m auf der Wehrkrone (7 m breit), Pfahlreihen,
+##       Holme und gebrochene Pfähle (`L05Wegbauten.wehr`), Doppelsprung
+## `sprungfaelle()` misst jedes Bauteil wie in Level 05.
+##
+## WEGDATEN. `weg` beschreibt den ganzen Prüfstand (die alte Strecke
+## samt Station 30 bis 38), damit `breite_bei`, `boden_bei` & Co. überall
 ## stimmen. Gebaut wird aus `weg` aber nur Station 30 (`_weg_30`), 31
-## (`_weg_31`, eigene Lücken für den Stoff der Decke) und 32 (`_weg_32`):
-## Der alte Boden bis 450 bleibt der Korridor mit Bordstein, auf dem die
-## Stationen 1–29 stehen. Für die alten Stationen ändert `weg` nichts –
-## ihre Stellen liegen weit von jeder Kante, Breite und Klemmung bleiben
-## dieselben.
+## (`_weg_31`, eigene Lücken für den Stoff der Decke), 32 (`_weg_32`) und
+## 33–38 (`_weg_34`): Der alte Boden bis 450 bleibt der Korridor mit
+## Bordstein, auf dem die Stationen 1–29 stehen. Für die alten Stationen
+## ändert `weg` nichts – ihre Stellen liegen weit von jeder Kante, Breite
+## und Klemmung bleiben dieselben.
 
-## Bis 822,7 m reicht die Kurve (Station 31 und 32 haben sie verlängert,
-## siehe `_verlauf_anlegen`).
-const M_ENDE := 818.0
+## Bis 1122,9 m reicht die Kurve (Station 31, 32 und 33–38 haben sie
+## verlängert, siehe `_verlauf_anlegen`). Bis 818 stand hier das Ende von
+## Station 32 (heute M_STATION_33).
+const M_ENDE := 1112.0
 const ABSTURZ := -8.0
 const WEGBREITE := 12.0
 ## Bis hier reicht der alte Boden (Korridor mit Bordstein), danach Station 30.
@@ -133,6 +161,18 @@ const SCHILD_SPRUNGBAHN := 509.0
 const M_STATION_31 := 554.0
 ## Ende der Themenbühne, Anfang von Station 32 (Bewuchs).
 const M_STATION_32 := 690.0
+## Ende von Station 32, Anfang der freien Station 33 (Kameraplan, G6) – bis
+## Paket P9 war das M_ENDE. Station 32 rechnet weiter mit diesem Ende: ihr
+## Gelände, ihre Haine, ihr Rasen und der Sichtkegel ihres Waldrahmens
+## bleiben, wie sie waren (die Kurve bis dahin ist bitgleich).
+const M_STATION_33 := 818.0
+## Anfang der Bauteile von Level 05 (Station 34–38) und der einzelnen
+## Stationen darin.
+const M_STATION_34 := 910.0
+const M_STATION_35 := 998.0
+const M_STATION_36 := 1014.0
+const M_STATION_37 := 1040.0
+const M_STATION_38 := 1084.0
 
 const STATION_30 := [
 	{"name": "30A", "von": M_STATION_30, "bis": 458.0, "breite": WEGBREITE,
@@ -200,11 +240,11 @@ const WEGBREITE_32 := 8.0
 const LEITLINIE_Q_32 := 5.0
 const LEITLINIEN_32 := [
 	{"name": "Links 32", "aussen": -1.0, "hoehe": 6.0, "unten": 3.0,
-			"schulter": Vector2(M_STATION_32, M_ENDE), "punkte": [
-				Vector2(M_STATION_32, -LEITLINIE_Q_32), Vector2(M_ENDE, -LEITLINIE_Q_32)]},
+			"schulter": Vector2(M_STATION_32, M_STATION_33), "punkte": [
+				Vector2(M_STATION_32, -LEITLINIE_Q_32), Vector2(M_STATION_33, -LEITLINIE_Q_32)]},
 	{"name": "Rechts 32", "aussen": 1.0, "hoehe": 6.0, "unten": 3.0,
-			"schulter": Vector2(M_STATION_32, M_ENDE), "punkte": [
-				Vector2(M_STATION_32, LEITLINIE_Q_32), Vector2(M_ENDE, LEITLINIE_Q_32)]},
+			"schulter": Vector2(M_STATION_32, M_STATION_33), "punkte": [
+				Vector2(M_STATION_32, LEITLINIE_Q_32), Vector2(M_STATION_33, LEITLINIE_Q_32)]},
 ]
 ## Der Hang links: so hoch (über der Decke) steht sein Kamm, so weit vom
 ## Wegrand beginnt er und so weit liegt der Kamm. Rechts die Mulde: Mitte
@@ -266,6 +306,8 @@ var _weg_31: Wegdaten
 var _weg_32: Wegdaten
 ## Station 31: das Gelände je Thema (für das Ufer des Baches).
 var _felder_31: Array[GelaendeFeld] = []
+## Die Kurve bis Station 32 (ohne 33–38), für `_sq_31`.
+var _verlauf_32: Curve3D
 ## Station 32: das Gelände (Bäume und Rasen stehen auf seiner gezeichneten
 ## Höhe) und der Rahmen des Waldes (Bauschritt Haine, danach verworfen).
 var _feld_32: GelaendeFeld
@@ -318,6 +360,9 @@ func _bauschritte() -> Array:
 	]
 	schritte.append_array(_station_31_schritte())
 	schritte.append_array(_station_32_schritte())
+	# Nach Station 32: Deren Waldrahmen und Rasen lesen die Kisten, die bis
+	# dahin stehen (`kisten_orte`) – die von 37 und 38 kämen sonst hinzu.
+	schritte.append_array(_station_34_schritte())
 	schritte.append_array([
 		{"text": "Portale", "tun": _portale},
 		{"text": "Schilder", "tun": _schilder_setzen},
@@ -336,6 +381,13 @@ func _bauschritte() -> Array:
 ## und 0,42° ab. Der erste neue Punkt liegt dafür nur 10 m weiter in
 ## derselben Richtung: Je weiter er läge, desto stärker änderte er das
 ## letzte Stück (15 cm bei 24 m).
+##
+## Die Stationen 33–38 hängen ihre Punkte hinter das alte Ende (s 822,7)
+## an, ohne einen alten Punkt anzufassen (`_kurve_anhaengen`): Die Kurve bis
+## dorthin ist Bit für Bit dieselbe – gemessen alle 0,1 m (Ort, Drehung,
+## Aufwärtsvektor) und an allen 6064 gebackenen Punkten. Ein Punkt in der
+## Liste unten hätte dagegen den Griff des alten letzten Punkts verändert
+## und damit das Stück 800–822,7 von Station 32.
 ##
 ## Die Wegdaten entstehen hier, vor allen Bauschritten (siehe Kopf).
 func _verlauf_anlegen() -> void:
@@ -378,12 +430,16 @@ func _verlauf_anlegen() -> void:
 		Vector3(465, 0, -402),
 		Vector3(482, 0, -416),
 	])
+	_verlauf_32 = verlauf.duplicate() as Curve3D
+	_kurve_anhaengen(verlauf, VERLAUF_33)
 	var station_31 := _station_31_abschnitte()
 	var station_32 := _station_32_abschnitte()
+	var station_34 := _station_34_abschnitte()
 	var alle: Array = STRECKE.duplicate()
 	alle.append_array(STATION_30)
 	alle.append_array(station_31)
 	alle.append_array(station_32)
+	alle.append_array(station_34)
 	weg = Wegdaten.new(verlauf, {"abschnitte": alle})
 	_weg_32 = Wegdaten.new(verlauf, {"abschnitte": station_32, "leitlinien": LEITLINIEN_32})
 	_weg_30 = Wegdaten.new(verlauf, {"abschnitte": STATION_30, "leitlinien": LEITLINIEN_30})
@@ -403,6 +459,27 @@ func _verlauf_anlegen() -> void:
 				"q_von": WEGBREITE_31 * 0.5 + 0.8, "q_bis": 20.0, "oben_y": SPIEGEL_31 - 0.1,
 				"unten_y": SPIEGEL_31 - 6.0})
 	_weg_31.todeszonen = zonen
+	# Station 33–38: „Boden − 6" überall, auch unter den beiden Lücken (der
+	# gezeichnete Grund liegt dort tiefer, GRUND_34).
+	_weg_34 = Wegdaten.new(verlauf, {"abschnitte": station_34, "leitlinien": LEITLINIEN_34})
+	_weg_34.todeszonen = Wegdaten.zonen_unter_boden(_weg_34, M_STATION_33, M_ENDE, -30.0, 30.0,
+			TOD_UNTER_34, 12.0)
+
+
+## Hängt Punkte hinten an eine fertige Kurve, ohne einen ihrer Punkte zu
+## verändern: Jeder neue Punkt bekommt seine Griffe wie in
+## `LevelWerkzeuge.kurve_aus_punkten` (±(nachher − vorher) · 0,45/2), der
+## bisher letzte behält seine. Godot backt jedes Kurvenstück für sich – so
+## bleibt alles bis zum alten Ende gleich.
+static func _kurve_anhaengen(kurve: Curve3D, punkte: Array) -> void:
+	var alle: Array[Vector3] = [kurve.get_point_position(kurve.point_count - 1)]
+	for p: Vector3 in punkte:
+		alle.append(p)
+	for i in range(1, alle.size()):
+		var vorher := alle[i - 1]
+		var nachher := alle[mini(i + 1, alle.size() - 1)]
+		var griff := (nachher - vorher) * 0.45 * 0.5
+		kurve.add_point(alle[i], -griff, griff)
 
 
 ## Der alte Boden (Station 1–29) und Warnpfosten an den Lücken – nur bis
@@ -429,6 +506,12 @@ func _absturz_spannen() -> void:
 	absturzzonen(18.0, 70.0)
 
 
+## Der Ring richtet sich nach `ende()` (Radius ende · 0,6, Mitte bei
+## ende / 2) und ist mit M_ENDE 1112 (P9) gewandert. Gemessen, kleinster
+## Abstand vom Weg zum nahen Ring: bis P9 115 m am alten Ende (s 818), dort
+## schnitt ihn die Sichtweite der Kamera (200 m) als graue Fläche an; jetzt
+## mindestens 217 m auf Station 1–32 (dort nicht mehr im Bild) und 139 m am
+## neuen Ende (s 1112), wo er wie vorher am alten zu sehen ist.
 func _horizont_bauen() -> void:
 	horizont(200.0, 30.0, Color(0.38, 0.40, 0.34), Color(0.58, 0.62, 0.58),
 			true, -7.0)
@@ -1111,12 +1194,28 @@ func _feld_31(a: float, b: float) -> GelaendeFeld:
 	return feld
 
 
-## (s, q) eines Weltpunkts zur Kurve der Werkstatt.
+## (s, q) eines Weltpunkts zur Kurve der Werkstatt BIS Station 32
+## (`_verlauf_32`, ohne die angehängten Stationen 33–38). Gelände, Haine,
+## Totholz und Rasen von Station 31 und 32 fragen hiernach: Mit der ganzen
+## Kurve lag jeder Punkt hinter dem alten Ende näher an Station 33 als
+## vorher, und Station 32 bekam ein anderes Gelände (gemessen: 7 von 9
+## Stücken, dazu Kronen und Rasen an ihrem Ende). So bleibt sie Bit für Bit,
+## wie sie war. Station 33 läuft geradeaus weiter: Hinter dem alten Ende ist
+## q hier dasselbe wie zur neuen Kurve, der Hang von Station 32 folgt ihr.
 func _sq_31(x: float, z: float) -> Vector2:
+	return _sq(_verlauf_32, x, z)
+
+
+## (s, q) eines Weltpunkts zur ganzen Kurve (Station 34–38).
+func _sq_34(x: float, z: float) -> Vector2:
+	return _sq(verlauf, x, z)
+
+
+static func _sq(kurve: Curve3D, x: float, z: float) -> Vector2:
 	var p := Vector3(x, 0.0, z)
-	var s := verlauf.get_closest_offset(p)
-	var mitte := verlauf.sample_baked(s)
-	var rechts := LevelWerkzeuge.richtung(verlauf, s).cross(Vector3.UP).normalized()
+	var s := kurve.get_closest_offset(p)
+	var mitte := kurve.sample_baked(s)
+	var rechts := LevelWerkzeuge.richtung(kurve, s).cross(Vector3.UP).normalized()
 	var d := p - mitte
 	d.y = 0.0
 	return Vector2(s, d.dot(rechts))
@@ -1373,7 +1472,7 @@ var _fuesse_32 := PackedVector2Array()
 ## der Kronen (0,5 wie im Wald der Themenbühne) lag die Decke als dunkles
 ## Band zwischen dem hellen Gelände: Hier steht der Weg im Offenen.
 func _station_32_abschnitte() -> Array:
-	return [{"name": "32 Bewuchs", "von": M_STATION_32, "bis": M_ENDE,
+	return [{"name": "32 Bewuchs", "von": M_STATION_32, "bis": M_STATION_33,
 			"breite": WEGBREITE_32, "stoff": "wald"}]
 
 
@@ -1413,7 +1512,7 @@ func _feld_32_anlegen() -> GelaendeFeld:
 	var a := Vector2(INF, INF)
 	var b := Vector2(-INF, -INF)
 	var s := M_STATION_32
-	while s <= M_ENDE + 4.0:
+	while s <= M_STATION_33 + 4.0:
 		var p := verlauf.sample_baked(s)
 		a = Vector2(minf(a.x, p.x), minf(a.y, p.z))
 		b = Vector2(maxf(b.x, p.x), maxf(b.y, p.z))
@@ -1440,7 +1539,7 @@ func _feld_32_anlegen() -> GelaendeFeld:
 	for seite: float in [-1.0, 1.0]:
 		var linie := PackedVector2Array()
 		s = M_STATION_32 + 0.5
-		while s <= M_ENDE + 3.0:
+		while s <= M_STATION_33 + 3.0:
 			var p := LevelWerkzeuge.punkt_frei(verlauf, s, seite * (WEGBREITE_32 * 0.5 + 0.05))
 			linie.append(Vector2(p.x, p.z))
 			s += 1.0
@@ -1454,7 +1553,12 @@ func _feld_32_anlegen() -> GelaendeFeld:
 ## sanften Wellen, rechts eine Wiese mit einer Mulde, weiter draußen leicht
 ## ansteigend.
 func _hoehe_32(x: float, z: float) -> float:
-	var sq := _sq_31(x, z)
+	return _hoehe_32_sq(_sq_31(x, z))
+
+
+## Dasselbe zu (s, q) – für das Gelände von Station 34–38, das seinen Weg
+## an der ganzen Kurve misst (`_hoehe_34`).
+func _hoehe_32_sq(sq: Vector2) -> float:
 	var s := sq.x
 	var q := sq.y
 	var aussen := absf(q) - WEGBREITE_32 * 0.5
@@ -1506,11 +1610,11 @@ func _wald_32(x: float, z: float) -> float:
 func _station_32_haine() -> void:
 	var kamera := get_node_or_null("CorridorCamera") as KorridorKamera
 	_rahmen_32 = Waldrahmen.new(weg, kamera, kisten_orte(),
-			{"von": M_STATION_32 - 6.0, "bis": M_ENDE + 4.0})
+			{"von": M_STATION_32 - 6.0, "bis": M_STATION_33 + 4.0})
 	var rahmen := _rahmen_32
 	rahmen.sperren.append(LICHTUNG_32)
-	rahmen.kegel_entlang(M_STATION_32 + 4.0, M_ENDE - 34.0, 4.0,
-			weg_punkt(M_ENDE - 4.0, 0.0, 2.0), 4.0, 10.0)
+	rahmen.kegel_entlang(M_STATION_32 + 4.0, M_STATION_33 - 34.0, 4.0,
+			weg_punkt(M_STATION_33 - 4.0, 0.0, 2.0), 4.0, 10.0)
 	var hoehe := _feld_32.hoehe_bei
 	var modelle := not Fremdmodelle.rolle("M3").is_empty()
 	var ws := Waldsetzer.new(deko, "Bewuchs 32", 48.0)
@@ -1556,7 +1660,7 @@ func _station_32_haine() -> void:
 			if d > 40.0 or d < 9.0:
 				continue
 			var sq := _sq_31(mitte.x, mitte.y)
-			if sq.x < M_STATION_32 + 2.0 or sq.x > M_ENDE - 2.0:
+			if sq.x < M_STATION_32 + 2.0 or sq.x > M_STATION_33 - 2.0:
 				continue
 			var w := _wald_32(mitte.x, mitte.y)
 			if w < 0.3:
@@ -1639,7 +1743,7 @@ func _totholz_32(ws: Waldsetzer, rng: RandomNumberGenerator) -> void:
 		var p := Vector2(rng.randf_range(bereich.position.x, bereich.end.x),
 				rng.randf_range(bereich.position.y, bereich.end.y))
 		var sq := _sq_31(p.x, p.y)
-		if sq.y <= 0.0 or sq.x < M_STATION_32 + 4.0 or sq.x > M_ENDE - 4.0:
+		if sq.y <= 0.0 or sq.x < M_STATION_32 + 4.0 or sq.x > M_STATION_33 - 4.0:
 			continue
 		if not _rahmen_32.platz(p, 12.0, 40.0) or _wald_32(p.x, p.y) > 0.4:
 			continue
@@ -1659,7 +1763,7 @@ func _fernwald_32(ws: Waldsetzer, rng: RandomNumberGenerator) -> void:
 	var rahmen := _rahmen_32
 	var hoehe := _feld_32.hoehe_bei
 	var s := M_STATION_32 + 4.0
-	while s < M_ENDE - 4.0:
+	while s < M_STATION_33 - 4.0:
 		var p := LevelWerkzeuge.punkt_frei(verlauf, s + rng.randf_range(-2.0, 2.0),
 				rng.randf_range(FERNE_Q_32.x, FERNE_Q_32.y))
 		s += FERNE_SCHRITT_32
@@ -1701,11 +1805,11 @@ func _station_32_rasen(seite: float) -> void:
 			var sq := _rasen_32.strecke_quer(Vector3(p.x, 0.0, p.y))
 			_rasen_32.kreis(sq.x, sq.y, 0.7)
 	var rasen := _rasen_32
-	rasen.decke(M_STATION_32, M_ENDE, seite)
-	rasen.boden(M_STATION_32, M_ENDE, seite, WEGBREITE_32 * 0.5, 14.0 if seite < 0.0 else 18.0,
+	rasen.decke(M_STATION_32, M_STATION_33, seite)
+	rasen.boden(M_STATION_32, M_STATION_33, seite, WEGBREITE_32 * 0.5, 14.0 if seite < 0.0 else 18.0,
 			Rasenbau.DICHTE_SCHULTER,
 			Rasenbau.Bereich.SCHULTER if seite < 0.0 else Rasenbau.Bereich.WIESE)
-	rasen.rahmenfarne(M_STATION_32 + 2.0, M_ENDE - 6.0, seite, null, 6.4, 8.0)
+	rasen.rahmenfarne(M_STATION_32 + 2.0, M_STATION_33 - 6.0, seite, null, 6.4, 8.0)
 	if seite > 0.0:
 		# Blütengruppen an der rechten Wegkante, gesetzt statt gewürfelt.
 		for i in 10:
@@ -1736,6 +1840,384 @@ func _station_32_stimmung() -> void:
 	_nebelstoffe_32 = []
 
 
+# ======================================================= Station 33–38
+
+## Hinter dem alten Ende (s 822,7 bei (482, 0, −416), Richtung 50,5° aus −Z
+## nach +X) angehängt (`_kurve_anhaengen`): zwei Punkte geradeaus in dieser
+## Richtung – Station 33 setzt die alte Kurve gerade fort (siehe `_sq_31`) –,
+## dann je 30 m eine Linkskurve auf 26° und zurück auf 46° (Halbmesser
+## rund 215 m): Die
+## Bauteile drehen sich mit dem Weg, und ein Fehler darin zeigt sich nur auf
+## einer Kurve. Länge danach 1122,9 m (gemessen).
+const VERLAUF_33 := [
+	Vector3(516.74, 0, -444.61), Vector3(551.47, 0, -473.21),
+	Vector3(573.05, 0, -494.05), Vector3(591.52, 0, -517.69), Vector3(606.52, 0, -543.67),
+	Vector3(619.67, 0, -570.64), Vector3(634.67, 0, -596.62), Vector3(653.14, 0, -620.26),
+	Vector3(674.72, 0, -641.10),
+]
+
+## Wegbreiten: Station 33 wie 32, 34–37 wie der Tobel von Level 05, die
+## Wehrkrone wie dort; die Leitlinien je 0,6 m außerhalb der Wegkante (wie
+## Level05.LEITLINIEN). Die Breite wechselt am Ende von 33 und vor der Krone.
+const WEGBREITE_33 := 8.0
+const WEGBREITE_34 := 9.0
+const WEGBREITE_38 := 7.0
+const LEITLINIE_33 := 5.0
+const LEITLINIE_34 := 5.1
+const LEITLINIE_38 := 4.1
+const UEBERGANG_33 := 904.0
+const UEBERGANG_38 := 1088.0
+
+const LEITLINIEN_34 := [
+	{"name": "Links 33–38", "aussen": -1.0, "hoehe": 6.0, "unten": 3.0,
+			"schulter": Vector2(M_STATION_33, M_ENDE), "punkte": [
+				Vector2(M_STATION_33, -LEITLINIE_33), Vector2(UEBERGANG_33, -LEITLINIE_33),
+				Vector2(M_STATION_34, -LEITLINIE_34), Vector2(M_STATION_38, -LEITLINIE_34),
+				Vector2(UEBERGANG_38, -LEITLINIE_38), Vector2(M_ENDE, -LEITLINIE_38)]},
+	{"name": "Rechts 33–38", "aussen": 1.0, "hoehe": 6.0, "unten": 3.0,
+			"schulter": Vector2(M_STATION_33, M_ENDE), "punkte": [
+				Vector2(M_STATION_33, LEITLINIE_33), Vector2(UEBERGANG_33, LEITLINIE_33),
+				Vector2(M_STATION_34, LEITLINIE_34), Vector2(M_STATION_38, LEITLINIE_34),
+				Vector2(UEBERGANG_38, LEITLINIE_38), Vector2(M_ENDE, LEITLINIE_38)]},
+]
+
+## Station 34: die Duckdurchlässe (Schema Level05.DURCHLAESSE, Stirn und
+## Tiefe; die Bauart steht im Namen, `L05Wegbauten.art`). Jede Optik heil,
+## 14 m dahinter gebrochen: Der Anlauf der Sprungprobe (9 m vor der Stirn)
+## beginnt hinter dem Ausgang des vorigen.
+const DURCHLAESSE_34 := [
+	{"name": "34 Wildgatter", "s": 920.0, "tiefe": 1.6},
+	{"name": "34 Wildgatter gebrochen", "s": 934.0, "tiefe": 1.6},
+	{"name": "34 Wurzelbogen", "s": 948.0, "tiefe": 1.8},
+	{"name": "34 Wurzelbogen gebrochen", "s": 962.0, "tiefe": 1.8},
+	{"name": "34 Fluderjoch", "s": 976.0, "tiefe": 1.6},
+	{"name": "34 Fluderjoch gebrochen", "s": 990.0, "tiefe": 1.6},
+]
+## Station 35: Mitte der Wurzelhürde (Körper und Zone aus `KorridorLevel.huerde`).
+const HUERDE_35 := 1004.0
+## Station 36: die Findlingsgasse wie F1/F2 (Level05.FINDLINGE), 6 m versetzt.
+const FINDLINGE_36 := [
+	{"name": "36 Findling links", "s": 1022.0, "q": -2.2, "breite": 4.6},
+	{"name": "36 Findling rechts", "s": 1028.0, "q": 2.2, "breite": 4.6},
+]
+## Station 37 (Welt-Y der Absätze aus STUFE_37; die Kurve liegt auf 0): T0
+## bis zum Tritt der Wurzeltreppe, T1 −1,2 bis zur Lücke, T2 −2,4 bis zur
+## Rampe, die bis M_STATION_38 auf die Kurve zurückführt – wie S1 und L2 in
+## Level 05 (Tritt 126,0–126,8, L2 136,3–139,7).
+const TRITT_37 := Vector2(1046.0, 1046.8)
+const LUECKE_37 := Vector2(1056.3, 1059.7)
+const STUFE_37 := 0.6
+const RAMPE_37 := Vector2(1070.0, M_STATION_38)
+## Station 38: die Wehrkrone und der Bruch darin (Level 05: Krone 279–294,
+## L6 284–289).
+const KRONE_38 := Vector2(1090.0, 1105.0)
+const LUECKE_38 := Vector2(1095.0, 1100.0)
+## Kisten (s, q) als Maßstab: auf T1 (wie in Level 05 auf T1 und hinter dem
+## Wehr), neben der Bahn der Sprungprobe.
+const KISTEN_37 := [Vector2(1048.6, 2.0), Vector2(1049.8, 2.0), Vector2(1103.5, 2.0),
+		Vector2(1104.7, 2.0)]
+
+## Gelände (`_hoehe_34`): Kronen der Böschungen im Hohlweg über dem Feld
+## (links höher, wie in Level 05) und wie weit hinter der Leitlinie sie
+## liegen – dorthin reichen die Bogenwurzeln (`_rand_34`); der Bach links
+## und die Wand rechts am Fluderjoch; die Senke neben der Wehrkrone; der Grund
+## der Gruben unter der unteren Lippe (tiefer als die Todeszone,
+## TOD_UNTER_34). Wo das gilt: je (von, bis), mit RAND_34 m Übergang.
+## Die Todeszone liegt 6 m unter der Decke wie an Station 30, nicht 4 wie an
+## Station 31: Die Sprungprobe zählt einen Sturz ab 4 m unter dem Absprung
+## als „x" und setzt die Figur sofort neu ab. Mit der Zone 4 m tief starb sie
+## im selben Bild, der aufgeschobene Rücksprung zum Start holte sie im
+## nächsten Versuch zurück, und jeder Versuch danach war „x" (gemessen: alle
+## 18 Stellen des Doppelsprungs am Wehr).
+const KRONE_LINKS_34 := 4.2
+const KRONE_RECHTS_34 := 3.4
+const KRONE_LAUF_34 := 0.9
+const BACH_TIEF_34 := 2.4
+const WAND_34 := 5.0
+const WEHR_TIEF_34 := 1.6
+const GRUND_34 := 6.5
+const TOD_UNTER_34 := 6.0
+const HOHLWEG_34: Array[Vector2] = [Vector2(944.0, 968.0), Vector2(998.0, 1086.0)]
+const JOCH_34 := Vector2(972.0, 996.0)
+const WEHR_34 := Vector2(1088.0, 1118.0)
+const RAND_34 := 4.0
+## So weit reicht das Gelände über den Weg hinaus (wie das von Station 32).
+const FELD_RAND_34 := 70.0
+
+## Station 33–38: die Wegdaten (Decke, Grenzen, Todeszonen).
+var _weg_34: Wegdaten
+
+
+## Station 33–38: die Abschnitte im Schema von Level 01 – Höhen absolut, die
+## Kurve liegt auf 0. "stoff" "frei" (Station 33) trägt den Waldweg von
+## Station 32, alles andere den Löss von Level 05.
+func _station_34_abschnitte() -> Array:
+	return [
+		{"name": "33 frei", "von": M_STATION_33, "bis": UEBERGANG_33, "breite": WEGBREITE_33,
+				"stoff": "frei"},
+		{"name": "33 Übergang", "von": UEBERGANG_33, "bis": M_STATION_34, "breite": WEGBREITE_33,
+				"breite_ende": WEGBREITE_34, "stoff": "frei"},
+		{"name": "34–36", "von": M_STATION_34, "bis": M_STATION_37, "breite": WEGBREITE_34},
+		{"name": "37 T0", "von": M_STATION_37, "bis": TRITT_37.x, "breite": WEGBREITE_34,
+				"hoehe": 0.0},
+		{"name": "37 Tritt", "von": TRITT_37.x, "bis": TRITT_37.y, "breite": WEGBREITE_34,
+				"hoehe": -STUFE_37},
+		{"name": "37 T1", "von": TRITT_37.y, "bis": LUECKE_37.x, "breite": WEGBREITE_34,
+				"hoehe": -2.0 * STUFE_37},
+		{"name": "37 T2", "von": LUECKE_37.y, "bis": RAMPE_37.x, "breite": WEGBREITE_34,
+				"hoehe": -4.0 * STUFE_37},
+		{"name": "37 Rampe", "von": RAMPE_37.x, "bis": RAMPE_37.y, "breite": WEGBREITE_34,
+				"hoehe": -4.0 * STUFE_37, "hoehe_ende": 0.0},
+		{"name": "38 Anlauf", "von": M_STATION_38, "bis": UEBERGANG_38, "breite": WEGBREITE_34,
+				"breite_ende": WEGBREITE_38},
+		{"name": "38 Wehrkrone", "von": UEBERGANG_38, "bis": LUECKE_38.x, "breite": WEGBREITE_38},
+		{"name": "38 Wehrkrone", "von": LUECKE_38.y, "bis": M_ENDE, "breite": WEGBREITE_38},
+	]
+
+
+## Station 33–38: Decke samt Grenzen, das Gelände in zwei Feldern (beide im
+## Bauspeicher), dann die Bauteile – erst die Durchlässe, dann alles
+## andere in einem Sammler.
+func _station_34_schritte() -> Array:
+	var stoff := GelaendeBau.stoff({})
+	var schritte: Array = [{"text": "Wegbauten L05: Wegdecke und Grenzen",
+			"tun": _station_34_decke}]
+	schritte.append_array(GelaendeBau.schritte(geometrie,
+			GelaendeBau.schluessel("werkstatt_wegbauten_ost"), _feld_34_anlegen.bind(true), stoff,
+			"Gelände Wegbauten Ost"))
+	schritte.append_array(GelaendeBau.schritte(geometrie,
+			GelaendeBau.schluessel("werkstatt_wegbauten_west"), _feld_34_anlegen.bind(false),
+			stoff, "Gelände Wegbauten West"))
+	schritte.append({"text": "Wegbauten L05: Durchlässe", "tun": _station_34_durchlaesse})
+	schritte.append({"text": "Wegbauten L05: Hürde, Findlinge, Treppe, Wehr",
+			"tun": _station_35_38})
+	return schritte
+
+
+## Decke (Station 33 im Waldweg, 34–38 im Löss von Level 05 – je ein Stoff,
+## eine Kollision samt Stufen), Leitlinien, Schultern, Todeszonen und die
+## Steine an den Lippen der zwei Lücken (vier bis sechs je Lippe, Level05.
+## LIPPEN_STEINE).
+func _station_34_decke() -> void:
+	var frei := Wegdecke.stoff(_thema_weg("wald"), _weg_34, _weg_34.abschnitte,
+			"werkstatt_frei")
+	var loess := Wegdecke.stoff({"uniforms": {"erde_ton": Level05.LOESS_WEG}}, _weg_34,
+			_weg_34.abschnitte, "werkstatt_wegbauten")
+	_weg_34.decke_bauen(geometrie, func(a: Dictionary) -> Material:
+		return frei if String(a.get("stoff", "")) == "frei" else loess)
+	_weg_34.leitlinien_bauen(geometrie)
+	_weg_34.schultern_bauen(geometrie)
+	_weg_34.todeszonen_bauen(geometrie)
+	Wegdecke.lippen(geometrie, _weg_34, {"name": "Wegbauten", "lippen_steine": Level05.LIPPEN_STEINE,
+			"luecken": [
+				{"name": "W37 Terrassenlücke", "von": LUECKE_37.x, "bis": LUECKE_37.y},
+				{"name": "W38 Wehrbruch", "von": LUECKE_38.x, "bis": LUECKE_38.y}]})
+
+
+## Wo Leitlinien und Böschungskronen stehen – für die Bauteile aus
+## `L05Wegbauten` (in Level 05 lesen sie das aus dessen Tabellen). Die Krone
+## ist die des Hohlwegs (`_hoehe_34`), auch wo keiner ist: Nur der
+## Wurzelbogen fragt danach, und der steht im Hohlweg.
+func _rand_34() -> L05Wegbauten.Rand:
+	var leitlinie := func(_seite: float, s: float) -> float: return _leitlinie_34(s)
+	var krone := func(seite: float, s: float) -> Vector2:
+		return Vector2(_leitlinie_34(s) + KRONE_LAUF_34,
+				KRONE_LINKS_34 if seite < 0.0 else KRONE_RECHTS_34)
+	return L05Wegbauten.Rand.new(leitlinie, krone)
+
+
+## Abstand der Leitlinien von der Mitte (beidseits gleich).
+func _leitlinie_34(s: float) -> float:
+	var punkte: Array = LEITLINIEN_34[1]["punkte"]
+	return absf(Wegdaten.polylinie_q(punkte, clampf(s, M_STATION_33, M_ENDE)))
+
+
+## Station 34: jede Optik heil und gebrochen (siehe Kopf); vor jeder heilen
+## vier Früchte am Boden in Slide-Richtung (wie vor Ü in Level 05).
+func _station_34_durchlaesse() -> void:
+	var rand := _rand_34()
+	for d: Dictionary in DURCHLAESSE_34:
+		var koerper := L05Wegbauten.durchlass(self, d, rand, "werkstatt_durchlass")
+		if String(d["name"]).ends_with("gebrochen"):
+			L05Wegbauten.bruch_stellen(koerper, true)
+			continue
+		var stirn: float = d["s"]
+		for i in 4:
+			frucht_auf(stirn - 3.4 + float(i), 0.0, 0.35)
+
+
+## Station 35–38: Körper der Hürde und der Findlinge, die Netze aller
+## Bauteile in einem Sammler (Bauspeicher „werkstatt_wegbauten"), dann
+## Kisten und Früchte wie in Level 05 – Bögen über Hürde, Lücke und Wehr,
+## eine Linie die Treppe hinab und eine durch die freie Gasse.
+func _station_35_38() -> void:
+	var rand := _rand_34()
+	L05Wegbauten.huerde_koerper(self, HUERDE_35, "35 Wurzelhürde")
+	for f: Dictionary in FINDLINGE_36:
+		L05Wegbauten.findling_koerper(self, float(f["s"]), float(f["q"]), float(f["breite"]),
+				String(f["name"]))
+	var zeichnen := func(sa: L05Wegbauten.Sammler) -> void:
+		L05Wegbauten.huerde_netz(sa, self, HUERDE_35, rand, 3501)
+		for i in FINDLINGE_36.size():
+			var f: Dictionary = FINDLINGE_36[i]
+			L05Wegbauten.findling_netz(sa, self, float(f["s"]), float(f["q"]), float(f["breite"]),
+					3601 + i * 13)
+		L05Wegbauten.stufenwurzel(sa, self, TRITT_37.x, rand, 3701)
+		L05Wegbauten.stufenwurzel(sa, self, TRITT_37.y, rand, 3704)
+		L05Wegbauten.wehr(sa, self, LUECKE_38.x, LUECKE_38.y, KRONE_38,
+				boden_bei(LUECKE_38.x - 0.1) - GRUND_34, rand)
+	L05Wegbauten.abschnitt(deko, "werkstatt_wegbauten", "Wegbauten 35–38", zeichnen)
+	for k: Vector2 in KISTEN_37:
+		kiste_auf(Kiste.Art.NORMAL, k.x, k.y)
+	fruechte_bogen_auf(HUERDE_35 - 1.6, HUERDE_35 + 1.6, 3, 0.0, 1.7)
+	for i in 5:
+		var t := float(i) / 4.0
+		frucht_auf(lerpf(1018.0, 1032.0, t), lerpf(1.75, -1.75, t))
+	for i in 3:
+		frucht_auf(TRITT_37.x - 1.0 + 1.2 * float(i), 0.0)
+	fruechte_bogen_auf(LUECKE_37.x - 0.5, LUECKE_37.y + 0.5, 6, 0.0, 2.6)
+	fruechte_bogen_auf(LUECKE_38.x - 0.5, LUECKE_38.y + 0.5, 7, 0.0, 3.2)
+
+
+## Das Gelände von Station 34–38 in zwei Rechtecken, die an das von Station
+## 32 stoßen, ohne es zu überdecken (dessen `bereich`: x bis 551,4, z ab
+## −485,5): „Ost" östlich davon über die ganze Länge, „West" nördlich davon
+## bis an dieselbe Linie x – dort liegt der Hang links des Weges. Beide mit
+## derselben Höhe (`_hoehe_34`), die an den Rändern zu Station 32 dieselbe
+## ist wie dort (`_hoehe_32`; was 34–38 dazutun, beginnt erst bei
+## M_STATION_34 − RAND_34). So schließen die drei Felder ohne Stufe, wie die
+## Themen von Station 31. Punktreihen an den Wegkanten und quer an den
+## Lippen (je 5 cm vor und 15 cm hinter der Kante): Dort steht die Grube
+## senkrecht unter der Lippe statt als Hang über einen Meter.
+func _feld_34_anlegen(ost: bool) -> GelaendeFeld:
+	var grenze := _feld_32.bereich
+	var a := Vector2(INF, INF)
+	var b := Vector2(-INF, -INF)
+	var s := M_STATION_34 - 10.0
+	while s <= M_ENDE + 6.0:
+		var p := verlauf.sample_baked(s)
+		a = Vector2(minf(a.x, p.x), minf(a.y, p.z))
+		b = Vector2(maxf(b.x, p.x), maxf(b.y, p.z))
+		s += 4.0
+	var z_von := a.y - FELD_RAND_34
+	var feld := GelaendeFeld.new()
+	if ost:
+		var x_von := grenze.end.x
+		feld.bereich = Rect2(x_von, z_von, b.x + FELD_RAND_34 - x_von,
+				b.y + FELD_RAND_34 - z_von)
+		feld.stuecke = Vector2i(3, 4)
+	else:
+		var x_von := a.x - FELD_RAND_34
+		feld.bereich = Rect2(x_von, z_von, grenze.end.x - x_von, grenze.position.y - z_von)
+		feld.stuecke = Vector2i(1, 3)
+	feld.hoehe = _hoehe_34
+	# Punktabstand wie in Station 32, an den Bauteilen enger (Böschungen und
+	# Gruben brauchen die Punkte): An den Rändern zu Station 32 – vor
+	# M_STATION_34 – liegen die Punkte so wie dort.
+	feld.abstand = func(x: float, z: float) -> float:
+		var sq := _sq_34(x, z)
+		if sq.x < M_STATION_34 - RAND_34:
+			return clampf(1.0 + (absf(sq.y) - 6.0) * 0.12, 1.0, 4.0)
+		return clampf(0.7 + (absf(sq.y) - 7.0) * 0.12, 0.7, 4.0)
+	feld.faerben = _faerben_32
+	# UV2.x Verdeckung am Wegrand wie in Station 32.
+	feld.zusatz = func(p: Vector3, _n: Vector3, mulde: float) -> Vector2:
+		var sq := _sq_34(p.x, p.z)
+		var breite := _weg_34.breite_bei(sq.x)
+		var rand := (breite if breite > 0.0 else WEGBREITE_34) * 0.5
+		var ao := clampf(1.0 - mulde * 0.25, 0.65, 1.0)
+		ao = minf(ao, lerpf(1.0, Wegmaske.RAND_VERDECKUNG,
+				1.0 - smoothstep(rand, rand + 2.5, absf(sq.y))))
+		return Vector2(ao, 0.0)
+	for seite: float in [-1.0, 1.0]:
+		var linie := PackedVector2Array()
+		s = M_STATION_34 - 6.0
+		while s <= M_ENDE + 3.0:
+			var breite := _weg_34.breite_bei(s)
+			if breite <= 0.0:
+				breite = WEGBREITE_34 if s < M_STATION_38 else WEGBREITE_38
+			var p := LevelWerkzeuge.punkt_frei(verlauf, s, seite * (breite * 0.5 + 0.05))
+			linie.append(Vector2(p.x, p.z))
+			s += 1.0
+		feld.kanten.append({"punkte": linie, "abstand": 1.0, "reihen": PackedFloat32Array([0.0])})
+	for l: Vector2 in [LUECKE_37, LUECKE_38]:
+		for kante: float in [l.x - 0.05, l.x + 0.15, l.y - 0.15, l.y + 0.05]:
+			var halb := _leitlinie_34(kante) + 1.6
+			var p0 := LevelWerkzeuge.punkt_frei(verlauf, kante, -halb)
+			var p1 := LevelWerkzeuge.punkt_frei(verlauf, kante, halb)
+			feld.kanten.append({"punkte": PackedVector2Array([Vector2(p0.x, p0.z),
+					Vector2(p1.x, p1.z)]), "abstand": 0.5, "reihen": PackedFloat32Array([0.0])})
+	return feld
+
+
+## Höhe des Geländes von Station 33–38: das Feld von Station 32
+## (`_hoehe_32_sq`: ein Weg mit Hang links und Wiese rechts), gemessen an der
+## ganzen Kurve, und darauf, ab M_STATION_34 − RAND_34,
+##   * nahe am Weg die Decke (an Stufen die untere, `_decke_34`); hinter der
+##     Leitlinie steigt es zurück aufs Feld: Böschungen neben T1 und T2,
+##   * im Hohlweg Böschungen, die Kronen KRONE_LAUF_34 hinter der Leitlinie,
+##   * am Fluderjoch links der Bach, rechts die Wand (Level 05 D: Ufer und
+##     Sandstein),
+##   * neben der Wehrkrone WEHR_TIEF_34 tiefer,
+##   * unter den Lücken Gruben GRUND_34 unter der unteren Lippe.
+## Unter der Decke bleibt es 6 cm darunter.
+func _hoehe_34(x: float, z: float) -> float:
+	var sq := _sq_34(x, z)
+	var s := sq.x
+	var q := sq.y
+	# Das Feld von Station 32 zur neuen Kurve, mit dem s ihres alten Endes:
+	# Hinter diesem Ende rechnet Station 32 genau so (`_sq_31` klemmt dort),
+	# die Ränder zu ihr schließen also ohne Stufe; auf 34–38 folgt der Hang
+	# dem neuen Weg, nur ohne die Wellen längs s.
+	var y := _hoehe_32_sq(Vector2(_verlauf_32.get_baked_length(), q))
+	if s < M_STATION_34 - RAND_34:
+		return y
+	var a := absf(q)
+	var leit := _leitlinie_34(s)
+	var decke := _decke_34(s)
+	y += decke * (1.0 - smoothstep(leit, leit + 1.2, a))
+	var hohlweg := 0.0
+	for f in HOHLWEG_34:
+		hohlweg = maxf(hohlweg, _fenster_34(s, f))
+	if hohlweg > 0.0:
+		var krone := KRONE_LINKS_34 if q < 0.0 else KRONE_RECHTS_34
+		y += hohlweg * krone * smoothstep(leit + 0.1, leit + KRONE_LAUF_34, a) \
+				* (1.0 - smoothstep(leit + 5.0, leit + 14.0, a))
+	var joch := _fenster_34(s, JOCH_34)
+	if joch > 0.0:
+		if q < 0.0:
+			y -= joch * BACH_TIEF_34 * smoothstep(leit + 0.05, leit + 1.2, a) \
+					* (1.0 - smoothstep(leit + 4.0, leit + 9.0, a))
+		else:
+			y += joch * WAND_34 * smoothstep(leit + 0.4, leit + 1.2, a) \
+					* (1.0 - smoothstep(leit + 6.0, leit + 16.0, a))
+	var wehr := _fenster_34(s, WEHR_34)
+	if wehr > 0.0:
+		y -= wehr * WEHR_TIEF_34 * smoothstep(leit + 0.05, leit + 0.8, a)
+	if a < _weg_34.breite_bei(s) * 0.5 + 0.05:
+		y = minf(y, decke - 0.06)
+	for l: Vector2 in [LUECKE_37, LUECKE_38]:
+		if s > l.x - 0.02 and s < l.y + 0.02 and a < leit + 1.5:
+			var unten := minf(_weg_34.boden_bei(l.x - 0.01), _weg_34.boden_bei(l.y + 0.01))
+			y = minf(y, unten - GRUND_34)
+	return y
+
+
+## Welt-Y der Decke für das Gelände: die tiefste in ±0,3 m – an einer Stufe
+## liegt das Feld so nie über der unteren Decke.
+func _decke_34(s: float) -> float:
+	var y := INF
+	for d: float in [-0.3, 0.0, 0.3]:
+		y = minf(y, _weg_34.boden_bei(s + d))
+	return y
+
+
+## 0..1: wie weit `s` in (von, bis) liegt, mit RAND_34 m Übergang davor und
+## dahinter.
+static func _fenster_34(s: float, f: Vector2) -> float:
+	return smoothstep(f.x - RAND_34, f.x, s) * (1.0 - smoothstep(f.y, f.y + RAND_34, s))
+
+
 # ======================================================= Probenhaken
 
 ## Die Sprungfälle der Werkstatt (Paket G2): jede Art der Sprungprobe
@@ -1756,12 +2238,21 @@ func _station_32_stimmung() -> void:
 ## läuft. Einen bewegten Träger über einer echten Lücke misst erst das Floß
 ## im Paket von Level 03.
 ## Die Fälle laufen in `pruefe.sh` mit (Stufe 4, voller Lauf).
+##
+## Dahinter die Bauteile von Level 05 (Station 34–38, Paket P9), gemessen
+## wie dort (Level05.sprungfaelle, Raster 0,25): die heilen Durchlässe als
+## Slide sauber ≥ 3,0 m, die gebrochenen als Überlauf – aufrecht hindurch,
+## der Körper ist aus –, die Hürde ≥ 1,5 m, die Findlingsgasse als Überlauf
+## schräg durch die Lücke zwischen beiden Steinen (≥ 1 m Querversatz), die
+## Wurzeltreppe als Überlauf hinab, die Terrassenlücke (3,4 m, −1,2) wie L2
+## ≥ 1,85 m und das Wehr wie L6: Doppelsprung ≥ 2,0 m, der Einzelsprung darf
+## nicht tragen, der Slide-Sprung ist Kür.
 func sprungfaelle() -> Array[Dictionary]:
 	var drei := LUECKE_3_VON
 	var fuenf := LUECKE_5_VON
 	var landung_drei := LUECKE_3_BIS - LANDUNG_SPIEL
 	var landung_fuenf := LUECKE_5_BIS - LANDUNG_SPIEL
-	return [
+	var faelle: Array[Dictionary] = [
 		{"name": "Einfach 3,0", "art": "einfach", "start": Vector2(drei - 5.0, 0.0),
 				"kante": drei, "von": drei - 3.0, "landung": landung_drei,
 				"schritt": 0.05, "fenster_min": 1.7},
@@ -1790,6 +2281,50 @@ func sprungfaelle() -> Array[Dictionary]:
 		{"name": "Fliessband", "art": "bewegt", "start": Vector2(111.5, 0.0),
 				"kante": 116.0, "von": 114.0, "landung": 118.3},
 	]
+	faelle.append_array(_sprungfaelle_34())
+	return faelle
+
+
+## Die Fälle der Stationen 34–38 (siehe `sprungfaelle`).
+func _sprungfaelle_34() -> Array[Dictionary]:
+	var faelle: Array[Dictionary] = []
+	for d: Dictionary in DURCHLAESSE_34:
+		var stirn: float = d["s"]
+		var tiefe: float = d["tiefe"]
+		var name_d := String(d["name"])
+		if name_d.ends_with("gebrochen"):
+			faelle.append({"name": name_d, "art": "ueberlauf", "start": Vector2(stirn - 6.0, 0.0),
+					"bis": stirn + tiefe + 2.0})
+		else:
+			faelle.append({"name": name_d, "art": "duck", "start": Vector2(stirn - 9.0, 0.0),
+					"kante": stirn, "von": stirn - 5.0, "landung": stirn + tiefe + 0.5,
+					"fenster_min": 3.0})
+	var vorn := HUERDE_35 - KorridorLevel.HUERDE_ZONE_LAENGE * 0.5
+	faelle.append({"name": "35 Wurzelhürde", "art": "huerde", "start": Vector2(vorn - 5.5, 0.0),
+			"kante": vorn, "von": vorn - 4.0,
+			"landung": vorn + KorridorLevel.HUERDE_ZONE_LAENGE + 2.0, "fenster_min": 1.5,
+			# Im Raster 0,25 m lag das Fenster genau auf 1,50 m – zu grob, um
+			# es mit Level 05 (1,8–1,95 m) zu vergleichen; 0,05 m wie „Hürde 0,7“.
+			"schritt": 0.05})
+	faelle.append({"name": "36 Findlingsgasse", "art": "ueberlauf", "start": Vector2(1015.0, 2.5),
+			"ziel": Vector2(1035.0, -2.5), "bis": 1034.0})
+	faelle.append({"name": "37 Wurzeltreppe", "art": "ueberlauf",
+			"start": Vector2(TRITT_37.x - 6.0, 0.0), "bis": TRITT_37.y + 5.0})
+	var kante := LUECKE_37.x
+	faelle.append({"name": "37 Terrassenlücke 1,2", "art": "einfach",
+			"start": Vector2(kante - 5.0, 0.0), "kante": kante, "von": kante - 2.75,
+			"landung": LUECKE_37.y - LANDUNG_SPIEL, "fenster_min": 1.85})
+	var wehr := LUECKE_38.x
+	var landung := LUECKE_38.y - LANDUNG_SPIEL
+	faelle.append({"name": "38 Wehr Doppel", "art": "doppel", "start": Vector2(wehr - 6.0, 0.0),
+			"kante": wehr, "von": wehr - 4.0, "landung": landung, "doppel_t": [0.33],
+			"fenster_min": 2.0})
+	faelle.append({"name": "38 Wehr Einzel", "art": "einfach", "start": Vector2(wehr - 6.0, 0.0),
+			"kante": wehr, "von": wehr - 3.0, "landung": landung, "darf_nicht_tragen": true})
+	faelle.append({"name": "38 Wehr Slide-Sprung", "art": "slide",
+			"start": Vector2(wehr - 6.0, 0.0), "kante": wehr, "von": wehr - 3.5,
+			"landung": landung, "pflicht": false})
+	return faelle
 
 
 ## Fotos (werkzeuge/foto.gd): die Figur auf die Wegdecke, nicht 1 m über
@@ -1828,6 +2363,16 @@ func _schilder_setzen() -> void:
 		M_STATION_31 + THEMA_LAENGE + 0.3: "31 Sumpf",
 		M_STATION_31 + THEMA_LAENGE * 2.0 + 0.3: "31 Schnee",
 		M_STATION_32 + 0.3: "32 Bewuchs (Waldrahmen, Rasenbau)",
+		M_STATION_33 + 0.3: "33 frei (Kameraplan, G6)",
+		# Level 05: je Optik ein Schild 6 m vor der heilen; die gebrochene
+		# folgt 14 m dahinter.
+		914.0: "34 Wildgatter (Level 05): heil, dahinter gebrochen",
+		942.0: "34 Wurzelbogen: heil, dahinter gebrochen",
+		970.0: "34 Fluderjoch: heil, dahinter gebrochen",
+		M_STATION_35 + 0.3: "35 Wurzelhürde",
+		M_STATION_36 + 0.3: "36 Findlingsgasse",
+		M_STATION_37 + 0.3: "37 Wurzeltreppe, Terrassenlücke 1,2 m",
+		M_STATION_38 + 0.3: "38 Wehrbruch (Doppelsprung)",
 	}
 	# Stimmung: je Zone ein Schild an ihrem Anfang.
 	for zone: Dictionary in STIMMUNG_32:

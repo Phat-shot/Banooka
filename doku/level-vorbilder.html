@@ -1157,6 +1157,17 @@ td.num {
     </tbody>
   </table></div>
 
+  <h3 class="tabellentitel">Neu aus dem Neubau von Level 05</h3>
+  <p>Level 05 wurde als &bdquo;Hauerhang&ldquo; neu gebaut (Entwurf und Messwerte: <code>doku/level05-neubau.md</code>). Drei Hindernisse stehen seitdem in <code>KorridorLevel</code> (<code>scenes/levels/korridor_level.gd</code>) und taugen für jedes Korridorlevel mit <code>Wegdaten</code>. Gemeinsam ist ihnen: Der Körper liegt auf Ebene 16 (Spielergrenze) &ndash; die Figur stößt an, der Kamerastrahl geht hindurch &ndash;, seine Höhen stehen über <code>boden_bei</code> je Querschnitt (er sitzt auch am Hang satt auf), die Stolperzone (<code>Spieler.stolpern</code>, Vorgabe aus) liegt nur an der Stirn, und ohne eigene Optik steht ein grauer Platzhalter in der Form des Körpers. Die Optiken von Level 05 baut <code>L05Wegbauten</code> passgenau auf die Körper; die Werkstatt zeigt alle drei mit diesen Optiken einzeln (Stationen 34&ndash;36), jeden Durchlass heil und gebrochen.</p>
+  <div class="tabellenhuelle"><table>
+    <thead><tr><th>Werkzeug</th><th>Deckt ab</th></tr></thead>
+    <tbody>
+      <tr><td class="quelle">duckdurchlass(s, tiefe, optionen)</td><td>Riegel quer über den Weg, 0,95&ndash;4,4&nbsp;m über der Decke: Durch kommt nur, wer slidet oder krabbelt; Doppelsprung und Slide-Sprung samt Doppel reichen nicht darüber. Stolperzone 0,15&nbsp;m vor bis 0,25&nbsp;m hinter der Stirn. Gemessen: Slide sauber auf 3,35&nbsp;m (Tiefe 1,6). In Level 05 als Wildgatter, Wurzelbogen und Fluderjoch; der Keiler bricht hindurch (<code>L05Wegbauten.bruch_stellen</code>)</td></tr>
+      <tr><td class="quelle">huerde(s, optionen)</td><td>Riegel 0,7&nbsp;m hoch und 0,6&nbsp;m tief, über den man springt; Stolperzone 1,0 × 0,8&nbsp;m mittig darum. Gemessen: stolperfreies Absprungfenster 1,8&ndash;1,95&nbsp;m, wer hineinslidet, stolpert immer &ndash; Hürde heißt springen, Durchlass heißt sliden. In Level 05 als Wurzelhürde</td></tr>
+      <tr><td class="quelle">findling_hindernis(s, q, breite, optionen)</td><td>Block, 1,4&nbsp;m hoch und 1,6&nbsp;m tief, Breite frei wählbar, um den man herumläuft; zwei versetzt hintereinander ergeben eine Gasse mit mindestens 1&nbsp;m Querversatz (Level 05: Findlingsgasse F1/F2, je 4,6&nbsp;m breit). Wer frontal hineinläuft, stolpert; wer oben landet oder daneben vorbeiläuft, nicht</td></tr>
+    </tbody>
+  </table></div>
+
   <h3 class="tabellentitel">Offen — aus der ersten Fassung</h3>
   <div class="tabellenhuelle"><table>
     <thead><tr><th>Werkzeug</th><th>Aus</th><th>Warum das Fehlen auffällt</th></tr></thead>

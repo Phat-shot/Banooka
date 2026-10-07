@@ -998,6 +998,27 @@ Kopfkommentar.
 | Kollisionsebene 5 „Spielergrenze“ | Leitwände, die die Figur halten, ohne die Kamera heranzuziehen |
 | Sprungprobe, Sichtprobe (Opt-in) | nachprüfbare Pflichtsprünge und Kamerasicht je Level |
 
+### Neu aus dem Neubau von Level 05
+
+Level 05 wurde als „Hauerhang“ neu gebaut (Entwurf und Messwerte:
+`doku/level05-neubau.md`). Drei Hindernisse stehen seitdem in
+`KorridorLevel` (`scenes/levels/korridor_level.gd`) und taugen für jedes
+Korridorlevel mit `Wegdaten`. Gemeinsam ist ihnen: Der Körper liegt auf
+Ebene 16 (Spielergrenze) – die Figur stößt an, der Kamerastrahl geht
+hindurch –, seine Höhen stehen über `boden_bei` je Querschnitt (er sitzt
+auch am Hang satt auf), die Stolperzone (`Spieler.stolpern`, Vorgabe aus)
+liegt nur an der Stirn, und ohne eigene Optik steht ein grauer
+Platzhalter in der Form des Körpers. Die Optiken von Level 05 baut
+`L05Wegbauten` passgenau auf die Körper; die Werkstatt zeigt alle drei mit
+diesen Optiken einzeln (Stationen 34–36), jeden Durchlass heil und
+gebrochen.
+
+| Werkzeug | Deckt ab |
+|---|---|
+| `duckdurchlass(s, tiefe, optionen)` | Riegel quer über den Weg, 0,95–4,4 m über der Decke: Durch kommt nur, wer slidet oder krabbelt; Doppelsprung und Slide-Sprung samt Doppel reichen nicht darüber. Stolperzone 0,15 m vor bis 0,25 m hinter der Stirn. Gemessen: Slide sauber auf 3,35 m (Tiefe 1,6). In Level 05 als Wildgatter, Wurzelbogen und Fluderjoch; der Keiler bricht hindurch (`L05Wegbauten.bruch_stellen`) |
+| `huerde(s, optionen)` | Riegel 0,7 m hoch und 0,6 m tief, über den man springt; Stolperzone 1,0 × 0,8 m mittig darum. Gemessen: stolperfreies Absprungfenster 1,8–1,95 m, wer hineinslidet, stolpert immer – Hürde heißt springen, Durchlass heißt sliden. In Level 05 als Wurzelhürde |
+| `findling_hindernis(s, q, breite, optionen)` | Block, 1,4 m hoch und 1,6 m tief, Breite frei wählbar, um den man herumläuft; zwei versetzt hintereinander ergeben eine Gasse mit mindestens 1 m Querversatz (Level 05: Findlingsgasse F1/F2, je 4,6 m breit). Wer frontal hineinläuft, stolpert; wer oben landet oder daneben vorbeiläuft, nicht |
+
 ### Offen – aus der ersten Fassung
 
 | Werkzeug | Aus | Warum es fehlt auffällt |

@@ -60,7 +60,8 @@ class_name L05Wegbauten
 ## Körpers, über `duckdurchlass` „optik") und der Bruch („Bruch",
 ## unsichtbar, in `Effekte.VORWAERM_GRUPPE` – er wird erst gezeichnet, wenn
 ## der Keiler hindurchbricht; ohne Vorwärmen stockte dann das Bild). Den
-## Wechsel schaltet `L05Jagd` (DURCHLASS-BRUCH, HEILEN). Im Bruch fehlt die
+## Wechsel schaltet `L05Jagd` (DURCHLASS-BRUCH, HEILEN) über
+## `bruch_stellen`. Im Bruch fehlt die
 ## Mitte (BRESCHE): Riegel und Zangen hängen gesplittert durch, Stangen,
 ## Latten und Strähnen hängen als Stümpfe von oben, Stücke liegen am Boden
 ## (flacher als 0,3 m). Das Gerinne bleibt heil – den Schwall zeigt der
@@ -92,6 +93,19 @@ class_name L05Wegbauten
 ## `huerde`, `findling_hindernis`), sonst keine Kollision. Keine
 ## Zufallsquelle außer `PropWerkzeug.zufall(saat)` und Rauschen mit fester
 ## Saat.
+##
+## AUSSERHALB VON LEVEL 05 (Werkstatt, Stationen 34–38; Entwurf §12 P9):
+## Durchlass, Hürde, Findling, Stufenwurzel und Wehr gibt es auch öffentlich,
+## für jedes `KorridorLevel` – `durchlass`, `huerde_koerper` + `huerde_netz`,
+## `findling_koerper` + `findling_netz`, `stufenwurzel`, `wehr`, dazu
+## `abschnitt` (Netze eines Sammlers samt Bauspeicher einhängen) und
+## `bruch_stellen` (heil/gebrochen umschalten). Was Level 05 dafür aus
+## seinen Tabellen liest – wo die Leitlinien stehen und wo die Kronen der
+## Böschungen –, kommt als `Rand` herein; Level 05 baut über DIESELBEN
+## Funktionen mit seinem eigenen Rand (`_rand_l05`). WARUM so: Die Werkstatt
+## soll das Bauteil zeigen, das im Level steht, keine Abschrift. Gemessen
+## (Scratch-Probe aller Netze, Formen und Lagen des gebauten Levels, kalt,
+## je ein md5): Level 05 baut damit Bit für Bit dasselbe wie vorher.
 
 ## Sichtweiten (m) und Schwelle gegen Flackern.
 const SICHT := 150.0
@@ -208,28 +222,68 @@ class Sammler:
 		return aus
 
 
-## Die Netze eines Abschnitts (`zeichnen.call(sa)` füllt einen Sammler)
-## aus dem Bauspeicher oder neu gebaut, eingehängt unter
-## „Wegbauten/<anzeige>". WARUM der Bauspeicher: Gebaut kosten die fünf
-## Abschnitte samt Durchlässen rund 0,3 s je Laden (Bauzeitprobe, Runde 2
-## im selben Prozess: 493 statt 207 ms vor P5; Entwurf §9.4: Runde 2 ≤ 0,3 s).
-## Die Netze hängen nur an den Daten des Levels und am Code – den deckt die
-## Fassung des Speichers ab; die Körper entstehen in jedem Fall neu.
+## Wo ein Bauteil steht: die Leitlinien links und rechts und die Kronen der
+## Böschungen, je an einer Strecke `s`. Level 05 liest beides aus seinen
+## Tabellen (`_rand_l05`), die Werkstatt gibt ihre eigenen Callables.
+##   leitlinie  Callable(seite: float, s: float) -> float: Abstand der
+##              Leitlinie von der Mitte (> 0), seite −1 links, +1 rechts
+##   krone      Callable(seite: float, s: float) -> Vector2: Krone der
+##              Böschung (Abstand von der Mitte, Höhe über der Decke), wie
+##              `_krone`; nur der Wurzelbogen fragt danach
+class Rand:
+	extends RefCounted
+	var _leitlinie: Callable
+	var _krone: Callable
+
+	func _init(leitlinie_: Callable, krone_: Callable) -> void:
+		_leitlinie = leitlinie_
+		_krone = krone_
+
+	func leitlinie(seite: float, s: float) -> float:
+		return float(_leitlinie.call(seite, s))
+
+	func krone(seite: float, s: float) -> Vector2:
+		return _krone.call(seite, s) as Vector2
+
+
+## Der Rand von Level 05: Leitlinien aus LEITLINIEN, Kronen aus den Zügen
+## „auf" (`_krone`).
+static func _rand_l05(level: Level05) -> Rand:
+	return Rand.new(func(seite: float, s: float) -> float: return _leitlinie(seite, s),
+			func(seite: float, s: float) -> Vector2: return _krone(level, seite, s))
+
+
+## Die Netze eines Abschnitts von Level 05 unter „Wegbauten/<anzeige>"
+## (`abschnitt`, Schlüssel „l05_wegbauten_…").
 static func _abschnitt(level: Level05, schluessel: String, anzeige: String,
 		zeichnen: Callable) -> void:
-	var netze: Dictionary = Bauspeicher.wert("l05_wegbauten_" + schluessel, func() -> Variant:
+	abschnitt(_wurzel(level), "l05_wegbauten_" + schluessel, anzeige, zeichnen)
+
+
+## Die Netze eines Abschnitts (`zeichnen.call(sa)` füllt einen Sammler)
+## aus dem Bauspeicher (`schluessel`) oder neu gebaut, eingehängt unter
+## `eltern`/<anzeige> – je Stoff ein Netz mit Sichtweite, ohne Schatten.
+## WARUM der Bauspeicher: Gebaut kosten die fünf Abschnitte von Level 05
+## samt Durchlässen rund 0,3 s je Laden (Bauzeitprobe, Runde 2 im selben
+## Prozess: 493 statt 207 ms vor P5; Entwurf §9.4: Runde 2 ≤ 0,3 s). Die
+## Netze hängen nur an den Daten des Levels und am Code – den deckt die
+## Fassung des Speichers ab; die Körper entstehen in jedem Fall neu.
+static func abschnitt(eltern: Node3D, schluessel: String, anzeige: String,
+		zeichnen: Callable) -> Node3D:
+	var netze: Dictionary = Bauspeicher.wert(schluessel, func() -> Variant:
 		var sa := Sammler.new()
 		zeichnen.call(sa)
 		return sa.netze())
 	var wurzel := Node3D.new()
 	wurzel.name = anzeige
-	_wurzel(level).add_child(wurzel)
+	eltern.add_child(wurzel)
 	if netze.has("Holz"):
 		_anhaengen(wurzel, "Holz", netze["Holz"] as Mesh, Riesenstamm.borkenstoff(), _sicht())
 	if netze.has("Stein"):
 		_anhaengen(wurzel, "Stein", netze["Stein"] as Mesh, Findling.stoff(), _sicht())
 	if netze.has("Kranz"):
 		_anhaengen(wurzel, "Kranz", netze["Kranz"] as Mesh, Findling.kranzstoff(), SICHT_KRANZ)
+	return wurzel
 
 
 static func _sicht() -> float:
@@ -276,23 +330,25 @@ static func _abschnitt_b(level: Level05) -> void:
 	_durchlass(level, Level05.DURCHLAESSE[1])
 	_durchlass(level, Level05.DURCHLAESSE[2])
 	for h: Dictionary in Level05.HUERDEN:
-		_huerde_koerper(level, h)
+		huerde_koerper(level, float(h["s"]), String(h["name"]))
+	var rand := _rand_l05(level)
 	_abschnitt(level, "b", "B Hohlweg", func(sa: Sammler) -> void:
 		for i in Level05.HUERDEN.size():
-			_huerde(sa, level, Level05.HUERDEN[i], 5300 + i * 17)
+			huerde_netz(sa, level, float(Level05.HUERDEN[i]["s"]), rand, 5300 + i * 17)
 		_bank(sa, level, "G2 Böschungsbank", LOESS_TON, 5341)
 		_bankwurzeln(sa, level))
 
 
 ## C · Wurzelterrassen: die Wurzeln an den Setzstufen von S1–S3.
 static func _abschnitt_c(level: Level05) -> void:
+	var rand := _rand_l05(level)
 	_abschnitt(level, "c", "C Terrassen", func(sa: Sammler) -> void:
 		var nummer := 0
 		for t: Dictionary in Level05.TERRASSEN:
 			if not String(t["name"]).ends_with("Tritt"):
 				continue
-			_stufenwurzel(sa, level, float(t["von"]), 5400 + nummer * 7)
-			_stufenwurzel(sa, level, float(t["bis"]), 5403 + nummer * 7)
+			stufenwurzel(sa, level, float(t["von"]), rand, 5400 + nummer * 7)
+			stufenwurzel(sa, level, float(t["bis"]), rand, 5403 + nummer * 7)
 			nummer += 1
 		_rastpfaehle(sa, level, 120.0, 180.0))
 
@@ -302,10 +358,13 @@ static func _abschnitt_d(level: Level05) -> void:
 	_durchlass(level, Level05.DURCHLAESSE[3])
 	_durchlass(level, Level05.DURCHLAESSE[4])
 	for f: Dictionary in Level05.FINDLINGE:
-		_findling_koerper(level, f)
+		findling_koerper(level, float(f["s"]), float(f["q"]), float(f["breite"]),
+				String(f["name"]))
 	_abschnitt(level, "d", "D Tobel", func(sa: Sammler) -> void:
 		for i in Level05.FINDLINGE.size():
-			_findling(sa, level, Level05.FINDLINGE[i], 5500 + i * 13)
+			var f: Dictionary = Level05.FINDLINGE[i]
+			findling_netz(sa, level, float(f["s"]), float(f["q"]), float(f["breite"]),
+					5500 + i * 13)
 		_bank(sa, level, "G3 Trittstein", SANDSTEIN_TON, 5531)
 		_bank(sa, level, "G3 Sonnensims", SANDSTEIN_TON, 5537)
 		_rastpfaehle(sa, level, 180.0, 265.0))
@@ -583,7 +642,7 @@ static func _stange(st: SurfaceTool, lage: Transform3D, a: Vector3, b: Vector3, 
 
 ## Welttransform an (s, q, h über der Decke): X quer nach rechts, Y hoch,
 ## −Z den Weg entlang.
-static func _lage(level: Level05, s: float, q: float = 0.0, h: float = 0.0) -> Transform3D:
+static func _lage(level: KorridorLevel, s: float, q: float = 0.0, h: float = 0.0) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, LevelWerkzeuge.drehung(level.verlauf, s)),
 			level.weg_punkt(s, q, h))
 
@@ -594,7 +653,7 @@ static func _lage(level: Level05, s: float, q: float = 0.0, h: float = 0.0) -> T
 ## mit dem Gefälle. So bleiben die Seiten senkrecht wie die des Körpers, und
 ## die Oberseite folgt der Decke wie seine. Lokal z ∈ [−tiefe/2, tiefe/2],
 ## y = Höhe über der Decke.
-static func _scher_lage(level: Level05, s: float, q: float, tiefe: float) -> Transform3D:
+static func _scher_lage(level: KorridorLevel, s: float, q: float, tiefe: float) -> Transform3D:
 	var vorn := level.weg_punkt(s - tiefe * 0.5, q)
 	var hinten := level.weg_punkt(s + tiefe * 0.5, q)
 	var z := (vorn - hinten) / tiefe
@@ -620,25 +679,54 @@ static func _krone(level: Level05, seite: float, s: float) -> Vector2:
 
 # ================================================================ Durchlässe
 
-## Körper, Optik und Bruch eines Durchlasses (Entwurf §1 Nr. 2/3); der
-## Körper kommt in `level.durchlass_koerper` (für `L05Jagd`).
+## Körper, Optik und Bruch eines Durchlasses von Level 05 (Entwurf §1
+## Nr. 2/3); der Körper kommt in `level.durchlass_koerper` (für `L05Jagd`).
 static func _durchlass(level: Level05, d: Dictionary) -> void:
+	level.durchlass_koerper.append(durchlass(level, d, _rand_l05(level), "l05_durchlass"))
+
+
+## Ein Durchlass in einem beliebigen Korridorlevel: `d` wie DURCHLAESSE
+## ({"name", "s" = Stirn, "tiefe"}; die Bauart steht im Namen, `art`),
+## `rand` sagt, wo Leitlinien und Kronen stehen, `speicher` ist die Art im
+## Bauspeicher (`Bauspeicher.netz`, Argumente Name und heil/gebrochen –
+## je Level ein eigener Name). Rückgabe: der Körper aus
+## `KorridorLevel.duckdurchlass` mit Stolperzone (L05Jagd.STOLPER_DAUER),
+## darin die heile Optik („Optik") und der verborgene Bruch („Bruch",
+## `Effekte.VORWAERM_GRUPPE`); umschalten mit `bruch_stellen`.
+static func durchlass(level: KorridorLevel, d: Dictionary, rand: Rand,
+		speicher: String) -> StaticBody3D:
 	var s: float = d["s"]
 	var tiefe: float = d["tiefe"]
 	var bauart := art(d)
+	var optik := func(_s: float, _t: float) -> Node3D:
+		return _durchlass_netz(level, d, false, rand, speicher)
 	var koerper := level.duckdurchlass(s, tiefe, {"stolperzone": L05Jagd.STOLPER_DAUER,
-			"optik": func(_s: float, _t: float) -> Node3D: return _durchlass_netz(level, d, false)})
+			"optik": optik})
 	koerper.name = String(d["name"])
 	koerper.set_meta("art", bauart)
 	if bauart == "joch":
 		# Woher das Wasser schwappt (Keiler.durchbrechen): Mitte des Gerinnes.
 		koerper.set_meta("gerinne", GERINNE_RAND - GERINNE_R * 0.5)
-	var bruch := _durchlass_netz(level, d, true)
+	var bruch := _durchlass_netz(level, d, true, rand, speicher)
 	bruch.name = "Bruch"
 	bruch.visible = false
 	bruch.add_to_group(Effekte.VORWAERM_GRUPPE)
 	koerper.add_child(bruch)
-	level.durchlass_koerper.append(koerper)
+	return koerper
+
+
+## Einen Durchlass (Körper aus `durchlass`) heil oder gebrochen stellen:
+## gebrochen sind Körper und Stolperzone aus, die heile Optik verborgen und
+## der Bruch sichtbar – heil umgekehrt. Aufgeschoben, weil es mitten im
+## Physikschritt geschehen darf (L05Jagd, Durchlass-Bruch und Heilen).
+static func bruch_stellen(koerper: StaticBody3D, gebrochen: bool) -> void:
+	for kind in koerper.get_children():
+		if kind is CollisionShape3D:
+			kind.set_deferred("disabled", gebrochen)
+		elif kind is Area3D:
+			kind.set_deferred("monitoring", not gebrochen)
+		elif kind is Node3D:
+			(kind as Node3D).visible = gebrochen if kind.name == &"Bruch" else not gebrochen
 
 
 ## Bauart nach dem Namen: Gatter (Ü), Wurzelbogen (D1, D2), Fluderjoch.
@@ -657,21 +745,22 @@ static func art(d: Dictionary) -> String:
 
 ## Ein Netz eines Durchlasses im Raum seiner Mitte (`_lage` bei s + tiefe/2):
 ## Die Stirn liegt bei z = +tiefe/2, der Ausgang bei −tiefe/2.
-static func _durchlass_netz(level: Level05, d: Dictionary, kaputt: bool) -> MeshInstance3D:
+static func _durchlass_netz(level: KorridorLevel, d: Dictionary, kaputt: bool, rand: Rand,
+		speicher: String) -> MeshInstance3D:
 	var s: float = d["s"]
 	var tiefe: float = d["tiefe"]
 	var mitte := s + tiefe * 0.5
 	var lage := _lage(level, mitte)
-	var netz := Bauspeicher.netz("l05_durchlass", [String(d["name"]), kaputt], func() -> ArrayMesh:
+	var netz := Bauspeicher.netz(speicher, [String(d["name"]), kaputt], func() -> ArrayMesh:
 		var st := Riesenstamm.bauer()
 		var saat := int(s * 10.0) + (500 if kaputt else 0)
 		match art(d):
 			"gatter":
-				_gatter(st, level, mitte, tiefe, kaputt, saat)
+				_gatter(st, rand, mitte, tiefe, kaputt, saat)
 			"bogen":
-				_wurzelbogen(st, level, mitte, tiefe, kaputt, saat)
+				_wurzelbogen(st, rand, mitte, tiefe, kaputt, saat)
 			_:
-				_fluderjoch(st, level, mitte, tiefe, kaputt, saat)
+				_fluderjoch(st, rand, mitte, tiefe, kaputt, saat)
 		return Riesenstamm.fertig(st))
 	var mi := MeshInstance3D.new()
 	mi.name = "Optik"
@@ -754,11 +843,11 @@ static func _truemmer(st: SurfaceTool, rng: RandomNumberGenerator, halb_z: float
 
 
 ## Ü Wildgatter (siehe Kopf).
-static func _gatter(st: SurfaceTool, _level: Level05, mitte: float, tiefe: float, kaputt: bool,
+static func _gatter(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float, kaputt: bool,
 		saat: int) -> void:
 	var rng := PropWerkzeug.zufall(saat)
-	var links := _leitlinie(-1.0, mitte)
-	var rechts := _leitlinie(1.0, mitte)
+	var links := rand.leitlinie(-1.0, mitte)
+	var rechts := rand.leitlinie(1.0, mitte)
 	var px := Vector2(-(links + 0.17), rechts + 0.17)
 	var zr := tiefe * 0.5 - 0.28
 	var holz := {"ton": PFAHL_TON, "moos": 0.35, "seiten": 8}
@@ -844,13 +933,13 @@ static func _gatter(st: SurfaceTool, _level: Level05, mitte: float, tiefe: float
 
 
 ## D1/D2 Wurzelbogen (siehe Kopf).
-static func _wurzelbogen(st: SurfaceTool, level: Level05, mitte: float, tiefe: float,
+static func _wurzelbogen(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
 		kaputt: bool, saat: int) -> void:
 	var rng := PropWerkzeug.zufall(saat)
-	var links := _leitlinie(-1.0, mitte)
-	var rechts := _leitlinie(1.0, mitte)
-	var krone_l := _krone(level, -1.0, mitte)
-	var krone_r := _krone(level, 1.0, mitte)
+	var links := rand.leitlinie(-1.0, mitte)
+	var rechts := rand.leitlinie(1.0, mitte)
+	var krone_l := rand.krone(-1.0, mitte)
+	var krone_r := rand.krone(1.0, mitte)
 	var wurzel := {"ton": WURZEL_TON, "moos": 0.5, "seiten": 9, "buckel": 0.09}
 	var y := (KorridorLevel.DUCK_UNTEN + RIEGEL_OBEN) * 0.5
 	# Riegel: drei Wurzeln über die Tiefe, die aus der Wand kommen und in die
@@ -988,11 +1077,11 @@ static func _bogen_y(bogen: PackedVector3Array, x: float) -> float:
 
 
 ## D3/D4 Fluderjoch (siehe Kopf).
-static func _fluderjoch(st: SurfaceTool, _level: Level05, mitte: float, tiefe: float,
+static func _fluderjoch(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
 		kaputt: bool, saat: int) -> void:
 	var rng := PropWerkzeug.zufall(saat)
-	var links := _leitlinie(-1.0, mitte)
-	var rechts := _leitlinie(1.0, mitte)
+	var links := rand.leitlinie(-1.0, mitte)
+	var rechts := rand.leitlinie(1.0, mitte)
 	var holz := {"ton": PFAHL_TON, "moos": 0.3, "seiten": 8}
 	var halb_z := tiefe * 0.5
 	var zp := halb_z - 0.18
@@ -1182,17 +1271,21 @@ static func _gerinne(st: SurfaceTool, von: float, bis: float, saat: int) -> void
 ## dick wie der Körper tief ist, der Rücken flach auf HUERDE_HOEHE und hell
 ## abgewetzt, die Flanken bemoost; an den Enden taucht sie in die Wände.
 ## Daneben eine dünne Nebenwurzel, flach im Boden.
-static func _huerde_koerper(level: Level05, h: Dictionary) -> void:
-	var koerper := level.huerde(float(h["s"]), {"stolperzone": L05Jagd.STOLPER_DAUER,
+##
+## `huerde_koerper` baut den Körper (mit Stolperzone, Optik nur als Marke),
+## `huerde_netz` die Wurzel in einen Sammler; beide für jedes Korridorlevel.
+static func huerde_koerper(level: KorridorLevel, s: float, name: String) -> StaticBody3D:
+	var koerper := level.huerde(s, {"stolperzone": L05Jagd.STOLPER_DAUER,
 			"optik": func(_s: float, _t: float) -> Node3D: return _marke()})
-	koerper.name = String(h["name"])
+	koerper.name = name
+	return koerper
 
 
-static func _huerde(sa: Sammler, level: Level05, h: Dictionary, saat: int) -> void:
-	var s: float = h["s"]
+static func huerde_netz(sa: Sammler, level: KorridorLevel, s: float, rand: Rand,
+		saat: int) -> void:
 	var lage := _scher_lage(level, s, 0.0, KorridorLevel.HUERDE_TIEFE)
-	var links := _leitlinie(-1.0, s)
-	var rechts := _leitlinie(1.0, s)
+	var links := rand.leitlinie(-1.0, s)
+	var rechts := rand.leitlinie(1.0, s)
 	var r := KorridorLevel.HUERDE_TIEFE * 0.5
 	# Höher als die Hürde: Der Rücken wird gut 0,3 m breit plattgedrückt
 	# (Rücken − Körper gemessen −3,5 … 0 cm mit einem schmaleren Band, an den
@@ -1222,18 +1315,20 @@ static func _huerde(sa: Sammler, level: Level05, h: Dictionary, saat: int) -> vo
 # ================================================================ Steine
 
 ## Findling der Findlingsgasse: `Findling.netz` genau auf den Körper, im
-## gescherten Rahmen; Sandstein; Verdeckungsring um den Fuß.
-static func _findling_koerper(level: Level05, f: Dictionary) -> void:
-	var koerper := level.findling_hindernis(float(f["s"]), float(f["q"]), float(f["breite"]),
+## gescherten Rahmen; Sandstein; Verdeckungsring um den Fuß. Körper
+## (`findling_koerper`, Optik als Marke) und Netz (`findling_netz`, in einen
+## Sammler) getrennt, für jedes Korridorlevel.
+static func findling_koerper(level: KorridorLevel, s: float, q: float, breite: float,
+		name: String) -> StaticBody3D:
+	var koerper := level.findling_hindernis(s, q, breite,
 			{"stolperzone": L05Jagd.STOLPER_DAUER,
 			"optik": func(_s: float, _q: float, _b: float) -> Node3D: return _marke()})
-	koerper.name = String(f["name"])
+	koerper.name = name
+	return koerper
 
 
-static func _findling(sa: Sammler, level: Level05, f: Dictionary, saat: int) -> void:
-	var s: float = f["s"]
-	var q: float = f["q"]
-	var breite: float = f["breite"]
+static func findling_netz(sa: Sammler, level: KorridorLevel, s: float, q: float,
+		breite: float, saat: int) -> void:
 	var groesse := Vector3(breite, KorridorLevel.FINDLING_HOEHE, KorridorLevel.FINDLING_TIEFE)
 	var lage := _scher_lage(level, s, q, groesse.z)
 	lage.origin.y += groesse.y * 0.5
@@ -1460,14 +1555,16 @@ static func _grabenrampe(sa: Sammler, level: Level05) -> void:
 
 
 ## Wurzel an einer Setzstufe bei `s` (die obere Decke vor `s`): Rücken
-## bündig in der Decke, 7 cm vor der Stufe; an den Enden in die Wände.
-static func _stufenwurzel(sa: Sammler, level: Level05, s: float, saat: int) -> void:
+## bündig in der Decke, 7 cm vor der Stufe; an den Enden in die Wände (bis
+## 1,3 m hinter die Leitlinien, 0,9–1,0 m über der oberen Decke).
+static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand,
+		saat: int) -> void:
 	var oben := level.boden_bei(s - 0.05)
 	var punkt := LevelWerkzeuge.punkt_frei(level.verlauf, s, 0.0)
 	var lage := Transform3D(Basis(Vector3.UP, LevelWerkzeuge.drehung(level.verlauf, s)),
 			Vector3(punkt.x, oben, punkt.z))
-	var links := _leitlinie(-1.0, s)
-	var rechts := _leitlinie(1.0, s)
+	var links := rand.leitlinie(-1.0, s)
+	var rechts := rand.leitlinie(1.0, s)
 	var r := 0.13
 	var y := -r + 0.02
 	var stuetzen := PackedVector3Array([Vector3(-links - 1.3, 0.9, 0.3),
@@ -1487,18 +1584,25 @@ static func _stufenwurzel(sa: Sammler, level: Level05, s: float, saat: int) -> v
 
 # ================================================================ Wehr, Rastplätze
 
-## Das gebrochene Wehr: Pfahlreihen neben der Krone (hinter den
-## Leitlinien), an den Lippen des Bruchs herausragende Holme und in der
-## Lücke gebrochene Pfähle – alles unter der Decke bzw. außerhalb der
-## Reichweite.
+## Das gebrochene Wehr von Level 05 (L6 auf der Wehrkrone; `wehr`).
 static func _wehr(sa: Sammler, level: Level05) -> void:
-	var wehr: Dictionary = Level05.LUECKEN[5]
-	var von: float = wehr["von"]
-	var bis: float = wehr["bis"]
+	var luecke: Dictionary = Level05.LUECKEN[5]
 	var krone := Vector2.ZERO
 	for a: Dictionary in Level05.ABSAETZE:
 		if String(a["name"]) == "Wehrkrone":
 			krone = Vector2(a["von"], a["bis"])
+	wehr(sa, level, float(luecke["von"]), float(luecke["bis"]), krone,
+			float(luecke["grund_y"]), _rand_l05(level))
+
+
+## Das gebrochene Wehr: Pfahlreihen neben der Krone (hinter den
+## Leitlinien), an den Lippen des Bruchs herausragende Holme und in der
+## Lücke gebrochene Pfähle – alles unter der Decke bzw. außerhalb der
+## Reichweite. `von`/`bis` die Lücke, `krone` Anfang und Ende der Wehrkrone
+## (Strecke), `grund_y` Welt-Y, auf dem die gebrochenen Pfähle in der Lücke
+## stehen (Level 05: der Grund unter dem Weißwasser, 1,0).
+static func wehr(sa: Sammler, level: KorridorLevel, von: float, bis: float, krone: Vector2,
+		grund_y: float, rand: Rand) -> void:
 	var rng := PropWerkzeug.zufall(5600)
 	var pfahl := {"ton": PFAHL_TON, "moos": 0.5, "seiten": 8}
 	# Pfahlreihen
@@ -1510,7 +1614,7 @@ static func _wehr(sa: Sammler, level: Level05) -> void:
 				s += 0.95
 				continue
 			if rng.randf() > 0.12:
-				var q := seite * (_leitlinie(seite, s) + 0.3 + rng.randf_range(-0.04, 0.06))
+				var q := seite * (rand.leitlinie(seite, s) + 0.3 + rng.randf_range(-0.04, 0.06))
 				var boden := level.boden_bei(s)
 				var fuss := level.weg_punkt(s, q)
 				fuss.y = boden - 1.4
@@ -1549,7 +1653,7 @@ static func _wehr(sa: Sammler, level: Level05) -> void:
 		var s := lerpf(von + 0.6, bis - 0.6, float(k) / 3.0) + rng.randf_range(-0.3, 0.3)
 		var q := rng.randf_range(-3.0, 3.0)
 		var fuss := level.weg_punkt(s, q)
-		fuss.y = 1.0
+		fuss.y = grund_y
 		var kopf := level.weg_punkt(s + rng.randf_range(-0.3, 0.3), q + rng.randf_range(-0.3, 0.3))
 		kopf.y = oben_y - rng.randf_range(0.0, 0.6)
 		_stange(sa.holz, Transform3D.IDENTITY, fuss, kopf, 0.14, 0.13, {"saat": 5680 + k,

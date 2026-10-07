@@ -49,9 +49,11 @@ Was sich an Bild und Kosten getan hat, zeigt das Schaufenster
 | 4 · Rost und Ranken | 16 Kanalgrund · 17 Frostritt (Schiene) · 18 Schwarmpfad (Deckung) · 19 Sturmruinen (Drehscheiben) · 20 Kolbengang (Laserzäune) |
 | 5 · Sand und Neon | 21 Sandgrab (Gabelung) · 22 Wolkenjagd (Flug) · 23 Funkenlicht (Dunkellevel) · 24 Neonhöhe (Dächer) · 25 Dächergasse (Hangeln) |
 
-Vier Level laufen nicht über den normalen Controller, sondern kleben auf
-der Levelkurve: die beiden Ritt-Level 04 und 05, das Rennen 06 und der
-Flug 22.
+Drei Level laufen nicht über den normalen Controller: Der Ritt 04 und das
+Rennen 06 kleben auf der Levelkurve, der Flug 22 hat einen eigenen
+Controller ohne Kurve. Die Hauerjagd 05 läuft seit ihrem Neubau mit der
+normalen Figur; der Keiler hinter ihr ist eine Stelle auf der Kurve, die mit
+festem Tempo nachläuft (siehe unten).
 
 ## Level 01 – Wurzelschlucht
 
@@ -114,6 +116,32 @@ je 1 Frucht) · `SPRUNG` (Sprungfeder, unzerstörbar) · `TNT` (Schlag: sofort, 
 `NITRO` (explodiert bei Berührung) · `EISEN` (unzerbrechlich) · `CHECKPOINT` ·
 `SCHUTZ` (fängt einen Treffer ab) · `UMRISS` und `AUSLOESER` (das Gerippe
 wird fest, wenn sein Auslöser fällt) · `ZEIT` (hält im Zeitmodus die Uhr an)
+
+## Level 05 – Hauerjagd
+
+Der Hauerhang hinab, den Keiler im Nacken: 300 m in fünf Abschnitten, die
+Kamera schaut die ganze Zeit zurück. Man läuft auf sie zu, hinter einem die
+Hauer, ganz hinten die gespaltene Hauereiche, die immer kleiner wird.
+
+| Strecke | Abschnitt | Inhalt |
+|---|---|---|
+| 0–31 m | Suhle | Keiler schläft, Wildgatter (Slide), Suhlgraben; am ersten Rastplatz wacht er auf |
+| 31–120 m | Hohlweg | Lösswände, Wurzelhürden, Wurzelbögen, Wasserriss (erste tödliche Lücke) |
+| 120–180 m | Wurzelterrassen | fünf Absätze à 1,2 m, Wurzeltreppen, zwei Terrassenlücken |
+| 180–265 m | Tobel | Bach, Fluderjoche D3/D4 und die Mühlrinne als Kette, Findlingsgasse |
+| 265–300 m | Mühlbach | über das gebrochene Wehr (5 m, Doppelsprung); am Ufer bleibt der Keiler stehen |
+
+49 Kisten, 119 Früchte, 5 Rastplätze, 3 Geheimnisse. Unter Durchlässen kommt
+man nur im Slide durch, über Hürden nur im Sprung; der Slide-Sprung ist
+Kür. Der Keiler läuft 7,4 m/s (die Figur 8,5), fällt nie weiter als 15 m
+zurück und fängt bei 2 m; über Lücken und Stufen springt er, durch die
+Durchlässe bricht er. Richtzeit im Zeitmodus 48 s.
+
+**Kosten** (Fotostellen 8–296, Stand P8): Desktop 177–305 Draw-Calls,
+höchstens 707k Primitive, VRAM 101 MB; Handy 243–324 bei 76,7 MB. Entwurf,
+Abweichungen und die Messwerte aller Pakete stehen in
+`doku/level05-neubau.md`, die Module in ARCHITEKTUR.md unter
+„Hauerjagd“. Die Hindernisse zeigt die Werkstatt einzeln (Stationen 34–38).
 
 ## Zeitmodus
 
@@ -270,6 +298,10 @@ SCHAUFENSTER_TEILE=l01 bash werkzeuge/schaufenster.sh /tmp/schau   # nur ein Tei
   - `l01`: verfolger 4, 31, 46, 70, 101, 119, 140, 176, 212, 249, 275,5
   - `l01seite`: seite 60, 186
   - `l01nah`: nah 53,5
+  - nur auf Wunsch (`SCHAUFENSTER_TEILE=…`): `wache` (sechs Bilder aus Level 01
+    und dem Portalraum, der Wächter beim Neubau von Raum 1), `l05` (verfolger
+    8, 60, 140, 218, 280, 296), `l05seite` (seite 40, 150, 240), `l05nah` (nah
+    76, 138, 196, 230, 286, 299)
 
   Die Stationen von Level 01 folgen seit dem Neubau dem neuen Verlauf; die
   Werte der alten Tabelle unten sind deshalb nicht mehr Stelle für Stelle
