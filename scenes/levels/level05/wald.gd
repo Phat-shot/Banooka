@@ -32,8 +32,12 @@ class_name L05Wald
 ##   ist warm, damit Ocker und Kupfer als Faktoren ≤ 1 erreichbar sind (die
 ##   Scheitelfarbe eines Netzes hat 8 Bit je Kanal).
 ## * BAUMTORE (Entwurf §5 B) bei s 30 und 120: je Seite eine Buche
-##   (`Baumfabrik.baum`, mittlere Fassung, runde Krone ab TOR_UNTEN der Höhe)
-##   auf der Böschungskrone bei |q| = TOR_Q, leicht zum Weg geneigt. Die
+##   (`Baumfabrik.baum` in der vollen Fassung von `Riesenstamm.baum`: Stamm
+##   mit TOR_AESTE Ästen ab TOR_AST_START der Höhe, an jeder Astspitze ein
+##   Ballen der runden Krone) auf der Böschungskrone bei |q| = TOR_Q, leicht
+##   zum Weg geneigt. Bis R2 die mittlere Fassung mit drei Ballen ab 36 %
+##   der Höhe – sie standen als dunkle gestapelte Birnen ohne Astwerk im
+##   Bild (Bild-Jury R2, Mangel 2: „Topiary-Kugeln"). Die
 ##   Kronen rahmen den Weg seitlich und lassen über ihm den Himmel offen –
 ##   durch das Tor sieht man die Eiche (siehe ABWEICHUNGEN).
 ## * GEBÜSCH (Kronenwolke, 2–4 m) in Gruppen auf den Kronen über Hohlweg und
@@ -210,14 +214,24 @@ const TOENE := [
 ]
 ## Ferne Kronen etwas dunkler (Unterdach, Luftperspektive kommt vom Nebel).
 const FERN_DUNKEL := 0.88
+## Die Töne der fernen Kronen so weit (Hang, Fernband) zu EINEM Ton hin
+## gezogen. R2 (Bild-Jury R2, Mangel 3: „stammlose Fernform-Klumpen wie
+## Gummibärchen … grau, rot und grün"): Mit den vollen Tönen der nahen
+## Bäume stand jede ferne Krone einzeln vor dem Himmel; ein gemeinsamer
+## Ton macht aus ihnen ein Waldband.
+const FERN_EINHEIT := Vector2(0.35, 0.65)
+const FERN_EINHEIT_TON := Color(0.7, 0.86, 0.84)
 ## Haine: Höhe und Kronenansatz der Modellbäume, Birken.
 const BAUM_HOEHE := 14.0
 const BAUM_UNTEN := 0.34
 const BIRKE_HOEHE := 13.0
 const BIRKE_UNTEN := 0.45
 ## Birkenrinde: hell über die Tönung der Weltborke (der Modellbaum trägt die
-## Rinde des Waldes, natur2/LIESMICH), wenig Moos.
-const BIRKE_BORKE := {"welt": true, "radius": 0.4, "farbe": Color(2.3, 2.25, 2.1),
+## Rinde des Waldes, natur2/LIESMICH), wenig Moos. R2 (Bild-Jury R2,
+## leicht: „tigerartig orange gestreifte Rinde"): Die Tönung gleicht das
+## Braun der Rinde aus (blau stärker als rot, 2,0/2,6/3,2 statt 2,3/2,25/
+## 2,1) – weiß, die dunklen Bänder der Rinde bleiben.
+const BIRKE_BORKE := {"welt": true, "radius": 0.4, "farbe": Color(2.0, 2.6, 3.2),
 		"moos_oben": 0.1, "moos_nord": 0.25, "flechten": 0.2}
 ## Anteil der Birkenhaine im Tobel (s TOBEL), je Seite (bildlinks q > 0 der
 ## Sonnenhang mit Birken, Entwurf §5 D).
@@ -229,12 +243,48 @@ const BIRKEN_RECHTS := 0.3
 ## Kronenradius, je m).
 const TORE: Array[float] = [30.0, 120.0]
 const TOR_Q := 10.5
-## Dort (Anteil der Höhe) beginnt die Krone der Torbuchen – Laub statt Lolli.
-const TOR_UNTEN := 0.36
+## Torbuchen in der vollen Fassung (siehe Kopf, BAUMTORE): so viele Äste,
+## ab diesem Anteil der Höhe, so steil (rad), so viele Blattkarten.
+## Steil (1,0 rad) und mit kleineren Kronen bis 2,0 m: Mit fünf Ästen ab
+## 42 % und 0,7 rad schnitt jede Fassung Sichtlinien zur Eiche (14–63
+## Stellen je Tor), die Wahrzeichenprobe fiel auf 71,9 % (eigene Messung;
+## die tor_krone verdeckte die bildlinke Krone von s 206 bis 266). Dazu
+## Fassungen, die aufrecht stehen oder sich vom Weg weg neigen (Neigung
+## 0 und −0,6).
+const TOR_AESTE := 4
+const TOR_AST_START := 0.4
+const TOR_AST_STEIL := 1.0
+const TOR_KARTEN := 60
+## TOR_FERN (R2): Eine volle Torbuche hat 1,4–1,5k Dreiecke im Stamm und
+## 2,0–2,2k in der Krone, die mittlere Fassung bis R1 zusammen 0,7k. Ohne
+## Sichtgrenze standen alle vier in jedem Bild, auch 100–200 m weit im
+## Tobel – mit dem übrigen Bild der R2-Nachbesserung lag s 240 über 750k
+## Primitiven (Entwurf §10). Darum wechseln sie wie die nahen Bäume ab
+## SICHT_NAH (Zelle ZELLE_NAH) in dieselbe Buche `schlicht`
+## (`Riesenstamm.baum`: 8 Ecken, Krone ohne Karten, im Stoff der fernen
+## Kronen, zusammen 0,6k). Die Äste setzen etwas anders an; die Krone
+## steht an derselben Stelle (gemessen an den drei Fassungen von
+## TOR_WAHL: Unterkante bis 0,9 m höher, Oberkante ±1,1 m).
 const TOR_FREI_Q := 4.0
-const TOR_HOEHEN: Array[float] = [13.5, 12.5, 11.5, 10.5, 9.5]
-const TOR_NEIGUNGEN: Array[float] = [1.6, 0.6]
-const TOR_KRONEN: Array[float] = [4.2, 3.4]
+const TOR_HOEHEN: Array[float] = [13.5, 12.5, 11.5, 10.5, 9.5, 8.5, 7.5]
+const TOR_NEIGUNGEN: Array[float] = [0.6, 0.0, -0.6, -1.2]
+const TOR_KRONEN: Array[float] = [3.4, 2.6, 2.0]
+## Die Fassung je Tor („s Seite" -> Höhe, Neigung, Kronenradius): das
+## Ergebnis der Suche (`_tor_suche`, siehe `_tore`). WARUM fest: Die Suche
+## baut je Fassung einen vollen Baum, am Tor s 120 rechts – dort ist keine
+## Fassung ohne Sichtlinie – alle 84: Bauschritt „Baumtore" kalt 7,6 s
+## (Bauzeitprobe, R2; Entwurf §9.4: kein Schritt über 400 ms). Fest gebaut
+## entsteht derselbe Baum (gleiche Optionen und Saat). Hält eine Fassung K1
+## oder die Stammprobe nicht mehr, weil sich Gelände oder Weg geändert
+## haben, sucht `_tor_baum` wie zuvor und warnt. Die Sichtlinien zählt er
+## auch für die feste Fassung (`zahlen`, „tor_…"); ändert sich die Eiche,
+## zeigt es die Wahrzeichenprobe.
+const TOR_WAHL := {
+	"30 -1": Vector3(11.5, 0.0, 2.0),
+	"30 +1": Vector3(11.5, -0.6, 2.0),
+	"120 -1": Vector3(13.5, 0.6, 3.4),
+	"120 +1": Vector3(7.5, -1.2, 2.0),
+}
 ## Sichtlinien der Tore: Abstand der Stellen (m, wie die Wahrzeichenprobe)
 ## und halber Öffnungswinkel um jede Linie (Grad).
 const TOR_SICHT_SCHRITT := 2.0
@@ -432,14 +482,19 @@ func _vorbereiten() -> void:
 	_nah.art("fern", {"stoff": Kronenwolke.stoff(LAUB, false), "sicht_von": sicht_nah,
 			"sicht": _sicht_fern(zelle_nah, RAND_NAH), "rand": RAND_NAH, "zelle": zelle_nah,
 			"verschmelzen": true})
-	# Tore und Totholz: je eine Zelle, ohne Sichtgrenze (sie stehen im
-	# Rückblick lange im Bild und haben keine Fernfassung).
+	# Totholz und der Schatten der Tore: je eine Zelle, ohne Sichtgrenze
+	# (sie stehen im Rückblick lange im Bild). Die Torbuchen selbst wechseln
+	# wie die nahen Bäume bei sicht_nah in ihre Fernfassung (TOR_FERN).
 	_nah.art("tor_stamm", {"stoff": Riesenstamm.borkenstoff(TOR_BORKE), "verschmelzen": true,
-			"zelle": 0.0})
+			"sicht": sicht_nah, "rand": RAND_NAH, "zelle": zelle_nah})
+	_nah.art("tor_stamm_fern", {"stoff": Riesenstamm.borkenstoff(TOR_BORKE), "verschmelzen": true,
+			"sicht_von": sicht_nah, "rand": RAND_NAH, "zelle": zelle_nah})
 	_nah.art("tor_stamm_schatten", {"stoff": Riesenstamm.borkenstoff(TOR_BORKE), "schatten": "nur",
 			"verschmelzen": true, "zelle": 0.0})
 	_nah.art("tor_krone", {"stoff": Kronenwolke.stoff(LAUB), "verschmelzen": true,
-			"karten": true, "zelle": 0.0})
+			"karten": true, "sicht": sicht_nah, "rand": RAND_NAH, "zelle": zelle_nah})
+	_nah.art("tor_krone_fern", {"stoff": Kronenwolke.stoff(LAUB, false), "verschmelzen": true,
+			"sicht_von": sicht_nah, "rand": RAND_NAH, "zelle": zelle_nah})
 	_nah.art("tot", {"stoff": Baumfabrik.borke_welt() if modelle else Riesenstamm.borkenstoff(),
 			"schatten": true, "verschmelzen": true, "zelle": 0.0})
 	_busch = Baumfabrik.indiziert(Kronenwolke.netz({"radius": 1.9, "hoehe": 2.6, "variante": 1,
@@ -492,11 +547,13 @@ func _mitten_suchen() -> void:
 
 
 ## Die Baumtore (siehe Kopf): je Seite eine Buche, leicht zum Weg geneigt,
-## die Krone über der Böschung neben dem Weg. Probiert Fassungen (TOR_HOEHEN
-## × TOR_NEIGUNGEN × TOR_KRONEN, die größte zuerst), bis K1 hält (über
-## |q| < TOR_FREI_Q keine Krone), der Stamm frei vom Weg steht und keine
-## Sichtlinie zur Eiche getroffen wird (`_sichtlinien_anlegen`); hält das
-## keine, die Fassung mit den wenigsten getroffenen Stellen.
+## die Krone über der Böschung neben dem Weg. Gesucht wird unter den
+## Fassungen (TOR_HOEHEN × TOR_NEIGUNGEN × TOR_KRONEN, die größte zuerst)
+## die erste, bei der K1 hält (über |q| < TOR_FREI_Q keine Krone), der Stamm
+## frei vom Weg steht und keine Sichtlinie zur Eiche getroffen wird
+## (`_sichtlinien_anlegen`); hält das keine, die Fassung mit den wenigsten
+## getroffenen Stellen. Das Ergebnis steht fest in TOR_WAHL; gesucht wird
+## nur, wenn die feste Fassung K1 oder die Stammprobe nicht besteht.
 func _tore() -> void:
 	_sichtlinien_anlegen()
 	var saat := SAAT + 31
@@ -566,48 +623,33 @@ func _tor_baum(s: float, seite: float, saat: int) -> void:
 	var richtung := Vector2(mitte.x - p.x, mitte.z - p.z).normalized()
 	var lage := Transform3D(Basis.IDENTITY, Vector3(p.x, y - 0.1, p.z))
 	var beste := {}
-	var beste_zahl := 1 << 30
-	for hoch in TOR_HOEHEN:
-		for neigung in TOR_NEIGUNGEN:
-			for krone in TOR_KRONEN:
-				var o := {"mittel": true, "hoehe": hoch, "radius": 0.46, "krone_radius": krone,
-						"variante": 0, "ballen": 3, "karten": 34, "unten": TOR_UNTEN,
-						"neigung": richtung * neigung, "saat": saat}
-				var b := Baumfabrik.baum(o)
-				var huelle := lage * (b["huelle"] as AABB)
-				if not rahmen.weg_frei(huelle, TOR_FREI_Q, Waldrahmen.FREI_H):
-					rahmen.zaehle("tor_k1")
-					continue
-				var achse := PackedVector3Array()
-				for k in 12:
-					var t := float(k) / 11.0
-					achse.append(lage * (Vector3(0.0, t * hoch * 0.95, 0.0)
-							+ Baumfabrik.neigung_bei(b, t * 0.95)))
-				if not rahmen.stamm_frei(lage.origin, achse[achse.size() - 1], 0.46, 0.0, 0.2, achse):
-					rahmen.zaehle("tor_stamm")
-					continue
-				var zahl := _sicht_getroffen(huelle)
-				if zahl < beste_zahl:
-					beste_zahl = zahl
-					beste = {"b": b, "huelle": huelle, "hoch": hoch, "neigung": neigung,
-							"krone": krone}
-				if zahl == 0:
-					break
-			if beste_zahl == 0:
-				break
-		if beste_zahl == 0:
-			break
+	var schluessel := "%.0f %+.0f" % [s, seite]
+	if TOR_WAHL.has(schluessel):
+		var w: Vector3 = TOR_WAHL[schluessel]
+		beste = _tor_fassung(lage, richtung, saat, w.x, w.y, w.z)
+		if beste.is_empty():
+			push_warning("L05Wald: Die feste Fassung des Tors %s hält K1 oder die Stammprobe nicht – es wird gesucht (TOR_WAHL neu bestimmen)"
+					% schluessel)
+	if beste.is_empty():
+		beste = _tor_suche(lage, richtung, saat)
 	if beste.is_empty():
 		rahmen.zaehle("tor_ohne_platz")
 		return
+	var beste_zahl: int = beste["zahl"]
 	var b: Dictionary = beste["b"]
 	var huelle: AABB = beste["huelle"]
 	if not rahmen.kegel_frei(huelle):
 		rahmen.zaehle("tore_im_kegel")
+	var ton := TOR_TON * Baumfabrik.ton(PropWerkzeug.zufall(saat), Vector2(0.9, 1.0), 0.03)
 	_nah.setze("tor_stamm", b["stamm"] as ArrayMesh, lage, Color(0.92, 0.92, 0.92))
 	_nah.setze("tor_stamm_schatten", b["schatten"] as ArrayMesh, lage)
-	_nah.setze("tor_krone", b["krone"] as ArrayMesh, lage,
-			TOR_TON * Baumfabrik.ton(PropWerkzeug.zufall(saat), Vector2(0.9, 1.0), 0.03))
+	_nah.setze("tor_krone", b["krone"] as ArrayMesh, lage, ton)
+	# Fernfassung (siehe TOR_FERN): derselbe Baum „schlicht".
+	var of: Dictionary = (beste["o"] as Dictionary).duplicate()
+	of["schlicht"] = true
+	var bf := Baumfabrik.baum(of)
+	_nah.setze("tor_stamm_fern", bf["stamm"] as ArrayMesh, lage, Color(0.92, 0.92, 0.92))
+	_nah.setze("tor_krone_fern", bf["krone"] as ArrayMesh, lage, ton)
 	rahmen.staemme.dazu(Vector2(p.x, p.z), 3.0)
 	rahmen.kronen.dazu(Vector2(huelle.get_center().x, huelle.get_center().z),
 			maxf(huelle.size.x, huelle.size.z) * 0.35)
@@ -619,6 +661,51 @@ func _tor_baum(s: float, seite: float, saat: int) -> void:
 				float(beste["hoch"]), float(beste["neigung"]), float(beste["krone"]),
 				huelle.position.y - level.boden_bei(s), huelle.end.y - level.boden_bei(s),
 				beste_zahl]
+
+
+## Die Suche über alle Fassungen (siehe `_tore`): die erste ohne getroffene
+## Sichtlinie, sonst die mit den wenigsten; leer, wenn keine K1 und die
+## Stammprobe besteht.
+func _tor_suche(lage: Transform3D, richtung: Vector2, saat: int) -> Dictionary:
+	var beste := {}
+	for hoch in TOR_HOEHEN:
+		for neigung in TOR_NEIGUNGEN:
+			for krone in TOR_KRONEN:
+				var f := _tor_fassung(lage, richtung, saat, hoch, neigung, krone)
+				if f.is_empty():
+					continue
+				if beste.is_empty() or int(f["zahl"]) < int(beste["zahl"]):
+					beste = f
+				if int(f["zahl"]) == 0:
+					return beste
+	return beste
+
+
+## Eine Fassung der Torbuche: der Baum (`Baumfabrik.baum`) samt seinen
+## Optionen, seine Hülle in der Lage und die Zahl der getroffenen Stellen
+## ({"b", "o", "huelle", "hoch", "neigung", "krone", "zahl"}); leer, wenn
+## K1 oder die Stammprobe nicht hält.
+func _tor_fassung(lage: Transform3D, richtung: Vector2, saat: int, hoch: float,
+		neigung: float, krone: float) -> Dictionary:
+	var o := {"hoehe": hoch, "radius": 0.46, "krone_radius": krone,
+			"variante": 0, "aeste": TOR_AESTE, "ast_start": TOR_AST_START,
+			"ast_steil": TOR_AST_STEIL, "karten": TOR_KARTEN, "moos": 0.6,
+			"neigung": richtung * neigung, "saat": saat}
+	var b := Baumfabrik.baum(o)
+	var huelle := lage * (b["huelle"] as AABB)
+	if not rahmen.weg_frei(huelle, TOR_FREI_Q, Waldrahmen.FREI_H):
+		rahmen.zaehle("tor_k1")
+		return {}
+	var achse := PackedVector3Array()
+	for k in 12:
+		var t := float(k) / 11.0
+		achse.append(lage * (Vector3(0.0, t * hoch * 0.95, 0.0)
+				+ Baumfabrik.neigung_bei(b, t * 0.95)))
+	if not rahmen.stamm_frei(lage.origin, achse[achse.size() - 1], 0.46, 0.0, 0.2, achse):
+		rahmen.zaehle("tor_stamm")
+		return {}
+	return {"b": b, "o": o, "huelle": huelle, "hoch": hoch, "neigung": neigung, "krone": krone,
+			"zahl": _sicht_getroffen(huelle)}
 
 
 ## Der nahe Wald zwischen `von` und `bis` (Strecke der Hainmitte): je Mitte
@@ -870,7 +957,8 @@ func _raster(raster: float, ab: float, bis: float, anteil: float, rng: RandomNum
 			if not rahmen.weg_frei(huelle) or not rahmen.kegel_frei(huelle):
 				rahmen.zaehle("fern_nein_regel")
 				continue
-			var ton := _ton_waehlen(rng) * FERN_DUNKEL
+			var ton := _ton_waehlen(rng).lerp(FERN_EINHEIT_TON,
+					FERN_EINHEIT.y if u >= FERN_AB else FERN_EINHEIT.x) * FERN_DUNKEL
 			ton.a = 1.0
 			setzen.call({"lage": lage, "k": k, "ton": ton, "fuss": Vector3(px, y, pz)})
 			rahmen.kronen.dazu(Vector2(px, pz), 3.6 * groesse)

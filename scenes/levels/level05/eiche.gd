@@ -118,10 +118,15 @@ const LAUB := Color(0.54, 0.42, 0.13)
 ## Gruppen Pilze und Efeu; die Hälften r 1,5 statt 1,1 (oben 0,75 statt
 ## 0,6), krummer (0,9 statt 0,5), mit Rippen, Pilzen und Efeu. Mit r 1,1 auf
 ## 24,5 m standen sie im Bild als zwei dünne Stangen.
-const FUSS := {"hoehe": 5.5, "radius": 2.15, "radius_oben": 0.6, "brettwurzeln": 7,
-		"wurzel_reichweite": 2.4, "wurzel_hoehe": 3.0, "wurzel_dicke": 0.6, "anlauf": 0.35,
+## R2 (Bild-Jury R2, Mangel 2: „ohne Brettwurzeln und ohne Masse am
+## Fuß"): r 2,5 statt 2,15, 6 statt 5,5 m hoch, höhere Bretter, tiefere
+## Rippen – er trägt jetzt die dickeren Hälften (siehe HAELFTE). Weiteste
+## Stelle samt Wurzeln gut 5 m von der Achse, also s −4,4: noch vor der
+## Querwand bei −4.
+const FUSS := {"hoehe": 6.0, "radius": 2.5, "radius_oben": 0.7, "brettwurzeln": 7,
+		"wurzel_reichweite": 2.4, "wurzel_hoehe": 3.6, "wurzel_dicke": 0.6, "anlauf": 0.35,
 		"krumm": 0.0, "oben": "offen", "pilze": 2, "efeu": 2, "spalt": Vector2(0.0, -1.0),
-		"spalt_tiefe": 0.06, "spalt_von": 0.4, "rippen_tiefe": 0.12,
+		"spalt_tiefe": 0.06, "spalt_von": 0.4, "rippen_tiefe": 0.17, "drehung": 0.7,
 		"spalt_farbe": Color(0.25, 0.19, 0.13), "saat": 5501}
 ## Stammhälften: gemeinsame Optionen; je Seite dazu `neigung`, `spalt` und
 ## `saat` (`_haelfte`). Ansatz HAELFTE_ANSATZ (x seitlich, y Höhe) im Fuß.
@@ -131,15 +136,26 @@ const FUSS := {"hoehe": 5.5, "radius": 2.15, "radius_oben": 0.6, "brettwurzeln":
 ## 0,5 rad lagen die Spitzen über 5,5 m verteilt, und jede Krone las sich
 ## als zwei, drei gestapelte Ballen – eine Pagode aus Tellern (Prüfung P4,
 ## wie Level 01 in Welle 6). 24,5 m: siehe Kopf, ABWEICHUNGEN.
-const HAELFTE := {"hoehe": 24.5, "radius": 1.5, "radius_oben": 0.75, "krumm": 0.9,
+## R2 (Bild-Jury R2, Mangel 2): „zwei glatte, gebogene Bretter", aus der
+## Ferne „Striche": r 2,05 statt 1,5 (oben 1,25 statt 0,75), Rippen 0,2
+## statt 0,13 tief und stärker gedreht (0,75), je zwei Gruppen Pilze und
+## Efeu. Dazu die HAUPTAESTE (unten) und die Fernform dicker (FERN_DICKE).
+## Die Spaltfläche schmaler (Tiefe 0,16 statt 0,3 des Radius: 1,05 statt
+## 1,43 Radien breit) und dunkler (0,15/0,11/0,075 statt 0,25/0,19/0,13):
+## Breit und hell lasen sich die beiden Innenseiten bei s 8 als glatte,
+## längs gemaserte Bretter (eigene Prüfung).
+const HAELFTE := {"hoehe": 24.5, "radius": 2.05, "radius_oben": 1.25, "krumm": 0.9,
 		"anlauf": 0.0, "brettwurzeln": 0, "aeste": 4, "ast_start": 0.8, "ast_steil": 0.25,
-		"ast_laenge": 5.5, "spalt_tiefe": 0.3, "spalt_bis": 0.85, "rippen_tiefe": 0.13,
-		"pilze": 1, "efeu": 1, "spalt_farbe": Color(0.25, 0.19, 0.13)}
+		"ast_laenge": 5.5, "spalt_tiefe": 0.16, "spalt_bis": 0.85, "rippen_tiefe": 0.2,
+		"drehung": 0.75, "pilze": 2, "efeu": 2, "spalt_farbe": Color(0.15, 0.11, 0.075)}
 ## Ansatz im Fuß: Die unterste Kante der Hälften (1 m unter dem Ansatz,
-## `Riesenstamm.VERSENKT`) liegt bei 2,6 m, 0,95 m neben der Achse (bei r
-## 1,1 waren es 0,75 m: Die dickeren Hälften rücken auseinander, sonst
-## stünden sie ineinander).
-const HAELFTE_ANSATZ := Vector2(0.95, 3.6)
+## `Riesenstamm.VERSENKT`) liegt bei 2,6 m, 1,27 m neben der Achse (bei r
+## 1,1 waren es 0,75 m, bei 1,5 0,95 m: Die dickeren Hälften rücken
+## auseinander, sonst stünden sie ineinander).
+const HAELFTE_ANSATZ := Vector2(1.27, 3.6)
+## Radius (unten, oben), nach dem die Kronen sitzen (`_haelfte_krone`): der
+## der Hälften bis R2.
+const KRONE_HAELFTE_R := Vector2(1.5, 0.75)
 ## Saat je Hälfte (0: q < 0, 1: q > 0): je Seite die erste ab 5502 bzw.
 ## 6502, deren Krone nicht vor oder hinter den Stamm zieht (Mittel der
 ## Astspitzen längs ≤ 0,8 m vom Leittrieb, gemessen −0,44 und 0,29) und
@@ -189,14 +205,58 @@ const RAND := 4.0
 ## gegen 91/68/14). Was bleibt, ist der Glanz der Karten.
 const FERN_SKALA := 1.07
 const LAUB_FERN := Color(0.66, 0.51, 0.16)
-## Eigener Nebel (siehe Kopf).
-const NEBEL_KRONE := 0.3
-const NEBEL_STAMM := 0.4
+## Eigener Nebel (siehe Kopf). R2: Kronen 0,12 statt 0,3, Hälften 0,25 statt
+## 0,4 – im Schlussbild stand die Eiche blass rosa im Dunst statt golden
+## (Bild-Jury R2, Mangel 2; Entwurf §8.1: „Dort leuchtet nur die Hauereiche
+## golden").
+const NEBEL_KRONE := 0.12
+const NEBEL_STAMM := 0.25
 const NEBEL_KUPPE := 0.7
+
+## HAUPTÄSTE UND LAPPEN (Bild-Jury R2, Mangel 2). Bis R2 trugen die Hälften
+## je eine flache Schirmkrone an vier Ästen, die erst bei 80 % der Höhe
+## abgingen und ganz im Laub steckten: Von s 30 an standen zwei dünne Stiele
+## mit flachen Pfannkuchenkronen ohne sichtbare Äste im Bild, aus der Ferne
+## zwei Pilzhüte auf Strichen. Jetzt gehen von jeder Hälfte vier Hauptäste
+## ab (Vector4: Anteil der Höhe, Richtung in rad – 0 nach außen, positiv
+## nach vorn, hangab zur Kamera –, Länge, Steigung in rad), nie nach innen
+## in die Kerbe, und an jedem hängt ein runder Lappen Laub (LAPPEN_R, Mitte
+## LAPPEN_HOCH über der Astspitze). So wird jede Krone eine breite,
+## unregelmäßige Haube aus mehreren Lappen; jeder Lappen ist unten dunkel
+## (`Kronenwolke`: Farbe nach der Höhe in seiner Krone), und zwischen Stamm
+## und Laub sieht man die Äste. Die Schirmkronen und ihre Probepunkte
+## (`wahrzeichen`, Kerbe) bleiben, wie sie sind.
+## Vier je Hälfte, ab 56 % der Höhe und flach (0,22–0,4 rad), weit hinaus
+## (6,5–9 m): Breit ausladend ist eine Eiche. Mit drei kurzen, steilen Ästen
+## ab 55 % hingen die Lappen in der Fernform als Stapel unter der
+## Schirmkrone (ein Pilzbüschel), mit Ästen ab 44 % als Pagode aus
+## Tellern (eigene Prüfung bei s 296); so dicht unter der Schirmkrone
+## wachsen die Lappen mit ihr zu einer Haube zusammen.
+const HAUPTAESTE: Array[Vector4] = [Vector4(0.56, 0.15, 9.0, 0.22),
+		Vector4(0.6, 0.95, 8.0, 0.3), Vector4(0.66, -0.95, 8.0, 0.3),
+		Vector4(0.72, 0.45, 6.5, 0.4)]
+## Radius der Hauptäste am Ansatz und an der Spitze (m). Lappen mit
+## LAPPEN_R 4,4: Mit 3,5 standen sie aus der Ferne (s 90, 140) als eigene
+## Stockwerke unter der Schirmkrone – eine Pagode aus Pilzhüten; größer
+## überlappen sie zu EINER Krone von gut 13 bis 29 m Höhe.
+const AST_R := Vector2(0.6, 0.22)
+const LAPPEN_R := 4.4
+const LAPPEN_HOCH := 1.0
+## Die Hälften der Fernform so viel dicker (Radius): Auf 300 m und mehr
+## lasen sie sich als Striche (Bild-Jury R2: „mindestens 2× Strichbreite").
+## Dazu sind die Hälften selbst dicker (HAELFTE); fern oben r 1,5 statt
+## 0,86 wie bis R2. Beim Wechsel nah → fern bei 100 m springt der Rand um
+## 0,41 m (Fuß) bis 0,25 m (oben), bei 60° Blickfeld in 720p 2,6 bzw.
+## 1,6 Bildpunkte je Seite.
+const FERN_DICKE := 1.2
 
 ## Borke der Eiche: Rinde der Bibliothek, etwas wenig Moos oben (Licht).
 const BORKE := {"moos_oben": 0.35, "moos_nord": 0.6}
-const BORKE_FERN := {"fern": true, "moos_oben": 0.35, "farbe": Color(0.5, 0.43, 0.36)}
+## Fern dunkel und warm, kaum Streifen und Flechten (R2): Mit Farbe 0,5/
+## 0,43/0,36 und den Streifen der Vorgabe (0,55) standen die Hälften bei
+## s 296 als weiß gestreifte Striche vor dem Dunst (eigene Prüfung).
+const BORKE_FERN := {"fern": true, "moos_oben": 0.35, "farbe": Color(0.36, 0.27, 0.19),
+		"streifen": 0.2, "flechten": 0.2}
 
 var level: Level05
 ## Die Eiche im Level (Gruppe GRUPPE).
@@ -246,6 +306,16 @@ func _bauen() -> void:
 	var nah: Array[MeshInstance3D] = [stamm_nah, kn]
 	var fern: Array[MeshInstance3D] = [stamm_fern, kf]
 	_wechsel_setzen(nah, fern, wechsel)
+	# Die Hauptäste setzen auf der Achse an, die `achse_haelfte` nachrechnet;
+	# an der Spitze muss sie den Leittrieb von `Riesenstamm` treffen.
+	for i in 2:
+		var o := _haelfte(i, false)
+		var spitzen: PackedVector3Array = Riesenstamm.netz(o).get_meta("ast_spitzen")
+		var abweichung := spitzen[spitzen.size() - 1].distance_to(
+				achse_haelfte(o, float(o["hoehe"])))
+		if abweichung > 0.01:
+			push_warning("L05Eiche: Achse der Hälfte %d weicht %.3f m vom Leittrieb ab – die Hauptäste stehen neben dem Stamm"
+					% [i, abweichung])
 
 	# Probepunkte für `wahrzeichen` aus der Fernkrone (die steht im Bild,
 	# solange die Kerbe zählt), in Weltkoordinaten.
@@ -294,7 +364,8 @@ func rahmen() -> Transform3D:
 ## 3 Bildpunkte dünn und stecken in der Krone).
 static func stamm_netz(fern: bool) -> ArrayMesh:
 	return Bauspeicher.netz("l05_eiche_stamm", [FUSS, HAELFTE, HAELFTE_ANSATZ, HAELFTE_NEIGUNG,
-			HAELFTE_SPALT, HAELFTE_SAAT, fern], func() -> ArrayMesh: return _stamm_bauen(fern))
+			HAELFTE_SPALT, HAELFTE_SAAT, HAUPTAESTE, AST_R, FERN_DICKE, fern],
+			func() -> ArrayMesh: return _stamm_bauen(fern))
 
 
 static func _stamm_bauen(fern: bool) -> ArrayMesh:
@@ -309,9 +380,52 @@ static func _stamm_bauen(fern: bool) -> ArrayMesh:
 	if fern:
 		netz = st.commit()
 		st = Riesenstamm.bauer()
+	# Die Hauptäste in einem eigenen Sammler: Erst `Riesenstamm.fertig`
+	# rechnet ihre Tangenten (die Rinde trägt eine Normalentextur).
+	var aeste := Riesenstamm.bauer()
 	for i in 2:
 		st.append_from(Riesenstamm.netz(_haelfte(i, fern)), 0, _ansatz(i))
+		for k in HAUPTAESTE.size():
+			var ast := hauptast(i, k)
+			L05Wegbauten.holz(aeste, Transform3D.IDENTITY, ast["punkte"], ast["radien"],
+					{"seiten": 6 if fern else 10, "buckel": 0.1, "moos": 0.45,
+					"saat": HAELFTE_SAAT[i] + 300 + k, "anfang": "stumpf", "ende": "spitz"})
+	st.append_from(Riesenstamm.fertig(aeste), 0, Transform3D.IDENTITY)
 	return st.commit(netz)
+
+
+## Hauptast `k` der Hälfte `i` im Rahmen der Eiche (siehe HAUPTAESTE):
+## {"punkte", "radien", "spitze"}. Er beginnt auf der Achse der Hälfte, im
+## Holz, und läuft nach außen und oben – mit einem leichten Bogen zur Seite.
+static func hauptast(i: int, k: int) -> Dictionary:
+	var o := _haelfte(i, false)
+	var seite := -1.0 if i == 0 else 1.0
+	var a: Vector4 = HAUPTAESTE[k]
+	var start := _ansatz(i) * achse_haelfte(o, a.x * float(o["hoehe"]))
+	var aussen := Vector3(seite * cos(a.y), 0.0, -sin(a.y)).normalized()
+	var quer := aussen.cross(Vector3.UP) * (1.0 if k % 2 == 0 else -1.0)
+	var punkte := PackedVector3Array()
+	var radien := PackedFloat32Array()
+	for n in 6:
+		var f := float(n) / 5.0
+		punkte.append(start + aussen * (cos(a.w) * a.z * f) + quer * 0.35 * sin(f * PI)
+				+ Vector3.UP * (sin(a.w) * a.z * f + 0.12 * a.z * f * f))
+		radien.append(lerpf(AST_R.x, AST_R.y, f))
+	return {"punkte": punkte, "radien": radien, "spitze": punkte[5]}
+
+
+## Achse der Hälfte (Optionen `o`) in der Höhe `y`, im Rahmen der Hälfte:
+## dieselbe Rechnung wie `Riesenstamm._achse` (Neigung mit t^1,5, Schwung
+## nach Phase und Richtung, die beiden ersten Würfe der Saat). Dass sie
+## übereinstimmt, prüft `_bauen` an der Spitze (dem Leittrieb der Äste).
+static func achse_haelfte(o: Dictionary, y: float) -> Vector3:
+	var rng := PropWerkzeug.zufall(int(o["saat"]))
+	var phase := rng.randf() * TAU
+	var schwung := Vector2.from_angle(rng.randf() * TAU)
+	var t := clampf(y / float(o["hoehe"]), 0.0, 1.3)
+	var v: Vector2 = (o["neigung"] as Vector2) * pow(t, 1.5) \
+			+ schwung * float(o["krumm"]) * sin(t * PI * 1.3 + phase) * t
+	return Vector3(v.x, y, v.y)
 
 
 ## Optionen der Hälfte `i` (0: q < 0, 1: q > 0).
@@ -324,6 +438,24 @@ static func _haelfte(i: int, fern: bool) -> Dictionary:
 	if fern:
 		o["schlicht"] = true
 		o["aeste"] = 0
+		o["radius"] = float(o["radius"]) * FERN_DICKE
+		o["radius_oben"] = float(o["radius_oben"]) * FERN_DICKE
+	return o
+
+
+## Optionen der Hälfte `i`, nach denen die Kronen sitzen (`_kronen_bauen`):
+## wie `_haelfte`, aber mit dem Radius KRONE_HAELFTE_R. WARUM: Die Äste von
+## `Riesenstamm` setzen an der Borke an, der Radius verschiebt jede
+## Astspitze (gemessen: mit r 2,05 statt 1,5 eine Spitze 2,1 m weiter in die
+## Kerbe). Saaten und Neigungen (HAELFTE_SAAT, HAELFTE_NEIGUNG) sind auf die
+## Spitzen bei r 1,5 gesucht; mit den Spitzen der dicken Hälften fiel die
+## Kerbe bei s 296 auf 15,6 px (Ziel ≥ 16) und die Wahrzeichenprobe auf
+## 70,5 %. Die Äste der dicken Hälften enden so 0,2–2,1 m neben den
+## Kronenzentren, im Laub.
+static func _haelfte_krone(i: int) -> Dictionary:
+	var o := _haelfte(i, false)
+	o["radius"] = KRONE_HAELFTE_R.x
+	o["radius_oben"] = KRONE_HAELFTE_R.y
 	return o
 
 
@@ -341,9 +473,9 @@ static func _ansatz(i: int) -> Transform3D:
 ## Leittrieb um BALLEN_HOCH gehoben – die Mitten der Astballen);
 ## custom_aabb über beide samt Blattkarten.
 static func kronen_netz(fern: bool) -> ArrayMesh:
-	return Bauspeicher.netz("l05_eiche_kronen", [HAELFTE, HAELFTE_ANSATZ, HAELFTE_NEIGUNG,
-			HAELFTE_SAAT, KRONE_R, FERN_SKALA, BALLEN_HOCH, fern],
-			func() -> ArrayMesh: return _kronen_bauen(fern))
+	return Bauspeicher.netz("l05_eiche_kronen", [HAELFTE, KRONE_HAELFTE_R, HAELFTE_ANSATZ, HAELFTE_NEIGUNG,
+			HAELFTE_SAAT, KRONE_R, FERN_SKALA, BALLEN_HOCH, HAUPTAESTE, AST_R, LAPPEN_R,
+			LAPPEN_HOCH, fern], func() -> ArrayMesh: return _kronen_bauen(fern))
 
 
 static func _kronen_bauen(fern: bool) -> ArrayMesh:
@@ -356,7 +488,7 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 	var ballen := PackedVector3Array()
 	for i in 2:
 		var seite := -1.0 if i == 0 else 1.0
-		var haelfte := Riesenstamm.netz(_haelfte(i, false))
+		var haelfte := Riesenstamm.netz(_haelfte_krone(i))
 		var spitzen: PackedVector3Array = haelfte.get_meta("ast_spitzen")
 		var o := {"zentren": spitzen, "nebenzentren": haelfte.get_meta("zweig_spitzen"),
 				"radius": KRONE_R, "variante": 1, "saat": HAELFTE_SAAT[i] + 101}
@@ -379,6 +511,19 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 		kanten.append(lage * gross * _innerste_ecke(fern_netz, seite))
 		for p in spitzen:
 			ballen.append(lage * (p + Vector3.UP * BALLEN_HOCH))
+		# Die Lappen an den Hauptästen (siehe HAUPTAESTE), im Rahmen der
+		# Eiche; fern um ihre eigene Mitte vergrößert wie die Schirmkrone.
+		for k in HAUPTAESTE.size():
+			var mitte_l: Vector3 = (hauptast(i, k)["spitze"] as Vector3) + Vector3.UP * LAPPEN_HOCH
+			var ol := {"mitte": mitte_l, "radius": LAPPEN_R, "variante": 0, "ballen": 5,
+					"saat": HAELFTE_SAAT[i] + 201 + k}
+			var lappen := Kronenwolke.fern(ol) if fern else Kronenwolke.netz(ol)
+			var lage_l := Transform3D(Basis.from_scale(Vector3.ONE * FERN_SKALA),
+					mitte_l * (1.0 - FERN_SKALA)) if fern else Transform3D.IDENTITY
+			st.append_from(lappen, 0, lage_l)
+			var huelle_l := lappen.custom_aabb if lappen.custom_aabb.has_volume() \
+					else lappen.get_aabb()
+			box = box.merge(lage_l * huelle_l)
 	var ergebnis := st.commit()
 	ergebnis.custom_aabb = box
 	ergebnis.set_meta("mitten", mitten)

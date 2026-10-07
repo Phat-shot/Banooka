@@ -705,9 +705,16 @@ static func _abstand_lauf(p: Vector2, lauf: Array[Vector2]) -> float:
 # ================================================================ Farbe
 
 ## Südwand: Rauschwerte, zwischen denen die Streifen einsetzen, und wie
-## viel Fels sie höchstens zu Waldboden machen (siehe `_faerben`).
-const SUEDWAND_STREIFEN := Vector2(-0.1, 0.25)
+## viel Fels sie höchstens zu Bewuchs machen (siehe `_faerben`); davon
+## SUEDWAND_WALDBODEN Waldboden, der Rest Rasen – im Schatten Moospolster.
+## R2 (Bild-Jury R2, Mangel 6: „ohne Simse, Farn und erkennbares Moos, die
+## R1-Moosstreifen sind nicht zu sehen"): Streifen breiter (−0,3 … 0,1
+## statt −0,1 … 0,25) und grün statt ganz Waldboden – brauner Waldboden auf
+## dunklem Fels verschwand im Schatten. Simse und Farn: `L05Wegbauten`,
+## `L05Rasen`.
+const SUEDWAND_STREIFEN := Vector2(-0.3, 0.1)
 const SUEDWAND_MOOS := 1.0
+const SUEDWAND_WALDBODEN := 0.35
 
 
 ## Gewichte der vier Böden (R Wiese, G Waldboden, B Fels, A Schlamm): Fels,
@@ -742,7 +749,7 @@ func _faerben(p: Vector3, n: Vector3) -> Color:
 				_rauschen_fein.get_noise_2d(s * 2.4 + p.y * 1.2, p.y * 0.5 + 40.0))
 		var moos := fels * streifen * tobel * SUEDWAND_MOOS
 		fels -= moos
-		wald += moos
+		wald += moos * SUEDWAND_WALDBODEN
 	# Hinter s 300 keine eigene Spur: Die zeichnet der Auslauf der Decke
 	# (`Level05._auslauf_bauen`) im Löss der Decke, das Feld bleibt Wiese.
 	var wiese := maxf(1.0 - fels - wald - nass, 0.0)

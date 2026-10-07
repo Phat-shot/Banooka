@@ -97,6 +97,8 @@ const KRONE_WELLE_DICHTE := 0.045
 const KRONE_ZACKE := 0.3
 const KRONE_ZACKE_DICHTE := 0.32
 const NARBE_WECHSEL := 0.15
+## Uferwand vor dem Wehr bemoost (`_profil_ab`): voll ab y, bis z, aus bei w.
+const UFER_MOOS := Vector4(258.0, 264.0, 276.0, 279.0)
 ## Stirnen der Lücken: Verdeckung (Faktor auf die Albedo, `fels_schichten`)
 ## unter der Narbe nach der Tiefe unter der Lippe – bis STIRN_TIEFE.x
 ## STIRN_HELL, ab STIRN_TIEFE.y STIRN_DUNKEL, dazwischen weich.
@@ -478,6 +480,14 @@ static func _profil_ab(_i: int, probe: Dictionary, level: Level05,
 	var ov: float = m["narbe"]
 	var fels: float = m["fels"]
 	var erde := lerpf(0.85, 0.15, fels)
+	# R2 (Bild-Jury R2, Mangel 6: „bei s 262 ragt ein oranges Wandstück
+	# senkrecht aus Gras und Wasser"): Wo der Hang das Ufer nicht mehr
+	# deckt (sein Tobel klingt 258–268 aus, `L05Gelaende`) und die Wand vor
+	# dem Wehr steiler wird, steht sie offen über dem Bach – dort nass und
+	# bemoost statt Löss (UFER_MOOS).
+	var bemoost := smoothstep(UFER_MOOS.x, UFER_MOOS.y, s) \
+			* (1.0 - smoothstep(UFER_MOOS.z, UFER_MOOS.w, s))
+	erde *= 1.0 - 0.75 * bemoost
 	# Am Ufer tritt die Narbe über eine ausgewaschene Kante, an der Mauer
 	# kaum.
 	var unter := lerpf(0.2, 0.02, fels) * f
@@ -499,7 +509,8 @@ static func _profil_ab(_i: int, probe: Dictionary, level: Level05,
 		var t := float(j) / 5.0
 		var d := lerpf(d_a, d_b, t)
 		p.punkt(_ab_o(d, k, fels) - unter * (1.0 - t), deck - d,
-				Kanten.farbe(lerpf(0.5, 0.64, t), erde, lerpf(0.15, 0.6, t), 0.0),
+				Kanten.farbe(lerpf(0.5, 0.64, t) * (1.0 - 0.25 * bemoost), erde,
+						maxf(lerpf(0.15, 0.6, t), 0.85 * bemoost), 0.0),
 				lerpf(0.8, 2.0, t), lerpf(0.1, 0.18, t) * f, 1.0, lerpf(0.02, 0.15, fels) * f)
 	# --- Fuß und unter das Bett (13–15)
 	var fuss: float = m["fuss"]

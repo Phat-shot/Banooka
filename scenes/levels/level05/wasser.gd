@@ -25,7 +25,8 @@ class_name L05Wasser
 ## * RINNSALE am Wasserriss L1: je eines aus beiden Böschungen, unter der
 ##   Grasnarbe heraus, die Wand hinab und im Spalt bis auf seinen Grund
 ##   (`Wasserfall.band`, an der gebauten Fläche des Saums, `stand` in
-##   `L05Saum`). Beide in EINEM Netz.
+##   `L05Saum`). Beide in EINEM Netz, als schmales Tropfband mit Lücken und
+##   nahe der Kamera ganz ausgeblendet (seit R2, siehe RINNSAL_BREITE).
 ## * TOBELBACH (D, q < 0) als `Bachband` (Baukasten G3) im Bett vor dem
 ##   Ufer: drei Meter breit zwischen dem Fuß der Uferwand und der Südwand,
 ##   der Spiegel über dem Grund des Betts (`L05Saum.form_ab`), stromab nie
@@ -64,11 +65,11 @@ class_name L05Wasser
 ##
 ## KOSTEN (Entwurf §10: Wasser und Mühlrad 10 Zeichenaufrufe, Handy 8),
 ## alles ohne Schatten: Bach, Teich und Bruch in EINEM Netz im Stoff des
-## Bachs (1), das Wasser in den Gerinnen in einem zweiten mit Nahblende (1,
-## seit den Mängeln der Runde 1, siehe `_flaechen_bauen`); Schlamm (1) und
-## Pfützen (1) der Suhle; die Rinnsale (1), die Fälle der Gerinne (1), der
-## Schuss (1) und der Fall (1) des Weißwassers je als ein Band; Rad (1)
-## und Böcke (1). Zusammen 10; zugleich im Bild höchstens 6 (am
+## Bachs (1), das Wasser in den Gerinnen je Joch in einem Netz mit
+## Sichtgrenze nahe der Kamera (2, seit R2; siehe `_flaechen_bauen`);
+## Schlamm (1) und Pfützen (1) der Suhle; die Rinnsale (1), die Fälle der
+## Gerinne (1), der Schuss (1) und der Fall (1) des Weißwassers je als ein
+## Band; Rad (1) und Böcke (1). Zusammen 11; zugleich im Bild höchstens 6 (am
 ## Mühlbach), weil Suhle und Rinnsale nur von Nahem zu sehen sind. Sichtweiten siehe SICHT_*; der
 ## Bach ohne: Eine Sichtweite zählt ab der Mitte der Hülle, die des Bachs
 ## (Tobel bis Feldrand) liegt weit vom Bild.
@@ -196,6 +197,13 @@ const RINNSAL_S := {-1.0: 75.7, 1.0: 77.25}
 const RINNSAL_UNTER_KRONE := 0.55
 const RINNSAL_VOR := 0.07
 const RINNSAL_WANDERN := 0.12
+## Breite oben und am Fuß (m) und Stützpunkte je Stück (alle 0,35 m einer,
+## siehe `_rinnsal_stuecke`). WARUM schmaler und unterbrochen (R2, Bild-
+## Jury): 0,24–0,34 m breit und von oben bis unten durchgehend stand es nah
+## als graublaue Klinge mit Knick, fern als Glasstab an der Wand.
+const RINNSAL_BREITE := 0.15
+const RINNSAL_BREITE_FUSS := 0.24
+const RINNSAL_STUECK := 4
 ## Farben (wie `L01Wasser`, das Rinnsal der Kerbe): gedämpft, im Schatten
 ## der Wand stünde es sonst weiß wie Papier.
 const RINNSAL_SCHAUM := Color(0.62, 0.72, 0.74)
@@ -216,11 +224,21 @@ const BACH_BREITE := 2.8
 ## viel: Der Tobel fällt bis 9 %, und mit der vollen Schnelle stand der Bach
 ## im Rückblick als weißer Streifen neben dem Weg (Entwurf §5 D: „kühl
 ## spiegelnd").
-const BACH_SCHNELLE := 0.3
+## R2 (Bild-Jury R2, Mangel 6: „ein flaches graues Band mit gleichmäßigen
+## Glitzerpunkten … liest sich als Schotterstraße"): 0,4 statt 0,3 – etwas
+## mehr Schaumlinien; mit 0,5 lag der Schaum als feines Grau über dem
+## ganzen Band (eigene Prüfung bei s 247), mit 1 als weißer Streifen.
+const BACH_SCHNELLE := 0.4
 ## Farben des Bachs (Thema für `Bachband.stoff`): etwas kühler und dunkler
-## als der Waldbach von Level 01, er liegt im Schatten der Südwand.
+## als der Waldbach von Level 01, er liegt im Schatten der Südwand. R2: Der
+## gespiegelte Himmel dunkler (0,3/0,38/0,42 statt 0,6/0,68/0,74 – er machte
+## das Band im flachen Blick grau wie Schotter), nur 25 % Glitzern und das
+## Wasser deckender (Grund 0,9 statt 0,74: durch das halb durchsichtige Band
+## schien der graue Grund des Betts – dunkle Tiefe statt Kies); dazu
+## Ufersteine (`L05Wegbauten._tobel_steine`).
 const BACH_THEMA := {"farbe_tief": Color(0.06, 0.11, 0.12), "farbe_hell": Color(0.14, 0.22, 0.23),
-		"himmel_farbe": Color(0.6, 0.68, 0.74)}
+		"himmel_farbe": Color(0.3, 0.38, 0.42), "glitzer": 0.25,
+		"uniforms": {"grund_alpha": 0.9}}
 ## Unterwasser: Spiegel bei s 282 und am Ende der Punkte, Breite des Laufs.
 const UNTER_SPIEGEL := Vector2(1.64, 1.48)
 const UNTER_BREITE := 7.0
@@ -371,11 +389,18 @@ func _flaechen_bauen() -> void:
 	var bach := _knoten("Bach", netze["bach"] as Mesh, stoff, 0.0)
 	# Die Wellen heben die Fläche um bis zu 0,05 m (wie `Bachband.bauen`).
 	bach.extra_cull_margin = 0.5
-	# Das Wasser in den Gerinnen blendet nahe der Kamera aus wie die Joche
-	# selbst (`L05Wegbauten.nahblende`) – sonst schwebte es dort allein.
-	var gerinne := _knoten("Gerinnewasser", netze["gerinne"] as Mesh,
-			L05Wegbauten.nahblende(stoff, L05Wegbauten.NAH_IMMER), 0.0)
-	gerinne.extra_cull_margin = 0.5
+	# Das Wasser in jedem Gerinne steht erst, wenn auch dessen oberer Teil
+	# steht (`L05Wegbauten`, NAHBLENDE: Sichtgrenze nach der Mitte der Hülle,
+	# im Ganzen statt eines Rasters) – sonst schwebte es dort allein. Seine
+	# Mitte liegt höher als die des Holzes (4,3 statt gut 3 m über dem Weg),
+	# es erscheint also eher etwas nach dem Holz als davor.
+	var nr := 0
+	for netz_g: Mesh in netze["gerinne"] as Array:
+		var gerinne := _knoten("Gerinnewasser %d" % nr, netz_g, stoff, 0.0)
+		gerinne.extra_cull_margin = 0.5
+		gerinne.visibility_range_begin = L05Wegbauten.NAH_GRENZE
+		gerinne.visibility_range_begin_margin = L05Wegbauten.NAH_RAND
+		nr += 1
 	bruch_netze.clear()
 	bruch_netze.append(bach)
 	_knoten("Suhle", netze["schlamm"] as Mesh, _schlamm_stoff(), SICHT_RINNSAL)
@@ -419,12 +444,14 @@ func _bach_netz() -> ArrayMesh:
 ## Das Wasser in den Gerinnen der Fluderjoche als eigenes Netz im Stoff des
 ## Bachs: Es blendet nahe der Kamera aus wie die Joche (siehe
 ## `_flaechen_bauen`); bis Runde 1 hing es am Netz des Bachs.
-func _gerinne_netz() -> ArrayMesh:
-	var netz := Bachband.Netz.new()
+func _gerinne_netz() -> Array:
+	var liste: Array = []
 	for d: Dictionary in Level05.DURCHLAESSE:
 		if L05Wegbauten.art(d) == "joch":
+			var netz := Bachband.Netz.new()
 			_gerinne_wasser(netz, d)
-	return netz.fertig()
+			liste.append(netz.fertig())
+	return liste
 
 
 ## Hängt die Fläche eines fertigen Bandes an `netz` an (gleiches Format),
@@ -827,15 +854,22 @@ static func _pfuetzen_stoff() -> StandardMaterial3D:
 func _baender_und_rad() -> void:
 	var rinnsale: Array[Wasserfall] = []
 	for seite: float in [-1.0, 1.0]:
-		var bahn := _rinnsal(seite)
 		var rechts := LevelWerkzeuge.richtung(level.verlauf, float(RINNSAL_S[seite])).cross(
 				Vector3.UP).normalized()
-		var band := Wasserfall.band(self, bahn, 0.24, {"name": "Rinnsal", "breite_ende": 0.34,
-				"tempo": 3.2, "spalten": 2, "schritt": 0.35, "farbe_schaum": RINNSAL_SCHAUM,
-				"farbe_tief": RINNSAL_TIEF, "richtung": rechts * -seite})
-		if band != null:
-			rinnsale.append(band)
-	_sichtweite(_baender_vereinen(rinnsale, "Rinnsale"), SICHT_RINNSAL)
+		for stueck in _rinnsal_stuecke(_rinnsal(seite)):
+			var band := Wasserfall.band(self, stueck, RINNSAL_BREITE, {"name": "Rinnsal",
+					"breite_ende": RINNSAL_BREITE_FUSS, "tempo": 3.2, "spalten": 2,
+					"schritt": 0.35, "farbe_schaum": RINNSAL_SCHAUM,
+					"farbe_tief": RINNSAL_TIEF, "richtung": rechts * -seite})
+			if band != null:
+				rinnsale.append(band)
+	var rinnsal_knoten := _baender_vereinen(rinnsale, "Rinnsale")
+	_sichtweite(rinnsal_knoten, SICHT_RINNSAL)
+	# Nah an der Kamera (Messtor-Bild s 60: sie steht 2–4 m davor) ganz
+	# weg, wie die oberen Teile der Durchlässe (`L05Wegbauten`, NAHBLENDE).
+	if rinnsal_knoten != null:
+		rinnsal_knoten.visibility_range_begin = L05Wegbauten.NAH_GRENZE
+		rinnsal_knoten.visibility_range_begin_margin = L05Wegbauten.NAH_RAND
 	var faelle: Array[Wasserfall] = []
 	for d: Dictionary in Level05.DURCHLAESSE:
 		if L05Wegbauten.art(d) == "joch":
@@ -904,6 +938,26 @@ static func _boeschung(seite: float) -> Dictionary:
 		if float(z["seite"]) == seite and String(z["art"]) == "auf":
 			return z
 	return {}
+
+
+## Teilt die Bahn eines Rinnsals in Stücke von RINNSAL_STUECK Stützpunkten
+## mit je einem ausgelassenen dazwischen; das letzte Stück (Wandfuß und der
+## Lauf auf den Grund) bleibt ganz. Jedes Stück wird ein eigenes Band, und
+## `_baender_vereinen` streckt sein Längenmaß auf das längste: So läuft
+## jedes an beiden Enden durchsichtig aus – ein Tropfband mit Lücken.
+static func _rinnsal_stuecke(bahn: PackedVector3Array) -> Array[PackedVector3Array]:
+	var stuecke: Array[PackedVector3Array] = []
+	var i := 0
+	while i < bahn.size():
+		var ende := mini(i + RINNSAL_STUECK, bahn.size())
+		# Was danach übrig bliebe (weniger als ein Stück), gehört zum letzten.
+		if bahn.size() - ende <= RINNSAL_STUECK:
+			ende = bahn.size()
+		var stueck := bahn.slice(i, ende)
+		if stueck.size() >= 2:
+			stuecke.append(stueck)
+		i = ende + 1
+	return stuecke
 
 
 ## Die Bahn eines Rinnsals am Wasserriss (siehe Kopf): unter der Narbe aus

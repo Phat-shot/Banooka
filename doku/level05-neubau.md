@@ -1134,6 +1134,123 @@ Scratch), 60 Hz, frischer Benutzerordner je Lauf.
   Am Wehr ist der Streifen hell, weil dort die Walze steht – die Jury
   verlangt beides (Luma ≤ 30 und Weißwasser bis unter die Lippe); die
   Stirn darüber ist dunkel.
+- **Hauereiche wie Pilze, Torbuchen wie Topiary (schwer):** Die Hälften
+  sind dicker (r 2,05 statt 1,5, oben 1,25 statt 0,75), stärker gerippt
+  und gedreht; ihre Spaltfläche ist schmal und dunkel (Tiefe 0,16 statt
+  0,3 des Radius) – breit und hell lasen sich die Innenseiten bei s 8 als
+  Bretter. Der Fuß ist breiter und höher (r 2,5, 6 m, Brettwurzeln bis
+  3,6 m). Je Hälfte gehen vier Hauptäste ab (56–72 % der Höhe, 6,5–9 m
+  lang, flach), an jedem hängt ein Laublappen (r 4,4) mit dunkler
+  Unterseite; zusammen mit der Schirmkrone eine Haube von gut 13 bis 29 m
+  (`L05Eiche`, HAUPTAESTE). Die Kronen sitzen nach den Astspitzen der
+  Hälften mit dem alten Radius (`_haelfte_krone`): Mit den Spitzen der
+  dicken Hälften fiel die Kerbe auf 15,6 px. Fernform dunkel und warm
+  (Borke 0,36/0,27/0,19, kaum Streifen) und ×1,2 dicker, Nebel der Kronen
+  0,12 und der Hälften 0,25 statt 0,3/0,4 – im Schlussbild steht die Eiche
+  orange-golden statt blassrosa. Die Torbuchen sind volle Bäume mit vier
+  steilen Ästen und Ballen an deren Spitzen (`L05Wald`, TOR_*); mit fünf
+  flachen Ästen schnitt jede Fassung Sichtlinien zur Eiche
+  (Wahrzeichenprobe 71,9 %), jetzt keine bei drei Toren, beim Tor s 120
+  rechts an 6 Stellen (es steht dort mit 7,5 m). Wahrzeichenprobe 91,8 %
+  (wie vor R2), Kerbe bei s 296 18,9 px (vorher 17,7 px).
+- **Hohlweg im Park (mittel):** Kupferfarn auch auf beiden Kronen über
+  dem Hohlweg B und auf der Schattenseite von C (`L05Rasen`,
+  FARN_STRECKEN), Steine auf den Kronen von B und C
+  (`L05Wegbauten._kronen_steine`), das Fernband in einem gemeinsamen Ton
+  (`L05Wald`, FERN_EINHEIT: 65 % zum Mittelton, der Hang 35 %), die zwei
+  Lichtschächte in A stärker (0,17 statt 0,09; der bei s 9 stand im
+  Startbild hinter der Kamera, jetzt s 3). **Nicht gebaut:** die
+  Waldkante auf q 10–20. Den nahen Wald räumt dort der Sichtkegel K3 zur
+  Eiche (Entwurf §7.1, verbindlich; in A und B bis |q| 36–44) – das ist
+  die Nutzerfrage, die die Jury selbst nennt. Überhängende Äste über die
+  Kronen sind ebenfalls nicht gebaut.
+- **Durchlass als Hürde (mittel):** Unter dem Riegel hängt beidseits der
+  Gasse ein Vorhang aus Hängewurzeln (alle 0,13 m, zwei Reihen, bis
+  0,95–1,07 m, im Körper), in der Mitte bleibt die niedrige Tür; aus den
+  Wänden wachsen je zwei Wurzelansätze zum Bogen (`L05Wegbauten`,
+  SLIDE-ZEICHEN). Bogen und Strähnen stehen erst ab 10 m Abstand (siehe
+  nächster Punkt) – ganz oder gar nicht. Bilder bei s 44 und 90: Riegel
+  mit Fransen und Wurzelansätzen, die Hürde davor ein glatter Balken.
+- **Raster der Nahblende (mittel):** Kein Raster mehr. Jeder Durchlass hat
+  zwei Netze: „Optik“ (Riegel, Pfosten, Vorhang, Wurzelansätze – steht
+  immer) und „Oben“ (Bogen, Strähnen, Kopfstangen, Latten, Gerinne) mit
+  `visibility_range_begin` 10 m (Rand 0,5) nach der Mitte seiner Hülle;
+  das Gerinnewasser je Joch ebenso. Die Probe K5 zählt „Oben“ nur, wo es
+  steht; ihre Werte sind dieselben wie vor R2 (Brust 79 % an allen fünf
+  Durchlässen, Kopf 64–79 %, H1/H2 100 %).
+- **Kastenformen (mittel):** Findlinge mit einem gewölbten Buckel an der
+  Außenseite (halb im Stein, bis 0,1 m über ihm) und Abplatzungen am Fuß
+  der Stirnen, in der Gasse nichts (`_aussen_brocken`); Bänke mit
+  Bruchkante (Radius 0,42), Umrisssprüngen nach innen, Beulen und
+  Abplatzungen, der Trittstein fast rund (Superellipse 2,3) mit
+  auslaufendem Fuß; die Wurzeln der Treppen tauchen unterwegs ab,
+  schlingern ±3,5 cm und haben Knoten (`stufenwurzel`). Kleine Steine mit
+  70 Dreiecken (`L05Wegbauten.kiesel`) statt `Findling.brocken` (0,5–1,4k).
+- **Tobel (mittel):** Der Bach deckender (Grund 0,9 statt 0,74 – durch das
+  halb durchsichtige Band schien der graue Grund), der gespiegelte Himmel
+  dunkler, Glitzern 25 %, Schaum 0,4 statt 0,3; Ufersteine an beiden
+  Rändern, Bachnebel deckender (0,42 statt 0,26). In der Südwand Simse
+  (alle gut 3,2 m, 1,2–10 m über dem Spiegel), Farnbüschel und breitere,
+  grüne Moosstreifen (`L05Gelaende`, SUEDWAND_*). Das Wandstück bei s 262:
+  Dort deckt der Hang das Ufer nicht mehr (sein Tobel klingt 258–268 aus)
+  – die Wand ist zwischen 258 und 279 bemoost statt Löss (`L05Saum`,
+  UFER_MOOS), und am Fuß liegen Uferfelsen. Die Südwand liegt im Schatten
+  und bleibt dunkel; Simse und Farn sind im Bild nur schwach zu sehen.
+- **Rinnsale als Glasklinge (mittel):** schmaler (0,15–0,24 statt
+  0,24–0,34 m), in Stücke mit Lücken geteilt (jedes läuft an beiden Enden
+  durchsichtig aus) und unter 10 m Abstand zur Kamera ganz weg
+  (`L05Wasser`, RINNSAL_*). Im Messtor-Bild s 60 steht keines mehr.
+- **Leicht:** abgewetzte Rücken warm statt grau (`ABGEWETZT`), Birkenrinde
+  weiß getönt, Licht in A und B −10 %. Nicht bearbeitet: Teichufer und
+  Steinbruchwand, Startbild-Rinne, Wolkenbänke, Mühlrad auf dem Handy.
+- **Leistungsbudget (leicht, bei der Übernahme gemessen):** Die Bildteile
+  oben kosteten zuerst bis zu 55k Primitive: Reihe der Bild-Jury (15
+  Stellen, `--fixed-fps 30`, fester Zufall) bei s 240 774k, über der
+  Grenze von 750k. Der größte Posten war der Kupferfarn (Laub und Farn
+  im ganzen Level 70k → 158k Dreiecke), dann die Torbuchen ohne
+  Sichtgrenze (vier volle Bäume je 3,6k in jedem Bild), Steine und
+  Wurzeln im Tobel und an den Terrassen. Gesenkt: Farn lichter (Tobel
+  0,11 statt 0,16, C 0,08/0,06, B 0,07, Südwand alle 1,5 m statt 0,8 m),
+  Ufersteine alle 1,8 m mit 35 % Lücken (statt 1,1 m, 25 %), zwei statt
+  drei Ringe je Stützpunkt der Stufenwurzeln, und die Torbuchen wechseln
+  wie die nahen Bäume ab SICHT_NAH (93 m) in dieselbe Buche „schlicht“
+  (`L05Wald`, TOR_FERN, 0,6k statt 3,6k).
+
+  | s | HEAD (vor dem Bild) | erster Stand | jetzt |
+  |---|---|---|---|
+  | 8 | 370k | 399k | 385k |
+  | 90 | 483k | 534k | 519k |
+  | 140 | 649k | 685k | 673k |
+  | 186 | 683k | 749k | 725k |
+  | 220 | 681k | 744k | 705k |
+  | 240 | 719k | 774k | 743k |
+  | 262 | 720k | 758k | 719k |
+  | 280 | 700k | 735k | 715k |
+
+  Draw-Calls höchstens 313 (s 280, Grenze 500). Die Reserve bei s 240
+  ist mit 7k kleiner als vorher (31k); in der Reihe mit s 226/247/284
+  (16 Stellen) liegt s 240 bei 745k, s 226 bei 726k. Handy (s 8, 60, 90,
+  208, 280): Draw-Calls 244–292 (Grenze 450), Primitive höchstens 637k.
+- **Bauzeit (bei der Übernahme gemessen):** Die Suche der Torbuchen baute
+  je Fassung einen vollen Baum, am Tor s 120 rechts alle 84: Bauschritt
+  „Baumtore“ kalt 7,6 s. Jetzt steht das Ergebnis der Suche fest in
+  `TOR_WAHL` (gesucht wird nur, wenn eine Fassung K1 oder die Stammprobe
+  nicht mehr hält); dieselben vier Bäume (Höhe, Neigung, Krone,
+  Sichtlinien zeilengleich zur Suche). Bauzeitprobe (Level 05 allein,
+  frischer Benutzerordner, je zwei Läufe abwechselnd gegen HEAD, ohne
+  andere Last): kalt 10,57/10,58 s (HEAD 10,26/10,47 s), Runde 2
+  0,30/0,34 s (HEAD 0,33/0,31 s), größter Schritt 402/369 ms (HEAD
+  364/355 ms). „Baumtore“ steht nicht mehr unter den zwölf teuersten
+  Schritten (unter 210 ms; HEAD 199/207 ms), „Die Hauereiche“ braucht mit
+  Hauptästen und Lappen 396/369 ms (HEAD unter 210 ms).
+- **Abnahme (Bild):** LevelCheck 0 Fehler, 0 Warnungen (K5 wie vor R2),
+  Sprungprobe 21 Fälle 0 Fehler, Jagdprobe 23 Fälle 0 Fehler,
+  Wahrzeichenprobe 91,8 %, Kerbe 18,9 px; Werkstatt LevelCheck 0/0,
+  Sprungprobe 22 Fälle 0 Fehler. Wächter: `parse.sh` SAUBER (208
+  Skripte), `pruefe.sh` SAUBER, `wache` 6 von 6 Bildern pixelgleich,
+  Kosten im Rahmen; Protokolle von Level 01 nach der Normalisierung
+  gleich. Ungeprüft: Bewegung (Nahblende, Wechsel der Torbuchen und der
+  Rinnsale), echte GPU, Web-Export.
 
 ---
 
@@ -1152,9 +1269,11 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
 | Zielportal | mit Lichtsäule | ohne | die Freiraumprobe K1 fand die Säule in der Kamerabahn |
 | Figur | Szene setzt sie später | schon am Start in Level05.tscn | am alten Ort lag sie in der Todeszone (Leben 5 → 4 beim Laden) |
 | Wecken | über die Zone des Rastplatzes | nach der Strecke der Figur | die Zone ist 2 m tief, ihr Eintritt läge 1,4 m früher (Abstand nicht mehr 15 m); nach der Strecke weckt ihn auch, wer die Zone mit einem Doppelsprung überspringt |
-| Eiche | Achse s −6, Kerbe 7 m, Kronen Y ≈ 55 | s −9,5, Kerbe 9 m, Kronen Y 54,9/55,1 an Ästen; seit R1 Hälften r 1,5, Laub golden | Fuß und Brettwurzeln reichten über die Querwand; 7 m sind im Schlussbild nur 13,4 px; Kronen um eine feste Mitte lasen sich als Schirmpinien; mit r 1,1 standen die Hälften als Stangen im Bild (Bild-Jury R1) |
+| Eiche | Achse s −6, Kerbe 7 m, Kronen Y ≈ 55 | s −9,5, Kerbe 9 m (seit R2 9,8 m), Kronen Y 54,9/55,1 an Ästen; seit R1 Laub golden; seit R2 Hälften r 2,05 mit je vier Hauptästen und Laublappen, die Kronen nach den Astspitzen bei r 1,5 | Fuß und Brettwurzeln reichten über die Querwand; 7 m sind im Schlussbild nur 13,4 px; Kronen um eine feste Mitte lasen sich als Schirmpinien; mit r 1,1 bzw. 1,5 standen die Hälften als Stangen bzw. Bretter im Bild, die Kronen als Pilzhüte (Bild-Jury R1/R2) |
 | Mühlrad | q −7 | q −8,5, in Fließrichtung gedreht | Schaufeln ohne Wasser darüber (33 Punkte, jetzt 0) |
-| Baumtore | Kronen über dem Weg | Kronen seitlich | Wahrzeichenprobe 81,5 % statt 91,8 % |
+| Baumtore | Kronen über dem Weg | Kronen seitlich; seit R2 volle Buchen mit vier steilen Ästen, je Tor die größte Fassung ohne Sichtlinie zur Eiche (am Tor s 120, q > 0, gibt es keine: dort 7,5 m, 6 Stellen), das Ergebnis der Suche fest in `TOR_WAHL`, ab 93 m die Buche „schlicht“ | Wahrzeichenprobe 81,5 % statt 91,8 %; mit fünf flachen Ästen 71,9 % (R2); die Suche kostete kalt 7,6 s, die vollen Buchen ohne Sichtgrenze 12k Primitive in jedem Bild (R2) |
+| Waldkante | Wald über dem Hohlweg | nicht näher als K3 erlaubt | Bild-Jury R2 wünscht sie auf q 10–20; K3 räumt in A und B bis |q| 36–44 (dem Nutzer vorzulegen) |
+| Nahblende der Durchlässe | – | „Oben“ (Bogen, Strähnen, Latten, Gerinne) erst ab 10 m Abstand, ganz | das Raster aus R1 stand im Standbild als Punktmuster (Bild-Jury R2) |
 | Schatten | zwei Stufen | orthogonal | mit zwei Stufen 755k–785k Primitive (Grenze 750k) |
 | Licht | Startwerte §8.3 | Sonne 17° hoch, 1,5, Himmelslicht 0,45, Kantenlicht 0,3, Umgebung × 0,62, Belichtung 0,9, Nebel 12 → 210 m (bis R1: Sonne 26°, 1,25, Kantenlicht 0,18, Belichtung 1,15, Nebel 16 → 240 m) | mit den Startwerten Helligkeit 51–74 und kühl nur 3,6–9,8 %; mit den Werten bis R1 parkartig hell gegen Level 01 (Bild-Jury R1) |
 | Richtzeit | vorläufig 46 s | 37 s (R1: 15 s, davor 48 s) | Saphir für den sauberen Lauf ohne Kisten (35,28 s), Gold und Platin über die Zeitkisten der Hauptlinie; mit 15 s holte ohne Kistenjagd niemand eine Stufe, mit 48 s jeder Kistensammler Platin (Spiel-Jury R1/R2 – dem Nutzer vorzulegen) |
@@ -1166,28 +1285,41 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
 
 ---
 
-## 15. Offen und ungeprüft (Stand R1)
+## 15. Offen und ungeprüft (Stand R2)
 
 **Dem Nutzer vorzulegen**
-- **Richtzeit (R1):** 15 s nach Variante a der Spiel-Jury (Referenz mit
-  den Zeitkisten der Hauptlinie, siehe `level05.gd`, ZIELZEIT). Ohne
-  Zeitkisten ist im Zeitmodus keine Stufe zu holen. Die Alternativen der
-  Jury (Zeitkisten aus der Hauptlinie nehmen oder die Richtzeit ohne
-  Kisten rechnen) sind nicht gebaut.
-- **Höchstabstand je Abschnitt (R1):** 15 → 14 → 13 → 12 → 11 m – Werte der
-  Spiel-Jury, gebaut; ob die Steigerung reicht, zeigt nur ein Lauf von Hand.
-- **Nebel der Eiche:** „für die Kuppe 0,7“. Heute trägt nur der Fuß der
-  Fernform 0,7.
-- **Bildfragen:** die Torbuchen (zwei runde Kronen, kein Bogen). Der
-  Hohlweg in A und B bleibt offen: Ihn räumt der Sichtkegel K3 zur Eiche.
-  Die Bänke und der Trittstein von G1–G3 sind kantig geblieben (ihre
-  Oberseiten tragen Kisten bzw. die Landung, R1 nicht geändert).
+- **Richtzeit (R2):** 37 s – Saphir für den sauberen Lauf ohne Kisten
+  (35,28 s), Gold 31,45 s, Platin 26,64 s über die Zeitkisten der
+  Hauptlinie (Vorschlag der Spiel-Jury R2, `level05.gd`, ZIELZEIT).
+- **Keiler im Nacken (R2):** Staffel nach der Strecke (15/9,5/8/14/7,5 m)
+  und Aufholen mit höchstens 10,5 m/s (`L05Jagd`, HOECHST_STAFFEL,
+  AUFHOL_TEMPO) statt Höchstabstand je Abschnitt; ob es sich so anfühlt,
+  zeigt nur ein Lauf von Hand.
+- **Nebel der Eiche:** „für die Kuppe 0,7“. Heute tragen Fuß und Kuppe
+  0,7, die Kronen seit R2 0,12, die Hälften 0,25.
+- **Bildfragen:** Die Waldkante auf q 10–20 (Bild-Jury R2) verbietet der
+  Sichtkegel K3 zur Eiche – entweder K3 lockern oder den Hohlweg in A
+  und B offen lassen. Das Tor bei s 120 (q > 0) steht klein (7,5 m), weil
+  jede größere Buche dort Sichtlinien zur Eiche schneidet.
 - **Spielfigur:** die Datei `cash_banooka_rc.glb` (Risiko 2). Das klärt der
   Nutzer gesondert.
 
 **Ungeprüft**
 - Ein echter Lauf von Hand. Ein echtes Gerät, eine echte GPU, der
   Web-Export ohne Threads. Den Klang der Mühle hat niemand gehört.
+- Die Nahblende in Bewegung: Bogen und Strähnen eines Durchlasses gehen
+  bei 10 m (Rand 0,5) ganz aus bzw. an – das ist hart, aber ohne Raster;
+  geprüft nur in Standbildern. Ebenso die Rinnsale.
+- Ob der Vorhang der Durchlässe einem Menschen „ducken“ sagt: Bilder bei
+  s 44 und 90, kein Lauf von Hand.
+- Der Wechsel der Torbuchen in ihre Fernfassung bei 93 m: Er fällt in
+  den Rückblick (die Kamera schaut zurück auf das Tor). Im Standbild bei
+  s 240 ist er kaum zu sehen, in Bewegung ungeprüft.
+- Das Leistungsbudget hat bei s 240 nur noch 5–7k Reserve (743k in der
+  Reihe der Bild-Jury, 745k in der Reihe mit s 226/247/284). Die Werte
+  hängen von der Reihenfolge der Stellen ab (gemessen: s 240 allein
+  692k, in einer Reihe ab s 186 775k beim ersten Stand); die Ursache ist
+  nicht gefunden. Gemessen wird deshalb immer in derselben Reihe.
 - Die Ladezeit auf dem Spielweg aus dem Portalraum mit echtem Vorladen (die
   Probe lud die Szene synchron).
 - Der Wechsel der Eiche von nah zu fern ist nicht unsichtbar: Der

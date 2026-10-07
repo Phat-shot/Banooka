@@ -23,8 +23,10 @@ class_name L05Rasen
 ##   schrumpfen erst ab 30 m – die Figur steht 21 m vor der Kamera).
 ## * KUPFERFARN (Adlerfarn im Spätsommer, Entwurf §5 D „Sonnenhang mit
 ##   Kupferfarn"): auf den Kronen und am Hang bildlinks (q > 0) im Tobel,
-##   lichter in C; in den Ecken von A als Rahmenfarne (`Rasenbau.
-##   rahmenfarne`, K8-Probe aus der Kamera). Der Stoff ist eine Abschrift von
+##   lichter in C und über dem Hohlweg B, dort auf beiden Kronen; seit R2
+##   auch in Büscheln an der Südwand des Tobels (FARN_STRECKEN); in den
+##   Ecken von A als Rahmenfarne (`Rasenbau.rahmenfarne`, K8-Probe aus der
+##   Kamera). Der Stoff ist eine Abschrift von
 ##   `Farnwerk.stoff()` (`duplicate()`, Entwurf §1 Nr. 24): Der geteilte Stoff
 ##   bleibt, wie er ist.
 ## Um Kisten, Stämme (`L05Wald.fuesse`) und Sperren (Suhlgraben, Schlamm um
@@ -93,10 +95,26 @@ const LAUB_STUECK := 16.0
 ## Laubfarben (linear): Ocker, Kupfer, Braun, Gelb.
 const LAUB_FARBEN: Array[Color] = [Color(0.62, 0.38, 0.1), Color(0.5, 0.18, 0.05),
 		Color(0.3, 0.17, 0.07), Color(0.72, 0.56, 0.14)]
-## Kupferfarn: Farbe des Stoffs, Strecken (s von, s bis, Dichte je m²) auf
-## der Sonnenseite, Breite des Streifens hinter der Wandkrone (m), Sicht.
+## Kupferfarn: Farbe des Stoffs, Strecken (s von, s bis, Dichte je m²,
+## Seite) hinter der Wandkrone, Breite des Streifens (m), Sicht.
+## R2 (Bild-Jury R2, Mangel 3: „Hohlweg im Park … flache, kurz gemähte
+## Rasenplatten"): auch über dem Hohlweg B und auf der Schattenseite von C,
+## dichter in C; Farnbüschel an der Südwand des Tobels (SUEDWAND_FARN).
+## KOSTEN (R2): Ein Farn hat 252–276 Dreiecke. Mit den Dichten des ersten
+## Entwurfs (Tobel 0,16, C 0,1/0,08, B 0,09, Südwand alle 0,8 m) trug Laub
+## und Farn 158k statt 70k Dreiecke, und das Bild bei s 226/240/262 lag bei
+## 758–775k Primitiven (Grenze 750k, Entwurf §10). Darum im Tobel 0,11
+## (die Bild-Jury R2 schlug selbst „weniger Farn im Tobel" vor), in C und B
+## etwas lichter und an der Südwand alle 1,5 m.
 const KUPFER := Color(0.62, 0.3, 0.1)
-const FARN_STRECKEN: Array[Vector3] = [Vector3(184.0, 262.0, 0.16), Vector3(124.0, 178.0, 0.06)]
+const FARN_STRECKEN: Array[Vector4] = [Vector4(184.0, 262.0, 0.11, 1.0),
+		Vector4(124.0, 178.0, 0.08, 1.0), Vector4(34.0, 118.0, 0.07, 1.0),
+		Vector4(34.0, 118.0, 0.07, -1.0), Vector4(124.0, 178.0, 0.06, -1.0)]
+## Farn an der Südwand: von, bis (s), Abstand (m, ± 50 %); Höhe über dem
+## Bach (von, bis). Die Wand findet ein Strahl vom Bach quer nach außen
+## (wie die Simse in `L05Wegbauten._tobel_steine`).
+const SUEDWAND_FARN := Vector3(188.0, 262.0, 1.5)
+const SUEDWAND_FARN_HOCH := Vector2(0.6, 10.0)
 const FARN_BAND := 12.0
 const SICHT_FARN := 44.0
 ## Länge der Stücke des Farns entlang s (m).
@@ -114,7 +132,8 @@ var _kisten: Array[Vector2] = []
 var _tabelle := PackedVector2Array()
 var _tabelle_von := 0.0
 ## Lagen von Laub und Farn (für die Ablage): {"laub": Stück -> Haufen
-## (`haufen_daten`), "farn": Vector2i(Stück, Form) -> {lagen, farben}}.
+## (`haufen_daten`), "farn": Vector2i(Stück, Form + 3 · Gruppe) -> {lagen,
+## farben}}.
 var _laub_farn := {}
 
 
@@ -310,14 +329,13 @@ func _laub_und_farn() -> void:
 	_laub_farn_einhaengen(_laub_farn)
 
 
-## Kupferfarn auf der Sonnenseite (q > 0) hinter der Wandkrone
-## (FARN_STRECKEN): die Felder je Stück und Form, Vector2i(Stück, Form) ->
-## {lagen, farben}.
+## Kupferfarn hinter den Wandkronen (FARN_STRECKEN) und an der Südwand:
+## die Felder je Stück, Form und Gruppe (`_farn_setzen`) -> {lagen, farben}.
 func _kupferfarn(anteil: float) -> Dictionary:
 	var rng := PropWerkzeug.zufall(SAAT + 5)
-	var zug := _zug("Böschung rechts")
 	var felder := {}
 	for st in FARN_STRECKEN:
+		var zug := _zug("Böschung rechts" if st.w > 0.0 else "Böschung links")
 		var s := st.x
 		while s < st.y:
 			s += 1.0
@@ -330,26 +348,64 @@ func _kupferfarn(anteil: float) -> Dictionary:
 					break
 				anzahl -= 1.0
 				var ss := s + rng.randf_range(-0.5, 0.5)
-				var q := innen + 0.4 + pow(rng.randf(), 1.4) * FARN_BAND
+				var q := st.w * (innen + 0.4 + pow(rng.randf(), 1.4) * FARN_BAND)
 				var p := LevelWerkzeuge.punkt_frei(level.verlauf, ss, q)
 				var y := hoehe(p.x, p.z)
 				if is_nan(y):
 					continue
-				var k := 2 if rng.randf() < 0.35 else rng.randi_range(0, 1)
-				var mass := rng.randf_range(0.8, 1.3)
-				var lage := Transform3D(Basis(Vector3.UP, rng.randf() * TAU)
-						* Basis.from_scale(Vector3.ONE * mass), Vector3(p.x, y - 0.04, p.z))
-				var schluessel := Vector2i(floori(ss / STUECK), k)
-				if not felder.has(schluessel):
-					var leer: Array[Transform3D] = []
-					felder[schluessel] = {"lagen": leer, "farben": PackedColorArray()}
-				var e: Dictionary = felder[schluessel]
-				(e["lagen"] as Array[Transform3D]).append(lage)
-				var farben: PackedColorArray = e["farben"]
-				var v := rng.randf_range(0.8, 1.15)
-				farben.append(Color(v * rng.randf_range(0.95, 1.08), v, v * rng.randf_range(0.85, 1.0)))
-				e["farben"] = farben
+				_farn_setzen(felder, rng, ss, Vector3(p.x, y - 0.04, p.z), 1.0,
+						0 if st.w > 0.0 else 1)
+	_suedwand_farn(felder, rng, anteil)
 	return felder
+
+
+## Ein Farn an `ort` (Form, Größe, Drehung und Ton nach `rng`) in sein Feld:
+## Vector2i(Stück, Form + 3 · Gruppe), Gruppe 0 Krone rechts (q > 0), 1 Krone
+## links, 2 Südwand. WARUM je Gruppe ein eigenes Feld: Ohne Grafik liest
+## niemand die Instanzen eines MultiMesh (siehe `_fertig`); die Probe K1
+## (`Level05.freiraumprobe`) sieht dann das Netz am Ursprung des Felds, der
+## Mitte seiner Lagen – mit Farn beidseits des Wegs mitten über ihm.
+func _farn_setzen(felder: Dictionary, rng: RandomNumberGenerator, s: float, ort: Vector3,
+		groesse: float, gruppe: int) -> void:
+	var k := 2 if rng.randf() < 0.35 else rng.randi_range(0, 1)
+	var mass := rng.randf_range(0.8, 1.3) * groesse
+	var lage := Transform3D(Basis(Vector3.UP, rng.randf() * TAU)
+			* Basis.from_scale(Vector3.ONE * mass), ort)
+	var schluessel := Vector2i(floori(s / STUECK), k + 3 * gruppe)
+	if not felder.has(schluessel):
+		var leer: Array[Transform3D] = []
+		felder[schluessel] = {"lagen": leer, "farben": PackedColorArray()}
+	var e: Dictionary = felder[schluessel]
+	(e["lagen"] as Array[Transform3D]).append(lage)
+	var farben: PackedColorArray = e["farben"]
+	var v := rng.randf_range(0.8, 1.15)
+	farben.append(Color(v * rng.randf_range(0.95, 1.08), v, v * rng.randf_range(0.85, 1.0)))
+	e["farben"] = farben
+
+
+## Farnbüschel an der Südwand des Tobels (SUEDWAND_FARN), je Stelle eine
+## zufällige Höhe über dem Bach; dunkler (im Schatten) und etwas kleiner.
+func _suedwand_farn(felder: Dictionary, rng: RandomNumberGenerator, anteil: float) -> void:
+	var wasser := level.gewaesser
+	if wasser == null:
+		return
+	var s := SUEDWAND_FARN.x
+	while s < SUEDWAND_FARN.y:
+		s += SUEDWAND_FARN.z * rng.randf_range(0.5, 1.5)
+		if rng.randf() > anteil:
+			continue
+		var mitte := wasser.bach_ort(s)
+		var vor := LevelWerkzeuge.richtung(level.verlauf, s)
+		var rechts := Vector3(vor.x, 0.0, vor.z).normalized().cross(Vector3.UP).normalized()
+		var hoch := rng.randf_range(SUEDWAND_FARN_HOCH.x, SUEDWAND_FARN_HOCH.y)
+		var d := 1.3
+		while d < 24.0:
+			var w := mitte - rechts * d
+			var y := level.gelaende.hoehe(w.x, w.z)
+			if not is_nan(y) and y - mitte.y >= hoch:
+				_farn_setzen(felder, rng, s, Vector3(w.x, y - 0.1, w.z) - rechts * 0.1, 0.8, 2)
+				break
+			d += 0.25
 
 
 ## Die Knoten von Laub und Farn aus ihren Lagen (`_laub_farn`), unter einer
@@ -370,7 +426,8 @@ func _laub_farn_einhaengen(d: Dictionary) -> void:
 		var lagen: Array[Transform3D] = []
 		lagen.assign(e["lagen"])
 		Bodenstreu.feld(wurzel, "Kupferfarn %d %d" % [schluessel.x, schluessel.y],
-				netze[schluessel.y], lagen, e["farben"] as PackedColorArray, SICHT_FARN, _farn_stoff)
+				netze[schluessel.y % 3], lagen, e["farben"] as PackedColorArray, SICHT_FARN,
+				_farn_stoff)
 
 
 ## Rasenbau fertig, dann ablegen: die Lagen aus Rasenbau (`Bau.zustand`)

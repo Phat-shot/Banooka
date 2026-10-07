@@ -128,12 +128,14 @@ class_name L05Stimmung
 ## Bauschritt „Abendlicht" kalt 55–59 ms (Bauzeitprobe, Rechner).
 
 ## Die Zonen (Schema `Stimmungsregler`). A reicht vor den Start (Kuppe,
-## Rundgang), E über das Ende hinaus (Auslauf).
+## Rundgang), E über das Ende hinaus (Auslauf). R2 (Bild-Jury R2, leicht:
+## Helligkeit im Mittel 64 gegen 56 in Level 01): Licht in A und B um 10 %
+## gesenkt (0,68 statt 0,75, 0,99 statt 1,1).
 const ZONEN := [
-	{"name": "A Suhle", "von": -60.0, "bis": 31.0, "rand_bis": 14.0, "licht_faktor": 0.75,
+	{"name": "A Suhle", "von": -60.0, "bis": 31.0, "rand_bis": 14.0, "licht_faktor": 0.68,
 			"nebel_faktor": 0.9, "nebelfarbe": Color(0.44, 0.50, 0.58)},
 	{"name": "B Hohlweg", "von": 31.0, "bis": 120.0, "rand_von": 14.0, "rand_bis": 10.0,
-			"licht_faktor": 1.1, "nebel_faktor": 0.85, "nebelfarbe": Color(0.50, 0.58, 0.76)},
+			"licht_faktor": 0.99, "nebel_faktor": 0.85, "nebelfarbe": Color(0.50, 0.58, 0.76)},
 	{"name": "C Wurzelterrassen", "von": 120.0, "bis": 180.0, "rand_von": 10.0,
 			"rand_bis": 10.0, "licht_faktor": 1.15, "nebel_faktor": 0.8,
 			"nebelfarbe": Color(0.54, 0.60, 0.76)},
@@ -153,7 +155,12 @@ const HORIZONT_FARBE := Color(0.30, 0.36, 0.40)
 ## Lichtschächte in A (Fuß s, q): am Wegrand, nicht in der Bahn der Kamera
 ## (lichtschacht.gd: nah ausgeblendet, aber jedes Pixel gezeichnet). Die
 ## Öffnung liegt SCHACHT_DECKE über der Decke.
-const SCHAECHTE: Array[Vector2] = [Vector2(9.0, 6.8), Vector2(23.0, -7.0)]
+## R2 (Bild-Jury R2, Mangel 3: „die zwei Lichtschächte aus Entwurf §5 A
+## fehlen"): Sie standen da, mit Stärke 0,09 aber unsichtbar, und der bei
+## s 9 lag im Startbild hinter der Kamera. Jetzt s 3 und 23, Stärke
+## SCHACHT_STAERKE.
+const SCHAECHTE: Array[Vector2] = [Vector2(3.0, 6.6), Vector2(23.0, -7.0)]
+const SCHACHT_STAERKE := 0.17
 const SCHACHT_DECKE := 14.0
 const SICHT_SCHACHT := 75.0
 ## Handyweg: Die Schächte stehen dann nur bis hierher (siehe KOSTEN).
@@ -185,6 +192,10 @@ const NEBEL_SCHRITT := 6.0
 const NEBEL_HOCH := Vector2(2.0, 2.8)
 const NEBEL_BREITER := Vector2(1.0, 2.5)
 const NEBEL_SAAT := 5801
+## Deckkraft der Tafeln (Vorgabe `GelaendeBau.NEBEL_STAERKE` 0,26). R2
+## (Bild-Jury R2, Mangel 6: „ohne … Bachnebel"): Mit 0,26 war er im Schatten
+## der Südwand nicht zu sehen.
+const NEBEL_STAERKE := 0.42
 
 ## Krähen über der Eiche: so hoch über der Mitte der Kerbe kreisen sie, so
 ## weit, so viele; beim Wecken steigen sie in KRAEHEN_DAUER s um KRAEHEN_HUB
@@ -288,7 +299,7 @@ func _schaechte(fall: Vector3) -> void:
 		schacht.breite = 2.0
 		schacht.anzahl = 4
 		schacht.streuung = 1.4
-		schacht.staerke = 0.09
+		schacht.staerke = SCHACHT_STAERKE
 		schacht.saat = SAAT + 1 + i
 		schacht.decke = level.boden_bei(e.x) + SCHACHT_DECKE
 		schacht.position = fuss
@@ -384,6 +395,8 @@ func _bachnebel() -> void:
 	var farbe := welt.environment.fog_light_color if welt != null else Color(0.48, 0.56, 0.64)
 	nebel = GelaendeBau.nebeltafeln(_wurzel("Bachnebel"), tafeln,
 			farbe.lightened(Stimmungsregler.NEBELTAFEL_HELLER))
+	if nebel != null:
+		nebel.set_shader_parameter("staerke", NEBEL_STAERKE)
 
 
 ## Zwei Krähen über der Hauereiche (siehe KRAEHEN_*): Mitte über der Kerbe

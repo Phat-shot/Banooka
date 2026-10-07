@@ -42,7 +42,14 @@ class_name Level05
 ## statt Klemme in der Jagd (`L05Jagd`, Kopf), breiter Zielauslöser
 ## (`_ziel_ausloeser_verbreitern`), Stolpersperre (`_durchlass_stolpern`),
 ## dunkle Stirnen der Lücken (`L05Saum`) und eine Walze aus Weißwasser im
-## Wehrbruch (`L05Wasser`) – gesammelt dort in Abschnitt 13, „R2“.
+## Wehrbruch (`L05Wasser`); im Bild die Eiche mit Hauptästen und Lappen
+## (`L05Eiche`), Torbuchen mit Astwerk (`L05Wald`), Durchlässe mit einem
+## Vorhang aus Hängewurzeln und ganzteiliger Nahblende (`L05Wegbauten`,
+## dazu die Probe K5 hier), unregelmäßige Findlinge, Bänke und Treppen,
+## Ufersteine, Simse und Farn im Tobel, Rinnsale als Tropfband; damit das
+## Bild unter 750k Primitiven bleibt, Farn und Ufersteine lichter und die
+## Torbuchen ab 93 m in einer Fernfassung (`L05Rasen`, `L05Wald`) –
+## gesammelt dort in Abschnitt 13, „R2“.
 ##
 ## DATEN. Diese Datei hält alle Daten des Levels als Konstanten (Verlauf,
 ## Breiten, Lücken, Absätze, Terrassen, Durchlässe, Hürden, Findlinge,
@@ -2017,11 +2024,12 @@ func freiraumprobe() -> PackedStringArray:
 ## (alle K5_SCHRITT m) Strecken von der eingeschwungenen Kamera (Kurve bei
 ## s − abstand, `hoehe` darüber, Mitte des Weges) zu den Punkten K5_PUNKTE
 ## der Figur (q, Höhe über der Decke) gegen die Dreiecke der heilen Optik
-## ALLER Durchlässe – durch D4 schaut man beim Anlauf auf D3. Ein Treffer
-## zählt nicht, wo die Nahblende ihn zu mehr als der Hälfte ausdünnt
-## (`L05Wegbauten.NAH_ABSTAND`, `NAH_HOEHE`, Höhe im Rahmen des
-## Durchlasses). Getestet werden nur Dreiecke, die über |x| ≤ K5_QUER im
-## Rahmen ihres Durchlasses reichen (die Strecken laufen über der Mitte).
+## ALLER Durchlässe – durch D4 schaut man beim Anlauf auf D3. Die Optik hat
+## zwei Netze (`L05Wegbauten`, NAHBLENDE): „Optik" steht immer, „Oben" nur,
+## wenn die Mitte seiner Hülle mindestens NAH_GRENZE − NAH_RAND von der
+## Kamera entfernt ist – nur dann zählt ein Treffer darauf. Getestet werden
+## nur Dreiecke, die über |x| ≤ K5_QUER im Rahmen ihres Durchlasses reichen
+## (die Strecken laufen über der Mitte).
 ## ABWEICHUNG, wenn die Brust (Punkte mit Höhe 0,7) in einem Fenster an
 ## weniger als K5_BRUST_MIN der Stellen frei ist.
 func _freiraum_k5(hoehe: float, abstand: float) -> Dictionary:
@@ -2034,20 +2042,14 @@ func _freiraum_k5(hoehe: float, abstand: float) -> Dictionary:
 		var optik := koerper.get_node_or_null("Optik") as MeshInstance3D
 		if optik == null or optik.mesh == null:
 			continue
-		var lage := global_transform.affine_inverse() * optik.global_transform
-		var dreiecke := PackedVector3Array()
-		var faces := optik.mesh.get_faces()
-		for k in range(0, faces.size() - 2, 3):
-			var a := faces[k]
-			var b := faces[k + 1]
-			var c := faces[k + 2]
-			if minf(a.x, minf(b.x, c.x)) > K5_QUER or maxf(a.x, maxf(b.x, c.x)) < -K5_QUER:
-				continue
-			dreiecke.append(lage * a)
-			dreiecke.append(lage * b)
-			dreiecke.append(lage * c)
-		optiken.append({"s": float(DURCHLAESSE[i]["s"]), "dreiecke": dreiecke,
-				"innen": lage.affine_inverse()})
+		var oben := optik.get_node_or_null("Oben") as MeshInstance3D
+		var mitte_oben := Vector3.INF
+		if oben != null and oben.mesh != null:
+			mitte_oben = global_transform.affine_inverse() \
+					* (oben.global_transform * oben.mesh.get_aabb().get_center())
+		optiken.append({"s": float(DURCHLAESSE[i]["s"]), "dreiecke": _k5_dreiecke(optik),
+				"oben": _k5_dreiecke(oben) if oben != null else PackedVector3Array(),
+				"mitte_oben": mitte_oben})
 	var fenster: Array[Dictionary] = []
 	for d: Dictionary in DURCHLAESSE:
 		var stirn: float = d["s"]
@@ -2085,27 +2087,50 @@ func _freiraum_k5(hoehe: float, abstand: float) -> Dictionary:
 
 
 ## Ist die Strecke Kamera → Figur frei (siehe `_freiraum_k5`)? Getestet
-## werden nur Durchlässe zwischen Figur und Kamera.
+## werden nur Durchlässe zwischen Figur und Kamera; „Oben" nur, wenn es
+## steht (Abstand der Kamera zur Mitte seiner Hülle).
 func _k5_frei(auge: Vector3, ziel: Vector3, s: float, abstand: float,
 		optiken: Array[Dictionary]) -> bool:
 	for o in optiken:
 		var os: float = o["s"]
 		if os < s - 3.0 or os > s - abstand + 1.0:
 			continue
-		var dreiecke: PackedVector3Array = o["dreiecke"]
-		var innen: Transform3D = o["innen"]
-		for k in range(0, dreiecke.size() - 2, 3):
-			var treffer: Variant = Geometry3D.segment_intersects_triangle(auge, ziel,
-					dreiecke[k], dreiecke[k + 1], dreiecke[k + 2])
-			if treffer == null:
-				continue
-			var p: Vector3 = treffer
-			var sicht := maxf(smoothstep(L05Wegbauten.NAH_ABSTAND.x, L05Wegbauten.NAH_ABSTAND.y,
-					p.distance_to(auge)), 1.0 - smoothstep(L05Wegbauten.NAH_HOEHE.x,
-					L05Wegbauten.NAH_HOEHE.y, (innen * p).y))
-			if sicht >= 0.5:
-				return false
+		if _k5_trifft(auge, ziel, o["dreiecke"] as PackedVector3Array):
+			return false
+		var mitte_oben: Vector3 = o["mitte_oben"]
+		if mitte_oben.is_finite() and auge.distance_to(mitte_oben) \
+				>= L05Wegbauten.NAH_GRENZE - L05Wegbauten.NAH_RAND \
+				and _k5_trifft(auge, ziel, o["oben"] as PackedVector3Array):
+			return false
 	return true
+
+
+func _k5_trifft(auge: Vector3, ziel: Vector3, dreiecke: PackedVector3Array) -> bool:
+	for k in range(0, dreiecke.size() - 2, 3):
+		if Geometry3D.segment_intersects_triangle(auge, ziel, dreiecke[k], dreiecke[k + 1],
+				dreiecke[k + 2]) != null:
+			return true
+	return false
+
+
+## Dreiecke eines Netzes der Optik (Level-Koordinaten), die über |x| ≤
+## K5_QUER im Rahmen des Durchlasses reichen.
+func _k5_dreiecke(netz: MeshInstance3D) -> PackedVector3Array:
+	var dreiecke := PackedVector3Array()
+	if netz == null or netz.mesh == null:
+		return dreiecke
+	var lage := global_transform.affine_inverse() * netz.global_transform
+	var faces := netz.mesh.get_faces()
+	for k in range(0, faces.size() - 2, 3):
+		var a := faces[k]
+		var b := faces[k + 1]
+		var c := faces[k + 2]
+		if minf(a.x, minf(b.x, c.x)) > K5_QUER or maxf(a.x, maxf(b.x, c.x)) < -K5_QUER:
+			continue
+		dreiecke.append(lage * a)
+		dreiecke.append(lage * b)
+		dreiecke.append(lage * c)
+	return dreiecke
 
 
 ## K4 (Entwurf §7.1, Paket P7): kein Stammfuß bei |q| < 8 – gezählt vom

@@ -174,8 +174,11 @@ const GASSE := 0.9
 ## Farben im Borkenstoff (linear; Eigenfarbe: ALBEDO = COLOR.rgb).
 ## Abgewetzt: Rücken und Unterkanten, an denen Wild und Wetter reiben. Hell
 ## gegen die Borke (Albedo gut doppelt so hoch), aber kein Weiß: Mit 0,4 (linear)
-## lasen sich die Rücken der Riegel im Bild als weiße Bretter.
-const ABGEWETZT := Color(0.19, 0.15, 0.11)
+## lasen sich die Rücken der Riegel im Bild als weiße Bretter. R2 (Bild-Jury
+## R2, leicht: „grauweiße Bänder wie Blech- oder Kunststoffstreifen"):
+## wärmer, wie blank gescheuertes Holz (0,21/0,14/0,075 statt 0,19/0,15/
+## 0,11), gleich hell.
+const ABGEWETZT := Color(0.21, 0.14, 0.075)
 ## Frische Bruchflächen (im Bruch der Durchlässe): heller als alles daneben.
 const FRISCH := Color(0.6, 0.48, 0.32)
 ## Verwittertes Spaltholz und alte Brüche.
@@ -188,6 +191,21 @@ const NASS := Color(0.055, 0.05, 0.045)
 const WURZEL_TON := Color(0.95, 0.85, 0.72)
 const PFAHL_TON := Color(0.7, 0.66, 0.6)
 const STRAEHNE_TON := Color(1.0, 0.9, 0.76)
+## Außen an Findlingen und Bänken (`_aussen_brocken`): Buckel (Breite, so
+## viel höher als der Körper, Mitte so weit außerhalb seiner Außenseite)
+## und Abplatzungen je Stirn.
+const AUSSEN_BUCKEL := Vector3(1.9, 0.25, 0.25)
+const AUSSEN_SPLITTER := 2
+## Auflösung von `kiesel` (Seiten ringsum, Ringe von unten nach oben).
+const KIESEL_SEITEN := 7
+const KIESEL_RINGE := 5
+## Größter Kantenradius der Bänke (`_bank`; Vorgabe von `Findling` 0,3).
+const BANK_RUNDUNG := 0.42
+## Wurzeln der Setzstufen (`stufenwurzel`): so tief taucht die Achse ab,
+## so weit schlingert sie längs (m), so viel dicker ist ein Knoten.
+const STUFE_TAUCHEN := 0.3
+const STUFE_SCHLINGERN := 0.035
+const STUFE_KNOTEN := 1.3
 ## Steine: Sandstein im Tobel (Rotocker), Löss an der Böschungsbank.
 const SANDSTEIN_TON := Color(1.0, 0.84, 0.7)
 const LOESS_TON := Color(1.0, 0.92, 0.74)
@@ -195,28 +213,38 @@ const LOESS_TON := Color(1.0, 0.92, 0.74)
 const LATERNE := Color(1.0, 0.68, 0.32)
 const LATERNE_STAERKE := 2.4
 
-## NAHBLENDE (Bild-Jury R1, Mangel 1 und 8). Im Rückblick steht jeder
-## Durchlass erst dicht vor der Kamera und rückt dann zur Figur hin. Bogen,
-## Strähnen, Kopfstangen, Latten und Gerinne liegen in 2–4,6 m Höhe, kaum
-## unter der Kamera: Aus 4–7 m Abstand standen sie mitten im Bild – die
-## Hauptwurzel von D1 verdeckte bei s 43 die Figur samt Hürde H1, die von D2
-## bei s 90 (H2), das Gerinne von D3 lag bei s 196 als Brett quer über dem
-## unteren Bildfünftel. Darum dünnt die Optik der Durchlässe nahe der Kamera
-## aus: unter NAH_ABSTAND.x ganz, bis NAH_ABSTAND.y weich (ein Raster aus
-## verworfenen Bildpunkten, wie es der Compatibility-Renderer ohne Alpha
-## kann), und nur über NAH_HOEHE.x (darüber voll ab NAH_HOEHE.y, Höhe über
-## der Decke im Rahmen des Durchlasses). Die Riegelkante und alles unter
-## 1,9 m bleiben immer stehen: Sie kündigen den Durchlass an, wenn er unten
-## ins Bild kommt (13–14,5 m vor der Figur, 6,5–8 m vor der Kamera). Der
-## Körper ist davon unberührt. Stoff: eine Abschrift des Borkenstoffs mit
-## erweitertem Shader (`nahblende`); der geteilte Stoff bleibt, wie er ist.
-const NAH_ABSTAND := Vector2(6.5, 10.0)
-const NAH_HOEHE := Vector2(1.9, 2.7)
-## Höhe für Stoffe ohne Rahmen eines Durchlasses (das Wasser im Gerinne):
-## alles blendet nach dem Abstand aus.
-const NAH_IMMER := Vector2(-100000.0, -99999.0)
-static var _nah_shader := {}
-static var _nah_stoffe := {}
+## NAHBLENDE (Bild-Jury R1, Mangel 1 und 8; R2, Mangel 4 und 8). Im
+## Rückblick steht jeder Durchlass erst dicht vor der Kamera und rückt dann
+## zur Figur hin. Bogen, Strähnen, Kopfstangen, Latten und Gerinne liegen in
+## 2–4,6 m Höhe, kaum unter der Kamera: Aus 4–10 m Abstand verdeckten sie
+## die Figur, die Hürde davor oder den Keiler dahinter (R1: die Hauptwurzel
+## von D1 bei s 43, das Gerinne von D3 bei s 196 als Brett quer über dem
+## unteren Bildfünftel). Darum ist die heile Optik jedes Durchlasses in ZWEI
+## Netzen gebaut:
+##   „Optik"  was immer steht: Riegel, Pfosten, Böcke, Holme und an den
+##            Wurzelbögen der Wurzelansatz in den Wänden und die Unterwurzeln
+##            (siehe `_wurzelbogen`) – das Zeichen „hier sliden", wenn der
+##            Durchlass unten ins Bild kommt
+##   „Oben"   Bogen, Strähnen, Stangen, Kopfstangen, Latten, Gerinne: als
+##            GANZES sichtbar erst, wenn die Mitte seiner Hülle NAH_GRENZE
+##            von der Kamera entfernt ist (`visibility_range_begin`)
+## Bis R2 dünnte ein Raster aus verworfenen Bildpunkten die Optik über
+## 1,9 m zwischen 6,5 und 10 m Abstand aus (ein Wert je Bildpunkt): Im
+## Standbild stand es als Punktmuster auf Wänden, Latten und Böcken, Latten
+## endeten in Pixelstaub, Strähnen hingen ohne Bogen oder standen als Spieße
+## auf dem Riegel, und am Ankündigungspunkt (Figur 14 m davor) blieb von D1
+## und D2 nur eine dünne Stange – wie die Hürden (Bild-Jury R2). Jetzt
+## erscheint der obere Teil im Ganzen, ohne Stümpfe; der untere steht immer.
+## Die Wasser in den Gerinnen folgen derselben Grenze (`L05Wasser`). Der
+## Körper ist davon unberührt; der Bruch (nur hinter der Figur zu sehen)
+## hat eine Fassung ohne Grenze.
+## NAH_GRENZE: Die Hülle des oberen Teils hat ihre Mitte gut 3 m über dem
+## Weg; die Kamera steht 5,6 m darüber. Bei 10 m Abstand (waagerecht gut
+## 9,6 m, die Figur 11,4 m vor dem Durchlass) liegt der Bogen im Bild über
+## Figur und Keiler (gerechnet: Bogen 7,6° unter dem Horizont, der Keiler
+## 9,5 m hinter der Figur bis 7,7°). Gemessen siehe Level05 `_freiraum_k5`.
+const NAH_GRENZE := 10.0
+const NAH_RAND := 0.5
 
 ## Optik der Begehbaren, die dieses Modul zeichnet (Level05 gibt ihnen nur
 ## eine leere Marke, `Level05._begehbar_optik`).
@@ -389,7 +417,8 @@ static func _abschnitt_b(level: Level05) -> void:
 		for i in Level05.HUERDEN.size():
 			huerde_netz(sa, level, float(Level05.HUERDEN[i]["s"]), rand, 5300 + i * 17)
 		_bank(sa, level, "G2 Böschungsbank", LOESS_TON, 5341)
-		_bankwurzeln(sa, level))
+		_bankwurzeln(sa, level)
+		_kronen_steine(sa, level, 33.0, 118.0, 5360))
 
 
 ## C · Wurzelterrassen: die Wurzeln an den Setzstufen von S1–S3.
@@ -403,6 +432,7 @@ static func _abschnitt_c(level: Level05) -> void:
 			stufenwurzel(sa, level, float(t["von"]), rand, 5400 + nummer * 7)
 			stufenwurzel(sa, level, float(t["bis"]), rand, 5403 + nummer * 7)
 			nummer += 1
+		_kronen_steine(sa, level, 122.0, 178.0, 5460)
 		_rastpfaehle(sa, level, 120.0, 180.0))
 
 
@@ -420,6 +450,7 @@ static func _abschnitt_d(level: Level05) -> void:
 					5500 + i * 13)
 		_bank(sa, level, "G3 Trittstein", SANDSTEIN_TON, 5531)
 		_bank(sa, level, "G3 Sonnensims", SANDSTEIN_TON, 5537)
+		_tobel_steine(sa, level)
 		_rastpfaehle(sa, level, 180.0, 265.0))
 
 
@@ -796,84 +827,61 @@ static func art(d: Dictionary) -> String:
 	return "joch"
 
 
-## Ein Netz eines Durchlasses im Raum seiner Mitte (`_lage` bei s + tiefe/2):
-## Die Stirn liegt bei z = +tiefe/2, der Ausgang bei −tiefe/2.
+## Die Optik eines Durchlasses im Raum seiner Mitte (`_lage` bei s + tiefe/2):
+## Die Stirn liegt bei z = +tiefe/2, der Ausgang bei −tiefe/2. Heil zwei
+## Netze (siehe NAHBLENDE): „Optik" und als Kind „Oben" mit Sichtgrenze;
+## gebrochen eines. Im Bauspeicher als EIN Netz mit zwei Flächen.
 static func _durchlass_netz(level: KorridorLevel, d: Dictionary, kaputt: bool, rand: Rand,
 		speicher: String) -> MeshInstance3D:
 	var s: float = d["s"]
 	var tiefe: float = d["tiefe"]
 	var mitte := s + tiefe * 0.5
 	var lage := _lage(level, mitte)
-	var netz := Bauspeicher.netz(speicher, [String(d["name"]), kaputt], func() -> ArrayMesh:
+	var netz := Bauspeicher.netz(speicher, [String(d["name"]), kaputt, "zwei"], func() -> ArrayMesh:
 		var st := Riesenstamm.bauer()
+		var ob := st if kaputt else Riesenstamm.bauer()
 		var saat := int(s * 10.0) + (500 if kaputt else 0)
 		match art(d):
 			"gatter":
-				_gatter(st, rand, mitte, tiefe, kaputt, saat)
+				_gatter(st, ob, rand, mitte, tiefe, kaputt, saat)
 			"bogen":
-				_wurzelbogen(st, rand, mitte, tiefe, kaputt, saat)
+				_wurzelbogen(st, ob, rand, mitte, tiefe, kaputt, saat)
 			_:
-				_fluderjoch(st, rand, mitte, tiefe, kaputt, saat)
-		return Riesenstamm.fertig(st))
+				_fluderjoch(st, ob, rand, mitte, tiefe, kaputt, saat)
+		var fertig := Riesenstamm.fertig(st)
+		if not kaputt:
+			ob.index()
+			ob.generate_tangents()
+			ob.commit(fertig)
+		return fertig)
+	var stoff := Riesenstamm.borkenstoff()
 	var mi := MeshInstance3D.new()
 	mi.name = "Optik"
-	mi.mesh = netz
-	mi.material_override = nahblende(Riesenstamm.borkenstoff())
+	mi.mesh = _flaeche(netz, 0) if netz.get_surface_count() > 1 else netz
+	mi.material_override = stoff
 	mi.transform = lage
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.visibility_range_end = _sicht()
 	mi.visibility_range_end_margin = SICHT_RAND
+	if netz.get_surface_count() > 1:
+		var oben := MeshInstance3D.new()
+		oben.name = "Oben"
+		oben.mesh = _flaeche(netz, 1)
+		oben.material_override = stoff
+		oben.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		oben.visibility_range_begin = NAH_GRENZE
+		oben.visibility_range_begin_margin = NAH_RAND
+		oben.visibility_range_end = _sicht()
+		oben.visibility_range_end_margin = SICHT_RAND
+		mi.add_child(oben)
 	return mi
 
 
-## Abschrift von `stoff` mit NAHBLENDE (siehe dort): derselbe Shader, um
-## einen Vorspann erweitert, der Bildpunkte nahe der Kamera verwirft, dazu
-## dieselben Werte. `hoehe`: ab welcher Höhe im Modellraum (y) die Blende
-## greift und ab wo ganz. Je Stoff, Höhe und Abstand nur einmal gebaut.
-static func nahblende(stoff: ShaderMaterial, hoehe: Vector2 = NAH_HOEHE,
-		abstand: Vector2 = NAH_ABSTAND) -> ShaderMaterial:
-	var schluessel := "%d %s %s" % [stoff.get_instance_id(), hoehe, abstand]
-	if _nah_stoffe.has(schluessel):
-		return _nah_stoffe[schluessel]
-	var basis := stoff.shader
-	var shader: Shader = _nah_shader.get(basis.get_instance_id())
-	if shader == null:
-		shader = Shader.new()
-		shader.code = _nahcode(basis.code)
-		_nah_shader[basis.get_instance_id()] = shader
-	var neu := ShaderMaterial.new()
-	neu.shader = shader
-	for u: Dictionary in basis.get_shader_uniform_list():
-		var name_u: StringName = u["name"]
-		neu.set_shader_parameter(name_u, stoff.get_shader_parameter(name_u))
-	neu.set_shader_parameter("nah_abstand", abstand)
-	neu.set_shader_parameter("nah_hoehe", hoehe)
-	neu.render_priority = stoff.render_priority
-	_nah_stoffe[schluessel] = neu
-	return neu
-
-
-## Der Shader mit Vorspann (siehe `nahblende`): Gleichförmige Werte und die
-## Höhe im Modellraum vor `vertex()`, das Verwerfen am Anfang von
-## `fragment()` – nach Abstand zur Kamera (VERTEX ist dort im Raum der
-## Kamera) und Höhe, gerastert über ein Rauschen aus FRAGCOORD.
-static func _nahcode(code: String) -> String:
-	var kopf := "\n// Nahblende (L05Wegbauten.nahblende)\nuniform vec2 nah_abstand = vec2(6.5, 10.0);\n" \
-			+ "uniform vec2 nah_hoehe = vec2(1.9, 2.7);\nvarying float v_nah_hoehe;\n\n"
-	var blende := "\n\t{\n\t\tfloat nah_sicht = max(smoothstep(nah_abstand.x, nah_abstand.y, length(VERTEX)),\n" \
-			+ "\t\t\t\t1.0 - smoothstep(nah_hoehe.x, nah_hoehe.y, v_nah_hoehe));\n" \
-			+ "\t\tfloat nah_raster = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));\n" \
-			+ "\t\tif (nah_sicht < 1.0 && nah_sicht <= nah_raster) {\n\t\t\tdiscard;\n\t\t}\n\t}"
-	var neu := code
-	if neu.contains("void vertex() {"):
-		neu = neu.replace("void vertex() {", kopf + "void vertex() {\n\tv_nah_hoehe = VERTEX.y;")
-	else:
-		neu = neu.replace("void fragment() {", kopf
-				+ "void vertex() {\n\tv_nah_hoehe = VERTEX.y;\n}\n\nvoid fragment() {")
-	if not neu.contains("v_nah_hoehe = VERTEX.y") or not neu.contains("void fragment() {"):
-		push_error("L05Wegbauten.nahblende: Shader ohne vertex()/fragment() – keine Nahblende")
-		return code
-	return neu.replace("void fragment() {", "void fragment() {" + blende)
+## Fläche `i` eines Netzes als eigenes Netz.
+static func _flaeche(netz: ArrayMesh, i: int) -> ArrayMesh:
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, netz.surface_get_arrays(i))
+	return m
 
 
 ## Durchhang eines gebrochenen Stücks, das bei `fest` (x) noch hält und bei
@@ -948,8 +956,8 @@ static func _truemmer(st: SurfaceTool, rng: RandomNumberGenerator, halb_z: float
 
 
 ## Ü Wildgatter (siehe Kopf).
-static func _gatter(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float, kaputt: bool,
-		saat: int) -> void:
+static func _gatter(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
+		kaputt: bool, saat: int) -> void:
 	var rng := PropWerkzeug.zufall(saat)
 	var links := rand.leitlinie(-1.0, mitte)
 	var rechts := rand.leitlinie(1.0, mitte)
@@ -991,7 +999,7 @@ static func _gatter(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float, kap
 		ok["saat"] = saat + 21 + k
 		ok["ende"] = "stumpf"
 		ok["anfang"] = "stumpf"
-		_stange(st, Transform3D.IDENTITY, Vector3(px.x - 0.1, GATTER_KOPF, z),
+		_stange(ob, Transform3D.IDENTITY, Vector3(px.x - 0.1, GATTER_KOPF, z),
 				Vector3(px.y + 0.1, GATTER_KOPF + 0.02, z), GATTER_KOPF_R, GATTER_KOPF_R * 0.92, ok,
 				1.2)
 	# Stangen nur in der Stirnebene, alle GATTER_STANGEN m, Ø 6–7 cm. Bis
@@ -1015,7 +1023,7 @@ static func _gatter(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float, kap
 			var unten := RIEGEL_OBEN - 0.1
 			var oben := GATTER_KOPF
 			if not kaputt:
-				_stange(st, Transform3D.IDENTITY, Vector3(x, unten, z), Vector3(x + kipp, oben, z),
+				_stange(ob, Transform3D.IDENTITY, Vector3(x, unten, z), Vector3(x + kipp, oben, z),
 						r, r * 0.85, o, 1.0)
 			elif absf(x) < BRESCHE + 0.9:
 				# Gebrochen: Stümpfe hängen von der Kopfstange.
@@ -1038,8 +1046,8 @@ static func _gatter(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float, kap
 
 
 ## D1/D2 Wurzelbogen (siehe Kopf).
-static func _wurzelbogen(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
-		kaputt: bool, saat: int) -> void:
+static func _wurzelbogen(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: float,
+		tiefe: float, kaputt: bool, saat: int) -> void:
 	var rng := PropWerkzeug.zufall(saat)
 	var links := rand.leitlinie(-1.0, mitte)
 	var rechts := rand.leitlinie(1.0, mitte)
@@ -1133,7 +1141,7 @@ static func _wurzelbogen(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float
 		o["anfang"] = "spitz"
 		o["ende"] = "spitz"
 		o["moos"] = 0.6
-		_holz(st, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
+		_holz(ob, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
 				PackedFloat32Array([0.12, 0.24, BOGEN_R, BOGEN_R * 0.9, BOGEN_R, 0.24, 0.12])), o)
 	# Vorhang: Strähnen alle 0,45 m vom Bogen hinab, Ø 4,4–6 cm; nur gut
 	# jede vierte reicht bis knapp über den Riegel, die übrigen enden in
@@ -1162,13 +1170,87 @@ static func _wurzelbogen(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float
 				"saat": saat + 60 + nr, "anfang": "stumpf",
 				"ende": "splitter" if kaputt and absf(x) < BRESCHE + 0.7 else "spitz"}
 		var r := rng.randf_range(0.022, 0.03)
-		_holz(st, Transform3D.IDENTITY, punkte, PackedFloat32Array([r, r * 0.9, r * 0.75,
+		_holz(ob, Transform3D.IDENTITY, punkte, PackedFloat32Array([r, r * 0.9, r * 0.75,
 				r * 0.6, r * 0.45, r * 0.3]), o)
 		nr += 1
+	_wurzelansaetze(st, links, rechts, halb_z, kaputt, saat + 400)
 	if kaputt:
 		_truemmer(st, rng, halb_z, 2, Vector2(0.12, 0.15), Vector2(0.6, 1.0), wurzel)
 		_truemmer(st, rng, halb_z, 4, Vector2(0.03, 0.04), Vector2(0.5, 1.1),
 				{"ton": STRAEHNE_TON, "moos": 0.1, "seiten": 5})
+
+
+## SLIDE-ZEICHEN der Wurzelbögen (Bild-Jury R2, Mangel 4): was am
+## Wurzelbogen immer steht (Netz „Optik", siehe NAHBLENDE), damit er sich
+## schon 14 m vor der Figur als niedriger Durchschlupf liest und nicht als
+## Stange quer über dem Weg wie die Hürden:
+##   * je Seite zwei WURZELANSÄTZE, dicke Wurzeln, die aus der Lösswand
+##     kommen (über 1 m unter der Narbe) und zum Ende des Bogens hinauf
+##     laufen – der Bogen wächst sichtbar aus den Wänden;
+##   * beidseits der Gasse HÄNGEWURZELN unter dem Riegel, alle gut
+##     HAENGE_ABSTAND von UNTERWURZEL_INNEN bis an die Wand, in zwei Reihen,
+##     bis HAENGE_UNTEN (0,95–1,07 m, die Unterkante des Körpers) hinab: ein
+##     Vorhang, der in der Mitte eine niedrige Tür frei lässt – der
+##     Durchschlupf. Eine durchgehende Unterwurzel auf 0,95 m (erster
+##     Versuch) las sich im Bild bei s 44 und 90 als zweite Stange unter der
+##     ersten, also wieder als Hürde; eine Reihe kurzer Wurzeln alle 0,2 m
+##     bis 1,0–1,18 m als Zähne (zweiter Versuch).
+## Über der Gasse (|x| < UNTERWURZEL_INNEN) bleibt es beim schmalen Riegel ab
+## 1,25 m – dort schaut die Kamera auf die Figur (Freiraum K5, Level05).
+## Alles davon liegt im Körper (0,95–4,4 m) oder hinter den Leitlinien.
+const UNTERWURZEL_INNEN := 0.85
+const HAENGE_ABSTAND := 0.13
+const HAENGE_UNTEN := 0.95
+## Halbmesser der Hängewurzeln oben (größter, kleinster).
+const HAENGE_R := Vector2(0.055, 0.035)
+const ANSATZ_R := Vector2(0.3, 0.16)
+
+
+static func _wurzelansaetze(st: SurfaceTool, links: float, rechts: float, halb_z: float,
+		kaputt: bool, saat: int) -> void:
+	var rng := PropWerkzeug.zufall(saat)
+	var wurzel := {"ton": WURZEL_TON, "moos": 0.55, "seiten": 9, "buckel": 0.1}
+	for seite: float in [-1.0, 1.0]:
+		var wand := links if seite < 0.0 else rechts
+		# Wurzelansätze: aus der Wand hinauf zum Ende des Bogens.
+		for k in 2:
+			var z := (halb_z - 0.35) * (1.0 if k == 0 else -0.6) + rng.randf_range(-0.08, 0.08)
+			var punkte := _glatt(PackedVector3Array([
+					Vector3(seite * (wand + 0.9), 1.0 + 0.3 * float(k), z),
+					Vector3(seite * (wand + 0.25), 2.0 + rng.randf_range(-0.2, 0.2), z * 0.9),
+					Vector3(seite * (wand - 0.1), 3.1 + rng.randf_range(-0.2, 0.2), z * 0.6),
+					Vector3(seite * (BOGEN_FLACH + 0.4), BOGEN_SCHEITEL - 0.25, z * 0.3)]), 4)
+			var o := wurzel.duplicate()
+			o["saat"] = saat + int(seite) * 7 + k
+			o["anfang"] = "stumpf"
+			o["ende"] = "spitz"
+			_holz(st, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
+					PackedFloat32Array([ANSATZ_R.x, ANSATZ_R.x * 0.8, ANSATZ_R.y])), o)
+		# Hängewurzeln: unter dem Riegel (in seiner Ebene, im Körper ab
+		# DUCK_UNTEN) von neben der Gasse bis an die Wand, bis HAENGE_UNTEN
+		# hinab. Nach dem Bruch erst hinter der Bresche.
+		var x := UNTERWURZEL_INNEN
+		if kaputt:
+			x = maxf(x, BRESCHE + 0.3)
+		var zc := halb_z - 0.18 * 1.1 - 0.03
+		var n := 0
+		while x < wand - 0.15:
+			var unten := HAENGE_UNTEN + rng.randf_range(0.0, 0.12)
+			# Zwei Reihen, vorn und hinten im Riegel versetzt.
+			var z := zc + (0.05 if n % 2 == 0 else -0.05) + rng.randf_range(-0.02, 0.02)
+			var r := rng.randf_range(HAENGE_R.y, HAENGE_R.x)
+			var schwung := rng.randf() * TAU
+			var punkte := PackedVector3Array()
+			for i in 5:
+				var t := float(i) / 4.0
+				punkte.append(Vector3(seite * (x + 0.03 * sin(t * 3.0 + schwung)),
+						lerpf(RIEGEL_KANTE + 0.08, unten, t), z + 0.03 * cos(t * 2.5 + schwung)))
+			_holz(st, Transform3D.IDENTITY, punkte, PackedFloat32Array([r, r * 0.85, r * 0.7,
+					r * 0.5, r * 0.3]), {"ton": STRAEHNE_TON, "moos": 0.1, "seiten": 5,
+					"buckel": 0.1, "saat": saat + 100 + n + (50 if seite > 0.0 else 0),
+					"anfang": "stumpf", "ende": "spitz"})
+			x += HAENGE_ABSTAND * rng.randf_range(0.75, 1.25)
+			n += 1
 
 
 ## Querlagen (x) für Stangen, Latten und Strähnen im Abstand `abstand`
@@ -1200,8 +1282,8 @@ static func _bogen_y(bogen: PackedVector3Array, x: float) -> float:
 
 
 ## D3/D4 Fluderjoch (siehe Kopf).
-static func _fluderjoch(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
-		kaputt: bool, saat: int) -> void:
+static func _fluderjoch(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: float,
+		tiefe: float, kaputt: bool, saat: int) -> void:
 	var rng := PropWerkzeug.zufall(saat)
 	var links := rand.leitlinie(-1.0, mitte)
 	var rechts := rand.leitlinie(1.0, mitte)
@@ -1276,7 +1358,7 @@ static func _fluderjoch(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
 			var unten := RIEGEL_OBEN - 0.08
 			var oben := gerinne_unten + 0.12
 			if not kaputt:
-				_stange(st, Transform3D.IDENTITY, Vector3(x, unten, z), Vector3(x, oben, z), r, r,
+				_stange(ob, Transform3D.IDENTITY, Vector3(x, unten, z), Vector3(x, oben, z), r, r,
 						o, 1.0)
 			elif absf(x) < BRESCHE + 0.9:
 				var o2 := o.duplicate()
@@ -1291,7 +1373,7 @@ static func _fluderjoch(st: SurfaceTool, rand: Rand, mitte: float, tiefe: float,
 				_stange(st, Transform3D.IDENTITY, Vector3(x, unten - sack, z), Vector3(x, oben, z),
 						r, r, o, 1.0)
 		nr += 1
-	_gerinne(st, -(links + GERINNE_LINKS), rechts + GERINNE_RECHTS, saat + 200)
+	_gerinne(ob, -(links + GERINNE_LINKS), rechts + GERINNE_RECHTS, saat + 200)
 	if kaputt:
 		_truemmer(st, rng, halb_z, 2, Vector2(0.1, 0.13), Vector2(0.6, 1.1), holz)
 		_truemmer(st, rng, halb_z, 5, Vector2(0.05, 0.06), Vector2(0.5, 1.0), holz)
@@ -1486,6 +1568,42 @@ static func findling_netz(sa: Sammler, level: KorridorLevel, s: float, q: float,
 	var netz := _getoent(Findling.netz(groesse, o), SANDSTEIN_TON)
 	sa.stein(netz, lage)
 	sa.kranz(_fussring(netz, -groesse.y * 0.5, 0.7), lage)
+	_aussen_brocken(sa, lage, groesse, signf(q), saat, SANDSTEIN_TON, true, -groesse.y * 0.5)
+
+
+## R2 (Bild-Jury R2, Mangel 5: „F1 und F2 sind Quader … bei s 247 stehen
+## fünf Kastenformen in einem Bild"): Die Optik löst sich dort vom Körper,
+## wo niemand läuft – auf der Außenseite `aussen` (lokal ±x, zur Wand hin;
+## die Gasse liegt auf der anderen). Dort lehnt ein gewölbter Brocken
+## (`Findling.brocken`, AUSSEN_BUCKEL: 1,9 m breit, 0,7 m davon im Stein,
+## 0,25 m höher als er und 0,15 m eingesunken, also gut 0,1 m über seine
+## Oberkante): Der Umriss ist kein Kasten mehr. Am Fuß
+## der Stirnen liegen in der äußeren Hälfte Abplatzungen (AUSSEN_SPLITTER
+## je Seite, höchstens 0,25 m vor der Fläche), halb eingesunken. In die
+## Gasse ragt nichts. `buckel` false: nur die Abplatzungen (Bänke in einer
+## Nische, wo außen die Wand steht).
+static func _aussen_brocken(sa: Sammler, lage: Transform3D, groesse: Vector3, aussen: float,
+		saat: int, ton: Color, buckel: bool, boden: float) -> void:
+	var rng := PropWerkzeug.zufall(saat + 9000)
+	var h := groesse * 0.5
+	if buckel:
+		var g := Vector3(AUSSEN_BUCKEL.x, AUSSEN_BUCKEL.y + groesse.y, groesse.z + 0.3)
+		var mitte := Vector3(aussen * (h.x + AUSSEN_BUCKEL.z), boden - 0.15 + g.y * 0.5, 0.0)
+		var dreh := Basis(Vector3.UP, rng.randf_range(-0.25, 0.25))
+		var b := _getoent(Findling.brocken(g, {"saat": saat + 1, "moos": 0.8}), ton)
+		var lage_b := lage * Transform3D(dreh, mitte)
+		sa.stein(b, lage_b)
+		sa.kranz(_fussring(b, -g.y * 0.5 + 0.15, 0.6), lage_b)
+	for seite: float in [-1.0, 1.0]:
+		for k in AUSSEN_SPLITTER:
+			var g := Vector3(rng.randf_range(0.45, 0.75), rng.randf_range(0.3, 0.55),
+					rng.randf_range(0.35, 0.5))
+			var x := aussen * h.x * rng.randf_range(0.2, 0.85)
+			var mitte := Vector3(x, boden - 0.1 + g.y * 0.5, seite * (h.z + 0.25 - g.z * 0.5))
+			var dreh := Basis(Vector3.UP, rng.randf_range(-0.6, 0.6)) \
+					* Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
+			sa.stein(_getoent(kiesel(g, saat + 20 + k + (5 if seite > 0.0 else 0), 0.6), ton),
+					lage * Transform3D(dreh, mitte))
 
 
 ## Bank eines Geheimnisses oder Trittstein: `Findling.netz` in der Lage des
@@ -1497,10 +1615,24 @@ static func _bank(sa: Sammler, level: Level05, name: String, ton: Color, saat: i
 	var groesse: Vector3 = e["groesse"]
 	var lage: Transform3D = e["lage"]
 	var boden := -(float(e["oben"]) - groesse.y * 0.5)
-	var o := _mit_kisten_auf(level, name, lage, groesse, {"saat": saat, "moos": 0.9})
+	# R2 (Bild-Jury R2, Mangel 5: „rechteckige Blöcke mit senkrechten
+	# Wänden"): Bruchkante mit größerem Radius (BANK_RUNDUNG; wo Kisten
+	# stehen, nimmt `_mit_kisten_auf` ihn zurück), der Umriss springt nach
+	# innen (nie in den Weg), Beulen; Abplatzungen am Fuß außen. Der
+	# Trittstein (ohne Kisten, frei im Tobel) läuft am Fuß aus wie
+	# gewachsener Fels (`Findling` Option „fuss_aus").
+	var o := _mit_kisten_auf(level, name, lage, groesse, {"saat": saat, "moos": 0.9,
+			"rundung": BANK_RUNDUNG, "umriss": 0.05, "beulen": 0.04})
+	if name == "G3 Trittstein":
+		o["fuss_aus"] = 0.22
+		# Grundriss fast rund (Superellipse, Exponent 2,3 statt 3,6): Der
+		# Stein ist 1,4 × 1,4 m – als gerundetes Quadrat blieb er ein
+		# Würfel. Man landet auf seiner Mitte (Sprungprobe G3-Trittstein).
+		o["eckig"] = 2.3
 	var netz := _getoent(Findling.netz(groesse, o), ton)
 	sa.stein(netz, lage)
 	sa.kranz(_fussring(netz, boden, clampf(minf(groesse.x, groesse.z) * 0.3, 0.35, 0.8)), lage)
+	_aussen_brocken(sa, lage, groesse, 1.0, saat, ton, false, boden)
 
 
 ## G1 Wurzelknie: der Stein im Griff der Eichenwurzeln. Sie kommen von der
@@ -1560,6 +1692,192 @@ static func _bankwurzeln(sa: Sammler, level: Level05) -> void:
 				{"saat": 5350 + k, "ton": WURZEL_TON, "moos": 0.5, "seiten": 7, "buckel": 0.1,
 				"oben": h.y + 0.015, "klemm_x": Vector2(-h.x, h.x), "anfang": "spitz",
 				"ende": "spitz"})
+
+
+## Steine auf den Kronen über Hohlweg und Terrassen (R2, Bild-Jury R2,
+## Mangel 3: „flache, kurz gemähte Rasenplatten … Rasenplatten
+## unregelmäßig brechen (Laub, Moos, Wurzeln, Steine)"): je Seite gut alle
+## KRONEN_STEIN_SCHRITT m einer, KRONEN_STEIN_Q hinter der Wandkrone, halb
+## im Boden (`L05Gelaende.hoehe`), dazu der Farn der Kronen (`L05Rasen`).
+## Hinter der Wandkrone erreicht man sie nicht.
+const KRONEN_STEIN_SCHRITT := 3.0
+const KRONEN_STEIN_Q := Vector2(0.8, 9.0)
+
+
+static func _kronen_steine(sa: Sammler, level: Level05, von: float, bis: float,
+		saat: int) -> void:
+	if level.gelaende == null:
+		return
+	var rng := PropWerkzeug.zufall(saat)
+	var nr := 0
+	for seite: float in [-1.0, 1.0]:
+		var s := von
+		while s < bis:
+			s += KRONEN_STEIN_SCHRITT * rng.randf_range(0.5, 1.5)
+			var krone := _krone(level, seite, s)
+			if krone.y < 0.5:
+				continue
+			var q := seite * (krone.x + rng.randf_range(KRONEN_STEIN_Q.x, KRONEN_STEIN_Q.y))
+			var w := LevelWerkzeuge.punkt_frei(level.verlauf, s, q)
+			var y := level.gelaende.hoehe(w.x, w.z)
+			if is_nan(y):
+				continue
+			var g := Vector3(rng.randf_range(0.4, 1.1), rng.randf_range(0.25, 0.55),
+					rng.randf_range(0.35, 0.9))
+			var lage := Transform3D(Basis(Vector3.UP, rng.randf() * TAU)
+					* Basis(Vector3.RIGHT, rng.randf_range(-0.15, 0.15)),
+					Vector3(w.x, y + g.y * 0.15, w.z))
+			sa.stein(_getoent(kiesel(g, saat + nr, 0.7), LOESS_TON), lage)
+			nr += 1
+
+
+## TOBEL (Bild-Jury R2, Mangel 6: „Der Bach ist ein flaches graues Band …
+## liest sich als Schotterstraße. Die Südwand ist eine glatte dunkle
+## Großfläche … ohne Simse"): Ufersteine an beiden Rändern des Bachs (je
+## gut UFERSTEIN_SCHRITT einer, halb im Wasser, unter dem Spiegel nass und
+## dunkel) und Simse in der Südwand (alle SIMS_SCHRITT m einer, flache
+## Platten auf SIMS_HOCH über dem Spiegel, die SIMS_VOR aus dem Hang ragen –
+## er steigt dort gut 1,6 m je m –, oben bemoost), beides als
+## `kiesel` im Steinnetz des Abschnitts D – kein Zeichenaufruf mehr. Die
+## Wand findet der Strahl vom Bach (`L05Wasser.bach_ort`) quer nach außen,
+## wo das Gelände (`L05Gelaende.hoehe`) die gesuchte Höhe über dem Spiegel
+## erreicht. Nichts davon liegt in erreichbarem Raum: Der Bach liegt 2,7–3 m
+## unter dem Weg hinter der Uferwand.
+## UFERSTEIN_SCHRITT 1,8 und je Seite UFERSTEIN_LUECKE ausgelassen (zuerst
+## 1,1 und 25 %: gut 120 Steine, 8,6k Dreiecke im Tobel, wo das Bild bei
+## s 240 schon über 750k Primitiven lag – siehe `L05Rasen`, KOSTEN).
+const UFERSTEIN_STRECKE := Vector2(187.0, 277.0)
+const UFERSTEIN_SCHRITT := 1.8
+const UFERSTEIN_LUECKE := 0.35
+const SIMS_STRECKE := Vector2(188.0, 258.0)
+const SIMS_SCHRITT := 3.2
+const SIMS_HOCH := Vector2(1.2, 10.0)
+const SIMS_VOR := 0.6
+## Uferfelsen vor der offenen Uferwand (s von, bis; Abstand in m).
+const UFERFELS_STRECKE := Vector2(262.5, 274.0)
+const UFERFELS_SCHRITT := 1.5
+
+
+static func _tobel_steine(sa: Sammler, level: Level05) -> void:
+	var wasser := level.gewaesser
+	if wasser == null or level.gelaende == null:
+		return
+	var rng := PropWerkzeug.zufall(5590)
+	var s := UFERSTEIN_STRECKE.x
+	var nr := 0
+	while s < UFERSTEIN_STRECKE.y:
+		var mitte := wasser.bach_ort(s)
+		var rechts := LevelWerkzeuge.richtung(level.verlauf, s).cross(Vector3.UP).normalized()
+		for seite: float in [-1.0, 1.0]:
+			if rng.randf() < UFERSTEIN_LUECKE:
+				continue
+			var g := Vector3(rng.randf_range(0.35, 0.85), rng.randf_range(0.22, 0.45),
+					rng.randf_range(0.3, 0.7))
+			var weit := L05Wasser.BACH_BREITE * 0.5 + rng.randf_range(-0.25, 0.3)
+			var p := mitte + rechts * seite * weit
+			p.y = mitte.y - g.y * 0.2
+			var dreh := Basis(Vector3.UP, rng.randf() * TAU) \
+					* Basis(Vector3.RIGHT, rng.randf_range(-0.2, 0.2))
+			sa.stein(_getoent(kiesel(g, 5600 + nr, 0.35, -g.y * 0.3), SANDSTEIN_TON),
+					Transform3D(dreh, p))
+			nr += 1
+		s += UFERSTEIN_SCHRITT * rng.randf_range(0.6, 1.4)
+	s = SIMS_STRECKE.x
+	while s < SIMS_STRECKE.y:
+		var mitte := wasser.bach_ort(s)
+		var vor := LevelWerkzeuge.richtung(level.verlauf, s)
+		vor = Vector3(vor.x, 0.0, vor.z).normalized()
+		var rechts := vor.cross(Vector3.UP).normalized()
+		# Die Südwand liegt auf der Seite des Bachs (q < 0), also nach −rechts.
+		var hoch := rng.randf_range(SIMS_HOCH.x, SIMS_HOCH.y)
+		var d := 1.2
+		while d < 24.0:
+			var w := mitte - rechts * d
+			var y := level.gelaende.hoehe(w.x, w.z)
+			if not is_nan(y) and y - mitte.y >= hoch:
+				var g := Vector3(rng.randf_range(2.6, 4.6), rng.randf_range(0.35, 0.65),
+						rng.randf_range(1.3, 1.8))
+				# Lang den Weg entlang (x), quer zur Wand (z zum Weg hin).
+				var lage := Transform3D(Basis(vor, Vector3.UP, rechts).orthonormalized()
+						* Basis(Vector3.UP, rng.randf_range(-0.15, 0.15)),
+						Vector3(w.x, y - g.y * 0.35, w.z) - rechts * (g.z * 0.5 - SIMS_VOR))
+				sa.stein(_getoent(kiesel(g, 5700 + nr, 0.9), SANDSTEIN_TON), lage)
+				nr += 1
+				break
+			d += 0.25
+		s += SIMS_SCHRITT * rng.randf_range(0.7, 1.3)
+	# Uferfelsen vor der offenen Uferwand vor dem Wehr (wo sie `L05Saum`
+	# bemoost, UFER_MOOS): Die Wand steht dort frei über dem Bach (Bild-Jury
+	# R2: „oranges Wandstück"); Felsen am Fuß gliedern sie.
+	s = UFERFELS_STRECKE.x
+	while s < UFERFELS_STRECKE.y:
+		var mitte := wasser.bach_ort(s)
+		var rechts := LevelWerkzeuge.richtung(level.verlauf, s).cross(Vector3.UP).normalized()
+		var g := Vector3(rng.randf_range(1.0, 1.7), rng.randf_range(0.8, 1.4),
+				rng.randf_range(0.9, 1.4))
+		var p := mitte + rechts * (L05Wasser.BACH_BREITE * 0.5 + rng.randf_range(0.0, 0.4))
+		p.y = mitte.y - 0.25 + g.y * 0.35
+		sa.stein(_getoent(kiesel(g, 5800 + nr, 0.8, -g.y * 0.2), SANDSTEIN_TON),
+				Transform3D(Basis(Vector3.UP, rng.randf() * TAU), p))
+		nr += 1
+		s += UFERFELS_SCHRITT * rng.randf_range(0.8, 1.2)
+
+
+## Ein kleiner Stein mit wenigen Dreiecken (KIESEL_SEITEN × KIESEL_RINGE
+## Vierecke, gut 70 Dreiecke) im Format von `Findling` (Stoff
+## `Findling.stoff()`; COLOR Verdeckung und Moos, UV2 ausgetreten und Moos
+## oben): ein gestauchtes, verbeultes Ei, oben flacher, um den Ursprung in
+## der Größe `groesse`. Für Abplatzungen, Ufersteine und Simse, wo
+## `Findling.brocken` (0,6–1,4k Dreiecke je Stein) das Budget sprengte: Im
+## Tobel liegt das Bild bei s 262 schon bei 696k von 750k Primitiven
+## (eigene Messung). `moos` Anteil oben, `nass_bis` lokale Höhe, unter der
+## er dunkel und nass ist.
+static func kiesel(groesse: Vector3, saat: int, moos: float = 0.4,
+		nass_bis: float = -INF) -> ArrayMesh:
+	var rng := PropWerkzeug.zufall(saat)
+	var h := groesse * 0.5
+	var beulen := PackedFloat32Array()
+	for k in KIESEL_SEITEN:
+		beulen.append(rng.randf_range(0.8, 1.1))
+	var zeilen: Array[PackedVector3Array] = []
+	var uvs: Array[PackedVector2Array] = []
+	var farben: Array[PackedColorArray] = []
+	var arten: Array[PackedVector2Array] = []
+	for r in KIESEL_RINGE + 1:
+		var t := float(r) / float(KIESEL_RINGE)
+		var phi := PI * (1.0 - t)
+		# Oben flacher: die oberen Ringe rücken zusammen.
+		var y := -cos(phi) * h.y
+		if y > 0.0:
+			y *= 0.8
+		var rad := sin(phi)
+		var zeile := PackedVector3Array()
+		var uv := PackedVector2Array()
+		var fa := PackedColorArray()
+		var ar := PackedVector2Array()
+		for k in KIESEL_SEITEN + 1:
+			var kk := k % KIESEL_SEITEN
+			var w := TAU * float(kk) / float(KIESEL_SEITEN)
+			var f := beulen[kk] * (1.0 + 0.06 * sin(t * 5.0 + float(kk)))
+			var p := Vector3(cos(w) * rad * h.x * f, y, -sin(w) * rad * h.z * f)
+			zeile.append(p)
+			uv.append(Vector2.ZERO)
+			var ao := lerpf(0.55, 1.0, t)
+			var m := moos * smoothstep(0.45, 0.9, t)
+			if p.y < nass_bis:
+				ao *= 0.6
+				m = 0.0
+			fa.append(Color(ao, ao, ao, m))
+			ar.append(Vector2(0.0, moos))
+		zeilen.append(zeile)
+		uvs.append(uv)
+		farben.append(fa)
+		arten.append(ar)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	Riesenstamm.gitter(st, zeilen, uvs, farben, arten, true)
+	st.index()
+	return st.commit()
 
 
 ## Optionen für einen Stein, auf dem Kisten stehen: Die ebene Fläche
@@ -1693,6 +2011,12 @@ static func _grabenrampe(sa: Sammler, level: Level05) -> void:
 ## Wurzel an einer Setzstufe bei `s` (die obere Decke vor `s`): Rücken
 ## bündig in der Decke, 7 cm vor der Stufe; an den Enden in die Wände (bis
 ## 1,3 m hinter die Leitlinien, 0,9–1,0 m über der oberen Decke).
+## R2 (Bild-Jury R2: „zwei schnurgerade Rundhölzer von Wand zu Wand, wie
+## Bordsteine"): Die Wurzel taucht unterwegs ab und wieder auf (STUFE_TAUCHEN
+## tief, an 1–2 Stellen je nach Breite: dort liegt die Kante der Stufe
+## frei), schlängelt sich längs um ±STUFE_SCHLINGERN und hat Knoten
+## (Radius bis STUFE_KNOTEN mal dicker). Der Rücken bleibt, wo sie zu sehen
+## ist, bündig in der Decke (Option „oben"), also nichts zum Stolpern.
 static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand,
 		saat: int) -> void:
 	var oben := level.boden_bei(s - 0.05)
@@ -1701,20 +2025,38 @@ static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand
 			Vector3(punkt.x, oben, punkt.z))
 	var links := rand.leitlinie(-1.0, s)
 	var rechts := rand.leitlinie(1.0, s)
+	var rng := PropWerkzeug.zufall(saat)
 	var r := 0.13
 	var y := -r + 0.02
 	var stuetzen := PackedVector3Array([Vector3(-links - 1.3, 0.9, 0.3),
 			Vector3(-links - 0.4, 0.2, 0.12), Vector3(-links + 0.5, y, r - 0.07)])
-	var x := -links + 1.8
-	while x < rechts - 1.2:
-		stuetzen.append(Vector3(x, y, r - 0.07 + 0.015 * sin(x * 1.3 + float(saat))))
-		x += 1.5
+	# Wo sie abtaucht: je 2,5 m Breite eine Stelle, fest nach der Saat.
+	var breite := links + rechts
+	var tauchen := PackedFloat32Array()
+	for k in maxi(1, floori((breite - 2.0) / 2.5)):
+		tauchen.append(-links + 1.4 + (breite - 2.8) * (float(k) + rng.randf_range(0.3, 0.7))
+				/ float(maxi(1, floori((breite - 2.0) / 2.5))))
+	var x := -links + 1.2
+	while x < rechts - 1.0:
+		var tief := 0.0
+		for t in tauchen:
+			tief = maxf(tief, 1.0 - absf(x - t) / 0.55)
+		stuetzen.append(Vector3(x, y - STUFE_TAUCHEN * clampf(tief, 0.0, 1.0),
+				r - 0.07 + STUFE_SCHLINGERN * sin(x * 2.1 + float(saat))))
+		x += 0.5
 	stuetzen.append_array([Vector3(rechts - 0.5, y, r - 0.07), Vector3(rechts + 0.4, 0.25, 0.12),
 			Vector3(rechts + 1.3, 1.0, 0.3)])
-	var linie := _glatt(stuetzen, 3)
-	_holz(sa.holz, lage, linie, _radien(linie.size(), PackedFloat32Array([0.1, r, r * 1.05, r,
-			0.1])), {"saat": saat, "seiten": 9, "moos": 0.35, "ton": WURZEL_TON, "buckel": 0.05,
-			"oben": 0.012, "klemm_x": Vector2(-links - 0.3, rechts + 0.3), "hell": ABGEWETZT * 1.1,
+	# Zwei Ringe je Stützpunkt, also alle 0,25 m einer – doppelt so viele
+	# wie vor R2 (Stützen alle 1,5 m, je drei); mit drei waren es dreimal
+	# so viele (Leistungsbudget, siehe `L05Rasen`, KOSTEN).
+	var linie := _glatt(stuetzen, 2)
+	var dicke := PackedFloat32Array([0.1])
+	for k in 7:
+		dicke.append(r * (STUFE_KNOTEN if rng.randf() < 0.35 else rng.randf_range(0.85, 1.05)))
+	dicke.append(0.1)
+	_holz(sa.holz, lage, linie, _radien(linie.size(), dicke), {"saat": saat, "seiten": 9,
+			"moos": 0.35, "ton": WURZEL_TON, "buckel": 0.07, "oben": 0.012,
+			"klemm_x": Vector2(-links - 0.3, rechts + 0.3), "hell": ABGEWETZT * 1.1,
 			"anfang": "spitz", "ende": "spitz"})
 
 
