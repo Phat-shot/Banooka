@@ -248,9 +248,11 @@ const BACH_SCHNELLE := 0.4
 ## das Band im flachen Blick grau wie Schotter), nur 25 % Glitzern und das
 ## Wasser deckender (Grund 0,9 statt 0,74: durch das halb durchsichtige Band
 ## schien der graue Grund des Betts – dunkle Tiefe statt Kies); dazu
-## Ufersteine (`L05Wegbauten._tobel_steine`).
+## Ufersteine (`L05Wegbauten._tobel_steine`). R4 (Bild-Jury R4, Wasser: „Die
+## ganze Teichfläche zeigt weiße Rauschtupfer"; Vorschlag: „die
+## Glitzertupfer am Teich verringern"): 10 statt 25 % Glitzern.
 const BACH_THEMA := {"farbe_tief": Color(0.06, 0.11, 0.12), "farbe_hell": Color(0.14, 0.22, 0.23),
-		"himmel_farbe": Color(0.3, 0.38, 0.42), "glitzer": 0.25,
+		"himmel_farbe": Color(0.3, 0.38, 0.42), "glitzer": 0.1,
 		"uniforms": {"grund_alpha": 0.9}}
 ## Unterwasser: Spiegel bei s 282 und am Ende der Punkte, Breite des Laufs.
 const UNTER_SPIEGEL := Vector2(1.64, 1.48)
@@ -419,42 +421,59 @@ func _flaechen_bauen() -> void:
 	_knoten("Suhle", netze["schlamm"] as Mesh, _schlamm_stoff(), SICHT_RINNSAL)
 	_knoten("Pfützen", netze["pfuetzen"] as Mesh, _pfuetzen_stoff(), SICHT_RINNSAL)
 	if netze.has("schilf"):
-		_knoten("Schilf", netze["schilf"] as Mesh, Kronenwolke.stoff(SCHILF_LAUB), SCHILF_SICHT)
+		_knoten("Schilf", netze["schilf"] as Mesh, _schilf_stoff(), SCHILF_SICHT)
 
 
 ## SCHILF am Mühlteich (Abschluss R3; Bild-Jury R3, Schlussbild: „Der
 ## Mühlteich ist eine flache blaue Scheibe mit weißem Rand"; Vorschlag: „Den
-## Teich mit Schilf und Uferkante versehen"): Horste aus Binsen und Seggen
-## am Ufer – je SCHILF_SCHRITT rad um die Mulde (`L05Gelaende.TEICH`) die
-## Stelle, an der das Gelände SCHILF_UEBER über den Spiegel steigt, nur wo
-## die Kamera hinsieht (SCHILF_S); je Horst zwei, drei schmale, hohe
-## Büschel (`Kronenwolke`, SCHILF_HOCH), ockergrün im Kronenstoff. Erste
-## Fassung aus Halmkarten (Atlas der Kanten): Deren Halme sind 1–2 Bildpunkte
-## breit, aus 25–40 m standen nur dunkle Punkte am Ufer. Eigene Saat; ein
-## Netz.
-const SCHILF_SCHRITT := 0.16
+## Teich mit Schilf und Uferkante versehen"): Horste am Ufer – je
+## SCHILF_SCHRITT rad um die Mulde (`L05Gelaende.TEICH`) die Stelle, an der
+## das Gelände SCHILF_UEBER über den Spiegel steigt, nur wo die Kamera
+## hinsieht (SCHILF_S). Eigene Saat; ein Netz.
+## GESCHICHTE: Die erste Fassung aus Halmkarten (Atlas der Kanten) hatte
+## Halme von 1–2 Bildpunkten, aus 25–40 m standen nur dunkle Punkte am Ufer;
+## R3 nahm je Horst zwei, drei Büschel aus `Kronenwolke` – im Bild braun-
+## orange Klumpen mit Blattfetzen in Reihen am Ufer, „sitzende Tiere (Enten,
+## Eichhörnchen) oder Dunghaufen, nicht Schilf", genau im Schlussbild
+## (Bild-Jury R4, Mühlteich).
+## JETZT (R4, Vorschlag der Jury): Halme. Je Horst SCHILF_HALME schmale,
+## spitze Blätter, SCHILF_HOCH m hoch, SCHILF_BREIT m breit am Fuß – je Halm
+## zwei gekreuzte Bänder (von jeder Seite zu sehen), leicht nach außen
+## geneigt und oben überhängend, am Fuß dunkelgrün, oben ockergelb
+## (SCHILF_TOENE); dazu SCHILF_KOLBEN Rohrkolben auf eigenen Stängeln
+## (Kolben SCHILF_KOLBEN_MASS, dunkelbraun). Die Horste stehen in Gruppen
+## (Rauschen über den Umfang, SCHILF_GRUPPE) mit Lücken. Jede Fläche ist
+## doppelt gebaut, beide Seiten mit derselben Normale (halb nach oben): Der
+## beidseitige Stoff kehrte die Normale der Rückseite um, und die Halme
+## standen von hinten schwarz da. Eigener Stoff (`_schilf_stoff`), matt,
+## Farbe aus den Scheiteln.
+const SCHILF_SCHRITT := 0.13
 const SCHILF_UEBER := 0.04
 const SCHILF_S := Vector2(270.0, 300.0)
-const SCHILF_HOCH := Vector2(0.9, 1.5)
-const SCHILF_LAUB := Color(0.36, 0.4, 0.17)
+const SCHILF_HALME := Vector2i(14, 22)
+const SCHILF_HOCH := Vector2(1.0, 1.8)
+const SCHILF_BREIT := Vector2(0.06, 0.1)
+const SCHILF_HORST := 0.45
+const SCHILF_KOLBEN := Vector2i(1, 4)
+const SCHILF_KOLBEN_MASS := Vector3(0.22, 0.3, 0.034)
+const SCHILF_GRUPPE := 0.9
+const SCHILF_TOENE: Array[Color] = [Color(0.12, 0.17, 0.06), Color(0.26, 0.34, 0.11),
+		Color(0.5, 0.45, 0.2)]
+const SCHILF_KOLBEN_TON := Color(0.2, 0.12, 0.065)
 const SCHILF_SICHT := 110.0
 
 
 func _schilf_netz() -> ArrayMesh:
 	var rng := PropWerkzeug.zufall(5811)
-	var formen: Array[ArrayMesh] = [
-		Kronenwolke.netz({"radius": 0.45, "hoehe": 1.4, "variante": 0, "ballen": 3,
-				"karten": 10, "saat": 5812}),
-		Kronenwolke.netz({"radius": 0.6, "hoehe": 1.1, "variante": 0, "ballen": 3,
-				"karten": 10, "saat": 5813}),
-	]
+	var gruppe := FastNoiseLite.new()
+	gruppe.seed = 5814
+	gruppe.frequency = SCHILF_GRUPPE
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var teich := L05Gelaende.TEICH
 	var w := 0.0
 	while w < TAU:
 		w += SCHILF_SCHRITT * rng.randf_range(0.6, 1.4)
-		var anzahl := rng.randi_range(2, 3)
 		var wurf := rng.randf()
 		# Vom Inneren der Mulde nach außen bis zum Ufer.
 		var ort := Vector3(NAN, NAN, NAN)
@@ -466,25 +485,120 @@ func _schilf_netz() -> ArrayMesh:
 			var y := _feld(p.x, p.z)
 			if not is_nan(y) and y >= TEICH_SPIEGEL + SCHILF_UEBER:
 				if s >= SCHILF_S.x and s <= SCHILF_S.y:
-					ort = Vector3(p.x, y - 0.1, p.z)
+					ort = Vector3(p.x, y - 0.06, p.z)
 				break
 			e += 0.04
-		if is_nan(ort.x) or wurf < 0.25:
+		if is_nan(ort.x) or wurf < 0.2 + 0.45 * maxf(gruppe.get_noise_1d(w * 10.0), 0.0):
 			continue
-		for k in anzahl:
-			var form := formen[rng.randi_range(0, formen.size() - 1)]
-			var box := form.get_aabb()
-			var hoch := rng.randf_range(SCHILF_HOCH.x, SCHILF_HOCH.y) / maxf(box.size.y, 0.1)
-			var breit := rng.randf_range(0.8, 1.1)
-			var versatz := Vector3(rng.randf_range(-0.5, 0.5), 0.0, rng.randf_range(-0.5, 0.5))
-			var lage := Transform3D(Basis(Vector3.UP, rng.randf() * TAU)
-					.scaled(Vector3(breit, hoch, breit)),
-					ort + versatz - Vector3(0.0, box.position.y * hoch, 0.0))
-			st.append_from(form, 0, lage)
-	var netz := st.commit()
-	# Die Blattkarten wachsen erst im Shader (`Kronenwolke`): Hülle weiten.
-	netz.custom_aabb = netz.get_aabb().grow(0.8)
-	return netz
+		_schilf_horst(st, rng, ort, rng.randf_range(0.75, 1.15))
+	return st.commit()
+
+
+## Ein Horst an `ort` (Welt), `gross` als Maß für Höhe und Zahl (siehe SCHILF).
+func _schilf_horst(st: SurfaceTool, rng: RandomNumberGenerator, ort: Vector3,
+		gross: float) -> void:
+	var halme := roundi(rng.randi_range(SCHILF_HALME.x, SCHILF_HALME.y) * gross)
+	var ton_f := rng.randf_range(0.85, 1.1)
+	for k in halme:
+		var winkel := rng.randf() * TAU
+		var r := SCHILF_HORST * sqrt(rng.randf()) * gross
+		var fuss := ort + Vector3(cos(winkel) * r, 0.0, sin(winkel) * r)
+		var aussen := Vector3(cos(winkel), 0.0, sin(winkel))
+		var hoch := rng.randf_range(SCHILF_HOCH.x, SCHILF_HOCH.y) * gross
+		var neigung := rng.randf_range(0.04, 0.22) + r * 0.25
+		var haengen := rng.randf_range(0.05, 0.3)
+		var breit := rng.randf_range(SCHILF_BREIT.x, SCHILF_BREIT.y)
+		var dreh := rng.randf() * TAU
+		_schilf_band(st, fuss, aussen, hoch, neigung, haengen, breit, dreh, ton_f)
+		_schilf_band(st, fuss, aussen, hoch, neigung, haengen, breit * 0.8, dreh + PI * 0.5,
+				ton_f)
+	for k in rng.randi_range(SCHILF_KOLBEN.x, SCHILF_KOLBEN.y):
+		var winkel := rng.randf() * TAU
+		var r := SCHILF_HORST * 0.6 * sqrt(rng.randf()) * gross
+		var fuss := ort + Vector3(cos(winkel) * r, 0.0, sin(winkel) * r)
+		var hoch := rng.randf_range(SCHILF_HOCH.x + 0.2, SCHILF_HOCH.y + 0.1) * gross
+		var kipp := Vector3(cos(winkel), 0.0, sin(winkel)) * rng.randf_range(0.02, 0.1) * hoch
+		var spitze := fuss + Vector3.UP * hoch + kipp
+		var lang := rng.randf_range(SCHILF_KOLBEN_MASS.x, SCHILF_KOLBEN_MASS.y)
+		var kolben_unten := fuss.lerp(spitze, (hoch - lang - 0.12) / hoch)
+		var kolben_oben := fuss.lerp(spitze, (hoch - 0.12) / hoch)
+		_schilf_stab(st, fuss, spitze, 0.008, SCHILF_TOENE[1] * ton_f, 4)
+		_schilf_stab(st, kolben_unten, kolben_oben, SCHILF_KOLBEN_MASS.z, SCHILF_KOLBEN_TON, 6)
+
+
+## Ein Blatt als Band: vom Fuß nach oben, um `neigung` (Anteil der Höhe)
+## nach `aussen` geneigt, oben um `haengen` überhängend; `breit` am Fuß,
+## spitz oben; quer gedreht um `dreh`. Jedes Dreieck zweimal (siehe SCHILF).
+static func _schilf_band(st: SurfaceTool, fuss: Vector3, aussen: Vector3, hoch: float,
+		neigung: float, haengen: float, breit: float, dreh: float, ton_f: float) -> void:
+	const TEILE := 4
+	var quer := Vector3(cos(dreh), 0.0, sin(dreh))
+	var punkte := PackedVector3Array()
+	var farben := PackedColorArray()
+	for i in TEILE + 1:
+		var t := float(i) / float(TEILE)
+		var p := fuss + Vector3.UP * hoch * (t - haengen * t * t * t) \
+				+ aussen * hoch * (neigung * t + haengen * 0.6 * t * t * t)
+		var b := breit * (1.0 - t * 0.92) * 0.5
+		punkte.append(p - quer * b)
+		punkte.append(p + quer * b)
+		var c := SCHILF_TOENE[0].lerp(SCHILF_TOENE[1], minf(t * 2.0, 1.0)) \
+				if t < 0.5 else SCHILF_TOENE[1].lerp(SCHILF_TOENE[2], (t - 0.5) * 2.0)
+		farben.append(c * ton_f)
+	for i in TEILE:
+		var a := punkte[i * 2]
+		var b := punkte[i * 2 + 1]
+		var c := punkte[i * 2 + 2]
+		var d := punkte[i * 2 + 3]
+		_schilf_doppelt(st, a, b, c, farben[i], farben[i], farben[i + 1])
+		_schilf_doppelt(st, b, d, c, farben[i], farben[i + 1], farben[i + 1])
+
+
+## Ein Stab (Stängel, Kolben) von `a` nach `b`, Halbmesser `r`, `seiten`
+## Seiten, beide Enden zu (Spitze bzw. Deckel).
+static func _schilf_stab(st: SurfaceTool, a: Vector3, b: Vector3, r: float, ton: Color,
+		seiten: int) -> void:
+	var achse := (b - a).normalized()
+	var q1 := achse.cross(Vector3.FORWARD if absf(achse.z) < 0.9 else Vector3.RIGHT).normalized()
+	var q2 := achse.cross(q1)
+	for k in seiten:
+		var w0 := TAU * float(k) / float(seiten)
+		var w1 := TAU * float(k + 1) / float(seiten)
+		var d0 := q1 * cos(w0) + q2 * sin(w0)
+		var d1 := q1 * cos(w1) + q2 * sin(w1)
+		var unten := ton.darkened(0.15)
+		_schilf_dreieck(st, a + d0 * r, a + d1 * r, b + d1 * r, unten, unten, ton)
+		_schilf_dreieck(st, a + d0 * r, b + d1 * r, b + d0 * r, unten, ton, ton)
+		_schilf_dreieck(st, b + d0 * r, b + d1 * r, b + achse * r, ton, ton, ton)
+		_schilf_dreieck(st, a + d1 * r, a + d0 * r, a - achse * r, unten, unten, unten)
+
+
+static func _schilf_doppelt(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, fa: Color,
+		fb: Color, fc: Color) -> void:
+	_schilf_dreieck(st, a, b, c, fa, fb, fc)
+	_schilf_dreieck(st, a, c, b, fa, fc, fb)
+
+
+static func _schilf_dreieck(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, fa: Color,
+		fb: Color, fc: Color) -> void:
+	for e: Array in [[a, fa], [b, fb], [c, fc]]:
+		st.set_color(e[1] as Color)
+		st.set_normal(Vector3.UP)
+		st.add_vertex(e[0] as Vector3)
+
+
+## Stoff des Schilfs: Farbe aus den Scheiteln, matt, Rückseiten weg (die
+## Bänder sind doppelt gebaut, siehe SCHILF).
+static var _schilf_stoff_fertig: StandardMaterial3D = null
+
+
+static func _schilf_stoff() -> StandardMaterial3D:
+	if _schilf_stoff_fertig == null:
+		var m := StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		m.roughness = 0.9
+		_schilf_stoff_fertig = m
+	return _schilf_stoff_fertig
 
 
 func _knoten(name_k: String, netz: Mesh, stoff: Material, sicht: float) -> MeshInstance3D:
@@ -950,7 +1064,7 @@ func _baender_und_rad() -> void:
 	if rinnsal_knoten != null:
 		rinnsal_knoten.visibility_range_begin = L05Wegbauten.NAH_GRENZE
 		rinnsal_knoten.visibility_range_begin_margin = L05Wegbauten.NAH_RAND
-	_sichtweite(_baender_vereinen(_sickerstreifen(), "Sickerstreifen"), SICKER_SICHT)
+	_sickerspuren()
 	var faelle: Array[Wasserfall] = []
 	for d: Dictionary in Level05.DURCHLAESSE:
 		if L05Wegbauten.art(d) == "joch":
@@ -965,28 +1079,38 @@ func _baender_und_rad() -> void:
 ## SICKERSTREIFEN in der Südwand des Tobels (Abschluss R3; Bild-Jury R3,
 ## Tobel D: „Rechts füllt die Südwand 20–30 % des Bilds als dunkle, glatte
 ## grüne Fläche"; Vorschlag: „mit … hellen Sickerstreifen gliedern"): An
-## SICKER_STELLEN läuft Wasser die Wand hinab bis in den Bach – ein schmales
-## Band (`Wasserfall.band`, wie die Rinnsale am Wasserriss) vom Punkt
-## SICKER_HOCH über dem Spiegel quer zum Bach hinab, SICKER_VOR über dem
-## Gelände, mit leichtem Schlängeln längs. Im Schatten der Nordseite sind sie
-## das Helle der Wand. Alle in EINEM Netz.
-## Erste Fassung (0,28–0,55 m, Schaum 0,6/0,68/0,7, gerade die Falllinie
-## hinab): im Bild bei s 186 und 240 dünne, gerade, weiße Striche wie
-## Kratzer. Jetzt breiter, dunkler und in Schlingen (SICKER_SCHLINGE m quer
-## zur Falllinie, zwei Wellen).
+## SICKER_STELLEN läuft Wasser die Wand hinab bis in den Bach, vom Punkt
+## SICKER_HOCH über dem Spiegel quer zum Bach hinab, mit leichtem
+## Schlängeln längs (SICKER_SCHLINGE, zwei Wellen).
+## GESCHICHTE: R3 nahm Bänder aus `Wasserfall.band` (Schaum, Glanz): im Bild
+## glänzende, blassblaue Bänder „wie Plastikbänder, nicht wie Sickerwasser",
+## und eines knickte bei s 220 frei schräg durch die Luft (Bild-Jury R4,
+## Tobel D) – das Band legt seine Breite waagerecht quer, auf der steilen
+## Wand stand eine Kante bis gut einen halben Meter vom Hang ab.
+## JETZT (R4, Vorschlag der Jury: „auf die Wand legen …, dunkel-nass statt
+## hell-glänzend"): eine Spur, die die Wand DUNKLER macht, nicht heller –
+## ein Streifen, dessen Ecken einzeln auf dem gezeichneten Gelände liegen
+## (`_feld`, SICKER_VOR darüber; quer in SICKER_QUER Punkten, längs alle
+## SICKER_SCHRITT m), in einem Stoff, der das Bild darunter multipliziert
+## (`_sicker_stoff`: unbeleuchtet, Mischung „mul"): in der Mitte mal
+## SICKER_NASS, zu den Rändern und oben (der Quelle) weich auf 1. Wo das
+## Gelände fehlt, endet der Streifen. Alle in EINEM Netz.
 const SICKER_STELLEN: Array[float] = [194.0, 205.0, 217.0, 228.0, 241.0, 252.0]
 const SICKER_HOCH := Vector2(5.0, 11.0)
-const SICKER_VOR := 0.06
+const SICKER_VOR := 0.04
 const SICKER_BREITE := Vector2(0.7, 1.2)
 const SICKER_SCHLINGE := 0.9
-const SICKER_SCHAUM := Color(0.42, 0.5, 0.5)
-const SICKER_TIEF := Color(0.14, 0.2, 0.2)
+const SICKER_SCHRITT := 0.3
+const SICKER_QUER := 5
+const SICKER_NASS := Color(0.5, 0.55, 0.52)
 const SICKER_SICHT := 130.0
 
 
-func _sickerstreifen() -> Array[Wasserfall]:
-	var aus: Array[Wasserfall] = []
+func _sickerspuren() -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rng := PropWerkzeug.zufall(5821)
+	var etwas := false
 	for s0 in SICKER_STELLEN:
 		var s := s0 + rng.randf_range(-2.0, 2.0)
 		var hoch := rng.randf_range(SICKER_HOCH.x, SICKER_HOCH.y)
@@ -997,7 +1121,7 @@ func _sickerstreifen() -> Array[Wasserfall]:
 		vor = Vector3(vor.x, 0.0, vor.z).normalized()
 		var rechts := vor.cross(Vector3.UP).normalized()
 		# Oben: wo die Wand SICKER_HOCH über dem Spiegel liegt (−rechts, wie
-		# die Simse in `L05Wegbauten._tobel_steine`).
+		# die Simse in `L05Wegbauten.simse`).
 		var d := 1.2
 		var oben := -1.0
 		while d < 26.0:
@@ -1009,22 +1133,84 @@ func _sickerstreifen() -> Array[Wasserfall]:
 			d += 0.25
 		if oben < 0.0:
 			continue
-		var bahn := PackedVector3Array()
+		var reihen: Array[PackedVector3Array] = []
+		var farben: Array[PackedColorArray] = []
 		d = oben
-		while d > L05Gelaende.BETT_BREITE * 0.5:
+		var unten := L05Gelaende.BETT_BREITE * 0.5
+		while d > unten:
+			var t := (oben - d) / maxf(oben - unten, 0.1)
 			var laengs := SICKER_SCHLINGE * (0.65 * sin(d * 0.7 + phase)
 					+ 0.35 * sin(d * 1.9 + phase * 2.3))
-			var w := mitte - rechts * d + vor * laengs
-			var y := _feld(w.x, w.z)
-			if not is_nan(y):
-				bahn.append(Vector3(w.x, y + SICKER_VOR, w.z))
-			d -= 0.35
-		var band := Wasserfall.band(self, bahn, breite * 0.6, {"name": "Sickerstreifen",
-				"breite_ende": breite, "tempo": 1.4, "spalten": 2, "schritt": 0.35,
-				"farbe_schaum": SICKER_SCHAUM, "farbe_tief": SICKER_TIEF, "richtung": rechts})
-		if band != null:
-			aus.append(band)
-	return aus
+			var b := breite * lerpf(0.45, 1.0, t)
+			var reihe := PackedVector3Array()
+			var fa := PackedColorArray()
+			for k in SICKER_QUER:
+				var u := float(k) / float(SICKER_QUER - 1) * 2.0 - 1.0
+				var w := mitte - rechts * d + vor * (laengs + u * b * 0.5)
+				var y := _feld(w.x, w.z)
+				if is_nan(y):
+					reihe.clear()
+					break
+				reihe.append(Vector3(w.x, y + SICKER_VOR, w.z))
+				# Weich zum Rand und zur Quelle (oben die ersten 0,8 m).
+				var staerke := (1.0 - u * u) * smoothstep(0.0, 0.8, oben - d)
+				fa.append(Color.WHITE.lerp(SICKER_NASS, staerke))
+			if reihe.size() == SICKER_QUER:
+				reihen.append(reihe)
+				farben.append(fa)
+			elif reihen.size() > 1:
+				_sicker_flaeche(st, reihen, farben)
+				reihen.clear()
+				farben.clear()
+				etwas = true
+			else:
+				reihen.clear()
+				farben.clear()
+			d -= SICKER_SCHRITT
+		if reihen.size() > 1:
+			_sicker_flaeche(st, reihen, farben)
+			etwas = true
+	if not etwas:
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = "Sickerstreifen"
+	mi.mesh = st.commit()
+	mi.material_override = _sicker_stoff()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	_sichtweite(mi, SICKER_SICHT)
+	add_child(mi)
+
+
+## Die Dreiecke eines Streifens aus Reihen (je SICKER_QUER Punkte).
+static func _sicker_flaeche(st: SurfaceTool, reihen: Array[PackedVector3Array],
+		farben: Array[PackedColorArray]) -> void:
+	for i in reihen.size() - 1:
+		for k in SICKER_QUER - 1:
+			var ecken: Array[Vector3] = [reihen[i][k], reihen[i][k + 1], reihen[i + 1][k + 1],
+					reihen[i][k], reihen[i + 1][k + 1], reihen[i + 1][k]]
+			var tone: Array[Color] = [farben[i][k], farben[i][k + 1], farben[i + 1][k + 1],
+					farben[i][k], farben[i + 1][k + 1], farben[i + 1][k]]
+			for e in 6:
+				st.set_color(tone[e])
+				st.add_vertex(ecken[e])
+
+
+## Stoff der Sickerspuren: unbeleuchtet, multipliziert (siehe SICKER_NASS),
+## beidseitig, ohne Nebel – der Nebel liegt schon im Bild darunter.
+static var _sicker_stoff_fertig: StandardMaterial3D = null
+
+
+static func _sicker_stoff() -> StandardMaterial3D:
+	if _sicker_stoff_fertig == null:
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+		m.vertex_color_use_as_albedo = true
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.disable_fog = true
+		_sicker_stoff_fertig = m
+	return _sicker_stoff_fertig
 
 
 ## Harte Sichtweite (wie `L01Wasser._sichtweite`).
@@ -1220,6 +1406,15 @@ static func _wurf(start: Vector3, richtung: Vector3, tempo: float, ende_y: float
 ## EIN Band (eine Farbe, ein Bauch für Schuss und Fall) las sich der Fall
 ## von der Seite als durchsichtige, hellblaue Scheibe (Prüfung P6). Der
 ## Schuss wölbt sich zur Walze (WEHR_WALZE). Rückgabe: beide Knoten.
+## R4 (Bild-Jury R4, Wasser: „das Weißwasser im Wehrbruch bleibt
+## Pixelrauschen"; Vorschlag: „einen Null-Pfad-Schalter im geteilten
+## Shader"): Das Rauschen quer zu den 5–7 m breiten Bändern ist gröber
+## (`Wasserfall.band`, Option „quer_mass"): die feinen Schaumflecken gut
+## 1 m statt 0,4 m, die groben 2 m statt 1 m – aus 25–40 m Abstand Flecken
+## von drei, vier Bildpunkten statt Rauschen.
+const WEISS_QUER_MASS := Vector2(0.5, 0.35)
+
+
 func _weisswasser() -> Array[Wasserfall]:
 	var bruch: Dictionary = Level05.LUECKEN[5]
 	var mitte := (float(bruch["von"]) + float(bruch["bis"])) * 0.5
@@ -1241,7 +1436,7 @@ func _weisswasser() -> Array[Wasserfall]:
 	var oben := Wasserfall.band(self, schuss, breite, {"name": "Weißwasser",
 			"breite_ende": breite + 0.2, "bauch": WEHR_WALZE, "tempo": 4.2, "spalten": 8,
 			"schritt": 0.35, "farbe_schaum": FALL_SCHAUM, "farbe_tief": FALL_TIEF,
-			"richtung": aussen, "ferne": 1.0})
+			"richtung": aussen, "ferne": 1.0, "quer_mass": WEISS_QUER_MASS})
 	# Der Fall in zwei Lagen (ein Netz, `_baender_vereinen`): Der Stoff deckt
 	# höchstens 0,45 bis 0,85; zwei Lagen mit verschobenem Muster decken
 	# 0,7 bis 0,98, und der Fall steht weiß statt gläsern.
@@ -1255,7 +1450,7 @@ func _weisswasser() -> Array[Wasserfall]:
 				"bauch": WEHRFALL_BAUCH * (1.0 + 0.4 * float(lage)), "bauch_ab": 0.6,
 				"tempo": WEHRFALL_TEMPO, "spalten": 8, "schritt": 0.2,
 				"farbe_schaum": WEHRFALL_SCHAUM, "farbe_tief": WEHRFALL_TIEF,
-				"richtung": aussen, "ferne": 1.0})
+				"richtung": aussen, "ferne": 1.0, "quer_mass": WEISS_QUER_MASS})
 		if band != null:
 			lagen.append(band)
 	var unten := _baender_vereinen(lagen, "Wehrfall")

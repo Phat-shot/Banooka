@@ -768,7 +768,11 @@ func _zusatz(p: Vector3, _n: Vector3, mulde: float) -> Vector2:
 	var ao := clampf(1.0 - mulde * 0.25, 0.65, 1.0)
 	var rand := level.weg.wegrand(sq.x) if sq.x >= -4.0 and sq.x <= Level05.M_ENDE \
 			else Level05.auslauf_halb(sq.x)
-	ao = minf(ao, lerpf(0.78, 1.0, smoothstep(rand + 0.5, rand + 4.0, absf(sq.y))))
+	# Wegrand wie die Decke (0,78); auf den Kronen der Böschungen dunkler und
+	# breiter (`L05Saum.kronenband`, R4).
+	var band := L05Saum.kronenband(sq.x)
+	var weit := lerpf(4.0, L05Saum.KRONENBAND_WEIT, (1.0 - band) / (1.0 - L05Saum.KRONENBAND_AO))
+	ao = minf(ao, lerpf(0.78 * band, 1.0, smoothstep(rand + 0.5, rand + weit, absf(sq.y))))
 	return Vector2(ao, 0.0)
 
 

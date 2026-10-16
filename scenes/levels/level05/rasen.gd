@@ -99,7 +99,8 @@ const LAUB_FARBEN: Array[Color] = [Color(0.62, 0.38, 0.1), Color(0.5, 0.18, 0.05
 ## Seite) hinter der Wandkrone, Breite des Streifens (m), Sicht.
 ## R2 (Bild-Jury R2, Mangel 3: „Hohlweg im Park … flache, kurz gemähte
 ## Rasenplatten"): auch über dem Hohlweg B und auf der Schattenseite von C,
-## dichter in C; Farnbüschel an der Südwand des Tobels (SUEDWAND_FARN).
+## dichter in C; Farnbüschel an der Südwand des Tobels (seit R4 Polster auf
+## den Simsen, SUEDWAND_POLSTER).
 ## KOSTEN (R2): Ein Farn hat 252–276 Dreiecke. Mit den Dichten des ersten
 ## Entwurfs (Tobel 0,16, C 0,1/0,08, B 0,09, Südwand alle 0,8 m) trug Laub
 ## und Farn 158k statt 70k Dreiecke, und das Bild bei s 226/240/262 lag bei
@@ -110,17 +111,25 @@ const KUPFER := Color(0.62, 0.3, 0.1)
 const FARN_STRECKEN: Array[Vector4] = [Vector4(184.0, 262.0, 0.11, 1.0),
 		Vector4(124.0, 178.0, 0.08, 1.0), Vector4(34.0, 118.0, 0.07, 1.0),
 		Vector4(34.0, 118.0, 0.07, -1.0), Vector4(124.0, 178.0, 0.06, -1.0)]
-## Farn an der Südwand: von, bis (s), Abstand (m, ± 50 %); Höhe über dem
-## Bach (von, bis). Die Wand findet ein Strahl vom Bach quer nach außen
-## (wie die Simse in `L05Wegbauten._tobel_steine`).
-const SUEDWAND_FARN := Vector3(188.0, 262.0, 1.5)
-const SUEDWAND_FARN_HOCH := Vector2(0.6, 10.0)
 ## R3 (Bild-Jury R3, Tobel D: „Simse und Farn sind nicht zu erkennen"): Die
 ## Büschel der Südwand in voller Größe (statt 0,8) und SUEDWAND_FARN_HELL
 ## mal so hell – im Schatten der Nordseite standen sie dunkel auf dunklem
 ## Moos.
 const SUEDWAND_FARN_GROSS := 1.0
-const SUEDWAND_FARN_HELL := 1.4
+## R4: statt SUEDWAND_FARN_HELL (1,4, R3) eine Tönung ins Oliv (auf KUPFER
+## 0,62/0,3/0,1 ergibt das gut 0,45/0,42/0,13).
+const SUEDWAND_FARN_TON := Color(0.72, 1.4, 1.3)
+## R4 (Bild-Jury R4, Tobel D: „Der Kupferfarn erscheint als verstreute,
+## einzelne orange Flecken, wie fliegende Vögel oder Konfetti"; Vorschlag:
+## „als Gruppen und Polster auf den Simsen"): Bis R4 stand an der Südwand
+## alle 1,5 m (±50 %) ein einzelner Büschel auf einer Zufallshöhe der Wand.
+## Jetzt Polster aus SUEDWAND_POLSTER Büscheln auf den Simsen
+## (`L05Wegbauten.simse`), auf SUEDWAND_POLSTER_ANTEIL von ihnen, dazu auf
+## jedem zweiten einer vorn auf der Kante; dazwischen nackte Wand. Gut so
+## viele Büschel wie vorher (gerechnet rund 54 statt 49; mit 3–5 und 0,85
+## lagen die Bilder bei s 220/240 um 10k/6k Primitive höher).
+const SUEDWAND_POLSTER := Vector2i(2, 4)
+const SUEDWAND_POLSTER_ANTEIL := 0.7
 const FARN_BAND := 12.0
 const SICHT_FARN := 44.0
 ## Länge der Stücke des Farns entlang s (m).
@@ -513,36 +522,41 @@ func _farn_setzen(felder: Dictionary, rng: RandomNumberGenerator, s: float, ort:
 	(e["lagen"] as Array[Transform3D]).append(lage)
 	var farben: PackedColorArray = e["farben"]
 	var v := rng.randf_range(0.8, 1.15)
+	var ton := Color(v * rng.randf_range(0.95, 1.08), v, v * rng.randf_range(0.85, 1.0))
 	if gruppe == 2:
-		v *= SUEDWAND_FARN_HELL
-	farben.append(Color(v * rng.randf_range(0.95, 1.08), v, v * rng.randf_range(0.85, 1.0)))
+		# Südwand (R4, siehe SUEDWAND_POLSTER): oliv statt kupfern – Farn im
+		# Schatten der Nordseite ist grün, und kupferne Einzelbüschel lasen sich
+		# vor der dunklen Wand als Konfetti.
+		ton = ton * SUEDWAND_FARN_TON
+	farben.append(ton)
 	e["farben"] = farben
 
 
-## Farnbüschel an der Südwand des Tobels (SUEDWAND_FARN), je Stelle eine
-## zufällige Höhe über dem Bach; dunkler (im Schatten) und etwas kleiner.
+## Farn an der Südwand des Tobels: Polster auf den Simsen (R4, siehe
+## SUEDWAND_POLSTER) – je Sims mit `anteil` (Handyweg weniger) eine Gruppe
+## aus SUEDWAND_POLSTER Büscheln auf seiner Oberseite, dicht beieinander, und
+## auf jedem zweiten eines vorn auf seiner Kante (es hängt über sie hinab).
 func _suedwand_farn(felder: Dictionary, rng: RandomNumberGenerator, anteil: float) -> void:
-	var wasser := level.gewaesser
-	if wasser == null:
-		return
-	var s := SUEDWAND_FARN.x
-	while s < SUEDWAND_FARN.y:
-		s += SUEDWAND_FARN.z * rng.randf_range(0.5, 1.5)
-		if rng.randf() > anteil:
+	for sims: Dictionary in L05Wegbauten.simse(level):
+		if rng.randf() > anteil * SUEDWAND_POLSTER_ANTEIL:
 			continue
-		var mitte := wasser.bach_ort(s)
-		var vor := LevelWerkzeuge.richtung(level.verlauf, s)
-		var rechts := Vector3(vor.x, 0.0, vor.z).normalized().cross(Vector3.UP).normalized()
-		var hoch := rng.randf_range(SUEDWAND_FARN_HOCH.x, SUEDWAND_FARN_HOCH.y)
-		var d := 1.3
-		while d < 24.0:
-			var w := mitte - rechts * d
-			var y := level.gelaende.hoehe(w.x, w.z)
-			if not is_nan(y) and y - mitte.y >= hoch:
-				_farn_setzen(felder, rng, s, Vector3(w.x, y - 0.1, w.z) - rechts * 0.1,
-						SUEDWAND_FARN_GROSS, 2)
-				break
-			d += 0.25
+		var oben: Vector3 = sims["oben"]
+		var vor: Vector3 = sims["vor"]
+		var rechts: Vector3 = sims["rechts"]
+		var g: Vector3 = sims["groesse"]
+		var s := level.verlauf.get_closest_offset(level.to_local(oben))
+		var zahl := rng.randi_range(SUEDWAND_POLSTER.x, SUEDWAND_POLSTER.y)
+		var mitte_l := rng.randf_range(-0.2, 0.2) * g.x
+		for k in zahl:
+			var laengs := mitte_l + rng.randf_range(-0.28, 0.28) * g.x
+			var quer := rng.randf_range(-0.1, 0.3) * g.z
+			var ort := oben + vor * laengs + rechts * quer + Vector3.DOWN * 0.08
+			_farn_setzen(felder, rng, s, ort, SUEDWAND_FARN_GROSS * rng.randf_range(0.8, 1.15), 2)
+		# Jeder zweite vorn auf der Kante des Simses: Er hängt über sie hinab.
+		var kante := oben + rechts * (g.z * 0.4) + Vector3.DOWN * (g.y * 0.25) \
+				+ vor * (mitte_l + rng.randf_range(-0.3, 0.3) * g.x)
+		if rng.randf() < 0.5:
+			_farn_setzen(felder, rng, s, kante, SUEDWAND_FARN_GROSS * 0.9, 2)
 
 
 ## Die Knoten von Laub und Farn aus ihren Lagen (`_laub_farn`), unter einer

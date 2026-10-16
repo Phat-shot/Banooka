@@ -146,10 +146,20 @@ class_name L05Jagd
 ##      längs des Wegs (`_figur_tempo`), mindestens AUFHOL_TEMPO, höchstens
 ##      DECKEL_HOECHST – bis er wieder DECKEL_SPIEL hinter ihr ist. Läuft
 ##      die Figur (8,5 m/s), ist das genau AUFHOL_TEMPO: Am Ideallauf ändert
-##      der Deckel nichts. Ein einzelner Slide bringt weiter seine 1,3 m
-##      (unter DECKEL_SPIEL); wer Slides reiht, liegt höchstens DECKEL_SPIEL
-##      weiter vorn als die Staffel erlaubt, und schneller als um
-##      DECKEL_ZUSCHLAG holt er ihn dort auch ein. WARUM nicht ein festes
+##      der Deckel nichts. Ein einzelner Slide bringt an der Staffel weiter
+##      seine 1,3 m (unter DECKEL_SPIEL); wer Slides reiht, liegt höchstens
+##      DECKEL_SPIEL weiter vorn als die Staffel erlaubt, und schneller als
+##      um DECKEL_ZUSCHLAG holt er ihn dort auch ein.
+##      R4 (Spiel-Jury R4, Mangel 2): Liegt der Keiler weiter als
+##      DECKEL_SPIEL hinter der Staffel – nach dem Wecken in B, wo sie von
+##      15 auf 9,5 m fällt, und nach jedem Tod (12 m hinter dem Rastplatz) –,
+##      nahm der Deckel bis R4 auch dem EINZELNEN Slide den Vorsprung: Der
+##      Keiler lief dann mit dem Tempo der Figur plus 2 m/s, im Slide also
+##      15,5 m/s (Jury: Slide bei 48 → bei s 63 +0,93 m statt +2,09; nach
+##      dem Respawn an CP5 Slide bei 274 → bei s 279 +0,40 m statt +2,23).
+##      Jetzt greift er nur in einer Slide-Kette (DECKEL_KETTE Slides in
+##      DECKEL_FENSTER Sekunden) – Slide an Slide, nicht ein Slide und
+##      Laufen. WARUM nicht ein festes
 ##      Tempo von 13,5 m/s (Vorschlag der Jury): Gegen 13 m/s im Mittel
 ##      holte er damit nur 0,5–1 m/s auf – wo die Staffel fällt (C ab 110,
 ##      E ab 262), hinge er noch Sekunden später weit hinten; und gegen die
@@ -233,6 +243,17 @@ const AUFHOL_TEMPO := 10.5
 const DECKEL_SPIEL := 2.0
 const DECKEL_ZUSCHLAG := 2.0
 const DECKEL_HOECHST := 16.0
+## Der Deckel greift nur in einer SLIDE-KETTE (siehe Kopf, NACKEN, Punkt 3,
+## R4): wenn die Figur in den letzten DECKEL_FENSTER Sekunden mindestens
+## DECKEL_KETTE Slides begonnen hat – Slide an Slide, nicht ein einzelner
+## Slide (auch nicht ein einzelner Slide-Sprung, die Kür). WARUM nicht das
+## Mittel des Tempos: Mit „im Mittel der letzten 1,5–2 s schneller als
+## 9,8–10 m/s" (Vorschlag der Jury) fiel das Mittel im Dauer-Slide an jedem
+## Pflichtsprung (H1, L1, H2: gut 7 m/s in der Luft) und jedem Stück Laufen
+## vor einem Durchlass unter die Schwelle; der Keiler fiel in B bis 13,7 m
+## zurück (Jagdprobe, Grenze 12) und in E bis 11,4 m (Grenze 11).
+const DECKEL_KETTE := 2
+const DECKEL_FENSTER := 1.6
 const FANGABSTAND := 2.0
 ## Nach dem Respawn (siehe Kopf, NACH EINEM TOD): höchstens so lange wartet
 ## er, und so weit (m, waagerecht) muss die Figur vom Checkpoint weg.
@@ -311,6 +332,12 @@ var _faenge := 0
 ## Nach dem Respawn: Restzeit, bis er ohnehin losläuft (0 = läuft), und
 ## der Ort, an dem die Figur erschien (siehe Kopf, NACH EINEM TOD).
 var _respawn_rest := 0.0
+## Slide-Kette (siehe DECKEL_KETTE): Zeitpunkte (`_uhr`) der Slides, die
+## die Figur in den letzten DECKEL_FENSTER Sekunden begonnen hat, und ob sie
+## im letzten Schritt slidete.
+var _slide_beginne: Array[float] = []
+var _slidete := false
+var _uhr := 0.0
 var _respawn_ort := Vector3.INF
 
 
@@ -429,6 +456,7 @@ func nach_tod(_von_vorn: bool) -> void:
 	_durchlaesse_pruefen()
 	_respawn_rest = RESPAWN_WARTEN if _lage == Lage.JAGD else 0.0
 	_respawn_ort = GameState.checkpoint
+	_slide_beginne.clear()
 
 
 func _physics_process(delta: float) -> void:
@@ -440,6 +468,8 @@ func _physics_process(delta: float) -> void:
 	if not _frei:
 		return
 	var s_figur := _level.strecke_der_figur()
+	# Auch im Schlaf: Wer schon vor dem Wecken Slides reiht, ist in der Kette.
+	_slides_merken(delta)
 	if _lage == Lage.SCHLAF:
 		if s_figur < WECK_S:
 			return
@@ -455,7 +485,7 @@ func _physics_process(delta: float) -> void:
 		if laeuft and ziel > weiter:
 			var schritt := AUFHOL_TEMPO * delta
 			var hinter_deckel := ziel - DECKEL_SPIEL - _keiler_s
-			if hinter_deckel > schritt:
+			if hinter_deckel > schritt and _slide_beginne.size() >= DECKEL_KETTE:
 				var tempo := clampf(_figur_tempo(s_figur) + DECKEL_ZUSCHLAG, AUFHOL_TEMPO,
 						DECKEL_HOECHST)
 				schritt = minf(tempo * delta, hinter_deckel)
@@ -621,6 +651,18 @@ func _figur_tempo(s: float) -> float:
 	var v := _figur.velocity
 	v.y = 0.0
 	return v.dot(richtung.normalized())
+
+
+## Merkt, ob die Figur in diesem Schritt (`dauer` s) einen Slide beginnt
+## (siehe DECKEL_KETTE), und vergisst Beginne älter als DECKEL_FENSTER.
+func _slides_merken(dauer: float) -> void:
+	_uhr += dauer
+	var slidet := _figur.sliding > 0.0
+	if slidet and not _slidete:
+		_slide_beginne.append(_uhr)
+	_slidete = slidet
+	while not _slide_beginne.is_empty() and _slide_beginne[0] < _uhr - DECKEL_FENSTER:
+		_slide_beginne.pop_front()
 
 
 ## Querlage der Figur an ihrer Strecke (positiv = rechts).

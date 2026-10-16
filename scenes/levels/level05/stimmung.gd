@@ -133,14 +133,30 @@ class_name L05Stimmung
 ## Rundgang), E über das Ende hinaus (Auslauf). R2 (Bild-Jury R2, leicht:
 ## Helligkeit im Mittel 64 gegen 56 in Level 01): Licht in A und B um 10 %
 ## gesenkt (0,68 statt 0,75, 0,99 statt 1,1).
+## R4 (Bild-Jury R4, Gesamtbild A–D, Vorschlag 3: „Den Fernwald über
+## Nebelfarbe und -dichte im Stimmungsregler nach hinten kühler und blasser
+## staffeln"; Licht und Farbe: „die Nebelfarbe in B und C kühler"): In B
+## und C mehr Nebel (Faktor 1,0 und 0,95 statt 0,85 und 0,8: Ende bei 210
+## und 220 statt 245 und 258 m), kühler (weniger Rot) und mit flacherer
+## Kurve (NEBEL_KURVE_BC statt 1,4 der Szene): In 60–150 m liegt mehr Dunst,
+## der Hangwald und das Fernband rücken blasser und blauer nach hinten
+## (gerechnet in B, Dichte 0,9: Anteil bei 100 m 0,34 statt 0,23, bei 150 m
+## 0,58 statt 0,43); nah bleibt das Bild klar (bei 30 m 0,05 statt 0,03). Dazu
+## in der Szene die Sättigung 0,85 statt 1,0 (Vorschlag 4: „Sättigung im
+## Vordergrund um etwa 10 % senken"; HSV-Sättigung der unteren Bildhälfte
+## L05 179–217 gegen 157–186 in Level 01 – mit 0,9 sank sie nur um 3–5 %,
+## die Kanäle sind im Abendlicht fast rein warm), dazu Weg und Löss blasser
+## (`Level05.LOESS_WEG`, `L05Saum.LOESS_HELL`).
+const NEBEL_KURVE_BC := 1.2
 const ZONEN := [
 	{"name": "A Suhle", "von": -60.0, "bis": 31.0, "rand_bis": 14.0, "licht_faktor": 0.68,
 			"nebel_faktor": 0.9, "nebelfarbe": Color(0.44, 0.50, 0.58)},
 	{"name": "B Hohlweg", "von": 31.0, "bis": 120.0, "rand_von": 14.0, "rand_bis": 10.0,
-			"licht_faktor": 0.99, "nebel_faktor": 0.85, "nebelfarbe": Color(0.50, 0.58, 0.76)},
+			"licht_faktor": 0.99, "nebel_faktor": 1.0, "nebelfarbe": Color(0.47, 0.56, 0.77),
+			"kurve": NEBEL_KURVE_BC},
 	{"name": "C Wurzelterrassen", "von": 120.0, "bis": 180.0, "rand_von": 10.0,
-			"rand_bis": 10.0, "licht_faktor": 1.15, "nebel_faktor": 0.8,
-			"nebelfarbe": Color(0.54, 0.60, 0.76)},
+			"rand_bis": 10.0, "licht_faktor": 1.15, "nebel_faktor": 0.95,
+			"nebelfarbe": Color(0.50, 0.58, 0.78), "kurve": NEBEL_KURVE_BC},
 	{"name": "D Tobel", "von": 180.0, "bis": 265.0, "rand_von": 10.0, "rand_bis": 10.0,
 			"licht_faktor": 0.9, "nebel_faktor": 1.2, "nebelfarbe": Color(0.42, 0.54, 0.68)},
 	{"name": "E Mühlbach", "von": 265.0, "bis": 420.0, "rand_von": 10.0, "licht_faktor": 1.2,
@@ -174,7 +190,16 @@ const HORIZONT_FARBE := Color(0.30, 0.36, 0.40)
 ## Starts, und heller (SCHACHT_STAERKE; mit 0,24 stand der bei s 12 als
 ## weißer Balken am Bildrand).
 const SCHAECHTE: Array[Vector2] = [Vector2(12.0, -7.4), Vector2(20.0, 6.9)]
-const SCHACHT_STAERKE := 0.21
+const SCHACHT_STAERKE := 0.17
+## R4 (Bild-Jury R4, Startbild: „Der Lichtschacht liegt als weißes,
+## waagrechtes Dunstband über der Suhle statt als senkrechter Strahl";
+## Vorschlag: „steil von oben"): Die Bahnen folgten der Sonne, und die steht
+## 17° hoch – sie lagen fast waagerecht. Jetzt fallen sie SCHACHT_STEIL Grad
+## steil, aus der Richtung der Sonne über dem Boden (durch ein Loch im
+## Kronendach, wie in Level 01). Steil liegen sie länger vor dunklem Grund:
+## mit 0,21 standen sie im Startbild als Scheinwerferkegel, darum
+## SCHACHT_STAERKE 0,17.
+const SCHACHT_STEIL := 64.0
 const SCHACHT_DECKE := 14.0
 const SICHT_SCHACHT := 75.0
 ## Handyweg: Die Schächte stehen dann nur bis hierher (siehe KOSTEN).
@@ -329,12 +354,16 @@ func _horizont() -> void:
 
 func _schaechte(fall: Vector3) -> void:
 	var wurzel := _wurzel("Lichtschaechte")
+	# Steil von oben (SCHACHT_STEIL), aus der Richtung der Sonne über dem Boden.
+	var waag := Vector3(fall.x, 0.0, fall.z).normalized()
+	var steil := deg_to_rad(SCHACHT_STEIL)
+	var richtung := waag * cos(steil) + Vector3.DOWN * sin(steil)
 	var i := 0
 	for e in SCHAECHTE:
 		var fuss := level.weg_punkt(e.x, e.y, -0.3)
 		var schacht := Lichtschacht.new()
 		schacht.name = "Schacht"
-		schacht.richtung = fall
+		schacht.richtung = richtung
 		schacht.laenge = 18.0
 		schacht.breite = 2.0
 		schacht.anzahl = 4

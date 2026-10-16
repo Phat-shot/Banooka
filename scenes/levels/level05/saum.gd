@@ -84,6 +84,34 @@ const PLATTE_GLATT := 2.5
 ## Stufen der Decke: Querschnitte der Seiten so weit davor und dahinter (m;
 ## siehe `bauschritte`).
 const STUFE_SPIEL := 0.02
+## STUFE_ERDE (R4; Bild-Jury R4, Wurzeltreppen: „An beiden Enden jeder
+## Stufe sitzt ein lachsfarbener, untexturierter Block mit harter Kante …
+## wie ein Platzhalter"): Zwischen den beiden Querschnitten einer Seite an
+## der Stufe (STUFE_SPIEL davor und dahinter) steht die Fläche von Fuß und
+## Schulter senkrecht – die Höhe der Stufe, vom Fuß der Wand bis unter die
+## Decke. Ihre Punkte tragen Rasen (Anteil 1); den zeichnet der Stoff an
+## steilen Flächen nicht (fels_schichten.gdshader: `r_anteil` mal
+## smoothstep über n.y), und darunter lag der nackte Fels in SANDSTEIN
+## (rgb 212/100/38 im Bild s 140). An diesen Querschnitten tragen Fuß,
+## Schulter und Decke jetzt Löss im Schatten: Die Stufe läuft als Erde in
+## die Wand, auf dem Tritt davor und dahinter verläuft sie über 0,7 m (bis
+## zum nächsten Querschnitt) in den Rasen. Den größeren Teil des Blocks
+## zeichnete aber die Setzstufe selbst an ihren Enden, wo der Weg Rasen
+## trägt (`_profil_stufe`, Anteil `r`; Probe: dieser Ton schwarz, der Block
+## blieb lachsfarben) – siehe STUFE_UNTER_DECKE.
+const STUFE_ERDE := Color(0.3, 1.0, 0.35, 0.0)
+## Verdeckung (.x) und Erde (.y) der Punkte 15–17 des Querschnitts „auf"
+## unter der Decke, vom Fuß der Wand bis 0,35 m in den Weg. R4: Sie trugen
+## Rasen (1) über Fels (Erde 0–0,05, Verdeckung 0,78); unter der Decke
+## liegen sie unsichtbar, aber an jeder Stufe der Decke stehen sie als
+## senkrechte Fläche über die Breite des Rasenrands – den Rasen zeichnet der
+## Stoff dort nicht, es blieb der Sandstein: der lachsfarbene Block an
+## beiden Enden jeder Stufe (s 140: rgb 175/83/28; Probe: diese Punkte
+## schwarz, der Block wurde schwarz; die Setzstufe selbst und STUFE_ERDE
+## schwarz, er blieb). Jetzt Erde, an der Stufe im Schatten wie der Fuß der
+## Setzstufe (`_profil_stufe`, 0,45). Punkt 15 liegt am Fuß auch flach im
+## Bild; er behält seine Verdeckung.
+const STUFE_UNTER_DECKE := Vector2(0.45, 1.0)
 ## Welle der Kronenhöhe entlang der Seite (m) und ihr Maßstab (1/m).
 const KRONE_WELLE := 0.35
 const KRONE_WELLE_DICHTE := 0.045
@@ -122,14 +150,37 @@ const UFER_MOOS := Vector4(258.0, 264.0, 276.0, 279.0)
 ## Stück mehr (R2: „Stufe"). Die Lippe bricht unregelmäßig aus
 ## (STIRN_AUSBRUCH: bis so tief, in Buckeln nach `Kanten.welle`), und in
 ## der Tiefe liegt Dunst (`L05Stimmung._lueckendunst`).
+## STIRN_ZUNGE (R4; Bild-Jury R4, Lücken: „Beide Lippen laufen schnurgerade
+## über die ganze Breite, ohne Ausbruch und ohne überhängende Grasnarbe";
+## Vorschlag: „2–3 Narbenzungen, die etwa 0,2 m überhängen"): Wo eine Welle
+## über den Bogen der Querlinie (Dichte STIRN_ZUNGE_DICHTE je m, je Lippe
+## eigener Versatz) über STIRN_ZUNGE_AB steigt, hängt die Narbe bis
+## STIRN_ZUNGE weiter über den Spalt und sackt 5 cm ab – auf 7–9 m Breite
+## zwei, drei Zungen von gut einem Meter. Nur die Narbe (Punkte 1–3); die
+## Kante der Decke und der Körper bleiben gerade (Findling-Regel: Die
+## Zunge ist Gras über dem Spalt, kein Boden).
+const STIRN_ZUNGE := 0.22
+const STIRN_ZUNGE_AB := 0.25
+const STIRN_ZUNGE_DICHTE := 0.75
 const STIRN_HELL := 0.62
 const STIRN_DUNKEL := 0.025
 const STIRN_TIEFE := Vector2(0.1, 0.4)
 const STIRN_ABKLINGEN := 0.6
 const STIRN_AUSBRUCH := 0.14
 ## Verdeckung der Wand einer Seite an ihrem Fuß, wo sie in einer Lücke in
-## den Spalt hinabläuft (`_auf_in_luecke`).
-const LUECKE_WAND_DUNKEL := 0.22
+## den Spalt hinabläuft (`_auf_in_luecke`), und auf dem Grund der Lücke.
+## R4 (Bild-Jury R4, Lücken: „Wo die Lippenstufe an die linke Sandsteinwand
+## stößt, steht in der Wand ein schwarzes, senkrechtes Loch", s 220;
+## Vorschlag: „dort dunkelbraun statt schwarz"): 0,42 bzw. 0,32 statt 0,22
+## bzw. 0,06. Das „Loch" ist die Wand der Seite unter der Decke, von Punkt
+## 11 bis auf den Grund, im Schatten der Sandsteinwand – mit 0,22 → 0,06
+## (und auch mit 0,22 → 0,18) im Bild rgb 34/11/3, 55 % der Bildpunkte
+## fast schwarz (x 260–340, y 430–600); mit 0,42 → 0,32 rgb 61/19/4 und
+## 8 %: die Sandsteinwand läuft dunkel in den Spalt hinab. Der Spalt
+## selbst (die Stirnen, STIRN_DUNKEL) bleibt, wie er ist. Mit 0,76 (bis R2)
+## standen dort helle Platten (siehe `_auf_in_luecke`).
+const LUECKE_WAND_DUNKEL := 0.42
+const LUECKE_GRUND_DUNKEL := 0.32
 ## LIPPENSTUFE an den Enden einer Lücke (Abschluss R3, eigene Messung s 130:
 ## die Platten links und rechts des Spalts Luma 70, rgb 140/47/9 – der Spalt
 ## selbst 6,6): Zwischen dem letzten Querschnitt vor der Lippe (Schulter
@@ -145,7 +196,8 @@ const LUECKE_WAND_DUNKEL := 0.22
 ## hin ins Dunkle, statt an ihr hell abzubrechen.
 const LIPPE_STUFE := Vector2(0.02, 0.04)
 const LIPPE_TIEF := 0.45
-const LIPPE_DUNKEL := 0.16
+## R4: 0,24 statt 0,16 – dunkle Erde statt Schwarz (siehe LUECKE_WAND_DUNKEL).
+const LIPPE_DUNKEL := 0.24
 const LIPPE_SCHULTER := 0.5
 ## Landeseite (die Lippe näher an der Kamera, deren Stirn vom Spalt weg
 ## zeigt): Die Grasnarbe hängt so viel weiter über den Spalt (m, an ihrem
@@ -197,6 +249,27 @@ const BAND_DUNKEL := 0.22
 const BAND_FELS := 0.3
 
 
+## KRONENBAND (R4; Bild-Jury R4, Gesamtbild A–D, Vorschlag 2: „Das
+## Kronenband der Böschung im Schatten dunkler machen, damit es als Rahmen
+## wirkt"): Auf den Kronen der Böschungen – der Platte des Saums hinter der
+## Wandkrone und dem Gelände bis KRONENBAND_WEIT hinter dem Wegrand
+## (`L05Gelaende._zusatz`) – liegt die Verdeckung um KRONENBAND_AO tiefer,
+## zwischen KRONENBAND_S (weich über 10 m ein und aus): A, B, C und D bis
+## vor die Mühlwiese. Ein dunkles Band am oberen Bildrand links und rechts
+## statt einer hellen Rasenebene, auf der der Graben liegt; der ferne Hang
+## bleibt hell.
+const KRONENBAND_AO := 0.8
+const KRONENBAND_S := Vector2(20.0, 260.0)
+const KRONENBAND_WEIT := 8.0
+
+
+## Faktor auf die Verdeckung des Kronenbands an `s` (siehe KRONENBAND_AO).
+static func kronenband(s: float) -> float:
+	var drin := smoothstep(KRONENBAND_S.x - 5.0, KRONENBAND_S.x + 5.0, s) \
+			* (1.0 - smoothstep(KRONENBAND_S.y - 5.0, KRONENBAND_S.y + 5.0, s))
+	return lerpf(1.0, KRONENBAND_AO, drin)
+
+
 ## Bauschritte: der Stoff, je Seite und Zug „… wird vermessen", die Stirnen
 ## und Stufen in einem Schritt, dann „Saum wird gebaut" – aus dem
 ## Bauspeicher nach dem Stoff EIN Schritt „Saum wird geladen".
@@ -212,8 +285,10 @@ static func bauschritte(level: Level05) -> Array:
 	# oberen Decke auf die Sohle – davor eine Kerbe in der Schulter (0,26 m
 	# unter der Kollision), in der Grabenecke ein Keil (0,8 m über der
 	# Sohle; Prüfung P3, Runde 2).
+	var nahte := PackedFloat32Array()
 	for st: Vector3 in _stufen(level.weg):
 		feste.append_array([st.x - STUFE_SPIEL, st.x + STUFE_SPIEL])
+		nahte.append(st.x)
 	for i in Level05.ZUEGE.size():
 		var zug: Dictionary = Level05.ZUEGE[i]
 		var auf := String(zug["art"]) == "auf"
@@ -238,7 +313,8 @@ static func bauschritte(level: Level05) -> Array:
 				s_ueb += SCHRITT_UEBERGABE
 		# Die Plattenenden eines Zuges „auf" entstehen beim ersten Querschnitt
 		# für alle zugleich (`_platte_lage`); dazu braucht er Linie und Stellen.
-		var profil := _profil_auf.bind(level, zug, {"linie": linie, "feste": feste_zug}) if auf \
+		var profil := _profil_auf.bind(level, zug, {"linie": linie, "feste": feste_zug,
+				"stufen": nahte}) if auf \
 				else _profil_ab.bind(level, zug)
 		# Die gebaute Fläche jedes Zuges (`Kanten.flaeche_punkt`): An ihr laufen
 		# die Rinnsale des Wasserrisses hinab (`L05Wasser`).
@@ -282,7 +358,7 @@ const RELIEF := 0.18
 
 
 static func thema() -> Dictionary:
-	return {"erde": loess_textur(),
+	return {"erde": loess_textur(), "fels": sandstein_textur(),
 			"uniforms": {"erde_ton": LOESS, "fels_warm": SANDSTEIN, "erde_kachel": ERDE_KACHEL,
 				"relief": RELIEF, "fels_grau_anteil": SANDSTEIN_GRAU,
 				"schicht_dichte": SCHICHT_DICHTE}}
@@ -301,10 +377,53 @@ static func thema() -> Dictionary:
 ## erste Fassung mit 0,3–0,56 lag auf der Lichtseite bei Luma 14,5 statt
 ## 50,5 (s 60), mit Streckung 12 dazu wie Bretter. Im Bauspeicher; kalt gut
 ## 0,1 s in diesem Schritt (zusammen mit Sandstein und Moos).
-const LOESS_HELL := Color(0.86, 0.77, 0.6)
-const LOESS_DUNKEL := Color(0.56, 0.48, 0.36)
+## R4 (Bild-Jury R4, Licht und Farbe: „Weg und Lösswände um eine weitere
+## Stufe entsättigen"): 0,84/0,78/0,66 und 0,55/0,5/0,41 statt 0,86/0,77/0,6
+## und 0,56/0,48/0,36.
+const LOESS_HELL := Color(0.84, 0.78, 0.66)
+const LOESS_DUNKEL := Color(0.55, 0.5, 0.41)
 const LOESS_KANTE := 256
 const LOESS_STRECKUNG := 6
+
+
+## SANDSTEINTEXTUR (R4; Bild-Jury R4, Tobel D: „Der Sandstein trägt ein
+## Puzzlemuster aus dünnen Umrisslinien"; Vorschlag: „Die Umrisslinien im
+## Sandstein weich ausblenden"): Der Fels der Kanten ist die Textur von
+## `Materialbibliothek.wurzelfels` – Bänder mit Zellrissen, aus denen im
+## warmen Ton des Sandsteins (SANDSTEIN) dünne, geschlossene dunkle Linien
+## wurden. Hier dieselbe Textur, zu SANDSTEIN_WEICH mit einer weichen
+## Fassung ihrer selbst gemischt (auf ein Viertel verkleinert und bilinear
+## zurück): Die Bänder und Flecken bleiben, die Risslinien verlaufen. Gilt
+## für allen Fels des Saums (Sandstein, Wehrwände, Ufer). Im Bauspeicher.
+const SANDSTEIN_WEICH := 0.65
+
+
+static func sandstein_textur() -> Texture2D:
+	return Bauspeicher.holen("l05_sandstein_textur", _sandstein_bauen) as Texture2D
+
+
+static func _sandstein_bauen() -> Texture2D:
+	var quelle := Materialbibliothek.wurzelfels().albedo_texture
+	var bild := quelle.get_image() if quelle != null else null
+	if bild == null:
+		return quelle
+	bild = bild.duplicate() as Image
+	if bild.is_compressed():
+		bild.decompress()
+	bild.clear_mipmaps()
+	bild.convert(Image.FORMAT_RGB8)
+	var weich := bild.duplicate() as Image
+	var b := bild.get_width()
+	var h := bild.get_height()
+	weich.resize(maxi(b / 4, 4), maxi(h / 4, 4), Image.INTERPOLATE_BILINEAR)
+	weich.resize(b, h, Image.INTERPOLATE_BILINEAR)
+	var a := bild.get_data()
+	var c := weich.get_data()
+	for i in a.size():
+		a[i] = roundi(lerpf(float(a[i]), float(c[i]), SANDSTEIN_WEICH))
+	var neu := Image.create_from_data(b, h, false, Image.FORMAT_RGB8, a)
+	neu.generate_mipmaps()
+	return ImageTexture.create_from_image(neu)
 
 
 static func loess_textur() -> Texture2D:
@@ -476,9 +595,10 @@ static func _profil_auf(i: int, probe: Dictionary, level: Level05,
 		var feld := level.gelaende.hoehe(ende.x, ende.z)
 		if not is_nan(feld):
 			ende_y = minf(ende_y, feld - PLATTE_UNTER)
-	p.punkt(lauf + weit, ende_y, Kanten.farbe(0.78, 0.0, 0.1, 1.0), PLATTE_GLATT)
-	p.punkt(lauf - ov * 0.4, krone - 0.006 * f, Kanten.farbe(0.78, 0.0, 0.2, 1.0))
-	p.punkt(lauf - ov * 0.8, krone - 0.035 * f, Kanten.farbe(0.72, 0.1, 0.3, 0.95))
+	var band := kronenband(s)
+	p.punkt(lauf + weit, ende_y, Kanten.farbe(0.78 * band, 0.0, 0.1, 1.0), PLATTE_GLATT)
+	p.punkt(lauf - ov * 0.4, krone - 0.006 * f, Kanten.farbe(0.78 * band, 0.0, 0.2, 1.0))
+	p.punkt(lauf - ov * 0.8, krone - 0.035 * f, Kanten.farbe(0.72 * band, 0.1, 0.3, 0.95))
 	p.punkt(lauf - ov, krone - 0.12 * f, Kanten.farbe(0.5, 0.6, 0.3, 0.45))
 	p.punkt(lauf - ov + 0.06 * f, krone - 0.25 * f, Kanten.farbe(0.3, 1.0, 0.1, 0.0))
 	p.punkt(lauf - ov + 0.32 * f, krone - 0.33 * f, Kanten.farbe(0.18, 1.0, 0.0, 0.0))
@@ -498,15 +618,22 @@ static func _profil_auf(i: int, probe: Dictionary, level: Level05,
 	# --- Fuß und Schulter (13–15), dann unter die Decke (16–17, absolut)
 	p.punkt(k * z_b * 0.4 + 0.03, deck + 0.4 * z_b, Kanten.farbe(0.6, 0.7, 0.35, 0.2))
 	p.punkt(-0.05, deck + 0.015 * f, Kanten.farbe(0.7, 0.35, 0.25, 0.6))
-	p.punkt(-0.3, deck - 0.012, Kanten.farbe(0.78, 0.05, 0.1, 1.0))
+	# Unter der Decke Erde (STUFE_UNTER_DECKE): sichtbar nur an den Stufen.
+	var ud := STUFE_UNTER_DECKE
+	p.punkt(-0.3, deck - 0.012, Kanten.farbe(0.78, ud.y, 0.1, 1.0))
 	var rand := level.weg.wegrand(s)
-	p.punkt(seite * rand, deck - 0.015, Kanten.farbe(0.78, 0.0, 0.05, 1.0), 0.0, 0.0, 1.0, 0.0,
+	p.punkt(seite * rand, deck - 0.015, Kanten.farbe(ud.x, ud.y, 0.05, 1.0), 0.0, 0.0, 1.0, 0.0,
 			true)
-	p.punkt(seite * (rand - 0.35), deck - 0.03, Kanten.farbe(0.78, 0.0, 0.05, 1.0), 0.0, 0.0,
+	p.punkt(seite * (rand - 0.35), deck - 0.03, Kanten.farbe(ud.x, ud.y, 0.05, 1.0), 0.0, 0.0,
 			1.0, 0.0, true)
 	var l := _luecke(s)
 	if not l.is_empty():
 		_auf_in_luecke(p, l, s, deck)
+	elif _an_stufe(lage, s):
+		# An einer Stufe der Decke (siehe STUFE_ERDE): Fuß, Schulter und was
+		# unter der Decke lag, als Erde im Schatten der Wand.
+		for j in range(13, p.anzahl()):
+			p.farbe[j] = STUFE_ERDE
 	elif _vor_lippe(s):
 		# Knapp vor einer Lippe: Fuß und Schulter dunkel (LIPPE_SCHULTER).
 		for j in range(11, 15):
@@ -546,21 +673,45 @@ static func _loesswand(p: GelaendeSaum.Profil, s: float, seite: float, hoch: flo
 ## WURZELVORHÄNGE (Abschluss R3; Bild-Jury R3, Lösswände: „Schichtung und
 ## Wurzelvorhänge aus §5 B sind nicht zu sehen"): Unter der Narbe der
 ## Lösswände (VORHANG_STRECKE, ohne Fels, ab gut 1,2 m Wand) hängen Büschel
-## aus Wurzelkarten (Atlas der Kanten, `GelaendeSaum.ATLAS_WURZEL`) die
-## Wand hinab, VORHANG_LANG m lang – in Gruppen (Rauschen über
-## VORHANG_GRUPPE m), dazwischen nackte Wand. Die Karten der Narbe (0,3 bis
-## 0,9 m, `Kanten._karten_an`) lasen sich aus 15 m als Fransen, nicht als
-## Vorhang. Jede Karte liegt auf der Wand: von der Wandkrone (Punkt 6) zum
-## Punkt 10 hinab, 5 cm davor, dazu eine zweite schräg aus der Wand. Gebaut
+## aus Wurzelkarten die Wand hinab, VORHANG_LANG m lang – in Gruppen
+## (Rauschen über VORHANG_GRUPPE m), dazwischen nackte Wand. Die Karten der
+## Narbe (0,3 bis 0,9 m, `Kanten._karten_an`) lasen sich aus 15 m als
+## Fransen, nicht als Vorhang. Jede Karte liegt auf der Wand: von der
+## Wandkrone (Punkt 6) zum Punkt 10 hinab, 5 cm davor, dazu eine zweite
+## (seit R4 ebenfalls flach, siehe unten). Gebaut
 ## aus den Querschnitten des Saums (`saum_flaechen`, auch aus dem
 ## Bauspeicher), je 30 m ein Netz mit Sichtweite VORHANG_SICHT; eigene Saat.
+## R4 (Bild-Jury R4, Lösswände: „reinschwarze, 1 px breite Haarstriche …
+## wie Tuschekratzer oder Aliasing"; s 60 links 455 fast schwarze Pixel mit
+## hellen Nachbarn): Die zweite Karte stand schräg aus der Wand – aus der
+## Kamera fast auf der Kante, ihre Stränge zu Strichen gestaucht und von der
+## Seite beleuchtet –, und die Stränge des geteilten Atlas sind 1,6–3,2 von
+## 64 Texeln breit: auf einer Karte von 0,35–0,6 m 1–3 cm, aus 10 m Abstand
+## ein Bildpunkt (bei 70° Bildwinkel gut 1 cm je Bildpunkt). Jetzt liegen
+## beide Karten flach auf der Wand (die zweite VORHANG_ZWEITE davor, kürzer
+## und schmaler), mit einem eigenen Atlas (`_vorhang_stoff`): VORHANG_STRAENGE
+## Stränge, VORHANG_DICKE Texel breit (3–7 cm, aus 10 m 3–7 Bildpunkte), zur
+## Mitte heller (rund), Normale wie die Wand – beleuchtet wie sie, die
+## Vorderseite zur Wand hinaus. SCHWARZ waren die Stränge aber vor allem
+## wegen ihres Tons: Die Scheitelfarbe wirkt im Bild weit dunkler als ihr
+## Wert (gemessen s 60, unbeleuchtet, ohne Atlas: Scheitelfarbe 0,27/0,19/
+## 0,11 → Bildpunkte 39/16/0; der Ton bis R4 war 0,5/0,38/0,27 mal dem
+## geteilten Atlas mit 0,55–0,95). VORHANG_TON ist darum ein heller Wert
+## (0,62/0,45/0,3), der Atlas 0,7–1,0: im Bild warm-braun und HELLER als
+## die beschattete Wand dahinter (gemessen s 60, mit und ohne Vorhänge:
+## Stränge im Mittel rgb 85/42/22, Luma 53 gegen 31 der Wand an denselben
+## Bildpunkten) – keine dunklen Striche mehr.
 const VORHANG_STRECKE := Vector2(31.0, 182.0)
 const VORHANG_LANG := Vector2(0.8, 2.1)
 const VORHANG_GRUPPE := 7.0
 const VORHANG_DICHTE := 0.9
-const VORHANG_TON := Color(0.5, 0.38, 0.27)
+const VORHANG_TON := Color(0.62, 0.45, 0.3)
 const VORHANG_SICHT := 60.0
 const VORHANG_STUECK := 30.0
+const VORHANG_ZWEITE := 0.06
+const VORHANG_STRAENGE := 5
+const VORHANG_DICKE := Vector2(4.0, 7.0)
+const VORHANG_ATLAS := Vector2i(64, 128)
 
 
 static func _wurzelvorhaenge(level: Level05) -> void:
@@ -616,10 +767,11 @@ static func _wurzelvorhaenge(level: Level05) -> void:
 					neu.begin(Mesh.PRIMITIVE_TRIANGLES)
 					stuecke[schluessel] = neu
 				var st: SurfaceTool = stuecke[schluessel]
-				GelaendeSaum.karte(st, ort, runter + aussen * 0.03, laengs, lang, breit,
-						GelaendeSaum.ATLAS_WURZEL, ton)
-				GelaendeSaum.karte(st, ort, runter + aussen * 0.12, aussen + laengs * 0.4,
-						lang * 0.7, breit * 0.7, GelaendeSaum.ATLAS_WURZEL, ton * 0.85)
+				_vorhang_karte(st, ort, runter + aussen * 0.03, laengs, aussen, lang, breit,
+						ton, false)
+				_vorhang_karte(st, ort + aussen * VORHANG_ZWEITE + laengs * breit * 0.2,
+						runter + aussen * 0.03, laengs, aussen, lang * 0.7, breit * 0.7,
+						ton * 0.85, true)
 	var wurzel := Node3D.new()
 	wurzel.name = "Wurzelvorhänge"
 	level.geometrie.add_child(wurzel)
@@ -627,11 +779,116 @@ static func _wurzelvorhaenge(level: Level05) -> void:
 		var mi := MeshInstance3D.new()
 		mi.name = "Vorhang %d" % schluessel
 		mi.mesh = (stuecke[schluessel] as SurfaceTool).commit()
-		mi.material_override = GelaendeSaum.kartenstoff()
+		mi.material_override = _vorhang_stoff()
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.visibility_range_end = VORHANG_SICHT
 		mi.visibility_range_end_margin = 5.0
 		wurzel.add_child(mi)
+
+
+## Eine Karte des Wurzelvorhangs (siehe R4 bei VORHANG_STRECKE): oben an
+## `oben`, hängt entlang `runter` um `laenge`, `breite` entlang `quer`; die
+## Normale ist `aussen` (die Wand), beidseitig. `gespiegelt` nimmt den Atlas
+## von rechts nach links (die zweite Karte zeigt so andere Stränge).
+static func _vorhang_karte(st: SurfaceTool, oben: Vector3, runter: Vector3, quer: Vector3,
+		aussen: Vector3, laenge: float, breite: float, ton: Color, gespiegelt: bool) -> void:
+	var r := runter.normalized()
+	var q := quer.normalized()
+	var a := oben - q * breite * 0.5
+	var b := oben + q * breite * 0.5
+	var c := b + r * laenge
+	var d := a + r * laenge
+	var u0 := 1.0 if gespiegelt else 0.0
+	var u1 := 1.0 - u0
+	var ecken: Array[Vector3] = [a, b, c, a, c, d]
+	var uvs: Array[Vector2] = [Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, 1.0),
+			Vector2(u0, 0.0), Vector2(u1, 1.0), Vector2(u0, 1.0)]
+	var unten := ton.darkened(0.3)
+	var farben: Array[Color] = [ton, ton, unten, ton, unten, unten]
+	# Die Vorderseite zeigt nach `aussen` (Godot: im Uhrzeigersinn, wie
+	# `GelaendeSaum.dreieck`). Sieht die Kamera die Rückseite, kehrt der
+	# beidseitige Stoff die Normale um – die Stränge lagen dann unbeleuchtet,
+	# schwarz, auf der hellen Wand.
+	var reihe: Array[int] = [0, 1, 2, 3, 4, 5]
+	if (b - a).cross(c - a).dot(aussen) > 0.0:
+		reihe = [0, 2, 1, 3, 5, 4]
+	for k in reihe:
+		st.set_normal(aussen)
+		st.set_color(farben[k])
+		st.set_uv(uvs[k])
+		st.add_vertex(ecken[k])
+
+
+## Stoff der Wurzelvorhänge: eigener Atlas (VORHANG_ATLAS Texel, weiß getönt,
+## die Farbe aus den Scheitelfarben), Alpha-Scissor, beidseitig, matt.
+## Gebaut beim ersten Aufruf (gut 8000 Texel, eigene Saat).
+static var _vorhang_stoff_fertig: StandardMaterial3D = null
+
+
+static func _vorhang_stoff() -> StandardMaterial3D:
+	if _vorhang_stoff_fertig != null:
+		return _vorhang_stoff_fertig
+	var bild := Image.create(VORHANG_ATLAS.x, VORHANG_ATLAS.y, false, Image.FORMAT_RGBA8)
+	# Der durchsichtige Grund in der Farbe der Stränge, nicht schwarz: Die
+	# Mipmaps mischen ihn in die Ränder, und mit Schwarz trug jeder Strang
+	# aus der Ferne einen dunklen Saum aus einzelnen Punkten.
+	bild.fill(Color(0.85, 0.85, 0.85, 0.0))
+	var rng := PropWerkzeug.zufall(5173)
+	var breite := float(VORHANG_ATLAS.x)
+	for k in VORHANG_STRAENGE:
+		var x := breite * (float(k) + rng.randf_range(0.3, 0.7)) / float(VORHANG_STRAENGE)
+		var dicke := rng.randf_range(VORHANG_DICKE.x, VORHANG_DICKE.y)
+		var lang := rng.randf_range(0.6, 1.0) * float(VORHANG_ATLAS.y)
+		_vorhang_strang(bild, x, 0.0, rng.randf_range(-0.12, 0.12), dicke, lang, rng, 0)
+	bild.generate_mipmaps()
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(bild)
+	m.vertex_color_use_as_albedo = true
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.45
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 0.95
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	_vorhang_stoff_fertig = m
+	return m
+
+
+## Ein Strang des Vorhang-Atlas von (x, y) nach unten: dünner werdend,
+## leicht pendelnd, zur Mitte heller; verzweigt sich höchstens zweimal.
+static func _vorhang_strang(bild: Image, x: float, y: float, drift: float, dicke: float,
+		laenge: float, rng: RandomNumberGenerator, tiefe: int) -> void:
+	var schritte := int(laenge)
+	var phase := rng.randf() * TAU
+	for k in schritte:
+		var t := float(k) / float(maxi(schritte, 1))
+		var d := maxf(dicke * lerpf(1.0, 0.35, t), 1.6)
+		var cx := x + sin(float(k) * 0.07 + phase) * 1.8
+		var cy := int(y) + k
+		if cy >= bild.get_height():
+			break
+		for dx in range(-ceili(d), ceili(d) + 1):
+			var px := int(cx) + dx
+			if px < 0 or px >= bild.get_width():
+				continue
+			var rand := absf(float(px) + 0.5 - cx) / (d * 0.5)
+			if rand > 1.0:
+				continue
+			var hell := lerpf(1.0, 0.7, rand * rand) * lerpf(1.0, 0.85, t)
+			bild.set_pixel(px, cy, Color(hell, hell, hell, 1.0))
+		x += drift
+		if tiefe < 2 and t > 0.25 and t < 0.7 and rng.randf() < 0.012:
+			_vorhang_strang(bild, cx, float(cy), -drift + rng.randf_range(-0.25, 0.25),
+					d * 0.65, (1.0 - t) * laenge * 0.7, rng, tiefe + 1)
+			tiefe += 1
+
+
+## Liegt der Querschnitt an `s` an einer Stufe der Decke (STUFE_SPIEL davor
+## oder dahinter; `lage["stufen"]` aus `bauschritte`)?
+static func _an_stufe(lage: Dictionary, s: float) -> bool:
+	for naht: float in lage.get("stufen", PackedFloat32Array()) as PackedFloat32Array:
+		if absf(absf(s - naht) - STUFE_SPIEL) < 0.004:
+			return true
+	return false
 
 
 ## Liegt `s` knapp vor einer Lippe (höchstens 0,01 m, außerhalb der Lücke)?
@@ -739,7 +996,7 @@ static func _auf_in_luecke(p: GelaendeSaum.Profil, l: Dictionary, s: float,
 		else:
 			var tiefe := 0.1 if j == 13 else -0.03
 			p.y[j] = grund + (0.25 if j == 12 else tiefe)
-			p.farbe[j] = Kanten.farbe(0.06, 0.8, 0.2, 0.0)
+			p.farbe[j] = Kanten.farbe(LUECKE_GRUND_DUNKEL, 0.9, 0.2, 0.0)
 		p.rauschen[j] = 0.0
 		p.schicht[j] = 0.0
 
@@ -862,6 +1119,14 @@ static func _profil_stirn(_i: int, probe: Dictionary, level: Level05, kante: flo
 	if nah:
 		for j in range(1, 4):
 			p.o[j] = minf(p.o[j] + STIRN_NAH * float(j) / 3.0, STIRN_NAH_MAX)
+	# Narbenzungen (R4, siehe STIRN_ZUNGE): Die Narbe hängt in Zungen über
+	# den Spalt und sackt dort etwas ab.
+	var zunge := smoothstep(STIRN_ZUNGE_AB, STIRN_ZUNGE_AB + 0.3,
+			Kanten.welle(bogen * STIRN_ZUNGE_DICHTE, 47.0 + (5.0 if nah else 0.0)))
+	if zunge > 0.0:
+		for j in range(1, 4):
+			p.o[j] += STIRN_ZUNGE * zunge * float(j) / 3.0
+			p.y[j] -= 0.05 * zunge * float(j) / 3.0
 	return p
 
 
@@ -879,22 +1144,26 @@ static func _profil_stufe(_i: int, probe: Dictionary, level: Level05, oben: floa
 	var h := oben - unten
 	var p := GelaendeSaum.Profil.new()
 	p.punkt(-0.45, oben - 0.03, Kanten.farbe(0.78, (1.0 - r) * 0.8, 0.05, r))
-	p.punkt(ov * 0.4, oben - 0.006, Kanten.farbe(lerpf(0.68, 0.78, r), (1.0 - r) * 0.85,
+	# R4 (Bild-Jury R4, Wurzeltreppen: „zwei schnurgerade Leisten über die
+	# ganze Wegbreite"): Die Narbe auf der Spur und die Lippe unter ihr im
+	# Schatten (Verdeckung 0,58/0,5/0,42/0,4 statt 0,68/0,6/0,55/0,5) – die
+	# helle Kante tragen nur noch die Rücken der Wurzeln.
+	p.punkt(ov * 0.4, oben - 0.006, Kanten.farbe(lerpf(0.58, 0.78, r), (1.0 - r) * 0.85,
 			0.2 * r, r))
-	p.punkt(ov * 0.8, oben - 0.035, Kanten.farbe(lerpf(0.6, 0.72, r), lerpf(0.9, 0.1, r),
+	p.punkt(ov * 0.8, oben - 0.035, Kanten.farbe(lerpf(0.5, 0.72, r), lerpf(0.9, 0.1, r),
 			0.3 * r, 0.95 * r))
-	p.punkt(ov, oben - lerpf(0.12, 0.1, r), Kanten.farbe(0.55, lerpf(0.95, 0.6, r), 0.3 * r,
-			0.45 * r))
-	p.punkt(ov - 0.06, oben - 0.2, Kanten.farbe(0.5, 1.0, 0.1, 0.0))
-	p.punkt(-0.2, oben - minf(0.32, h * 0.45), Kanten.farbe(0.62, 1.0, 0.05, 0.0), 0.0, 0.04,
+	p.punkt(ov, oben - lerpf(0.12, 0.1, r), Kanten.farbe(lerpf(0.42, 0.55, r),
+			lerpf(0.95, 0.6, r), 0.3 * r, 0.45 * r))
+	p.punkt(ov - 0.06, oben - 0.2, Kanten.farbe(0.4, 1.0, 0.1, 0.0))
+	p.punkt(-0.2, oben - minf(0.32, h * 0.45), Kanten.farbe(0.55, 1.0, 0.05, 0.0), 0.0, 0.04,
 			-1.0)
 	# Die Setzstufe zeigt zur Sonne und zur Kamera: hell, kaum Moos. Abschluss
 	# R3 (eigene Prüfung s 140: mit dem hellen Löss lag jede Stufe als
 	# helles Band über die ganze Breite, wie ein Bordstein): etwas dunkler und
-	# zum Fuß hin feucht und bemoost.
-	p.punkt(-0.26, lerpf(oben, unten, 0.6), Kanten.farbe(0.66, 1.0, 0.15, 0.0), 0.0, 0.1, -1.0,
+	# zum Fuß hin feucht und bemoost; R4 noch eine Stufe dunkler.
+	p.punkt(-0.26, lerpf(oben, unten, 0.6), Kanten.farbe(0.58, 1.0, 0.15, 0.0), 0.0, 0.1, -1.0,
 			0.05)
-	p.punkt(-0.22, unten + 0.06, Kanten.farbe(0.5, 0.9, 0.45, 0.0), 0.0, 0.05, -1.0)
+	p.punkt(-0.22, unten + 0.06, Kanten.farbe(0.45, 0.9, 0.45, 0.0), 0.0, 0.05, -1.0)
 	if graben:
 		# Schlammsohle der Suhle: nass, moosig, eben bis zur Mitte.
 		p.punkt(-0.1, unten - 0.02, Kanten.farbe(0.55, 1.0, 0.5, 0.1))

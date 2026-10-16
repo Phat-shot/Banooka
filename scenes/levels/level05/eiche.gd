@@ -528,12 +528,15 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 		var gross := Transform3D(Basis.from_scale(Vector3.ONE * FERN_SKALA),
 				mitte * (1.0 - FERN_SKALA))
 		var netz := fern_netz if fern else Kronenwolke.netz(o)
-		st.append_from(netz, 0, lage * gross if fern else lage)
+		if not fern:
+			st.append_from(netz, 0, lage)
 		# Mit Blattkarten: Die Hülle der Krone steht in custom_aabb (die
 		# Karten zieht erst der Shader auf).
 		var huelle := netz.custom_aabb if netz.custom_aabb.has_volume() else netz.get_aabb()
 		var b := lage * gross * huelle if fern else lage * huelle
 		box = b if i == 0 else box.merge(b)
+		# Fern: die Hülle aller Teile dieser Hälfte für den Schirm (SCHIRM_FERN).
+		var teile := b
 		var fern_huelle := gross * fern_netz.get_aabb()
 		mitten.append(lage * fern_huelle.get_center())
 		groessen.append(fern_huelle.size)
@@ -549,10 +552,12 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 			var lappen := Kronenwolke.fern(ol) if fern else Kronenwolke.netz(ol)
 			var lage_l := Transform3D(Basis.from_scale(Vector3.ONE * FERN_SKALA),
 					mitte_l * (1.0 - FERN_SKALA)) if fern else Transform3D.IDENTITY
-			st.append_from(lappen, 0, lage_l)
+			if not fern:
+				st.append_from(lappen, 0, lage_l)
 			var huelle_l := lappen.custom_aabb if lappen.custom_aabb.has_volume() \
 					else lappen.get_aabb()
 			box = box.merge(lage_l * huelle_l)
+			teile = teile.merge(lage_l * huelle_l)
 		# Füllkrone (siehe FUELL_R): breit, zwischen den Lappen und der
 		# Schirmkrone.
 		var mitte_f := Vector3.ZERO
@@ -565,9 +570,13 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 		var fuell := Kronenwolke.fern(of) if fern else Kronenwolke.netz(of)
 		var lage_f := Transform3D(Basis.from_scale(Vector3.ONE * FERN_SKALA),
 				mitte_f * (1.0 - FERN_SKALA)) if fern else Transform3D.IDENTITY
-		st.append_from(fuell, 0, lage_f)
+		if not fern:
+			st.append_from(fuell, 0, lage_f)
 		var huelle_f := fuell.custom_aabb if fuell.custom_aabb.has_volume() else fuell.get_aabb()
 		box = box.merge(lage_f * huelle_f)
+		teile = teile.merge(lage_f * huelle_f)
+		if fern:
+			_schirm_fern(st, teile, kanten[i], seite, HAELFTE_SAAT[i] + 301)
 	var ergebnis := st.commit()
 	ergebnis.custom_aabb = box
 	ergebnis.set_meta("mitten", mitten)
@@ -575,6 +584,149 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 	ergebnis.set_meta("kanten", kanten)
 	ergebnis.set_meta("ballen", ballen)
 	return ergebnis
+
+
+## SCHIRM_FERN (R4; Bild-Jury R4, Hauereiche: „Aus der Ferne unverändert:
+## Je Hälfte stehen 4–5 glatte, glänzende orange Ellipsoide übereinander und
+## lesen sich als Pilzhüte oder Kissen, nicht als Schirmkrone. Die Fernform
+## kommt weiter aus Tupfern, nicht aus dem Kronenumriss"; Vorschlag: „je
+## Hälfte eine flache, breite Schirmsilhouette mit gezacktem Rand und dunkler
+## Unterseite"): Die Fernfassung ist je Hälfte EIN Körper statt Schirm-,
+## Lappen- und Füllkrone aus `Kronenwolke.fern`. Er füllt die Hülle `teile`
+## aller Teile der Hälfte (dieselben Maße, die die Nahfassung hat – so
+## springt der Umriss beim Wechsel nicht): oben eine flache Kuppe mit
+## Laubballen (SCHIRM_BALLEN), der Rand SCHIRM_RAND über dem Boden der Hülle,
+## in Lappen (SCHIRM_LAPPEN), die Unterseite flach zur Mitte hin gewölbt und
+## dunkel (Verdeckung
+## SCHIRM_UNTEN, im Stoff unten der Ton TON_UNTEN). Zur Kerbe hin reicht er
+## nicht weiter als die innerste Ecke der Schirmkrone (`kanten`; KERBE und
+## die Wahrzeichenprobe messen daran). Mitten, Größen, Kanten und Ballen
+## für `wahrzeichen` bleiben die der Schirmkrone.
+const SCHIRM_RAND := 0.4
+const SCHIRM_UNTEN_TIEF := 0.7
+const SCHIRM_RINGE := 8
+const SCHIRM_SEGMENTE := 48
+const SCHIRM_UNTEN := 0.42
+const SCHIRM_FUELLE := 0.94
+## Umriss und Kuppe: SCHIRM_LAPPEN Lappen im Umriss (±SCHIRM_LAPPEN_TIEF des
+## Halbmessers, aus einem Rauschen über den Winkel) und SCHIRM_BALLEN Ballen
+## auf der Kuppe (Höhe SCHIRM_BALLEN_HOCH der Krone, Breite SCHIRM_BALLEN_R des
+## kleineren Halbmessers) – eine Wolke aus Laub mit gebrochenem Rand statt
+## einer glatten Haube (die erste Fassung mit einer Kuppe und feinen Zacken
+## stand aus der Ferne als zwei Pilzhüte da, eigene Prüfung s 186).
+const SCHIRM_LAPPEN := 7.0
+const SCHIRM_LAPPEN_TIEF := 0.28
+const SCHIRM_BALLEN := 12
+const SCHIRM_BALLEN_HOCH := Vector2(0.12, 0.24)
+const SCHIRM_BALLEN_R := Vector2(0.17, 0.27)
+## Dicke des Schirms höchstens dieser Anteil seiner Breite: Die Hülle aller
+## Teile reicht mit den Lappen weit hinab (13 m bei 18 m Breite), so hoch
+## stand der Körper als Zwiebel da (eigene Prüfung s 186: eine Spitze aus
+## den Ballen über der Mitte). Die Kuppe ist flach (ein Tafelberg mit runder
+## Kante), die Ballen sitzen außerhalb der Mitte. Mit 0,4 lag der Schirm
+## als dünne Scheibe da, und beim Wechsel aus der Nahfassung (eine hohe,
+## buckelige Haube) sprang er sichtbar (eigene Prüfung s 60/72).
+const SCHIRM_DICKE := 0.5
+
+
+static func _schirm_fern(st: SurfaceTool, teile: AABB, kante: Vector3, seite: float,
+		saat: int) -> void:
+	var rng := PropWerkzeug.zufall(saat)
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = saat
+	rauschen.frequency = 1.0
+	var mitte := teile.get_center()
+	var halb := teile.size * 0.5 * SCHIRM_FUELLE
+	var oben := teile.end.y
+	var hoehe := minf(teile.size.y, SCHIRM_DICKE * 2.0 * maxf(halb.x, halb.z))
+	var unten := oben - hoehe
+	var rand_y := unten + hoehe * SCHIRM_RAND
+	# Zur Kerbe hin (−seite in x) höchstens bis zur innersten Ecke.
+	var innen := minf(halb.x, absf(mitte.x - kante.x))
+	# Ballen auf der Kuppe: Lage relativ (Anteil der Halbmesser), Höhe, Breite.
+	var ballen: Array[Vector4] = []
+	for k in SCHIRM_BALLEN:
+		var w := TAU * (float(k) + rng.randf_range(-0.3, 0.3)) / float(SCHIRM_BALLEN)
+		var weit := rng.randf_range(0.3, 0.9)
+		ballen.append(Vector4(cos(w) * weit, sin(w) * weit,
+				rng.randf_range(SCHIRM_BALLEN_HOCH.x, SCHIRM_BALLEN_HOCH.y) * hoehe,
+				rng.randf_range(SCHIRM_BALLEN_R.x, SCHIRM_BALLEN_R.y)))
+	var reihen: Array[PackedVector3Array] = []
+	var hoehen: Array[PackedFloat32Array] = []
+	var verdeckt: Array[PackedFloat32Array] = []
+	# Ringe von der Mitte oben über den Rand zur Mitte unten.
+	var stufen: Array[Vector2] = []
+	for k in SCHIRM_RINGE + 1:
+		stufen.append(Vector2(float(k) / float(SCHIRM_RINGE), 1.0))
+	for k in range(SCHIRM_RINGE - 1, -1, -1):
+		stufen.append(Vector2(float(k) / float(SCHIRM_RINGE), 0.0))
+	var top := -INF
+	for u in stufen:
+		var oberseite := u.y > 0.5
+		var r_t := u.x
+		var reihe := PackedVector3Array()
+		var hoch := PackedFloat32Array()
+		var ao := PackedFloat32Array()
+		for j in SCHIRM_SEGMENTE:
+			var w := TAU * float(j) / float(SCHIRM_SEGMENTE)
+			var cx := cos(w)
+			var rx := innen if cx * seite < 0.0 else halb.x
+			var lappen := SCHIRM_LAPPEN_TIEF * rauschen.get_noise_1d(w * SCHIRM_LAPPEN / TAU * 1.5)
+			var f := (1.0 + lappen * r_t * r_t) * r_t
+			if cx * seite < 0.0:
+				f = minf(f, r_t)
+			var ux := cx * f
+			var uz := sin(w) * f
+			var x := mitte.x + ux * rx
+			var z := mitte.z + uz * halb.z
+			var y: float
+			if oberseite:
+				var kuppe := sqrt(maxf(1.0 - pow(r_t, 4.0), 0.0)) * 0.7
+				var buckel := 0.0
+				for b in ballen:
+					var d2 := (ux - b.x) * (ux - b.x) + (uz - b.y) * (uz - b.y)
+					buckel = maxf(buckel, b.z * exp(-d2 / (b.w * b.w)))
+				y = rand_y + (oben - rand_y) * kuppe + buckel * (1.0 - r_t * r_t * 0.5)
+			else:
+				y = rand_y - (rand_y - unten) * SCHIRM_UNTEN_TIEF * (1.0 - pow(r_t, 1.4)) \
+						+ 0.04 * hoehe * rauschen.get_noise_2d(ux * 3.0, uz * 3.0)
+			# Der Rand hängt außen wie Laub, wo ein Lappen vorsteht.
+			if r_t > 0.95:
+				y -= maxf(lappen, 0.0) * hoehe * 0.5
+			top = maxf(top, y)
+			reihe.append(Vector3(x, y, z))
+			hoch.append(0.0 if not oberseite else 1.0)
+			ao.append(lerpf(0.8, 1.0, 1.0 - r_t) if oberseite else SCHIRM_UNTEN)
+		reihen.append(reihe)
+		hoehen.append(hoch)
+		verdeckt.append(ao)
+	# Höhe in der Krone (UV2.y, Farbe nach Höhe im Stoff): unten 0, oben 1,
+	# nach der gebauten Kuppe.
+	for k in reihen.size():
+		for j in SCHIRM_SEGMENTE:
+			var y := reihen[k][j].y
+			hoehen[k][j] = clampf((y - unten) / maxf(top - unten, 0.1), 0.0, 1.0) \
+					if hoehen[k][j] > 0.5 else 0.04
+	for k in reihen.size() - 1:
+		for j in SCHIRM_SEGMENTE:
+			var j2 := (j + 1) % SCHIRM_SEGMENTE
+			var a := reihen[k][j]
+			var b := reihen[k][j2]
+			var c := reihen[k + 1][j2]
+			var d := reihen[k + 1][j]
+			for e: Array in [[a, k, j], [d, k + 1, j], [c, k + 1, j2], [a, k, j], [c, k + 1, j2],
+					[b, k, j2]]:
+				var kk: int = e[1]
+				var jj: int = e[2]
+				var p: Vector3 = e[0]
+				var g := verdeckt[kk][jj]
+				st.set_color(Color(g, g, g, 0.0))
+				st.set_uv2(Vector2(0.0, hoehen[kk][jj]))
+				# Normale halb von der Mitte des Schirms weg, halb nach oben:
+				# Er schattiert als Ganzes (wie `Kronenwolke`, BIEGUNG).
+				var n := (p - mitte).normalized() * Vector3(1.0, 1.6, 1.0)
+				st.set_normal((n.normalized() + Vector3.UP * 0.35).normalized())
+				st.add_vertex(p)
 
 
 ## Die Ecke einer Krone, die am weitesten zur Kerbe reicht: bei der Krone

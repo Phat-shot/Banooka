@@ -335,6 +335,12 @@ const TOR_BORKE := {"farbe": Color(0.86, 0.88, 0.9), "moos_oben": 0.45, "moos_no
 ## Kronen auf langen Stämmen im Bild, ein Tor las man nicht (Prüfung P7);
 ## die Form der Kronen bleibt Bildfrage für P8 (siehe ABWEICHUNGEN).
 const TOR_TON := Color(0.88, 0.9, 0.68)
+## Die Fernfassung der Torbuchen ins Oliv getönt (R4; Bild-Jury R4,
+## Torbuchen: „aus der Ferne stehen blaugraue Schirmsilhouetten links und
+## rechts neben der Eiche"; Vorschlag: „die Fernfassung oliv statt
+## blaugrau"): weniger Blau, etwas dunkler – der Dunst legt sein Blau
+## darüber.
+const TOR_FERN_TON := Color(0.82, 0.92, 0.55)
 ## Totholz an der Kuppe (M17): Bereich (s von, s bis, |q| von, |q| bis),
 ## Anzahl, Abstand zur Achse der Eiche (m).
 const TOT_BEREICH := Vector4(-34.0, 4.0, 13.0, 36.0)
@@ -402,7 +408,9 @@ const DICKICHT_GRUPPE := 11.0
 const DICKICHT_ZELLE := 40.0
 ## Laub des Dickichts: dunkler und grüner als die Kronen (LAUB) – es steht
 ## im Schatten der Kronen am Hang, und die Tönung je Busch (TOENE) bleibt.
-const DICKICHT_LAUB := Color(0.27, 0.38, 0.13)
+## R4 (Bild-Jury R4, Gesamtbild: Kronenband als Rahmen, siehe
+## `L05Saum.kronenband`): gut 15 % dunkler (bis R4 0,27/0,38/0,13).
+const DICKICHT_LAUB := Color(0.23, 0.32, 0.11)
 ## RANDBÄUME (R3, Vorschlag der Bild-Jury: „Randbäume, deren Kronen nur
 ## seitlich ins Bild hängen"): Laubbäume der Rolle M1 bei |q| RAND_Q auf
 ## den Kronen, je RAND_SCHRITT m ein Versuch, die höchste Höhe aus
@@ -758,7 +766,7 @@ func _tor_baum(s: float, seite: float, saat: int) -> void:
 	of["karten"] = 0
 	var bf := Baumfabrik.baum(of)
 	_nah.setze("tor_stamm_fern", bf["stamm"] as ArrayMesh, lage, Color(0.92, 0.92, 0.92))
-	_nah.setze("tor_krone_fern", bf["krone"] as ArrayMesh, lage, ton)
+	_nah.setze("tor_krone_fern", bf["krone"] as ArrayMesh, lage, ton * TOR_FERN_TON)
 	rahmen.staemme.dazu(Vector2(p.x, p.z), 3.0)
 	rahmen.kronen.dazu(Vector2(huelle.get_center().x, huelle.get_center().z),
 			maxf(huelle.size.x, huelle.size.z) * 0.35)

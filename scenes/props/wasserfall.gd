@@ -78,6 +78,11 @@ void fragment() {
 """
 
 static var _shader: Shader = null
+## Fassung des Shaders mit verstellbarem Maß des Rauschens quer zum Band
+## (Option "quer_mass" von `band`). NULL-PFAD: Ohne die Option nimmt jedes
+## Band `_shader` mit FALL_SHADER wie bisher; nur wer sie setzt, bekommt
+## diese Abschrift (Level 05, Weißwasser im Wehrbruch).
+static var _shader_mass: Shader = null
 
 
 ## Baut einen Wasserfall an einer Schluchtwand, die mit `kronen_merken`
@@ -192,6 +197,12 @@ static func an_schluchtwand(eltern: Node3D, kurve: Curve3D, kronen: Array,
 ##   "ferne"        so viel heller (und dichter) wird das Band zwischen 20 und
 ##                  90 m Abstand: Ein Wahrzeichen trägt so durch den Dunst,
 ##                  ohne von Nahem zu blenden (Vorgabe 0)
+##   "quer_mass"    Vector2: Faktoren auf die Dichte des groben und des
+##                  feinen Rauschens quer zum Band. Ein breites Band (7 m)
+##                  hat mit den Vorgaben Schaumflecken von gut 0,4 m, aus
+##                  30 m Abstand ein Bildpunkt – es flimmerte als Rauschen.
+##                  Ohne die Option derselbe Shader wie bisher (Null-Pfad,
+##                  `_shader_mass`).
 ## Rückgabe: der Knoten (schon an `eltern` gehängt), oder null ohne Bahn.
 static func band(eltern: Node3D, punkte: PackedVector3Array, breite: float,
 		optionen: Dictionary = {}) -> Wasserfall:
@@ -275,6 +286,15 @@ static func band(eltern: Node3D, punkte: PackedVector3Array, breite: float,
 		_shader.code = FALL_SHADER
 	var mat := ShaderMaterial.new()
 	mat.shader = _shader
+	if optionen.has("quer_mass"):
+		if _shader_mass == null:
+			_shader_mass = Shader.new()
+			_shader_mass.code = FALL_SHADER.replace("quer * 7.0,", "quer * 7.0 * quer_mass.x,") \
+					.replace("quer * 19.0 + 3.1,", "quer * 19.0 * quer_mass.y + 3.1,") \
+					.replace("uniform float ferne = 0.0;",
+							"uniform float ferne = 0.0;\nuniform vec2 quer_mass = vec2(1.0);")
+		mat.shader = _shader_mass
+		mat.set_shader_parameter("quer_mass", optionen["quer_mass"])
 	mat.set_shader_parameter("laenge", gesamt)
 	for wert: String in ["tempo", "farbe_tief", "farbe_schaum", "ferne"]:
 		if optionen.has(wert):

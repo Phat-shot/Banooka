@@ -348,7 +348,10 @@ const KRONENLICHT := Vector2(23.5, 0.6)
 ## Waldweg der Bibliothek ist dunkelbraun; Löss ist gelblich-ocker und
 ## heller) und Zahl der Steine je Lippe (§8.4).
 const WEG_SCHLUESSEL := "l05_"
-const LOESS_WEG := Color(1.12, 1.0, 0.78)
+## R4 (Bild-Jury R4, Licht und Farbe: „Weg und Lösswände um eine weitere
+## Stufe entsättigen"): 1,06/1,0/0,86 statt 1,12/1,0/0,78 – blasser, weniger
+## orange, gleich hell im Grün.
+const LOESS_WEG := Color(1.06, 1.0, 0.86)
 const LIPPEN_STEINE := Vector2i(4, 6)
 ## Höhe der Lippensteine (Faktor in `Wegdecke`, R3; Bild-Jury R3, Mangel
 ## „Lücken": „flache graue Scheiben"): 13–22 cm statt 8–14 cm – Kuppen mit
@@ -557,8 +560,11 @@ const EICHE := {"s": -6.0, "boden_y": 27.0,
 
 ## Alle 49 Kisten (§6.4): 46 NORMAL (im Zeitmodus 15 Zeitkisten),
 ## 2 FRUCHT_MEHRFACH, 1 LEBEN; keine SCHUTZ-Kisten (§1 Nr. 14 – der Keiler
-## ruft `sterben()` direkt). Auf q 0 nur im Lehrteil A, sonst q +2,2 bzw.
-## +2,0 in Gassen von höchstens drei, 1,2 m auseinander, über `boden_bei`.
+## ruft `sterben()` direkt). Auf q 0 nur im Lehrteil A, sonst q +2,2 in
+## Gassen von höchstens drei, 1,2 m auseinander, über `boden_bei`. Die Gasse
+## bei 167,5–169,9 stand bis R4 auf q 2,0: Wer auf q 1,5 lief, prallte
+## frontal auf ihre erste Kiste (die bis q 1,5 reicht) und hing im Nacken von
+## 8 m fest – mit q 2,2 streift er sie nur (Spiel-Jury R4, Mangel 5).
 ## "auf": Name eines Eintrags aus BEGEHBARES, auf dessen Oberkante sie steht.
 ##
 ## Die Liste steht in ZÄHLREIHENFOLGE, nicht nach der Strecke: Im Zeitmodus
@@ -631,9 +637,9 @@ const KISTEN := [
 	{"art": Kiste.Art.NORMAL, "s": 152.5, "q": 2.2},  # Zeit 3
 	{"art": Kiste.Art.NORMAL, "s": 153.7, "q": 2.2},
 	{"art": Kiste.Art.NORMAL, "s": 292.9, "q": 2.2},  # hinter dem Wehr
-	{"art": Kiste.Art.NORMAL, "s": 167.5, "q": 2.0},  # Zeit 2
-	{"art": Kiste.Art.NORMAL, "s": 168.7, "q": 2.0},
-	{"art": Kiste.Art.NORMAL, "s": 169.9, "q": 2.0},
+	{"art": Kiste.Art.NORMAL, "s": 167.5, "q": 2.2},  # Zeit 2
+	{"art": Kiste.Art.NORMAL, "s": 168.7, "q": 2.2},
+	{"art": Kiste.Art.NORMAL, "s": 169.9, "q": 2.2},
 	# --- D (33–43) ---
 	{"art": Kiste.Art.NORMAL, "s": 182.0, "q": 2.2},  # Zeit 1
 	{"art": Kiste.Art.NORMAL, "s": 183.2, "q": 2.2},
@@ -706,7 +712,20 @@ const FRUECHTE := [
 	# Über das Wehr (WEHR_BOGEN): neben der Bahn des Doppelsprungs, schräg
 	# und höher.
 	{"art": "punkte", "punkte": WEHR_BOGEN},
-	{"art": "reihe", "von": 290.5, "bis": 295.0, "anzahl": 5, "q": 0.0},
+	# Zum Portal hin (ZIEL_Q −2,3), neben der Achse, und vor 292,3 zu Ende
+	# (Spiel-Jury R4, Mangel 4): Bis R4 lief die Reihe auf der Achse bis 295,0
+	# – die letzten zwei zog die Figur im Sog des Portals noch an, NACHDEM
+	# das Level gezählt hatte (HUD 26, Eintrag 24 auf der Gassenspur q 1,1),
+	# und nach der Landung am Wehr standen sie zwischen Kamera und Figur. Der
+	# Auslöser beginnt bei 294,96 (`_ziel_ausloeser_verbreitern`), der Sog
+	# führt von dort zur Mitte des Portals; eine Frucht, die keine Bahn
+	# eingesammelt hat, liegt also mindestens 2,6 m (`Frucht.MAGNET_RADIUS`)
+	# vor jedem Punkt des Sogs. Eine erste Fassung bis 293,8 auf q −0,8 …
+	# −1,6 zählte auf der Gassenspur weiter zwei zu viel (Juryprobe „alles");
+	# die kamen aber aus den Kisten hinter dem Wehr – dagegen hilft erst
+	# `_nach_dem_ziel`. Die Reihe bleibt hier, weil sie so nach der Landung
+	# nicht mehr zwischen Kamera und Figur steht.
+	{"art": "reihe", "von": 289.9, "bis": 292.2, "anzahl": 5, "q": -0.6, "q_ende": -1.3},
 ]
 
 ## Fruchtbogen über das Wehr L6 (Spiel-Jury R3, Mangel 5; Bild-Jury R3,
@@ -1469,6 +1488,7 @@ func _spiel_setzen() -> void:
 	portale_auf(START_S, ZIEL_S, 0.0)
 	_ziel_verbergen()
 	_ziel_ausloeser_verbreitern()
+	Spielfluss.level_abgeschlossen.connect(_nach_dem_ziel)
 
 
 func _fruechte_setzen() -> void:
@@ -1609,6 +1629,22 @@ func _ziel_ausloeser_verbreitern() -> void:
 	var versatz := _zielportal.transform.affine_inverse() * mitte
 	form.position.x = versatz.x
 	form.position.z = versatz.z
+
+
+## NACH DEM ZIEL (Spiel-Jury R4, Mangel 4): Die Anzeige zählte nach dem
+## Eintrag weiter – im Lauf „alles" 27 Früchte gegen 25 im Eintrag. Die
+## Spur zeigt, woher: Früchte aus den Kisten hinter dem Wehr (gemessen eine
+## bei (−4,31, 5,06, −291,02)) fliegen ihren Wurfbogen und ziehen dann per
+## Magnet zur Figur, auch wenn die schon im Sog des Zielportals steckt. Mit
+## dem Abschluss erstarrt deshalb jede noch liegende Frucht dieses Levels:
+## kein Bogen, kein Magnet, keine Berührung mehr. Die geteilte Frucht und
+## jedes andere Level bleiben, wie sie sind; die Verbindung löst Godot mit
+## dem Level von selbst.
+func _nach_dem_ziel(_daten: Dictionary) -> void:
+	for f: Node in get_tree().get_nodes_in_group("fruechte"):
+		if f is Area3D and is_ancestor_of(f):
+			f.process_mode = Node.PROCESS_MODE_DISABLED
+			(f as Area3D).set_deferred("monitoring", false)
 
 
 ## STOLPERSPERRE (Spiel-Jury R2, Mangel 5): Nach einem Stolpern löst keine

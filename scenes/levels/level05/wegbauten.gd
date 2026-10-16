@@ -15,10 +15,13 @@ class_name L05Wegbauten
 ##              RIEGEL_OBEN (1,40) – die Hölzer werden dort plattgedrückt
 ##              (`_holz`, "oben"/"unten"), über der ganzen Weite, die man
 ##              erreicht (bis hinter die Leitlinie). Die Unterkante ist hell
-##              abgewetzt (Entwurf §8.4: „Unterkante des Riegels hell"), am
-##              Gatter und an den Jochen auch der Rücken; die Wurzelbögen
-##              behalten oben Borke und Moos (`_wurzelbogen`). Unter 0,95
-##              steht über dem Weg nichts.
+##              abgewetzt (Entwurf §8.4: „Unterkante des Riegels hell"); der
+##              Rücken trägt Borke (Option „oben_borke"), auch am Gatter und
+##              an den Jochen – bis R4 war er dort hell und glänzte aus der
+##              Nähe als gewelltes rosa-weißes Band, „wie ein Plastikband"
+##              (Bild-Jury R4, Fluderjoche, s 208: die helle Eigenfarbe hat
+##              die Rauheit 0,7, Borke 0,95). Unter 0,95 steht über dem Weg
+##              nichts. Darüber der Holm (HOLM_Y).
 ##   Hürde      die Wurzel genau so breit wie der Körper tief (0,6), ihr
 ##              Rücken flach auf HUERDE_HOEHE (0,7), hell abgewetzt, die
 ##              Flanken bemoost; in einem gescherten Rahmen, der wie der
@@ -56,6 +59,8 @@ class_name L05Wegbauten
 ##   D3, D4  Fluderjoch: zwei Böcke hinter den Leitlinien, die Zangen-
 ##      balken als Riegel (Spaltfläche nach außen), Latten alle 0,42 m, das
 ##      Gerinne als ausgehöhlter Halbstamm auf 4,02–4,58 m.
+##   Seit R4 über Ü, D3 und D4 der Holm (HOLM_Y), ein zweites Spaltholz auf
+##   gut 2 m über die ganze Breite.
 ## Je Durchlass zwei Netze im Borkenstoff: die heile Optik (Kind des
 ## Körpers, über `duckdurchlass` „optik") und der Bruch („Bruch",
 ## unsichtbar, in `Effekte.VORWAERM_GRUPPE` – er wird erst gezeichnet, wenn
@@ -178,6 +183,27 @@ const JOCH_LATTEN := 0.7
 ## offen, und je Bock trägt ein Kopfband den Trog. Der Bruch bleibt, wie er
 ## war (Stümpfe hängen vom Trog).
 const JOCH_LATTEN_FREI := 2.3
+## HOLM (R4; Spiel-Jury R4, Mangel 1): Seit Gatter und Joche über der Gasse
+## offen sind (GATTER_MITTE_FREI, JOCH_LATTEN_FREI), stand zwischen Riegel
+## und Kopfstange bzw. Trog 2,6 bzw. 4,6 m freie Luft – der Körper sperrt
+## dort aber weiter von 0,95 bis 4,4 m (`KorridorLevel.duckdurchlass`), eine
+## unsichtbare Wand. Aus der hohen Rückblickkamera lag der Riegel (1,25–1,40)
+## unter der Figur wie eine Schwelle; das Joch las sich als Tor mit Schwelle,
+## durch das man läuft oder über das man springt (D3 gesprungen statt Slide:
+## gestolpert, Mindestabstand 7,69 m). Jetzt läuft über die ganze Breite ein
+## zweites Spaltholz, der Holm, mit der Achse auf HOLM_Y (HOLM_R dick): Die
+## Lücke zwischen Riegel und Holm ist mit gut 0,55 m sichtbar zu niedrig zum
+## Durchspringen (die Figur ist 1,3 m groß, ihre Füße stehen im Scheitel des
+## Sprungs auf 1,96 m – dort liegt jetzt Holz). Er gehört zur Optik, die
+## immer steht (siehe NAHBLENDE): Er ist Teil des Zeichens „hier sliden"
+## und steht schon da, wenn der Durchlass unten ins Bild kommt (Spiel-Jury
+## R4: D3 stand bis 11 m vor der Stirn als nackter Balken auf Böcken). Die
+## Brust (K5, 0,7 m) sieht die Kamera im Slide-Fenster unter ihm hindurch:
+## Die Sichtlinie kreuzt die Ebene des Durchlasses dort bei höchstens 1,6 m.
+## Im Bruch hängt er wie der Riegel in zwei Stücken durch. Der Körper
+## bleibt, wie er ist (abgesenkt ließe er einen Sprung über den Riegel zu).
+const HOLM_Y := 2.06
+const HOLM_R := 0.085
 ## Gasse über der Wegmitte (zwischen den Achsen der innersten Stangen,
 ## Latten und Strähnen, `_quer_stellen`): Die Figur läuft auf q 0, und die
 ## Sichtlinie aus der Kamera kreuzt die Durchlässe wegen der Kurve bis
@@ -671,6 +697,9 @@ static func _rastpfaehle(sa: Sammler, level: Level05, von: float, bis: float) ->
 ## von `lage` ins Borkennetz `st` (Scheitelformat `Riesenstamm`). Optionen:
 ##   seiten (8), saat (1), buckel (0,06), moos (0,3: COLOR.a), ton (Tönung
 ##   der Borke), ao (Vector2 Verdeckung am Anfang und Ende, (1, 1))
+##   ao_unten   Verdeckung der Unterseite (1: keine): Ecken, deren Richtung
+##              von der Achse nach unten zeigt, bis auf diesen Anteil dunkler
+##              – ein Holz ohne Schattenwurf liegt so sichtbar auf (R4)
 ##   hoch       Höhe des Querschnitts relativ zum Radius (1), gemessen in
 ##              Richtung `bezug` (Vorgabe oben) quer zur Achse
 ##   oben, unten  Grenzen in y (Raum von `lage`): Ecken darüber bzw. darunter
@@ -700,6 +729,7 @@ static func _holz(st: SurfaceTool, lage: Transform3D, punkte: PackedVector3Array
 	var moos: float = o.get("moos", 0.3)
 	var ton: Color = o.get("ton", Color.WHITE)
 	var ao: Vector2 = o.get("ao", Vector2.ONE)
+	var ao_unten: float = o.get("ao_unten", 1.0)
 	var hoch_f: float = o.get("hoch", 1.0)
 	var bezug: Vector3 = o.get("bezug", Vector3.UP)
 	var oben: float = o.get("oben", INF)
@@ -764,7 +794,10 @@ static func _holz(st: SurfaceTool, lage: Transform3D, punkte: PackedVector3Array
 			var p := punkte[i] + dir * r * rel
 			var art := Riesenstamm.BORKE
 			var ruecken := false
-			var farbe := Color(ao_hier * ton.r, ao_hier * ton.g, ao_hier * ton.b, 0.0)
+			var ao_ecke := ao_hier
+			if ao_unten < 1.0:
+				ao_ecke *= lerpf(1.0, ao_unten, clampf(-dir.y / maxf(dir.length(), 0.001), 0.0, 1.0))
+			var farbe := Color(ao_ecke * ton.r, ao_ecke * ton.g, ao_ecke * ton.b, 0.0)
 			if mit_spalt:
 				var d := (p - punkte[i]).dot(sp)
 				var grenze := r * spalt_tiefe
@@ -1120,6 +1153,47 @@ static func _riegel(st: SurfaceTool, von: float, bis: float, z: float, r: float,
 				PackedFloat32Array([r, r * 0.96])), ot)
 
 
+## Der Holm (siehe HOLM_Y) quer über den Durchlass von x `von` bis `bis` auf
+## der Tiefe `z`: ein rundes Spaltholz (die Spaltfläche nach außen, Option
+## "spalt" in `o`), in der Mitte um `sack` durchhängend, nicht
+## plattgedrückt. `kaputt` wie `_riegel`: zwei Stücke, die von den Enden her
+## durchhängen und in der Bresche (`bruch`) gesplittert enden. Eigene
+## Zufallsquelle (Saat aus `o`), damit die Züge der übrigen Hölzer bleiben.
+static func _holm(st: SurfaceTool, von: float, bis: float, z: float, kaputt: bool,
+		bruch: Vector2, durchhang: Vector2, o: Dictionary, sack: float = 0.03) -> void:
+	var saat: int = o.get("saat", 1)
+	var mitte_x := (von + bis) * 0.5
+	var halb := maxf((bis - von) * 0.5, 0.01)
+	if not kaputt:
+		var punkte := PackedVector3Array()
+		var x := von
+		while x < bis + 0.001:
+			var u := (x - mitte_x) / halb
+			punkte.append(Vector3(x, HOLM_Y - sack * (1.0 - u * u),
+					z + 0.02 * sin(x * 1.1 + float(saat))))
+			x += 0.6
+		if punkte[punkte.size() - 1].x < bis - 0.05:
+			punkte.append(Vector3(bis, HOLM_Y, z))
+		_holz(st, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
+				PackedFloat32Array([HOLM_R, HOLM_R * 0.93, HOLM_R * 1.04])), o)
+		return
+	for teil in 2:
+		var fest := von if teil == 0 else bis
+		var lose := bruch.x if teil == 0 else bruch.y
+		var tief := durchhang.x if teil == 0 else durchhang.y
+		var punkte := PackedVector3Array()
+		var anzahl := maxi(ceili(absf(lose - fest) / 0.5), 2)
+		for i in anzahl + 1:
+			var x := lerpf(fest, lose, float(i) / float(anzahl))
+			punkte.append(Vector3(x, HOLM_Y - _durchhang(x, fest, lose, tief),
+					z + 0.02 * sin(x * 1.1 + float(saat))))
+		var ot := o.duplicate()
+		ot["ende"] = "splitter"
+		ot["saat"] = saat + teil * 3
+		_holz(st, Transform3D.IDENTITY, punkte, _radien(punkte.size(),
+				PackedFloat32Array([HOLM_R, HOLM_R * 0.95])), ot)
+
+
 ## Stücke, die beim Bruch auf den Boden gefallen sind: liegend, flacher als
 ## 0,3 m, quer verstreut um die Bresche.
 static func _truemmer(st: SurfaceTool, rng: RandomNumberGenerator, halb_z: float, anzahl: int,
@@ -1173,6 +1247,7 @@ static func _gatter(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: float, 
 		o["spalt"] = Vector3(0.0, 0.0, signf(z))
 		o["moos"] = 0.45
 		o["hoch"] = RIEGEL_HOCH_KANTE / 0.16
+		o["oben_borke"] = true
 		var bresche := Vector2(-BRESCHE + rng.randf_range(-0.2, 0.1),
 				BRESCHE - rng.randf_range(0.0, 0.3))
 		var hang := Vector2(rng.randf_range(0.38, 0.5), rng.randf_range(0.32, 0.45))
@@ -1227,6 +1302,19 @@ static func _gatter(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: float, 
 				_stange(st, Transform3D.IDENTITY, Vector3(x, unten - sack, z), Vector3(x + kipp, oben, z),
 						r, r * 0.85, o, 1.0)
 		nr += 1
+	# Holm (siehe HOLM_Y) an der Stirn, von Pfosten zu Pfosten, knapp vor den
+	# Stangen; eigene Zufallsquelle.
+	var rh := PropWerkzeug.zufall(saat + 300)
+	var oh := holz.duplicate()
+	oh["saat"] = saat + 31
+	oh["spalt"] = Vector3(0.0, 0.0, 1.0)
+	oh["spalt_tiefe"] = 0.4
+	oh["moos"] = 0.3
+	oh["anfang"] = "stumpf"
+	oh["ende"] = "stumpf"
+	_holm(st, px.x, px.y, zr + 0.06, kaputt,
+			Vector2(-BRESCHE * 0.8 + rh.randf_range(-0.2, 0.1), BRESCHE * 0.8 - rh.randf_range(0.0, 0.3)),
+			Vector2(rh.randf_range(0.5, 0.7), rh.randf_range(0.45, 0.65)), oh)
 	if kaputt:
 		_truemmer(st, rng, zr, 3, Vector2(0.1, 0.13), Vector2(0.5, 1.0), holz)
 		_truemmer(st, rng, zr, 5, Vector2(0.04, 0.05), Vector2(0.4, 0.9), holz)
@@ -1543,6 +1631,7 @@ static func _fluderjoch(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: flo
 		o["spalt"] = Vector3(0.0, 0.0, signf(z))
 		o["spalt_tiefe"] = 0.3
 		o["hoch"] = RIEGEL_HOCH_KANTE / 0.16
+		o["oben_borke"] = true
 		var bresche := Vector2(-BRESCHE * 0.6 + rng.randf_range(-0.3, 0.2), BRESCHE * 0.5
 				+ rng.randf_range(-0.2, 0.3))
 		var hang := Vector2(rng.randf_range(0.35, 0.5), rng.randf_range(0.3, 0.45))
@@ -1603,6 +1692,20 @@ static func _fluderjoch(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: flo
 			ok["ende"] = "stumpf"
 			_stange(ob, Transform3D.IDENTITY, Vector3(x, holm_y - 0.9, zz - 0.06),
 					Vector3(x + innen * 1.1, gerinne_unten + 0.05, zz - 0.06), 0.07, 0.065, ok)
+	# Holm (siehe HOLM_Y) an der Stirn, von Bock zu Bock (der rechte lehnt
+	# nach außen: dort, wo er die Höhe HOLM_Y kreuzt); eigene Zufallsquelle.
+	var rh := PropWerkzeug.zufall(saat + 300)
+	var oh := holz.duplicate()
+	oh["saat"] = saat + 70
+	oh["spalt"] = Vector3(0.0, 0.0, 1.0)
+	oh["spalt_tiefe"] = 0.4
+	oh["moos"] = 0.25
+	oh["anfang"] = "stumpf"
+	oh["ende"] = "stumpf"
+	var rechts_lehnt := 0.42 * (HOLM_Y + 0.5) / (holm_y + 0.55)
+	_holm(st, bock_x.x - 0.1, bock_x.y + rechts_lehnt + 0.1, zz - 0.02, kaputt,
+			Vector2(-BRESCHE * 0.6 + rh.randf_range(-0.3, 0.2), BRESCHE * 0.5 + rh.randf_range(-0.2, 0.3)),
+			Vector2(rh.randf_range(0.5, 0.7), rh.randf_range(0.45, 0.65)), oh)
 	if kaputt:
 		_truemmer(st, rng, halb_z, 2, Vector2(0.1, 0.13), Vector2(0.6, 1.1), holz)
 		_truemmer(st, rng, halb_z, 5, Vector2(0.05, 0.06), Vector2(0.5, 1.0), holz)
@@ -2139,6 +2242,46 @@ const UFERFELS_SCHRITT := 1.5
 const UFERFELS_MASS := Vector2(0.55, 1.9)
 
 
+## Die Simse der Südwand (siehe SIMS_STRECKE): je Sims {"lage" (Mitte des
+## Steins, x längs des Wegs, z zum Weg hin), "groesse" (Maß des Steins),
+## "oben" (Welt, Mitte seiner Oberseite), "vor", "rechts"}. Öffentlich:
+## `L05Rasen` setzt Farnpolster darauf (R4). Eigener Zufall (bis R4 zog der
+## Sims aus dem Zufall der Ufersteine; der Farn braucht die Lagen, ohne die
+## Steine zu bauen).
+static func simse(level: Level05) -> Array[Dictionary]:
+	var aus: Array[Dictionary] = []
+	var wasser := level.gewaesser
+	if wasser == null or level.gelaende == null:
+		return aus
+	var rng := PropWerkzeug.zufall(5591)
+	var s := SIMS_STRECKE.x
+	while s < SIMS_STRECKE.y:
+		var mitte := wasser.bach_ort(s)
+		var vor := LevelWerkzeuge.richtung(level.verlauf, s)
+		vor = Vector3(vor.x, 0.0, vor.z).normalized()
+		var rechts := vor.cross(Vector3.UP).normalized()
+		# Die Südwand liegt auf der Seite des Bachs (q < 0), also nach −rechts.
+		var hoch := rng.randf_range(SIMS_HOCH.x, SIMS_HOCH.y)
+		var g := Vector3(rng.randf_range(2.6, 4.6), rng.randf_range(0.35, 0.65) * 1.35,
+				rng.randf_range(1.3, 1.8))
+		var dreh := rng.randf_range(-0.15, 0.15)
+		var d := 1.2
+		while d < 24.0:
+			var w := mitte - rechts * d
+			var y := level.gelaende.hoehe(w.x, w.z)
+			if not is_nan(y) and y - mitte.y >= hoch:
+				# Lang den Weg entlang (x), quer zur Wand (z zum Weg hin).
+				var lage := Transform3D(Basis(vor, Vector3.UP, rechts).orthonormalized()
+						* Basis(Vector3.UP, dreh),
+						Vector3(w.x, y - g.y * 0.35, w.z) - rechts * (g.z * 0.5 - SIMS_VOR))
+				aus.append({"lage": lage, "groesse": g, "vor": vor, "rechts": rechts,
+						"oben": lage.origin + Vector3.UP * g.y * 0.42})
+				break
+			d += 0.25
+		s += SIMS_SCHRITT * rng.randf_range(0.7, 1.3)
+	return aus
+
+
 static func _tobel_steine(sa: Sammler, level: Level05) -> void:
 	var wasser := level.gewaesser
 	if wasser == null or level.gelaende == null:
@@ -2174,31 +2317,10 @@ static func _tobel_steine(sa: Sammler, level: Level05) -> void:
 					Transform3D(Basis(Vector3.UP, wurf.randf() * TAU), p))
 			nr += 1
 		s += UFERSTEIN_SCHRITT * rng.randf_range(0.6, 1.4)
-	s = SIMS_STRECKE.x
-	while s < SIMS_STRECKE.y:
-		var mitte := wasser.bach_ort(s)
-		var vor := LevelWerkzeuge.richtung(level.verlauf, s)
-		vor = Vector3(vor.x, 0.0, vor.z).normalized()
-		var rechts := vor.cross(Vector3.UP).normalized()
-		# Die Südwand liegt auf der Seite des Bachs (q < 0), also nach −rechts.
-		var hoch := rng.randf_range(SIMS_HOCH.x, SIMS_HOCH.y)
-		var d := 1.2
-		while d < 24.0:
-			var w := mitte - rechts * d
-			var y := level.gelaende.hoehe(w.x, w.z)
-			if not is_nan(y) and y - mitte.y >= hoch:
-				var g := Vector3(rng.randf_range(2.6, 4.6), rng.randf_range(0.35, 0.65),
-						rng.randf_range(1.3, 1.8))
-				g.y *= 1.35
-				# Lang den Weg entlang (x), quer zur Wand (z zum Weg hin).
-				var lage := Transform3D(Basis(vor, Vector3.UP, rechts).orthonormalized()
-						* Basis(Vector3.UP, rng.randf_range(-0.15, 0.15)),
-						Vector3(w.x, y - g.y * 0.35, w.z) - rechts * (g.z * 0.5 - SIMS_VOR))
-				sa.stein(_getoent(kiesel(g, 5700 + nr, SIMS_MOOS), SANDSTEIN_TON), lage)
-				nr += 1
-				break
-			d += 0.25
-		s += SIMS_SCHRITT * rng.randf_range(0.7, 1.3)
+	for sims: Dictionary in simse(level):
+		sa.stein(_getoent(kiesel(sims["groesse"] as Vector3, 5700 + nr, SIMS_MOOS), SANDSTEIN_TON),
+				sims["lage"] as Transform3D)
+		nr += 1
 	# Uferfelsen vor der offenen Uferwand vor dem Wehr (wo sie `L05Saum`
 	# bemoost, UFER_MOOS): Die Wand steht dort frei über dem Bach (Bild-Jury
 	# R2: „oranges Wandstück"); Felsen am Fuß gliedern sie.
@@ -2434,12 +2556,25 @@ static func _grabenrampe(sa: Sammler, level: Level05) -> void:
 ## läuft eine von ihnen tiefer über die Setzstufe (STUFE_TIEF unter der
 ## Decke, halb in der Erde). Die Rücken tragen Borke (matt, Option
 ## „oben_borke"), nicht die helle Eigenfarbe.
+## R4 (Bild-Jury R4, Wurzeltreppen: „Die neuen Wurzeln erscheinen auf der
+## Setzstufe als flache, dunkelbraune Flecken ohne Volumen … liest sich als
+## Bordstein"; Vorschlag: „3–5 einzelne, gekrümmte Wurzelstränge mit
+## Volumen, verschieden dick, mit Lücken und Erde dazwischen"): Wurzeln und
+## Stufe werfen keinen Schatten (KOSTEN), und die Sonne steht hinter der
+## Kamera – von vorn beleuchtet las sich jede Wurzel als Farbfläche. Jetzt
+## dicker (STUFE_R), die Unterseite verdeckt (Option „ao_unten",
+## STUFE_UNTEN) und die inneren Wurzeln tauchen an ihren Enden über die
+## Setzstufe bis auf die untere Decke ab (STUFE_ABTAUCHEN, statt 0,25 m):
+## Jede steht als Bogen über der Kante, und zwischen ihnen bleibt die Kante
+## offen – Erde und Narbe der Stufe (`L05Saum`, Stufe).
 const STUFE_STUECKE := Vector2i(3, 5)
 const STUFE_LAENGE := Vector2(1.4, 3.2)
-const STUFE_R := Vector2(0.09, 0.19)
+const STUFE_R := Vector2(0.11, 0.22)
 const STUFE_BOGEN := 0.12
 const STUFE_HOCH := 0.45
 const STUFE_TIEF := Vector2(0.18, 0.32)
+const STUFE_UNTEN := 0.28
+const STUFE_ABTAUCHEN := 0.9
 static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand,
 		saat: int) -> void:
 	var oben := level.boden_bei(s - 0.05)
@@ -2480,12 +2615,15 @@ static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand
 			if (erstes and i == 0) or (letztes and i == n):
 				continue
 			var rein := pow(absf(u * 2.0 - 1.0), 4.0)
+			var ab := maxf(0.25, stufe * STUFE_ABTAUCHEN)
 			if erstes:
 				rein = pow(maxf(u * 2.0 - 1.0, 0.0), 4.0)
+				ab = 0.25
 			elif letztes:
 				rein = pow(maxf(1.0 - u * 2.0, 0.0), 4.0)
+				ab = 0.25
 			stuetzen.append(Vector3(lerpf(a, b, u),
-					y - 0.25 * rein + 0.02 * sin(u * 6.0 + phase),
+					y - ab * rein + 0.02 * sin(u * 6.0 + phase),
 					z + bogen * sin(u * PI) + 0.2 * rein))
 		if letztes:
 			stuetzen.append_array([Vector3(rechts + 0.4, 0.25, 0.12),
@@ -2503,7 +2641,7 @@ static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand
 		_holz(sa.holz, lage, linie, rr, {"saat": saat + k * 7, "seiten": 8,
 				"moos": 0.45, "ton": WURZEL_TON, "buckel": 0.09, "oben": 0.012,
 				"klemm_x": Vector2(-links - 0.3, rechts + 0.3), "oben_borke": true,
-				"anfang": "spitz", "ende": "spitz"})
+				"anfang": "spitz", "ende": "spitz", "ao_unten": STUFE_UNTEN})
 		a = b + rng.randf_range(0.2, 0.7)
 
 
