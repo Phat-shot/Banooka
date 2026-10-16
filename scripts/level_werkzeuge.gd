@@ -52,6 +52,21 @@ static func _rechts(kurve: Curve3D, strecke: float) -> Vector3:
 	return vorwaerts.cross(Vector3.UP).normalized()
 
 
+## Wie `punkt()`, aber auch VOR dem Anfang und HINTER dem Ende der Kurve:
+## Dort wird geradeaus weitergerechnet, in der Richtung des jeweiligen
+## Endes. `punkt()` klemmt die Strecke – eine Querwand zwei Meter hinter
+## dem Startportal fiele damit genau auf den Kurvenanfang.
+static func punkt_frei(kurve: Curve3D, strecke: float, seitlich: float = 0.0,
+		hoehe: float = 0.0) -> Vector3:
+	var laenge := kurve.get_baked_length()
+	var s := clampf(strecke, 0.0, laenge)
+	var ueber := strecke - s
+	var p := punkt(kurve, s, seitlich, hoehe)
+	if absf(ueber) > 0.0001:
+		p += richtung(kurve, s) * ueber
+	return p
+
+
 # ------------------------------------------------------------- Korridor
 
 ## Baut den Weg entlang der Kurve als drei getrennte Flächen:
@@ -66,8 +81,28 @@ static func _rechts(kurve: Curve3D, strecke: float) -> Vector3:
 ##
 ## `optionen`: {"tiefe", "schritt", "kollision", "kante_hoehe",
 ##              "kante_breite", "hoehe_versatz"}
+##
+## Freiwillig, ohne Angabe bleibt jedes Level, wie es war:
+##   Eintrag "hoehe"/"hoehe_ende"  absolute Welt-Y der Wegdecke am Anfang
+##                  und Ende des Eintrags, dazwischen linear. Ohne Angabe
+##                  folgt die Decke der Kurve. So fällt ein Weg in Terrassen,
+##                  während die Kamera die glatte Kurve fährt.
+##   "ebene"        Kollisionsebene der Wegdecke (Vorgabe 1).
+##   "nur_decke"    nur die begehbare Fläche über die volle Breite – keine
+##                  erhöhte Kante, keine Klippe. Ränder und Stirnseiten baut
+##                  dann das Level selbst (siehe `_korridor_decke`).
+##   Nur zusammen mit "nur_decke":
+##   "uv_quer"      UV2 = (quer / halbe Breite, Strecke): -1 am linken Rand,
+##                  +1 am rechten – für Shader, die eine Spur malen.
+##   "stufen_kollision"  unsichtbare senkrechte Wand an jeder Naht zweier
+##                  anstoßender Einträge verschiedener Höhe. Ohne sie läuft
+##                  man von der unteren Terrasse zurück UNTER die obere.
+##   "sichtbar"     false = nur Kollision, kein Netz im Baum.
+##   "quer_teilung" Anzahl Streifen über die Breite (Vorgabe 1).
 static func korridor(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		materialien: Dictionary, optionen: Dictionary = {}) -> Node3D:
+	if optionen.get("nur_decke", false):
+		return _korridor_decke(elternteil, kurve, abschnitte, materialien, optionen)
 	var tiefe: float = optionen.get("tiefe", 8.0)
 	var schritt: float = optionen.get("schritt", 1.2)
 	var kollision: bool = optionen.get("kollision", true)
@@ -86,10 +121,12 @@ static func korridor(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 		var bis: float = eintrag.get("bis", 0.0)
 		if bis <= von:
 			continue
+		var hoehen := _eintrag_hoehen(eintrag)
 		_abschnitt(oben, kante, klippe, kurve, von, bis,
 				eintrag.get("breite", 8.0),
 				eintrag.get("breite_ende", eintrag.get("breite", 8.0)),
-				tiefe, schritt, kante_hoehe, kante_breite, versatz)
+				tiefe, schritt, kante_hoehe, kante_breite, versatz,
+				hoehen.x, hoehen.y)
 
 	var wurzel := Node3D.new()
 	wurzel.name = "Korridor"
@@ -104,7 +141,193 @@ static func korridor(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
 			decke.create_trimesh_collision()
 		if rand != null:
 			rand.create_trimesh_collision()
+		if optionen.has("ebene"):
+			var ebene: int = optionen["ebene"]
+			for netz: MeshInstance3D in [decke, rand]:
+				if netz == null:
+					continue
+				for kind in netz.get_children():
+					if kind is StaticBody3D:
+						(kind as StaticBody3D).collision_layer = ebene
 	return wurzel
+
+
+## Absolute Höhe (Anfang, Ende) eines Abschnitts, NAN wo er der Kurve folgt.
+static func _eintrag_hoehen(eintrag: Dictionary) -> Vector2:
+	if not eintrag.has("hoehe"):
+		return Vector2(NAN, NAN)
+	var anfang: float = eintrag["hoehe"]
+	var ende: float = eintrag.get("hoehe_ende", anfang)
+	return Vector2(anfang, ende)
+
+
+## Höhe der Wegdecke eines Eintrags an der Stelle `s` (Welt-Y ohne Versatz).
+static func eintrag_hoehe(kurve: Curve3D, eintrag: Dictionary, s: float) -> float:
+	var hoehen := _eintrag_hoehen(eintrag)
+	if is_nan(hoehen.x):
+		return kurve.sample_baked(clampf(s, 0.0, kurve.get_baked_length())).y
+	var von: float = eintrag.get("von", 0.0)
+	var bis: float = eintrag.get("bis", 0.0)
+	var t := inverse_lerp(von, bis, s) if bis > von else 0.0
+	return lerpf(hoehen.x, hoehen.y, clampf(t, 0.0, 1.0))
+
+
+## Die Wegdecke allein, über die volle Breite (Option "nur_decke").
+##
+## Ohne erhöhte Kante und ohne Klippe: Die Ränder baut das Level mit eigenen
+## Mitteln (Grasnarbe, Felswand, Böschung), und eine Rasenkante als
+## Bordstein ist genau das, was dort nicht mehr stehen soll. Die Normalen
+## folgen der Neigung, damit ein Hang im Licht nicht wie eine Treppe aus
+## waagerechten Platten aussieht.
+##
+## Netz und Kollision sind getrennt schaltbar: Ein Level mit mehreren
+## Stoffen baut je Stoff ein sichtbares Netz und EINE Kollision über alle
+## Einträge – nur so kennt `stufen_kollision` alle Nachbarn.
+static func _korridor_decke(elternteil: Node3D, kurve: Curve3D, abschnitte: Array,
+		materialien: Dictionary, optionen: Dictionary) -> Node3D:
+	var schritt: float = optionen.get("schritt", 1.2)
+	var kollision: bool = optionen.get("kollision", true)
+	var sichtbar: bool = optionen.get("sichtbar", true)
+	var uv_quer: bool = optionen.get("uv_quer", false)
+	var stufen: bool = optionen.get("stufen_kollision", false)
+	var ebene: int = optionen.get("ebene", 1)
+	var versatz: float = optionen.get("hoehe_versatz", 0.0)
+	var teile: int = maxi(int(optionen.get("quer_teilung", 1)), 1)
+	var laenge := kurve.get_baked_length()
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var flaechen := 0
+	for eintrag in abschnitte:
+		var von: float = eintrag.get("von", 0.0)
+		var bis: float = eintrag.get("bis", 0.0)
+		if bis <= von:
+			continue
+		var breite_a: float = eintrag.get("breite", 8.0)
+		var breite_b: float = eintrag.get("breite_ende", breite_a)
+		var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+		# Je Querschnitt: Punkte von links nach rechts, Normale, UV2.
+		var reihen: Array = []
+		for i in anzahl + 1:
+			var t := float(i) / float(anzahl)
+			var s := lerpf(von, bis, t)
+			var halb := lerpf(breite_a, breite_b, t) * 0.5
+			var mitte := kurve.sample_baked(clampf(s, 0.0, laenge))
+			mitte.y = eintrag_hoehe(kurve, eintrag, s) + versatz
+			var r := _rechts(kurve, s)
+			var punkte: Array[Vector3] = []
+			var uv2: Array[Vector2] = []
+			for k in teile + 1:
+				var q := lerpf(-halb, halb, float(k) / float(teile))
+				punkte.append(mitte + r * q)
+				uv2.append(Vector2(q / maxf(halb, 0.001), s))
+			reihen.append({"punkte": punkte, "uv2": uv2, "r": r, "s": s})
+		for i in anzahl:
+			var a: Dictionary = reihen[i]
+			var b: Dictionary = reihen[i + 1]
+			var pa: Array[Vector3] = a["punkte"]
+			var pb: Array[Vector3] = b["punkte"]
+			var ua: Array[Vector2] = a["uv2"]
+			var ub: Array[Vector2] = b["uv2"]
+			# Normale aus der wirklichen Neigung: quer waagerecht, längs
+			# entlang der Decke.
+			var mitte_k := floori(teile * 0.5)
+			var laengs := pb[mitte_k] - pa[mitte_k]
+			var n := (a["r"] as Vector3).cross(laengs).normalized()
+			if n.y < 0.0:
+				n = -n
+			for k in teile:
+				_dreieck_decke(st, [pa[k], pa[k + 1], pb[k]], [ua[k], ua[k + 1], ub[k]],
+						n, uv_quer)
+				_dreieck_decke(st, [pa[k + 1], pb[k + 1], pb[k]], [ua[k + 1], ub[k + 1], ub[k]],
+						n, uv_quer)
+				flaechen += 2
+
+	var wurzel := Node3D.new()
+	wurzel.name = "Korridor"
+	elternteil.add_child(wurzel)
+	if flaechen == 0:
+		return wurzel
+	st.index()
+	if uv_quer:
+		st.generate_tangents()
+	var netz := st.commit()
+	if sichtbar:
+		var mi := MeshInstance3D.new()
+		mi.name = "Wegdecke"
+		mi.mesh = netz
+		var stoff: Variant = materialien.get("oben")
+		if stoff != null:
+			mi.material_override = stoff
+		wurzel.add_child(mi)
+	if kollision:
+		var koerper := StaticBody3D.new()
+		koerper.name = "Wegkollision"
+		koerper.collision_layer = ebene
+		koerper.collision_mask = 0
+		var form := CollisionShape3D.new()
+		var flaeche := ConcavePolygonShape3D.new()
+		flaeche.set_faces(netz.get_faces())
+		form.shape = flaeche
+		koerper.add_child(form)
+		if stufen:
+			_stufen_kollision(koerper, kurve, abschnitte, versatz)
+		wurzel.add_child(koerper)
+	return wurzel
+
+
+## Ein Dreieck der Wegdecke. Wicklung wie `_dreieck`; UV1 als Welt-
+## projektion wie dort, UV2 nur mit `uv_quer`.
+static func _dreieck_decke(st: SurfaceTool, ecken: Array[Vector3], uv2: Array[Vector2],
+		normale: Vector3, uv_quer: bool) -> void:
+	var reihe: Array[int] = [0, 1, 2]
+	if (ecken[1] - ecken[0]).cross(ecken[2] - ecken[0]).dot(normale) > 0.0:
+		reihe = [0, 2, 1]
+	for i in reihe:
+		var p := ecken[i]
+		st.set_normal(normale)
+		st.set_uv(Vector2(p.x, p.z) * 0.25)
+		if uv_quer:
+			st.set_uv2(uv2[i])
+		st.add_vertex(p)
+
+
+## Senkrechte, unsichtbare Wand an jeder Stufe zwischen zwei anstoßenden
+## Einträgen verschiedener Höhe. Sie steht ganz unter der OBEREN Decke
+## und reicht bis knapp unter deren Kante: Von oben läuft man über sie
+## hinweg, von unten stößt man an – wie an eine Felsstufe.
+static func _stufen_kollision(koerper: StaticBody3D, kurve: Curve3D,
+		abschnitte: Array, versatz: float) -> void:
+	var sortiert := abschnitte.duplicate()
+	sortiert.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a.get("von", 0.0)) < float(b.get("von", 0.0)))
+	const DICKE := 0.3
+	for i in sortiert.size() - 1:
+		var a: Dictionary = sortiert[i]
+		var b: Dictionary = sortiert[i + 1]
+		var naht: float = a.get("bis", 0.0)
+		if absf(float(b.get("von", 0.0)) - naht) > 0.01:
+			continue
+		var h_a := eintrag_hoehe(kurve, a, naht) + versatz
+		var h_b := eintrag_hoehe(kurve, b, naht) + versatz
+		if absf(h_a - h_b) < 0.05:
+			continue
+		var breite := maxf(float(a.get("breite_ende", a.get("breite", 8.0))),
+				float(b.get("breite", 8.0)))
+		# Die Wand liegt auf der Seite der höheren Decke.
+		var zur_oberen := -1.0 if h_a > h_b else 1.0
+		var unten := minf(h_a, h_b) - 0.4
+		var oben := maxf(h_a, h_b) - 0.02
+		var form := CollisionShape3D.new()
+		form.name = "Stufe"
+		var kasten := BoxShape3D.new()
+		kasten.size = Vector3(breite, oben - unten, DICKE)
+		form.shape = kasten
+		var ort := punkt(kurve, naht + zur_oberen * DICKE * 0.5)
+		ort.y = (oben + unten) * 0.5
+		form.position = ort
+		form.rotation.y = drehung(kurve, naht)
+		koerper.add_child(form)
 
 
 static func _flaeche(elternteil: Node3D, st: SurfaceTool, material: Variant,
@@ -124,7 +347,8 @@ static func _flaeche(elternteil: Node3D, st: SurfaceTool, material: Variant,
 
 static func _abschnitt(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceTool,
 		kurve: Curve3D, von: float, bis: float, breite_a: float, breite_b: float,
-		tiefe: float, schritt: float, kh: float, kb: float, versatz: float) -> void:
+		tiefe: float, schritt: float, kh: float, kb: float, versatz: float,
+		hoehe_a: float = NAN, hoehe_b: float = NAN) -> void:
 	var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
 	var laenge := kurve.get_baked_length()
 
@@ -135,6 +359,8 @@ static func _abschnitt(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceToo
 		var s := lerpf(von, bis, t)
 		var breite := lerpf(breite_a, breite_b, t)
 		var mitte := kurve.sample_baked(clampf(s, 0.0, laenge)) + Vector3.UP * versatz
+		if not is_nan(hoehe_a):
+			mitte.y = lerpf(hoehe_a, hoehe_b, t) + versatz
 		var r := _rechts(kurve, s)
 		var halb := breite * 0.5
 		var innen := maxf(halb - kb, halb * 0.35)
@@ -148,8 +374,8 @@ static func _abschnitt(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceToo
 			_querstueck(oben, kante, klippe, vorher, q, kh, tiefe)
 		vorher = q
 
-	_stirn(oben, kante, klippe, kurve, von, breite_a, kh, kb, tiefe, versatz, true)
-	_stirn(oben, kante, klippe, kurve, bis, breite_b, kh, kb, tiefe, versatz, false)
+	_stirn(oben, kante, klippe, kurve, von, breite_a, kh, kb, tiefe, versatz, true, hoehe_a)
+	_stirn(oben, kante, klippe, kurve, bis, breite_b, kh, kb, tiefe, versatz, false, hoehe_b)
 
 
 static func _querstueck(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceTool,
@@ -175,9 +401,11 @@ static func _querstueck(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceTo
 ## Stirnseite an einer Abbruchkante: verschließt das Loch und umrandet es.
 static func _stirn(oben: SurfaceTool, kante: SurfaceTool, klippe: SurfaceTool,
 		kurve: Curve3D, s: float, breite: float, kh: float, kb: float,
-		tiefe: float, versatz: float, am_anfang: bool) -> void:
+		tiefe: float, versatz: float, am_anfang: bool, hoehe: float = NAN) -> void:
 	var laenge := kurve.get_baked_length()
 	var mitte := kurve.sample_baked(clampf(s, 0.0, laenge)) + Vector3.UP * versatz
+	if not is_nan(hoehe):
+		mitte.y = hoehe + versatz
 	var r := _rechts(kurve, s)
 	var v := richtung(kurve, s)
 	var halb := breite * 0.5
@@ -787,30 +1015,174 @@ static func _geroell(toepfe: Dictionary, kurve: Curve3D, s: float, seite: float,
 ## Trimesh über die zerklüftete Sichtwand wäre teuer und würde den Spieler
 ## an jeder Zacke hängen lassen. Die Kästen stehen glatt und dicht an der
 ## Wand, davon merkt man beim Anlaufen nichts.
+##
+## Freiwillig: `seite` -1 = nur links, +1 = nur rechts, 0 = beide (wie
+## bisher); `ebene` die Kollisionsebene (Vorgabe 1). Auf Ebene 16
+## („Spielergrenze") hält die Wand die Figur, aber nicht den Kamerastrahl.
 static func leitwand(elternteil: Node3D, kurve: Curve3D, von: float, bis: float,
-		abstand: float, hoehe: float = 4.0, schritt: float = 3.0) -> StaticBody3D:
+		abstand: float, hoehe: float = 4.0, schritt: float = 3.0,
+		seite: float = 0.0, ebene: int = 1) -> StaticBody3D:
 	var koerper := StaticBody3D.new()
 	koerper.name = "Leitwand"
-	koerper.collision_layer = 1
+	koerper.collision_layer = ebene
 	koerper.collision_mask = 0
 	elternteil.add_child(koerper)
 
+	var seiten: Array[float] = [-1.0, 1.0]
+	if seite != 0.0:
+		seiten = [signf(seite)]
 	var s := von
 	while s < bis:
 		var laenge := minf(schritt, bis - s)
 		var mitte_s := s + laenge * 0.5
-		for seite: float in [-1.0, 1.0]:
+		for seite_hier: float in seiten:
 			var form := CollisionShape3D.new()
 			var kasten := BoxShape3D.new()
 			# Etwas länger als der Schritt, damit zwischen zwei Kästen in
 			# einer Kurve keine Lücke aufgeht.
 			kasten.size = Vector3(1.0, hoehe, laenge + 0.8)
 			form.shape = kasten
-			form.position = punkt(kurve, mitte_s, seite * (abstand + 0.5), hoehe * 0.5)
+			form.position = punkt(kurve, mitte_s, seite_hier * (abstand + 0.5), hoehe * 0.5)
 			form.rotation.y = drehung(kurve, mitte_s)
 			koerper.add_child(form)
 		s += laenge
 	return koerper
+
+
+## Kollisionsebene 5 (Wert 16), „Spielergrenze": Leitlinien, Randkörper und
+## erhöhtes Begehbares. Die Figur stößt daran an (Maske 1|16), der
+## Kamerastrahl (1|8) sieht sie nicht. Der Strahl startet am Blickpunkt
+## sechs Meter VOR der Figur – eine einrückende Wand zwischen Blickpunkt
+## und Figur zöge die Kamera sonst vor die Figur.
+const SPIELERGRENZE := 16
+
+
+## Unsichtbare Leitwand entlang einer Polylinie in Wegkoordinaten.
+##
+## `punkte_sq`: [Vector2(strecke, quer), ...] – die INNENSEITE der Wand. Die
+## Kästen stehen nach außen davon, weg vom Weg: So beschreiben die Daten
+## die Linie, an der die Figur anstößt, und nicht die Mitte eines Kastens.
+## Anders als `leitwand()` darf die Linie einrücken, ausweichen (Nischen,
+## Buchten), quer über den Weg laufen (Querwand hinter dem Start) und vor
+## dem Anfang oder hinter dem Ende der Kurve liegen (`punkt_frei`).
+##
+## Höhe: von `unten` unter bis `hoehe` über der Kurve an der jeweiligen
+## Stelle.
+##
+## `aussen`: +1 = die Wand steht rechts der Laufrichtung der Linie, -1 =
+## links. 0 rät: außen ist, wo die Mitte eines Stücks vom Weg weg liegt –
+## das trägt bei Seitenwänden und Querwänden an den Enden, aber nicht bei
+## einer Querwand mitten auf der Strecke. Dort die Seite angeben.
+static func leitlinie(elternteil: Node3D, kurve: Curve3D, punkte_sq: Array,
+		hoehe: float = 5.0, ebene: int = 1, unten: float = 2.0,
+		dicke: float = 1.0, aussen: float = 0.0) -> StaticBody3D:
+	var koerper := StaticBody3D.new()
+	koerper.name = "Leitlinie"
+	koerper.collision_layer = ebene
+	koerper.collision_mask = 0
+	elternteil.add_child(koerper)
+	if punkte_sq.size() < 2:
+		return koerper
+	const STUECK := 2.0
+	const UEBERSTAND := 0.3
+	var laenge := kurve.get_baked_length()
+	# Feiner teilen, damit die Linie der Kurve folgt.
+	var fein: Array[Vector2] = []
+	for i in punkte_sq.size() - 1:
+		var a: Vector2 = punkte_sq[i]
+		var b: Vector2 = punkte_sq[i + 1]
+		var teile := maxi(int(ceil(maxf(absf(b.x - a.x), absf(b.y - a.y)) / STUECK)), 1)
+		for k in teile:
+			fein.append(a.lerp(b, float(k) / float(teile)))
+	fein.append(punkte_sq[punkte_sq.size() - 1])
+	for i in fein.size() - 1:
+		var a := fein[i]
+		var b := fein[i + 1]
+		var pa := punkt_frei(kurve, a.x, a.y)
+		var pb := punkt_frei(kurve, b.x, b.y)
+		var d := pb - pa
+		d.y = 0.0
+		if d.length() < 0.01:
+			continue
+		var mitte := (pa + pb) * 0.5
+		var n := d.normalized().cross(Vector3.UP)
+		if aussen != 0.0:
+			n *= signf(aussen)
+		else:
+			# Außen ist, wo die Mitte des Stücks vom Weg weg liegt: bei einer
+			# Seitenwand quer hinaus, bei einer Querwand hinter dem Start
+			# nach hinten, am Ende nach vorn.
+			var bezug := punkt(kurve, clampf((a.x + b.x) * 0.5, 0.0, laenge))
+			var weg := mitte - bezug
+			weg.y = 0.0
+			if weg.dot(n) < 0.0:
+				n = -n
+		var y_unten := minf(pa.y, pb.y) - unten
+		var y_oben := maxf(pa.y, pb.y) + hoehe
+		var form := CollisionShape3D.new()
+		var kasten := BoxShape3D.new()
+		kasten.size = Vector3(dicke, y_oben - y_unten, d.length() + UEBERSTAND * 2.0)
+		form.shape = kasten
+		form.position = Vector3(mitte.x, (y_oben + y_unten) * 0.5, mitte.z) + n * dicke * 0.5
+		form.rotation.y = atan2(-d.x, -d.z)
+		koerper.add_child(form)
+	return koerper
+
+
+## Todeszone: ein Bereich unter dem Weg, der die Figur beim Eintritt
+## sterben lässt – einseitig, nur dort, wo er hingehört.
+##
+## Anders als die alten Absturzkästen (breit, quer mittig unter dem Weg)
+## beschreibt diese Zone einen Streifen in Wegkoordinaten: `von`–`bis`
+## entlang, `q_von`–`q_bis` quer (negativ = links). Die Oberkante liegt
+## auf fester Welthöhe `oben_y`, auf Wunsch linear bis `oben_ende` am Ende;
+## nach unten reicht sie bis `unten_y`. Jedes Stück ist ein konvexes
+## Prisma aus den vier Eckpunkten zweier Querschnitte – dadurch bleibt auch
+## vierzig Meter außen an einer engen Kurve keine Lücke zwischen zwei
+## Stücken, wie sie gerade Kästen dort ließen.
+##
+## Die Zone kommt in die Gruppe "todeszonen" (für Prüfwerkzeuge). Ein Sturz,
+## der mehrere überlappende Zonen berührt, kostet ein Leben: Nach dem
+## ersten Tod ist die Figur kurz unverwundbar (`invuln`).
+static func todeszone(elternteil: Node3D, kurve: Curve3D, von: float, bis: float,
+		q_von: float, q_bis: float, oben_y: float, oben_ende: float = NAN,
+		unten_y: float = -30.0, schritt: float = 3.0) -> Area3D:
+	var zone := Area3D.new()
+	zone.name = "Todeszone"
+	zone.collision_layer = 0
+	zone.collision_mask = 2
+	zone.monitorable = false
+	zone.add_to_group("todeszonen")
+	var ende := oben_y if is_nan(oben_ende) else oben_ende
+	var anzahl := maxi(int(ceil((bis - von) / schritt)), 1)
+	for i in anzahl:
+		var t0 := float(i) / float(anzahl)
+		var t1 := float(i + 1) / float(anzahl)
+		var ecken := PackedVector3Array()
+		for t: float in [t0, t1]:
+			var s := lerpf(von, bis, t)
+			var y := lerpf(oben_y, ende, t)
+			for q: float in [q_von, q_bis]:
+				var p := punkt_frei(kurve, s, q)
+				ecken.append(Vector3(p.x, y, p.z))
+				ecken.append(Vector3(p.x, unten_y, p.z))
+		var form := CollisionShape3D.new()
+		var prisma := ConvexPolygonShape3D.new()
+		prisma.points = ecken
+		form.shape = prisma
+		zone.add_child(form)
+	zone.body_entered.connect(_todeszone_betreten)
+	elternteil.add_child(zone)
+	return zone
+
+
+static func _todeszone_betreten(koerper: Node3D) -> void:
+	if not koerper.is_in_group("spieler") or not koerper.has_method("sterben"):
+		return
+	var schutz: Variant = koerper.get("invuln")
+	if schutz is float and float(schutz) > 0.0:
+		return
+	koerper.call("sterben")
 
 
 ## Waagerechtes Sims entlang beider Schluchtwände.

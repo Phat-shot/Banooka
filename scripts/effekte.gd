@@ -148,6 +148,16 @@ const PAUSE_HOECHSTENS := 0.2
 ## Tempo der Vorwärmteilchen (siehe `vorwaermen`): 0,2 s Lebenszeit
 ## reichen so für ein erstes Bild von 20 s.
 const VORWAERM_ZEITLUPE := 0.01
+## Gruppe für Netze, die selten zu sehen sind und bis dahin verborgen
+## stehen (Schutzgeist bei Stufe 0, Spin-Ring, der Wegweiser im
+## Portalraum, der erst nach dem Laden einblendet). `vorwaermen()` zeichnet je
+## einen winzigen Abklatsch, damit ihr Shader nicht erst im Spiel übersetzt
+## wird.
+const VORWAERM_GRUPPE := "vorwaermen"
+## So lange stehen die Abklatsche vor der Kamera, in Sekunden. Das Bild
+## nach dem Aufbau ist lang; wie bei den Teilchen soll der Abklatsch es
+## sicher erleben.
+const VORWAERM_DAUER := 0.8
 ## Wegstaub im Wald – die Vorgabe für `staubfarbe`.
 const STAUBFARBE_VORGABE := Farben.WEG_HELL
 ## Platzhalter für „keine Farbe angegeben" (Alpha 0).
@@ -163,8 +173,9 @@ const WIRBEL_SHADER: Shader = preload("res://shaders/portal_wirbel.gdshader")
 enum Stoff { ALPHA, ADDITIV, RING, SAEULE }
 
 ## Halbiert Mengen, schaltet Wackeln, Trefferpause, Bildblitz und
-## Blitzlicht ab. Vorbelegt für Browser auf Handys, wo Füllrate knapp ist;
-## später kommt ein Schalter in den Optionen dazu (Einstellungen.gd).
+## Blitzlicht ab. Vorbelegt auf Handys – im Browser wie als App (Android,
+## iOS) –, wo Füllrate knapp ist; später kommt ein Schalter in den Optionen
+## dazu (Einstellungen.gd).
 static var reduziert: bool = _vorbelegung()
 ## Ruhiges Bild: kein Wackeln, keine Trefferpause, kein Bildblitz. Für
 ## alle, denen von einem wackelnden Bild übel wird oder die Blitze meiden
@@ -712,6 +723,48 @@ static func vorwaermen(bei: Node) -> void:
 		b.gravity = Vector3.ZERO
 		b.scale_amount_min = 0.01
 		b.scale_amount_max = 0.01
+	# Die Bretter einer Kiste fliegen im Stoff DIESER Kiste (`Kiste.bruchstoff`),
+	# nicht im allgemeinen Kistenholz – in Level 01 tragen die Kisten eigene
+	# Stoffe, und deren Teilchenfassung kam sonst erst beim ersten Bruch dran.
+	var gesehen := {}
+	for knoten in bei.get_tree().get_nodes_in_group("kisten"):
+		if not knoten.has_method("bruchstoff"):
+			continue
+		var stoff := knoten.call("bruchstoff") as Material
+		if stoff == null or gesehen.has(stoff):
+			continue
+		gesehen[stoff] = true
+		# Vom Limit je Bild ausgenommen: Das gilt dem Spiel, hier steht noch
+		# der Ladeschirm, und ein Level hat mehr Kistenstoffe als acht.
+		_im_bild = 0
+		var k := _emitter(bei, ort, 1, 0.2, false)
+		if k == null:
+			break
+		k.speed_scale = VORWAERM_ZEITLUPE
+		k.mesh = _brett_netz()
+		k.material_override = stoff
+		k.initial_velocity_max = 0.0
+		k.gravity = Vector3.ZERO
+		k.scale_amount_min = 0.01
+		k.scale_amount_max = 0.01
+	# Verborgene Netze (`VORWAERM_GRUPPE`): Was nicht gezeichnet wird, wird
+	# nicht übersetzt – der Rundgang sieht sie also nie.
+	for knoten in bei.get_tree().get_nodes_in_group(VORWAERM_GRUPPE):
+		var vorbild := knoten as MeshInstance3D
+		if vorbild == null or vorbild.mesh == null:
+			continue
+		var abklatsch := MeshInstance3D.new()
+		abklatsch.name = "Vorwaermen"
+		abklatsch.mesh = vorbild.mesh
+		abklatsch.material_override = vorbild.material_override
+		for i in vorbild.get_surface_override_material_count():
+			abklatsch.set_surface_override_material(i, vorbild.get_surface_override_material(i))
+		abklatsch.cast_shadow = vorbild.cast_shadow
+		abklatsch.top_level = true
+		abklatsch.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+		abklatsch.transform = Transform3D(Basis.from_scale(Vector3.ONE * 0.01), ort)
+		bei.add_child(abklatsch)
+		bei.get_tree().create_timer(VORWAERM_DAUER).timeout.connect(abklatsch.queue_free)
 
 
 ## Neues Material für eine Portalscheibe (QuadMesh 2r × 2r). Jedes Portal
@@ -878,8 +931,12 @@ static func _menge(anzahl: int) -> int:
 	return maxi(1, roundi(float(anzahl) * (0.5 if reduziert else 1.0)))
 
 
+## `mobile` ist die App auf Android und iOS. Früher fragte das nur
+## nach dem Browser: Die APK lief auf dem Rechnerweg – volle Dichten, zwei
+## Schattenstufen, MSAA.
 static func _vorbelegung() -> bool:
-	return OS.has_feature("web_android") or OS.has_feature("web_ios")
+	return OS.has_feature("mobile") or OS.has_feature("web_android") \
+			or OS.has_feature("web_ios")
 
 
 static func _pause_ende() -> void:

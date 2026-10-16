@@ -22,3 +22,6 @@ Thumbs.db
 # `user://modelle` (Einstellungen -> Figur -> Datei wählen), von dort
 # kommt sie in keinen Build.
 /assets/modelle/crash_bandicoot*
+
+# Python-Hilfsskripte in werkzeuge/
+__pycache__/

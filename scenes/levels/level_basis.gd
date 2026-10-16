@@ -14,6 +14,27 @@ signal aufbau_fertig
 
 const KISTE_SZENE := preload("res://scenes/crates/Kiste.tscn")
 
+## Vorwärmen (`_rundgang`, `Rundgang`): Abstand der Halte entlang des
+## Verlaufs in Metern und die Blickrichtungen je Halt (Gieren gegen den
+## Weg, Grad). Zwei Blicke zu je rund 97° Breite (16:9) decken zusammen
+## 177° ab – mehr, als die Korridorkamera je zur Seite schaut (gemessen
+## bis 38°).
+const RUNDGANG_ABSTAND := 12.0
+const RUNDGANG_BLICKE: Array[float] = [40.0, -40.0]
+
+## Schattenstrecke der Sonne im Web und auf dem Handy (`Effekte.reduziert`),
+## siehe `_schatten_anpassen()`. Eine kürzere Strecke der Szene bleibt.
+const SCHATTEN_WEB := 60.0
+const SCHATTEN_HANDY := 50.0
+
+## Gruppe der Knoten, die nach jedem Zurücksetzen (Tod, Game Over)
+## `nach_tod(von_vorn: bool)` bekommen – siehe `_zuruecksetzen`. Für alles,
+## was der Bauplan aus Kisten und Gegnern nicht kennt: eine Bruchstelle, die
+## heilt, ein Verfolger, der neu steht. Anmelden über
+## `KorridorLevel.nach_tod_melden()`. In Level 01 und allen älteren Leveln
+## ist die Gruppe leer, der Aufruf tut dort nichts.
+const NACH_TOD := "nach_tod"
+
 ## Jede so-und-so-vielte Holzkiste wird im Zeitmodus zur Zeitkiste.
 const ZEITKISTE_ABSTAND := 3
 ## Die Zahlen, die der Reihe nach auf den Zeitkisten stehen.
@@ -48,6 +69,12 @@ var _lebendig: Array = []
 var _stand_plaetze := {}
 var _stand_kisten := 0
 
+## Dauer jedes Bauschritts in Millisekunden, in der Reihenfolge des
+## Aufbaus: [{"text": String, "ms": float}]. Gemessen wird nur die Arbeit
+## des Schritts selbst, nicht das freigegebene Bild danach. Liest
+## `werkzeuge/bauzeitprobe.gd`.
+var bauzeiten: Array[Dictionary] = []
+
 
 func _ready() -> void:
 	geometrie = _gruppe("Geometrie")
@@ -68,6 +95,7 @@ func _ready() -> void:
 	Effekte.staubfarbe = Effekte.STAUBFARBE_VORGABE
 
 	await _aufbauen()
+	var abschluss := Time.get_ticks_usec()
 
 	if verlauf != null:
 		_pfad_knoten = Path3D.new()
@@ -83,15 +111,6 @@ func _ready() -> void:
 	# Spieler beim ersten Bild außerhalb des Sichtfelds.
 	if _kamera != null and _kamera.has_method("sofort_ausrichten"):
 		_kamera.call("sofort_ausrichten")
-	# Teilchen-Shader übersetzen, solange der Ladeschirm noch steht – sonst
-	# stockt das Spiel beim ersten Kistenbruch. Erst jetzt, weil die
-	# Kamera dafür an ihrem Platz stehen muss.
-	Effekte.vorwaermen(self)
-	# Jetzt steht der Boden und die Figur an ihrem Platz: Physik wieder an.
-	if _spieler != null:
-		if _spieler is CharacterBody3D:
-			(_spieler as CharacterBody3D).velocity = Vector3.ZERO
-		_spieler.set_physics_process(true)
 	_portale_verbinden()
 	# VOR dem Zählen und vor dem Bauplan: Die Zeitkisten treten an die
 	# Stelle gewöhnlicher Holzkisten, und beides – der Kistenzähler wie
@@ -100,12 +119,37 @@ func _ready() -> void:
 	_zeitkisten_setzen()
 	_kisten_zaehlen()
 	_bauplan_erfassen()
-	# Zweites Aufräumen: Der Wechsel setzt den Touch-Zustand schon zurück,
-	# aber während des Aufbaus liegt der Daumen oft noch auf dem Schirm.
-	InputHub.zuruecksetzen()
 	GameState.level_zuruecksetzen.connect(_auf_zuruecksetzen)
 	GameState.checkpoint_gesetzt.connect(_stand_sichern)
 	_nach_aufbau()
+	_schatten_anpassen()
+	_bauzeit_merken("Abschluss: Kamera, Kisten", abschluss)
+	# Shader übersetzen, solange der Ladeschirm noch steht. Erst nach
+	# `_nach_aufbau()` und `_schatten_anpassen()`: Dort stellen Level noch
+	# Licht und Schatten um (auf dem Handy eine Schattenstufe), und das
+	# ändert, welche Fassung jedes Shaders gebraucht wird.
+	var vorwaermen := Time.get_ticks_usec()
+	await _rundgang()
+	if not is_inside_tree():
+		return
+	# Teilchen-Shader ebenso – sonst stockt das Spiel beim ersten
+	# Kistenbruch –, mit je zwei Bildern davor und danach, damit das erste
+	# Zeichnen des Hauptbilds noch unter den Ladeschirm fällt.
+	if not await Rundgang.ausklingen(self):
+		return
+	_bauzeit_merken("Vorwärmen: Rundgang", vorwaermen)
+	# Wer im Level von selbst läuft (die Karts in Level 06), wartet bis
+	# hier – sonst liefe es während des Rundgangs schon los, während die
+	# Figur noch gesperrt auf der Linie steht.
+	_vor_dem_start()
+	# Jetzt steht der Boden und die Figur an ihrem Platz: Physik wieder an.
+	if _spieler != null:
+		if _spieler is CharacterBody3D:
+			(_spieler as CharacterBody3D).velocity = Vector3.ZERO
+		_spieler.set_physics_process(true)
+	# Zweites Aufräumen: Der Wechsel setzt den Touch-Zustand schon zurück,
+	# aber während des Aufbaus liegt der Daumen oft noch auf dem Schirm.
+	InputHub.zuruecksetzen()
 	# Ganz zuletzt, wenn wirklich alles steht: Die Uhr darf keine
 	# Ladezeit mitzählen.
 	Zeitlauf.beginnen(Spielfluss.aktuelles_level, _richtzeit())
@@ -119,18 +163,64 @@ func _ready() -> void:
 ## freigegeben – so bleibt der Ladebildschirm während des Aufbaus lebendig
 ## und meldet Fortschritt. Sonst wird einmalig `_baue()` aufgerufen.
 func _aufbauen() -> void:
+	var beginn := Time.get_ticks_usec()
 	var schritte := _bauschritte()
+	_bauzeit_merken("Bauschritte zusammenstellen", beginn)
 	if schritte.is_empty():
+		beginn = Time.get_ticks_usec()
 		_baue()
+		_bauzeit_merken("Aufbau", beginn)
 		return
 	for i in schritte.size():
 		var schritt: Dictionary = schritte[i]
 		Ladeschirm.fortschritt(0.05 + 0.9 * float(i) / float(schritte.size()),
 				String(schritt.get("text", "")))
 		var tun: Callable = schritt["tun"]
+		beginn = Time.get_ticks_usec()
 		tun.call()
+		_bauzeit_merken(String(schritt.get("text", "")), beginn)
 		# Ein Bild freigeben, damit die Anzeige weiterläuft
 		await get_tree().process_frame
+
+
+## Fährt eine eigene Kamera unter dem Ladeschirm den Verlauf ab und zeigt
+## an jedem Halt (alle `RUNDGANG_ABSTAND` m) je ein Bild nach links und
+## rechts vorn – dazu dasselbe auf jedem Nebenweg aus `_rundgang_pfade()`.
+## Warum und wie: `Rundgang` (scripts/rundgang.gd). Die Sichtweiten
+## (`visibility_range`) gelten von jeder Kamera aus; ein Halt alle 12 m
+## bringt jedes Objekt am Weg einmal nah genug heran.
+func _rundgang() -> void:
+	if Rundgang.entfaellt() or verlauf == null:
+		return
+	await Rundgang.fahren(self, rundgang_blicke(), _kamera)
+
+
+## Die Blicke des Rundgangs (siehe `_rundgang`), in der Reihenfolge, in der
+## sie gezeigt werden: erst der Verlauf, dann jeder Nebenweg. Die Kamera
+## steht wie die Spielkamera hinter und über dem Halt; Abstand, Höhe und
+## Vorlauf kommen von ihr (`KorridorKamera`), sonst die Vorgaben.
+## Öffentlich für `werkzeuge/rundgangprobe.gd`.
+func rundgang_blicke() -> Array[Transform3D]:
+	var abstand := 8.0
+	var hoehe := 4.2
+	var vorlauf := 4.0
+	if _kamera != null:
+		if "abstand" in _kamera:
+			abstand = float(_kamera.get("abstand"))
+		if "hoehe" in _kamera:
+			hoehe = float(_kamera.get("hoehe"))
+		if "blick_vorlauf" in _kamera:
+			vorlauf = float(_kamera.get("blick_vorlauf"))
+	var blicke := Rundgang.blicke_entlang(verlauf, abstand, hoehe, vorlauf,
+			RUNDGANG_ABSTAND, RUNDGANG_BLICKE)
+	for pfad in _rundgang_pfade():
+		blicke.append_array(Rundgang.blicke_entlang(pfad, abstand, hoehe, vorlauf,
+				RUNDGANG_ABSTAND, RUNDGANG_BLICKE))
+	return blicke
+
+
+func _bauzeit_merken(text: String, beginn: int) -> void:
+	bauzeiten.append({"text": text, "ms": float(Time.get_ticks_usec() - beginn) / 1000.0})
 
 
 ## Haken: Hier baut das konkrete Level seinen Inhalt auf.
@@ -150,10 +240,106 @@ func _nach_aufbau() -> void:
 	pass
 
 
+## Im Web höchstens zwei Schattenstufen und Schatten nur bis SCHATTEN_WEB.
+## Jede Stufe zeichnet alles, was Schatten wirft, noch einmal. Aus vier
+## Stufen werden zwei (die erste bis 12 m); hat die Szene schon zwei,
+## bleibt die erste so lang wie dort (17,5 m), nur die zweite endet früher.
+## Eine kürzere Strecke der Szene bleibt.
+##
+## Auf dem Handy (`Effekte.reduziert`) EINE Stufe bis SCHATTEN_HANDY.
+## Gemessen (Paket leistung, Schattenprobe mit Touch-Tasten): Die Sonne
+## kostete dort 70–140 Aufrufe, eine Stufe spart davon 40–60 (s 4: 537 →
+## 481, s 140: 469 → 409); die Strecke selbst kaum etwas (60 → 45 m: 0–11).
+## Die Schärfe am Fuß der Figur leidet auf dem kleinen Schirm kaum, und der
+## Bodenschatten liegt ohnehin darunter.
+##
+## Gemessen in Level 01, gilt aber für jedes Level: Seit die Handy-App den
+## Handyweg nimmt, liefen die übrigen Level dort sonst mit vier Stufen bis
+## 70–90 m. Der Portalraum nimmt dieselbe Regel (`schatten_regel`).
+func _schatten_anpassen() -> void:
+	schatten_regel(self)
+
+
+## Die Regel aus `_schatten_anpassen()` für die schattenwerfende Sonne
+## unter `szene` – statisch, damit der Portalraum (kein Level) sie teilt.
+static func schatten_regel(szene: Node) -> void:
+	if not OS.has_feature("web") and not Effekte.reduziert:
+		return
+	var sonne := schattensonne(szene)
+	if sonne == null:
+		return
+	var weite := sonne.directional_shadow_max_distance
+	if Effekte.reduziert:
+		sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		sonne.directional_shadow_max_distance = minf(weite, SCHATTEN_HANDY)
+		return
+	var neu := minf(weite, SCHATTEN_WEB)
+	if sonne.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS:
+		sonne.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sonne.directional_shadow_split_1 = 0.2
+	elif sonne.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS:
+		sonne.directional_shadow_split_1 = clampf(
+				weite * sonne.directional_shadow_split_1 / neu, 0.05, 0.95)
+	sonne.directional_shadow_max_distance = neu
+
+
+## Die schattenwerfende Sonne unter `szene` (Knoten „Sonne" oder das erste
+## Richtungslicht mit Schatten), oder null.
+static func schattensonne(szene: Node) -> DirectionalLight3D:
+	var sonne := szene.get_node_or_null("Sonne") as DirectionalLight3D
+	if sonne != null and sonne.shadow_enabled:
+		return sonne
+	for kind in szene.get_children():
+		if kind is DirectionalLight3D and (kind as DirectionalLight3D).shadow_enabled:
+			return kind as DirectionalLight3D
+	return null
+
+
+## Haken: Unmittelbar bevor die Figur losdarf, nach dem Rundgang. Hier
+## gibt ein Level frei, was von selbst läuft und bis dahin stehen musste.
+func _vor_dem_start() -> void:
+	pass
+
+
+## Haken: Nebenwege, die der Rundgang zusätzlich zum Verlauf abfährt –
+## eigene Kurven, die der Verlauf nicht berührt (ein Seitenarm, ein
+## abzweigender Gang). Was nur neben dem Verlauf liegt, auch erhöht, sieht
+## der Rundgang schon von dort aus; dafür braucht es keinen Nebenweg.
+func _rundgang_pfade() -> Array[Curve3D]:
+	return []
+
+
 ## Haken: Richtzeit des Levels für den Zeitmodus, in Sekunden.
 ## 0 heißt: aus der Länge des Verlaufs ableiten.
 func zielzeit() -> float:
 	return 0.0
+
+
+## Haken: Woher die Strecke der Figur kommt, wenn sie sich nicht aus ihrem
+## Ort ergibt – ein Callable, das `s` liefert. Vorgabe leer. Gedacht für
+## Level, deren Weg sich kreuzt (Level 04: die Strecke des Reiters); NICHT
+## automatisch über die Eigenschaft `strecke`, die auch die Figuren in
+## Level 06 und 17 haben (Baukasten §4 Nr. 4). Die Kamera bindet es erst
+## mit dem Kameraplan an (Paket G6); bis dahin liest es nur
+## `strecke_der_figur()`.
+func kamera_strecke_quelle() -> Callable:
+	return Callable()
+
+
+## Strecke der Figur auf dem Verlauf, für alles, was nach `s` schaltet
+## (Stimmung, Kamera): erst `kamera_strecke_quelle()`, dann die geführte
+## Strecke der Kamera, falls sie eine anbietet (`strecke()`), zuletzt der
+## nächste Punkt der Kurve. Die Nähe allein ist an einer Kreuzung oder
+## über einer Wendel mehrdeutig – darum diese Reihenfolge.
+func strecke_der_figur() -> float:
+	var quelle := kamera_strecke_quelle()
+	if quelle.is_valid():
+		return float(quelle.call())
+	if _kamera != null and _kamera.has_method("strecke"):
+		return float(_kamera.call("strecke"))
+	if verlauf == null or _spieler == null or not is_instance_valid(_spieler):
+		return 0.0
+	return verlauf.get_closest_offset(to_local(_spieler.global_position))
 
 
 ## Richtzeit, auf die sich die drei Stufen des Zeitlaufs beziehen.
@@ -414,6 +600,10 @@ func _zuruecksetzen(von_vorn: bool) -> void:
 	GameState.kisten_geaendert.emit(GameState.kisten_zerbrochen, GameState.kisten_gesamt)
 	if debug and wieder > 0:
 		print("Level zurückgesetzt: %d Objekte wieder aufgestellt" % wieder)
+	# Zuletzt alles, was sich für die Zeit nach dem Tod angemeldet hat (siehe
+	# NACH_TOD). Eine leere Gruppe ruft niemanden.
+	if is_inside_tree():
+		get_tree().call_group(NACH_TOD, "nach_tod", von_vorn)
 
 
 func _aufstellen(eintrag: Dictionary) -> Node3D:

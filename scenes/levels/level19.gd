@@ -122,8 +122,17 @@ const BLITZ_PAUSE_LANG := 11.0
 ## Dauer einer Entladung. Bewusst sehr kurz – ein Blitz, der eine Sekunde
 ## steht, ist eine Lampe.
 const BLITZ_DAUER := 0.22
-## Faktor, um den Sonne und Umgebungslicht dabei hochgehen.
+## Faktor, um den das Umgebungslicht dabei hochgeht.
 const BLITZ_STAERKE := 7.0
+## Faktor für die Sonne während der Entladung: 0 – sie geht aus. Der Blitz
+## erhellt den ganzen Himmel, also kommt sein Licht von überall und wirft
+## keine Schatten; das trägt das Umgebungslicht allein. Seit die Sonne von
+## oben scheint (ARCHITEKTUR.md, „Sonnen prüfen"), trifft sie den Weg voll.
+## Mit dem Faktor des Umgebungslichts brannte der Weg im Blitz weiß aus,
+## und selbst eine ruhende Sonne obendrauf schob die hellen Adern des
+## Steins noch über den Rand. Ohne sie sieht der Weg im Blitz aus wie vor
+## der Umstellung, als die Sonne ihn nie traf.
+const BLITZ_SONNE := 0.0
 
 var _sonne: DirectionalLight3D
 var _umgebung: Environment
@@ -614,21 +623,21 @@ func _process(delta: float) -> void:
 	if _blitz_rest > 0.0:
 		_blitz_rest -= delta
 		if _blitz_rest <= 0.0:
-			_licht_setzen(1.0)
+			_licht_setzen(false)
 		return
 	_blitz_zeit -= delta
 	if _blitz_zeit > 0.0:
 		return
 	_blitz_zeit = randf_range(BLITZ_PAUSE_KURZ, BLITZ_PAUSE_LANG)
 	_blitz_rest = BLITZ_DAUER
-	_licht_setzen(BLITZ_STAERKE)
+	_licht_setzen(true)
 
 
-func _licht_setzen(faktor: float) -> void:
+func _licht_setzen(blitz: bool) -> void:
 	if _sonne != null:
-		_sonne.light_energy = _sonne_ruhe * faktor
+		_sonne.light_energy = _sonne_ruhe * (BLITZ_SONNE if blitz else 1.0)
 	if _umgebung != null:
-		_umgebung.ambient_light_energy = _licht_ruhe * faktor
+		_umgebung.ambient_light_energy = _licht_ruhe * (BLITZ_STAERKE if blitz else 1.0)
 
 
 # =========================================================== Portale

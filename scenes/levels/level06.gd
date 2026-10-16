@@ -343,6 +343,9 @@ func _fahrer_aufstellen() -> void:
 		var reihe := i / 2
 		var seite := -3.5 if i % 2 == 0 else 3.5
 		_einrichten(gegner, 2.5 + reihe * 4.0, seite, eintrag["koennen"])
+		# Bis `_vor_dem_start()`: Der Rundgang danach dauert auf dem
+		# Handy Sekunden, und das Feld führe sonst schon davon.
+		gegner.gesperrt = true
 		_fahrer.append(gegner)
 
 	_anzeige = RENNANZEIGE.instantiate() as Rennanzeige
@@ -351,6 +354,13 @@ func _fahrer_aufstellen() -> void:
 	add_child(_anzeige)
 
 	spieler.rennen_beendet.connect(_auf_zieleinlauf)
+
+
+## Erst jetzt rollt das Feld – gleichzeitig mit dem Spieler.
+func _vor_dem_start() -> void:
+	for f in _fahrer:
+		if is_instance_valid(f) and not f.fertig:
+			f.gesperrt = false
 
 
 ## Setzt einen Fahrer auf seinen Startplatz.

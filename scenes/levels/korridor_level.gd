@@ -18,6 +18,20 @@ class_name KorridorLevel
 ##
 ## Level 01 ist bewusst nicht umgestellt – es läuft und ist geprüft;
 ## ein Umbau wäre reines Risiko ohne Gewinn.
+##
+## WEGDATEN (Raum 1, Baukasten-Paket G1). Ein Level kann statt der bloßen
+## Abschnittsliste `weg` setzen: die Daten des Weges im Schema von Level 01
+## samt Terrassenhöhen, Begehbarem, Leitlinien und Todeszonen
+## (`scripts/gemeinsam/wegdaten.gd`). Dann fragen `abschnitte()`,
+## `breite_bei()`, `rand_bei()` und `weg_von_der_kante()` dort nach, und die
+## Helfer `*_auf()` stellen Kisten, Früchte, Gegner und Portale auf die
+## Wegdecke statt auf die Kurve. NULL-PFAD: Die Level 02–25 setzen `weg`
+## nie – für sie läuft jede dieser Funktionen genau wie vorher.
+##
+## Hindernisse auf der Wegdecke (Raum 1): `duckdurchlass`, `huerde` und
+## `findling_hindernis` – Körper auf Ebene 16, Stolperzone auf Wunsch,
+## Optik als Callable, sonst ein grauer Platzhalter. Neue Funktionen, die
+## kein älteres Level aufruft.
 
 const KISTE := preload("res://scenes/crates/Kiste.tscn")
 const FRUCHT := preload("res://scenes/fruits/Frucht.tscn")
@@ -45,11 +59,19 @@ const SCHWARM := preload("res://scenes/enemies/Schwarm.tscn")
 const STARTPORTAL := preload("res://scenes/portals/StartPortal.tscn")
 const ZIELPORTAL := preload("res://scenes/portals/ZielPortal.tscn")
 
+## Die Daten des Weges (siehe Kopf, WEGDATEN). Ein Level setzt sie, sobald
+## der Verlauf steht und VOR allen Bauschritten, die etwas auf den Weg
+## stellen. null = alter Weg über `abschnitte()`.
+var weg: Wegdaten = null
+
 
 # ------------------------------------------------------------- Haken
 
 ## Bodenstreifen des Weges: [{"von", "bis", "breite", "breite_ende"}].
+## Mit `weg` die Abschnitte von dort.
 func abschnitte() -> Array:
+	if weg != null:
+		return weg.abschnitte
 	return []
 
 
@@ -67,6 +89,8 @@ func absturz_hoehe() -> float:
 
 ## Wegbreite an dieser Stelle, 0 in einer Lücke.
 func breite_bei(strecke: float) -> float:
+	if weg != null:
+		return weg.breite_bei(strecke)
 	for a in abschnitte():
 		var von: float = a["von"]
 		var bis: float = a["bis"]
@@ -78,12 +102,18 @@ func breite_bei(strecke: float) -> float:
 
 ## Größter seitlicher Abstand, bei dem ein Objekt noch sicher auf dem Weg steht.
 func rand_bei(strecke: float, sicherheit: float = 1.3) -> float:
+	if weg != null:
+		return weg.rand_bei(strecke, sicherheit)
 	return maxf(breite_bei(strecke) * 0.5 - sicherheit, 0.0)
 
 
 ## Schiebt eine Strecke vom Rand eines Abschnitts weg, damit Objekte nicht
-## auf der Abbruchkante stehen.
+## auf der Abbruchkante stehen. Mit `weg` zählt der Strang (gleich hoch
+## anstoßende Abschnitte zusammen, nur Lücken und Stufen trennen), wie in
+## Level 01 – sonst stünde ein Gegner an jeder bloßen Naht still.
 func weg_von_der_kante(strecke: float, abstand: float) -> float:
+	if weg != null:
+		return weg.weg_von_der_kante(strecke, abstand)
 	for a in abschnitte():
 		var von: float = a["von"]
 		var bis: float = a["bis"]
@@ -731,9 +761,14 @@ func gegner(szene: PackedScene, strecke: float, seitlich: float,
 		seitlich = clampf(seitlich, -rand, rand)
 		# Entlang des Weges: Weite so kürzen, dass beide Enden auf dem Weg liegen
 		var frei := 99.0
-		for a in abschnitte():
-			if strecke >= a["von"] and strecke <= a["bis"]:
-				frei = minf(strecke - a["von"], a["bis"] - strecke) - 1.0
+		if weg != null:
+			# Mit Wegdaten der Strang wie in `weg_von_der_kante` (level01.gd:1200).
+			var strang := weg.strang_bei(strecke)
+			frei = minf(strecke - strang.x, strang.y - strecke) - 1.0
+		else:
+			for a in abschnitte():
+				if strecke >= a["von"] and strecke <= a["bis"]:
+					frei = minf(strecke - a["von"], a["bis"] - strecke) - 1.0
 		weite = minf(weite, maxf(frei, 0.5))
 	# Ortsfarben VOR dem Einhängen: Die Gegner bauen ihre Optik in `_ready()`,
 	# und ein Umfärben danach wirft sie neu auf. Siehe `gegner_faerbung`.
@@ -809,6 +844,416 @@ func stacheln(strecke: float, seitlich: float, flaeche: Vector2,
 	st.rotation.y = LevelWerkzeuge.drehung(verlauf, strecke)
 	objekte.add_child(st)
 	return st
+
+
+# ------------------------------------------------- Auf der Wegdecke (Wegdaten)
+#
+# Die alten Helfer oben messen jede Höhe über der KURVE. Auf Terrassen
+# (Abschnitte mit "hoehe") liegt die Decke bis über einen Meter darüber
+# oder darunter; die Helfer hier messen über der DECKE (`boden_bei`). Ohne
+# `weg` fallen sie auf die Kurve zurück und tun dasselbe wie die alten.
+
+## Duckdurchlass: Maße aus dem Entwurf von Level 05 (§1 Nr. 2 und 3).
+## Unterkante 0,95 m – die aufrechte Kapsel (1,30 m, Player.tscn) stößt an,
+## Slide und Krabbeln (0,76 m) gehen darunter durch. Oberkante 4,4 m – ein
+## Doppelsprung (Scheitel 3,22) und ein Slide-Sprung mit Doppelsprung
+## (4,01) kommen nicht darüber; der Slide ist Pflicht.
+const DUCK_UNTEN := 0.95
+const DUCK_OBEN := 4.4
+## Die Stolperzone liegt nur an der Stirn, von 0,15 m davor bis 0,25 m
+## dahinter, ab 0,85 m Höhe: Eine Zone über die ganze Tiefe ließ Figuren
+## beim Aufrichten am Ausgang stolpern (Entwurf L05 §1 Nr. 3, gemessen).
+const STOLPER_VOR := 0.15
+const STOLPER_NACH := 0.25
+const STOLPER_UNTEN := 0.85
+## Querschnitte des Durchlasses höchstens so weit auseinander: Der Körper
+## folgt so auch einer Kurve und einer geneigten Decke.
+const DUCK_SCHRITT := 0.5
+
+## Sichtweiten der Spielobjekte wie in Level 01 (level01.gd:836-857).
+const SICHTWEITEN_VORGABE := {
+	"kiste": 80.0, "frucht": 58.0, "gegner": 90.0,
+	"kiste_web": 55.0, "frucht_web": 45.0, "gegner_web": 60.0,
+	"rand": 5.0,
+}
+
+## Sichtweiten nach `sichtweiten_einrichten`; leer = nicht eingerichtet.
+var _sichtweiten := {}
+
+
+## Welt-Y der Wegdecke. Ohne `weg` die Höhe der Kurve.
+func boden_bei(s: float) -> float:
+	if weg != null:
+		return weg.boden_bei(s)
+	return LevelWerkzeuge.punkt(verlauf, s).y
+
+
+func ist_luecke(s: float) -> bool:
+	if weg != null:
+		return weg.ist_luecke(s)
+	return breite_bei(s) <= 0.0
+
+
+## Punkt auf dem Weg: `q` quer, `h` über der Wegdecke.
+func weg_punkt(s: float, q := 0.0, h := 0.0) -> Vector3:
+	if weg != null:
+		return weg.weg_punkt(s, q, h)
+	return LevelWerkzeuge.punkt_frei(verlauf, s, q, h)
+
+
+## Höhe der Decke über der Kurve – das, was die alten Helfer als Höhe
+## zusätzlich brauchen, damit sie auf der Decke landen.
+func _ueber_kurve(s: float) -> float:
+	return weg.ueber_kurve(s) if weg != null else 0.0
+
+
+## Kiste auf die Wegdecke (Mitte `ueber` über dem Boden). Sonst wie `kiste()`.
+func kiste_auf(art: Kiste.Art, s: float, q: float, ueber := 0.5,
+		schwebt := false) -> Kiste:
+	return kiste(art, s, q, _ueber_kurve(s) + ueber, schwebt)
+
+
+## Frucht `ueber` Meter über der Wegdecke.
+func frucht_auf(s: float, q: float, ueber := 0.9) -> Node3D:
+	return frucht(s, q, _ueber_kurve(s) + ueber)
+
+
+## Bogen aus Früchten über eine Lücke, gemessen an der Decke (in der Lücke
+## linear zwischen den Kanten, `boden_bei`). ANDERS als `fruechte_bogen`:
+## `scheitel` ist hier wie in Level 01 die Höhe der mittleren Frucht über
+## dem Weg, nicht der Zuschlag auf 0,9 – „Scheitel 3,2" heißt also: so hoch
+## wie ein Doppelsprung.
+func fruechte_bogen_auf(von: float, bis: float, anzahl: int, q: float,
+		scheitel := 2.6) -> void:
+	for i in anzahl:
+		var t := float(i) / maxf(float(anzahl - 1), 1.0)
+		frucht_auf(lerpf(von, bis, t), q, 0.9 + sin(t * PI) * (scheitel - 0.9))
+
+
+## Gegner auf der Wegdecke. Die Strecke wird ERST von der Kante geschoben
+## (wie in `gegner()`), dann die Höhe dort gemessen – sonst stünde ein
+## Gegner, den die Klemmung von einer Stufe wegschiebt, auf der Höhe der
+## Stelle, von der er kam.
+func gegner_auf(szene: PackedScene, s: float, q: float, weite: float,
+		quer: bool) -> Gegner:
+	var stelle := weg_von_der_kante(s, 2.5)
+	return gegner(szene, stelle, q, weite, quer, _ueber_kurve(stelle) + 0.05)
+
+
+## Start- und Zielportal auf der Wegdecke, an den Strecken `start` und `ziel`.
+## `saeule`: Höhe der Lichtsäule über dem Zielportal (`saeulen_hoehe`, 0 =
+## keine); kleiner 0 lässt die Vorgabe des Portals. Ein Level mit
+## Rückblick (Level 05) setzt 0: Die Säule stand 14 m hoch mitten über dem
+## Weg, und die Kamera fuhr 21 m vor der Figur durch sie hindurch.
+func portale_auf(start: float, ziel: float, saeule := -1.0) -> void:
+	var a := STARTPORTAL.instantiate() as Node3D
+	a.position = weg_punkt(start, 0.0, 0.1)
+	a.rotation.y = LevelWerkzeuge.drehung(verlauf, start)
+	objekte.add_child(a)
+	var z := ZIELPORTAL.instantiate() as Node3D
+	# VOR dem Einhängen: Das Portal baut seine Säule in `_ready()`.
+	if saeule >= 0.0:
+		z.set("saeulen_hoehe", saeule)
+	z.position = weg_punkt(ziel, 0.0, 0.1)
+	z.rotation.y = LevelWerkzeuge.drehung(verlauf, ziel)
+	objekte.add_child(z)
+
+
+## Orte aller Kisten, die schon unter `objekte` stehen (Level-Koordinaten),
+## für Freiräume im Bewuchs. Wald und Rasen brauchen sie beim Bau – die
+## Kisten müssen deshalb VOR ihnen gesetzt sein. Kisten, die an etwas
+## anderem hängen (Floß, Plattform), zählen nicht.
+func kisten_orte() -> Array[Vector3]:
+	var orte: Array[Vector3] = []
+	for kind in objekte.get_children():
+		if kind is Kiste:
+			orte.append(objekte.transform * (kind as Kiste).position)
+	return orte
+
+
+## Harte Sichtweiten für Kisten, Früchte und Gegner wie in Level 01
+## (level01.gd:836-857, 1132-1173): Jedes Objekt, das danach unter `objekte`
+## eintritt – auch was `LevelBasis` nach einem Tod neu aufstellt oder gegen
+## eine Zeitkiste tauscht –, bekommt seine Weite, sobald es fertig gebaut
+## ist. Darum VOR den Kisten aufrufen. `weiten` überschreibt einzelne
+## Schlüssel aus `SICHTWEITEN_VORGABE` (die Werte von Level 01).
+func sichtweiten_einrichten(weiten := {}) -> void:
+	_sichtweiten = SICHTWEITEN_VORGABE.duplicate()
+	_sichtweiten.merge(weiten, true)
+	if not objekte.child_entered_tree.is_connected(_sichtweite_eingetreten):
+		objekte.child_entered_tree.connect(_sichtweite_eingetreten)
+
+
+func _sichtweite_eingetreten(knoten: Node) -> void:
+	var weite := _sichtweite_fuer(knoten)
+	if weite <= 0.0:
+		return
+	if knoten.is_node_ready():
+		_sichtweite_setzen(knoten, weite)
+	else:
+		knoten.ready.connect(_sichtweite_setzen.bind(knoten, weite), CONNECT_ONE_SHOT)
+
+
+func _sichtweite_fuer(knoten: Node) -> float:
+	var web := Effekte.reduziert
+	var art := ""
+	if knoten is Kiste:
+		art = "kiste"
+	elif knoten is Frucht:
+		art = "frucht"
+	elif knoten is Gegner:
+		art = "gegner"
+	if art.is_empty():
+		return 0.0
+	return float(_sichtweiten.get(art + "_web" if web else art, 0.0))
+
+
+## Setzt die Sichtweite an allem, was darunter gezeichnet wird. Wer schon
+## eine eigene hat, behält sie.
+func _sichtweite_setzen(knoten: Node, weite: float) -> void:
+	if not is_instance_valid(knoten):
+		return
+	var teil := knoten as GeometryInstance3D
+	if teil != null and teil.visibility_range_end <= 0.0:
+		teil.visibility_range_end = weite
+		teil.visibility_range_end_margin = float(_sichtweiten.get("rand", 5.0))
+	for kind in knoten.get_children():
+		_sichtweite_setzen(kind, weite)
+
+
+## Duckdurchlass: ein Riegel quer über den Weg, unter dem man nur im Slide
+## oder krabbelnd hindurchkommt. `s` ist die Stirn (Eingang), `tiefe` die
+## Länge in Laufrichtung.
+##
+## Der Körper liegt auf Ebene 16 (Spielergrenze): Die Figur stößt an, der
+## Kamerastrahl (1|8) geht hindurch – sonst holte jeder Durchlass die
+## Kamera vor die Figur. Er reicht von `unten` bis `oben` über der Decke
+## (`boden_bei` je Querschnitt) und quer über die ganze Wegbreite.
+##
+## `optionen`:
+##   q_von, q_bis   Querausdehnung; Vorgabe die halbe Wegbreite + 1 m nach
+##                  beiden Seiten (über die Schulter bis an die Leitlinie)
+##   unten, oben    Vorgabe DUCK_UNTEN 0,95 und DUCK_OBEN 4,4
+##   stolperzone    Stolperdauer in Sekunden (`Spieler.stolpern`); > 0 legt
+##                  eine Zone an die Stirn (STOLPER_VOR/NACH/UNTEN). Vorgabe 0
+##   optik          Callable(s, tiefe) -> Node3D in Weltkoordinaten; wird
+##                  Kind des Körpers. Ohne: grauer Platzhalter in der Form
+##                  des Körpers
+## Rückgabe: der Körper (unter `geometrie`); die Stolperzone ist sein Kind
+## "Stolperzone". Metadaten "strecke", "tiefe", "unten", "oben" für Proben.
+func duckdurchlass(s: float, tiefe: float, optionen := {}) -> StaticBody3D:
+	var halb := maxf(breite_bei(s), breite_bei(s + tiefe)) * 0.5
+	var q_von: float = optionen.get("q_von", -(halb + 1.0))
+	var q_bis: float = optionen.get("q_bis", halb + 1.0)
+	var unten: float = optionen.get("unten", DUCK_UNTEN)
+	var oben: float = optionen.get("oben", DUCK_OBEN)
+	var koerper := StaticBody3D.new()
+	koerper.name = "Duckdurchlass"
+	koerper.collision_layer = LevelWerkzeuge.SPIELERGRENZE
+	koerper.collision_mask = 0
+	koerper.set_meta("strecke", s)
+	koerper.set_meta("tiefe", tiefe)
+	koerper.set_meta("unten", unten)
+	koerper.set_meta("oben", oben)
+	var anzahl := maxi(ceili(tiefe / DUCK_SCHRITT), 1)
+	var schnitte: Array[PackedVector3Array] = []
+	for i in anzahl + 1:
+		schnitte.append(_durchlass_schnitt(lerpf(s, s + tiefe, float(i) / float(anzahl)),
+				q_von, q_bis, unten, oben))
+	for i in anzahl:
+		koerper.add_child(Wegdaten.prisma(schnitte[i], schnitte[i + 1]))
+
+	var dauer: float = optionen.get("stolperzone", 0.0)
+	if dauer > 0.0:
+		var zone := Area3D.new()
+		zone.name = "Stolperzone"
+		zone.collision_layer = 0
+		zone.collision_mask = 2
+		zone.monitorable = false
+		zone.add_child(Wegdaten.prisma(
+				_durchlass_schnitt(s - STOLPER_VOR, q_von, q_bis, STOLPER_UNTEN, oben),
+				_durchlass_schnitt(s + STOLPER_NACH, q_von, q_bis, STOLPER_UNTEN, oben)))
+		zone.body_entered.connect(_durchlass_stolpern.bind(dauer))
+		koerper.add_child(zone)
+
+	var optik: Callable = optionen.get("optik", Callable())
+	var sicht: Node3D = null
+	if optik.is_valid():
+		sicht = optik.call(s, tiefe) as Node3D
+	if sicht == null:
+		var netz := MeshInstance3D.new()
+		netz.name = "Platzhalter"
+		netz.mesh = Wegdaten.schnittnetz(schnitte)
+		netz.material_override = Materialbibliothek.einfarbig(Color(0.52, 0.52, 0.5))
+		sicht = netz
+	koerper.add_child(sicht)
+	geometrie.add_child(koerper)
+	return koerper
+
+
+## Querschnitt des Durchlasses an der Stelle `si`: vier Weltpunkte von
+## (q_von, unten) im Uhrzeigersinn, Höhen über `boden_bei(si)`.
+func _durchlass_schnitt(si: float, q_von: float, q_bis: float, unten: float,
+		oben: float) -> PackedVector3Array:
+	var schnitt := PackedVector3Array()
+	var boden := boden_bei(si)
+	for p: Vector2 in [Vector2(q_von, unten), Vector2(q_bis, unten),
+			Vector2(q_bis, oben), Vector2(q_von, oben)]:
+		var w := LevelWerkzeuge.punkt_frei(verlauf, si, p.x)
+		schnitt.append(Vector3(w.x, boden + p.y, w.z))
+	return schnitt
+
+
+func _durchlass_stolpern(koerper: Node3D, dauer: float) -> void:
+	if koerper is Spieler:
+		(koerper as Spieler).stolpern(dauer)
+
+
+## Hürde (Entwurf L05 §1 Nr. 12): ein Riegel quer über den Weg, über den man
+## springt. `s` ist ihre Mitte. Körper HUERDE_HOEHE × HUERDE_TIEFE, die
+## Stolperzone HUERDE_ZONE_LAENGE lang und vom Boden bis HUERDE_ZONE_HOEHE,
+## beide mittig um `s`. Gemessen (Messbank L05): Wer springt, hat ein
+## stolperfreies Absprungfenster von 1,95 m; wer hineinslidet, stolpert
+## immer – Hürde heißt springen, Durchlass heißt sliden.
+##
+## Muster wie `duckdurchlass`: Körper auf Ebene 16 (die Figur stößt an, der
+## Kamerastrahl geht hindurch), Höhen über `boden_bei` je Querschnitt.
+## `optionen`: q_von, q_bis (Vorgabe halbe Wegbreite + 1 m, bis an die
+## Leitlinie), hoch, tiefe, stolperzone (Dauer in s; > 0 legt die Zone an,
+## Vorgabe 0), optik: Callable(s, tiefe) -> Node3D, sonst ein grauer
+## Platzhalter in der Form des Körpers. Metadaten "strecke", "tiefe",
+## "hoch" für Proben.
+const HUERDE_HOEHE := 0.7
+const HUERDE_TIEFE := 0.6
+const HUERDE_ZONE_LAENGE := 1.0
+const HUERDE_ZONE_HOEHE := 0.8
+
+
+func huerde(s: float, optionen := {}) -> StaticBody3D:
+	var halb := breite_bei(s) * 0.5
+	var q_von: float = optionen.get("q_von", -(halb + 1.0))
+	var q_bis: float = optionen.get("q_bis", halb + 1.0)
+	var hoch: float = optionen.get("hoch", HUERDE_HOEHE)
+	var tiefe: float = optionen.get("tiefe", HUERDE_TIEFE)
+	var schnitte := _hindernis_schnitte(s - tiefe * 0.5, s + tiefe * 0.5, q_von, q_bis, 0.0, hoch)
+	var koerper := _hindernis_koerper("Huerde", schnitte)
+	koerper.set_meta("strecke", s)
+	koerper.set_meta("tiefe", tiefe)
+	koerper.set_meta("hoch", hoch)
+	var dauer: float = optionen.get("stolperzone", 0.0)
+	if dauer > 0.0:
+		koerper.add_child(_stolperzone(s - HUERDE_ZONE_LAENGE * 0.5,
+				s + HUERDE_ZONE_LAENGE * 0.5, q_von, q_bis, 0.0, HUERDE_ZONE_HOEHE, dauer))
+	var optik: Callable = optionen.get("optik", Callable())
+	var sicht: Node3D = null
+	if optik.is_valid():
+		sicht = optik.call(s, tiefe) as Node3D
+	_hindernis_optik(koerper, sicht, schnitte)
+	geometrie.add_child(koerper)
+	return koerper
+
+
+## Findling als Hindernis (Entwurf L05 §5 D, §1 Nr. 17): ein Block auf dem
+## Weg, um den man herumläuft. `s` ist seine Mitte längs, `q` quer, `breite`
+## seine Ausdehnung quer. Körper auf Ebene 16 wie `duckdurchlass` und
+## `huerde`, über `boden_bei` je Querschnitt, damit er auch am Hang satt
+## aufsitzt.
+##
+## Die Stolperzone liegt wie beim Durchlass nur an der Stirn (STOLPER_VOR
+## davor bis STOLPER_NACH dahinter), über die Breite des Blocks und vom
+## Boden bis 0,1 m unter seine Oberkante: Wer frontal hineinläuft, stolpert;
+## wer daneben vorbeiläuft oder oben landet, nicht.
+## `optionen`: tiefe (Vorgabe FINDLING_TIEFE), hoch (FINDLING_HOEHE),
+## stolperzone (Dauer, Vorgabe 0), optik: Callable(s, q, breite) -> Node3D,
+## sonst ein grauer Platzhalter. Metadaten "strecke", "quer", "breite",
+## "tiefe", "hoch".
+const FINDLING_TIEFE := 1.6
+const FINDLING_HOEHE := 1.4
+
+
+func findling_hindernis(s: float, q: float, breite: float, optionen := {}) -> StaticBody3D:
+	var tiefe: float = optionen.get("tiefe", FINDLING_TIEFE)
+	var hoch: float = optionen.get("hoch", FINDLING_HOEHE)
+	var q_von := q - breite * 0.5
+	var q_bis := q + breite * 0.5
+	var schnitte := _hindernis_schnitte(s - tiefe * 0.5, s + tiefe * 0.5, q_von, q_bis, 0.0, hoch)
+	var koerper := _hindernis_koerper("Findling", schnitte)
+	koerper.set_meta("strecke", s)
+	koerper.set_meta("quer", q)
+	koerper.set_meta("breite", breite)
+	koerper.set_meta("tiefe", tiefe)
+	koerper.set_meta("hoch", hoch)
+	var dauer: float = optionen.get("stolperzone", 0.0)
+	if dauer > 0.0:
+		var stirn := s - tiefe * 0.5
+		koerper.add_child(_stolperzone(stirn - STOLPER_VOR, stirn + STOLPER_NACH, q_von, q_bis,
+				0.0, maxf(hoch - 0.1, 0.2), dauer))
+	var optik: Callable = optionen.get("optik", Callable())
+	var sicht: Node3D = null
+	if optik.is_valid():
+		sicht = optik.call(s, q, breite) as Node3D
+	_hindernis_optik(koerper, sicht, schnitte)
+	geometrie.add_child(koerper)
+	return koerper
+
+
+## Querschnitte eines Hindernisses von `von` bis `bis`, höchstens DUCK_SCHRITT
+## auseinander (Höhen über `boden_bei` je Schnitt, wie beim Durchlass).
+func _hindernis_schnitte(von: float, bis: float, q_von: float, q_bis: float,
+		unten: float, oben: float) -> Array[PackedVector3Array]:
+	var anzahl := maxi(ceili((bis - von) / DUCK_SCHRITT), 1)
+	var schnitte: Array[PackedVector3Array] = []
+	for i in anzahl + 1:
+		schnitte.append(_durchlass_schnitt(lerpf(von, bis, float(i) / float(anzahl)),
+				q_von, q_bis, unten, oben))
+	return schnitte
+
+
+## Körper auf Ebene 16 aus den Querschnitten (je zwei benachbarte ein Prisma).
+func _hindernis_koerper(name_: String, schnitte: Array[PackedVector3Array]) -> StaticBody3D:
+	var koerper := StaticBody3D.new()
+	koerper.name = name_
+	koerper.collision_layer = LevelWerkzeuge.SPIELERGRENZE
+	koerper.collision_mask = 0
+	for i in schnitte.size() - 1:
+		koerper.add_child(Wegdaten.prisma(schnitte[i], schnitte[i + 1]))
+	return koerper
+
+
+## Stolperzone von `von` bis `bis` (Höhen über `boden_bei`), wie die des
+## Durchlasses: Maske 2, nicht abfragbar, `Spieler.stolpern(dauer)`.
+func _stolperzone(von: float, bis: float, q_von: float, q_bis: float, unten: float,
+		oben: float, dauer: float) -> Area3D:
+	var zone := Area3D.new()
+	zone.name = "Stolperzone"
+	zone.collision_layer = 0
+	zone.collision_mask = 2
+	zone.monitorable = false
+	zone.add_child(Wegdaten.prisma(_durchlass_schnitt(von, q_von, q_bis, unten, oben),
+			_durchlass_schnitt(bis, q_von, q_bis, unten, oben)))
+	zone.body_entered.connect(_durchlass_stolpern.bind(dauer))
+	return zone
+
+
+## Hängt die Optik an den Körper; ohne Optik ein grauer Platzhalter in der
+## Form der Querschnitte (wie beim Durchlass).
+func _hindernis_optik(koerper: StaticBody3D, sicht: Node3D,
+		schnitte: Array[PackedVector3Array]) -> void:
+	if sicht == null:
+		var netz := MeshInstance3D.new()
+		netz.name = "Platzhalter"
+		netz.mesh = Wegdaten.schnittnetz(schnitte)
+		netz.material_override = Materialbibliothek.einfarbig(Color(0.52, 0.52, 0.5))
+		sicht = netz
+	koerper.add_child(sicht)
+
+
+## Meldet einen Knoten für die Zeit nach einem Tod an: `LevelBasis` ruft
+## nach jedem Zurücksetzen `nach_tod(von_vorn: bool)` an ihm auf (Gruppe
+## `LevelBasis.NACH_TOD`). Für alles, was ein Tod heilen oder neu stellen
+## muss und das der Bauplan aus Kisten und Gegnern nicht kennt.
+func nach_tod_melden(knoten: Node) -> void:
+	knoten.add_to_group(NACH_TOD)
 
 
 # ------------------------------------------------------------- Absturz

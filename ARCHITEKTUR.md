@@ -46,6 +46,7 @@ Stellen hat sich das Spiel trotzdem geändert, jeweils mit Absicht:
 | 2 | 2 | Spieler (`CharacterBody3D`) |
 | 3 | 4 | Gegner-Körper |
 | 4 | 8 | Sichtsperre (`LevelWerkzeuge.SICHTSPERRE`): fragt nur der Kamerastrahl ab – Deko, die den Blick verstellen kann, ohne den Weg zu sperren (Torbögen, Wurzeltore) |
+| 5 | 16 | Spielergrenze (`LevelWerkzeuge.SPIELERGRENZE`): Leitlinien, Randkörper und erhöhtes Begehbares. Die Figur (Maske 1\|16 = 17) stößt daran an, der Kamerastrahl (1\|8) nicht – er startet sechs Meter vor der Figur, und eine einrückende Wand zwischen Blickpunkt und Figur zöge die Kamera sonst vor die Figur. Bisher nur in Level 01 belegt. |
 
 Trigger-Zonen sind `Area3D` mit `collision_layer = 0` und
 `collision_mask = 2` (nur den Spieler beachten).
@@ -115,6 +116,33 @@ zu Fuß (`_mit_bodeneffekten()`). Reiter, Rennfahrer und Flieger werden
 getragen und führen ihr Modell selbst; eine Unterklasse, die wieder läuft,
 überschreibt die Methode.
 
+**Hauerjagd (Level 05)** läuft mit der normalen Figur (`Spieler`). Den
+Keiler führt seit dem Neubau das Modul `L05Jagd`
+(`scenes/levels/level05/jagd.gd`) als Stelle auf der Kurve: Er schläft in
+der Suhle (s 16), wacht auf, sobald die Figur den ersten Rastplatz erreicht
+(s 31, Abstand dann genau 15 m), und läuft danach immer mit `TEMPO`
+(7,4 m/s, das Lauftempo ist 8,5), fällt nie weiter als `HOECHSTABSTAND`
+(15 m) zurück und fängt bei `FANGABSTAND` (2 m). Am Ufer vor dem Wehr
+(`UFER_S` 282) bleibt er stehen und schnaubt. Über Lücken, Stufen und
+Hürden springt er (nur Optik, der Abstand rechnet auf der Strecke weiter),
+durch Duckdurchlässe bricht er (`L05Wegbauten.bruch_stellen`: Körper und
+Stolperzone aus, Bruch sichtbar); nach einem Tod steht er `VORSPRUNG`
+(12 m) hinter dem Rastplatz, und die Durchlässe dahinter sind wieder heil.
+Sein Körper (sieben Glieder, Haltungen, Staub, Splitter, Wasserschwall)
+steht in `scenes/enemies/keiler.gd`.
+
+Die Hindernisse sind Bauteile von `KorridorLevel`: `duckdurchlass` (Riegel
+0,95–4,4 m, nur im Slide oder krabbelnd zu durchqueren), `huerde`
+(0,7 × 0,6 m, darüber springen) und `findling_hindernis` (Block, um den man
+herumläuft). Ihre Körper liegen auf Ebene 16 (Spielergrenze), damit der
+Kamerastrahl hindurchgeht; wer an ihre Stirn läuft, stolpert
+(`Spieler.stolpern`, 0,45 s ohne Vortrieb, kein Schaden). Die Optiken baut
+`L05Wegbauten` passgenau auf die Körper; die Werkstatt zeigt sie mit
+denselben Funktionen einzeln (Stationen 34–38). Die tödlichen Lücken sind
+3,0–3,5 m breit, das gebrochene Wehr 5,0 m (nur mit Doppelsprung). Daten,
+Module und Messwerte: `scenes/levels/level05.gd` (Kopf) und
+`doku/level05-neubau.md`.
+
 ### Bodenschatten (`scripts/bodenschatten.gd`, `class_name Bodenschatten`)
 
 Ein weicher Fleck genau unter der Figur – die klassische Landehilfe, denn
@@ -174,7 +202,9 @@ Kistenfarbe, Auslöser = Ring mit 3 m. TNT und Nitro wackeln die Kamera mit
 0,7 (nach Abstand).
 
 **Federn und Zünden** sind reine Optik auf `_modell`, die Kollision bleibt:
-Sprung-, Feder- und TNT-Kiste stauchen beim Absprung zum Boden hin. TNT
+Sprung-, Feder- und TNT-Kiste stauchen beim Absprung zum Boden hin. Ein
+Schlag (Drehschlag, Slide, Bauchplatscher) lässt TNT sofort explodieren;
+nur Draufspringen zündet den Countdown (3 s). TNT
 glimmt ab dem Zünden an der Zündschnur (`Effekte.dauerfunken`, erst beim
 Zünden angelegt) und glüht im Sekundentakt auf – auf einer eigenen
 Materialkopie, das geteilte TNT-Holz bleibt unberührt.
@@ -280,6 +310,13 @@ flach auf `_liege_hoehe`; beide Werte setzt der Gegner in `_init()`.
 | Stelzenspinne | Slide | wird weggefegt |
 | Stelzenspinne | Bauchplatscher | wird platt |
 
+Die Stelzenspinne hat neben ihrer Trefferzone (Leib, Radius 0,45 m) eine
+flache **Fegezone** in Beinbreite (Zylinder, Radius 1,25 m, 0,9 m hoch),
+die nur Slide und Bauchplatscher auswertet. Wer zwischen den Beinen, aber
+neben der Mitte durchrutschte, kam vorher unbeschadet durch, und die Spinne
+blieb stehen. Gemessen (feststehende Spinnen in Level 01): 1,2 m neben der
+Mitte vorher 0 von 3 besiegt, jetzt 3 von 3. Schaden gibt weiter nur der Leib.
+
 **Prüfung** (`werkzeuge/level_check.gd`, jedes Level in `pruefe.sh`):
 - „Gegnerblick": Jede Art wird über ihren eigenen Weg gemessen, Blick gleich
   Laufrichtung. Der Schwarm zählt als „ohne Blickrichtung".
@@ -297,7 +334,10 @@ Früchte fliegen ab 2,6 m Abstand zum Spieler und zählen über
 
 Alle Früchte teilen EIN Netz mit EINER Fläche (Beere, Stiel, Blätter;
 Farbe aus Scheitelfarben) und EIN Material. Das Eigenleuchten liegt über
-eine Zwei-Pixel-Maske (`EMISSION_OP_MULTIPLY`) nur auf der Beere. Die
+eine Zwei-Pixel-Maske (`EMISSION_OP_MULTIPLY`) nur auf der Beere und ist
+schwach (0,15): Die Form kommt aus Licht, Glanz (Rauheit 0,3) und einem
+Eigenschatten in den Scheitelfarben (unten 40 % dunkler). Mit 0,45 lag
+die Beere flach wie ein Aufkleber. Die Beere hat 14 Ringe zu 22 Segmenten. Die
 Frucht wirft keinen Schatten: ein Zeichenaufruf je Frucht statt bis zu
 zehn. Beim Einsammeln verlässt sie sofort Gruppe und Trefferzone, ploppt
 0,13 s und gibt sich dann frei; Funken und Blitz hängen an der Szene. Aus
@@ -319,6 +359,20 @@ func zeige_banner(text: String, farbe := Farben.UI_GOLD, dauer := 2.0)
 behält seine zwei Parameter. `zeige_banner` hat ein eigenes Signal
 `banner(text, farbe, dauer)`: das große schräge Band im HUD, nur für
 seltene Momente (Extraleben, alle Kisten, Game Over).
+
+**Game Over** (letztes Leben verloren): Banner, das Level wird wie bei
+einem Tod zurückgesetzt (Uhr, HUD und Zeitmodus hängen an
+`level_zuruecksetzen`), dann geht es nach `GAME_OVER_PAUSE` (2,5 s) in den
+Portalraum, mit vollen Leben. Nur aus einem Level heraus und nur, wenn der
+Spieler inzwischen nicht selbst die Szene gewechselt hat.
+
+**Vorladen** (`Spielfluss.vorladen`, `vorladen_naechstes`): Ist der
+Portalraum eingeblendet, lädt das nächste offene Level im Hintergrund
+(`ResourceLoader.load_threaded_request`, Szene und Skripte, nicht der
+Aufbau). Jeder Wechsel mit Ladeschirm holt die Szene über diesen Faden; der
+Ladeschirm läuft dabei weiter. Gemessen (Level 01, Rechner, headless,
+Zwischenspeicher warm): Szene nach 0,13 statt 2,3 s, spielbereit nach 5,4
+statt 7,0 s.
 
 ## Zeitmodus (`autoload/Zeitlauf.gd`)
 
@@ -508,6 +562,62 @@ func kneifen(dauer := 0.3)     # Augen zukneifen (nur Beuteldachs)
 
 `_baue()` erzeugt die Geometrie, `_animiere()` bewegt sie pro Frame.
 
+**Aufbau:** Jedes starre Glied ist EIN Netz. Die Grundformen eines Glieds
+(Kugeln, Kapseln, Kegel, Torus) werden beim ersten Bau über
+`SpielerModell.Form` zu einem `ArrayMesh` mit Eckfarben verschmolzen und
+für alle weiteren Figuren aufgehoben (`_netze`, nie verändert). 15
+Glieder: Rumpf (mit Halstuch), Tuchzipfel, Kopf, zwei Lider, zwei Ohren,
+zwei Oberarme, zwei Hände, zwei Beine, Schweif, Schweifspitze – vorher
+rund 50 Einzelteile mit je eigenem Draw-Call (dazu noch einmal so viele
+im Schatten). Lider und Tuchzipfel werfen keinen Schatten.
+
+**Fließende Haut:** Innerhalb eines Glieds werden die Fellformen (Kugeln,
+Kapseln, Kegel mit `ART_FELL`) nicht mehr als Netze aneinandergesteckt. An
+jeder Naht lag sonst eine scharfe Kerbe, und die Figur las sich wie aus
+Bällen gebaut. `Form` sammelt sie als Abstandsfeld und vereinigt sie weich
+(polynomielles smin; der Übergang ist 35 % des kleinsten Radius, 0,8–4 cm).
+Ausgelesen wird EINE Haut mit Surface Nets auf einem Gitter, 34 Zellen über
+die längste Seite des Glieds (6–20 mm). Mit 56 Zellen kostete die Figur
+bei Level 01, 186 m, 248 000 Primitive mehr (903 000, über dem Budget); mit
+34 sind es 69 000 mehr (724 000). Die Normalen kommen aus dem Feld, die
+Farbe von der nächsten Form, an den Nähten über 6 mm gemischt, jede mit ihrem
+Maler. Scharf und als eigenes Netz bleiben Augen, Iris, Pupillen, Glanz,
+Nase und Lächeln (`ART_GLATT`/`ART_LICHT`), Halstuch (ein flaches Band:
+dünner Ring, hochgezogen) und Knoten sowie das
+Innenohr (`teil(…, weich = false)`); ein Glied mit nur einer Form bleibt
+dessen Grundnetz. Die Gelenke ZWISCHEN den Gliedern (Kopf, Arme, Beine,
+Schweif) bleiben getrennt, weil sie sich bewegen.
+Kosten: erster Bau 1,0 s (vorher 15 ms), deshalb liegt jedes Gliednetz im
+`Bauspeicher` (`beuteldachs_<name>`); bei 56 Zellen lud der nächste Start
+es in 21 ms.
+
+**Stoff (`FELL_CODE`):** ein geteiltes `ShaderMaterial` für alle Glieder.
+Die Eckfarbe trägt die Farbe (sRGB, im Shader linearisiert) und im Alpha
+die Art der Fläche: 1 Fell (Strähnenrauschen aus der Lage im Glied,
+Unterseiten dunkler, weicher Saum an der Silhouette), 0,5 glatt (Augen,
+Nase: glänzend), 0 Glanzpunkt (leuchtet). Ohne Textur, ohne Bild- und
+Tiefentextur – läuft unter gl_compatibility. Die Zeichnung (heller Bauch,
+helle Brille ums Auge, Nasenrücken, Ringe am Schweif, dunkle Ohrspitzen)
+malen kleine Maler-Funktionen beim Bau in die Eckfarben.
+
+**Haltungen:** `aktualisiere(…, haltung)` wertet `Spieler.haltung()` auch
+für den Beuteldachs aus, nicht nur für Clips eigener Figuren:
+
+| Zustand | Pose |
+|---|---|
+| Slide | Bauchrutscher: Rumpf kippt nach vorn (statt gestaucht zu werden), Kopf hoch, Arme voraus, bleibt unter 0,76 m |
+| `krabbeln` | auf allen vieren, Hände am Boden, Arme und Beine im Wechsel, unter 0,76 m |
+| `hangeln`… | Arme senkrecht und gestreckt (Oberarm × 1,6, die Hand rückt ans Ende) bis an `GRIFF_HOEHE`; `_geduckt` zieht die Beine über 0,54 m, `_spin` reißt sie herum |
+| `sitzen` | Beine nach vorn, Hände am Lenker (Kart, Flieger) |
+| `reiten` | breitbeinig, vorgebeugt (Wildkatze) |
+
+Drehschlag (Arme waagerecht), Sprung, Lauf und Stand wie bisher; am
+Gitter bleiben die Hände beim Drehschlag oben.
+
+`werkzeuge/figurschau.sh <ziel> [posen,gesicht,ruecken,schutz,lauf]`
+fotografiert Haltungen und Schutz unter dem Licht von Level 01, ohne das
+Level zu bauen (gut eine halbe Minute statt mehrerer).
+
 `stoss()` stößt eine gedämpfte Feder auf dem Knoten `Teile` an. Dessen
 Ursprung liegt auf Fußhöhe, die Füße bleiben also am Boden. Der Wert wird
 gesetzt, nicht addiert. Die Feder beißt sich weder mit dem Slide-Stauch am
@@ -518,6 +628,38 @@ Der Spin-Ring ist ein eigener Shader (zwei Schlieren mit heller
 Vorderkante, ohne Bild- und Tiefentextur); ausgeblendet ist er
 `visible = false` und kostet keinen Draw-Call. Der Beuteldachs blinzelt in
 unregelmäßigem Takt.
+
+## Schutz (`scenes/player/schutzmaske.gd`, `class_name Schutzmaske`)
+
+Jeder `Spieler` hängt sich in `_ready()` einen Schutzgeist an. Es gibt
+immer genau EINEN, gleich wie viele Ladungen `GameState.schutz` zählt;
+die Stufe zeigt sich am Leuchten (`STUFEN`): 1 glimmt, 2 leuchtet mit
+kleinem Hof, 3 bekommt einen schwachen Strahlenkranz und blinkende Funken.
+Bewusst dezent (Größe `GEIST_GROESSE` 0,8, Leuchten bis 1,0, Hof bis
+1,2): Der Geist begleitet die Figur, er ist nicht die Hauptsache im Bild.
+Vorher reichten Leuchten bis 1,9 und Hof bis 1,85. Der Hof ist
+eine immer zur Kamera gedrehte Fläche (`SCHEIN_CODE`, additiv) und
+leuchtet auch in Leveln ohne Glow. Drei Draw-Calls (Maske, Flügel, Hof),
+die Flügel schlagen im Vertex-Shader.
+
+| Ereignis | Anzeige |
+|---|---|
+| Gewinn aus 0 | ploppt an der Schulter auf, Funken |
+| Gewinn | Aufblitzen, kurz größer, eine Stufe heller |
+| Verlust (bleibt ≥ 1) | Blitz, Funken, zwei Scherben, Flackern, eine Stufe dunkler |
+| letzte Ladung | Blitz, Ring, sieben Scherben, schrumpft weg |
+| Levelstart | ohne Effekt auf der richtigen Stufe |
+
+Bewegung (`_folgen()`): Platz auf Schulterhöhe NEBEN und etwas HINTER der
+Figur, beides in Kamerasicht (Kamera-Rechts, Blickrichtung waagerecht).
+Er macht 60 % der Figurbewegung sofort mit, den Rest holt eine gedämpfte
+Feder auf (er hängt beim Rennen gut einen halben Meter nach und schießt
+beim Anhalten etwas vor), dazu Wippen und kleine Ausflüge. Läuft die
+Figur quer durchs Bild, wechselt er auf die Seite hinter ihr, im Bogen
+über und hinter die Figur. `_aus_der_sicht()` schiebt ihn aus der
+Sichtlinie Kamera–Figur, ein Strahl im Physiktakt (Ebene 1) hält ihn vor
+Wänden. Bildtakt wie die Kameras: `top_level`, ohne Interpolation, Ort
+über `Bildtakt.ort()`; nach einem Versetzen (Respawn) springt er mit.
 
 ## Bildtakt und Physiktakt (Physikinterpolation)
 
@@ -558,7 +700,8 @@ das Modell der `Kiste`, `Explosion`, Wassertropfen, alle `Effekte`,
 Baumkrone, Kleinzeug im Wind, Vogelkreisel, `Levelportal` und `Portal`,
 Turbospur des Reiters, Propeller des Fliegers, die Eistore in Level 17,
 das Fremdmodell der Gegner (seine Clips und alles an Knochen laufen im
-Bildtakt) und die Kamera des Startbildschirms.
+Bildtakt), die Kamera des Startbildschirms und die des Rundgangs beim
+Laden (`Rundgang`, in Level und Portalraum).
 
 **Folgen im Bildtakt:** Wer einem Physikkörper im Bildtakt folgt (Kameras,
 Bodenfleck, Masken, Wegweiser, Lichtkreis), liest dessen gezeichneten Ort
@@ -656,9 +799,59 @@ sendet sie `aufbau_fertig`.
   Boden kein Waldweg ist, tut das in `_boden_bauen()` (Schnee, Bohlen,
   Schlick, Stein, Blech, Sand, Dächer). Der Staub ist unbeleuchtet: In
   dunklen Leveln bleibt seine Farbe dunkel, sonst glimmt er auf.
-- **Nach dem Ausrichten der Kamera** ruft sie `Effekte.vorwaermen(self)`,
-  solange der Ladeschirm noch steht. Explosion und Lichtsäule des
-  Zielportals wärmen ihre Shader selbst vor.
+- **Schatten im Web und auf dem Handy** (`_schatten_anpassen()`, direkt
+  nach `_nach_aufbau()`): für jedes Level dieselbe Regel an der
+  schattenwerfenden Sonne – statisch als `LevelBasis.schatten_regel(szene)`,
+  die auch der Portalraum aufruft. Im Web höchstens zwei Stufen bis
+  `SCHATTEN_WEB` (60 m), auf dem Handy (`Effekte.reduziert`) eine
+  orthogonale Stufe bis `SCHATTEN_HANDY` (50 m). Früher stand das nur in
+  Level 01; seit die App den Handyweg nimmt, liefen alle anderen Level dort
+  mit vier Stufen bis 70–90 m. Gemessen (`FOTO_REDUZIERT`, verfolger 40 m):
+  Level 05 341 → 261 Draw-Calls, Level 02 1937 → 1589.
+- **Rundgang unter dem Ladeschirm** (`_rundgang()`, Ablauf in
+  `scripts/rundgang.gd`, `class_name Rundgang`): Wenn alles steht –
+  Kamera ausgerichtet, Zeitkisten gesetzt, `_nach_aufbau()` und
+  `_schatten_anpassen()` gelaufen (dort ändern sich Licht und Schatten,
+  und damit die Shaderfassungen) –, zeigt eine eigene Kamera in einem
+  eigenen kleinen Viewport derselben Welt eine Liste von Blicken, je Blick
+  ein Bild (`Rundgang.fahren(bei, blicke, vorbild, von, bis)`). Das Level
+  baut die Blicke aus dem Verlauf (`rundgang_blicke()`,
+  `Rundgang.blicke_entlang`): alle `RUNDGANG_ABSTAND` (12) m je ein Bild
+  40° links und rechts vorn, die Kamera wie die Korridorkamera dahinter
+  und darüber; dasselbe auf jedem Nebenweg aus dem Haken
+  `_rundgang_pfade() -> Array[Curve3D]` (Vorgabe leer – eine eigene Kurve,
+  die der Verlauf nicht berührt; was nur seitlich oder erhöht neben dem
+  Verlauf liegt, sieht er schon von dort, geprüft mit
+  `werkzeuge/rundgangprobe.gd`). Der Portalraum nutzt denselben Ablauf
+  mit eigenen Blicken. Eigener Viewport, weil sich die
+  Sichtweiten je Viewport merken, was zuletzt zu sehen war (der Rand
+  wirkt als Hysterese): Fuhr die Spielkamera selbst, standen bei 70 m
+  danach Kronen im Bild, die dort sonst fehlen. Der Viewport übernimmt
+  MSAA, 3D-Skalierung, HDR und den Schattenatlas der Punktlichter, also
+  alles, was die Shaderfassung bestimmt. Das Hauptbild zeichnet solange
+  kein 3D (`disable_3d`) – es läge ohnehin hinter dem Ladeschirm. Der
+  Compatibility-Renderer übersetzt jede Shaderfassung erst beim ersten
+  Zeichnen, mit Nebel, Schattenstufen, Instanzen und Lichtern, wie das
+  Objekt gerade steht; ohne Rundgang fiel das beim Laufen an, genau wenn
+  Neues ins Bild kam (siehe „Ladezeit und Ruckler"). Danach
+  `Rundgang.ausklingen(self)`: zwei Bilder, in denen das Hauptbild wieder
+  zeichnet, dann `Effekte.vorwaermen(self)` für die Teilchen und für
+  alles in der Gruppe `Effekte.VORWAERM_GRUPPE` – Netze, die bis zum
+  ersten Gebrauch verborgen sind und die der Rundgang darum nie sieht
+  (Schutzgeist bei Stufe 0, Spin-Ring, der Wegweiser im Portalraum): je
+  ein winziger Abklatsch vor der Kamera –, dann noch zwei Bilder. Vorher
+  blendete der Ladeschirm gleich nach `Effekte.vorwaermen` aus, und die
+  beiden ersten Bilder darunter kosteten in Level 01 1,6 und 1,1 s
+  Rechenzeit (Handyweg, llvmpipe), jetzt höchstens 81 ms. Dann
+  `_vor_dem_start()`: Dort gibt ein Level frei, was von selbst läuft
+  (Level 06 die Gegnerkarts – sie fuhren während des Rundgangs sonst
+  sekundenlang voraus). Erst danach bekommt die Figur ihre Physik zurück
+  und die Uhr des Zeitmodus läuft an. Headless entfällt der Rundgang;
+  `Rundgang.an = false` schaltet ihn zum Vergleichen ab.
+  Explosion und Lichtsäule des Zielportals wärmen ihre Shader selbst vor.
+- **Bauzeiten:** `bauzeiten` hält die Dauer jedes Bauschritts, des
+  Abschlusses und des Rundgangs (`[{"text", "ms"}]`), gelesen von
+  `werkzeuge/bauzeitprobe.gd`.
 - Das Wackeln beim Bauchplatscher und den Bildblitz beim Tod löst die
   Figur selbst aus; Level müssen dafür nichts verbinden.
 
@@ -668,6 +861,202 @@ Position erst danach gesetzt, springen sie zum Ursprung zurück.
 
 Props werden als Szene instanziiert (`preload(".../Baum.tscn").instantiate()`),
 nicht über `Baum.new()`.
+
+## Ladezeit und Ruckler (`scripts/bauspeicher.gd`, Rundgang)
+
+Gebaut für die Meldung vom Pixel 8 (APK): „Level lädt lange, und bei
+Bewegung scheint es vor- und nachzuladen; hat man eine Richtung
+eingeschlagen, passt es erstmal." Beides ist gemessen, nicht vermutet.
+
+**Messwerkzeuge** (Aufruf im Kopf der Dateien, Werte in README.md):
+- `werkzeuge/bauzeitprobe.gd` – headless; lädt Level 01 und den
+  Portalraum und druckt Laden, Instanziieren und jeden Bauschritt
+  (`bauzeiten` von Level und Portalraum). Zweimal mit demselben
+  `XDG_DATA_HOME` gestartet, zeigt der zweite Lauf den Stand mit
+  gefülltem Bauspeicher.
+- `werkzeuge/ruckelprobe.gd` / `ruckelprobe.sh` – unter Xvfb; fährt
+  dieselbe Zickzackfahrt zweimal und meldet jedes Bild, das deutlich über
+  dem Median liegt. Ruckler nur im ersten Durchgang sind Arbeit beim ersten
+  Gebrauch, Ruckler in beiden Arbeit in jedem Bild. Im Portalraum
+  (`RUCKEL_LEVEL=res://scenes/hub/Hub.tscn`) dreht sich die Figur erst auf
+  der Stelle und läuft dann den Hallenbogen ab, in jeden offenen Raum an
+  allen fünf Toren entlang, vor jedem versiegelten bis ans Siegel; der
+  Spielstand „mitte" (`RUCKEL_STAND`) stellt jede Art Tor einmal hin.
+  `RUCKEL_BESUCHE=2` baut die Szene zweimal nacheinander (der Portalraum
+  wird nach jedem Level neu betreten). Gezählt wird neben der echten
+  Bildzeit die Rechenzeit des Prozesses aus /proc (`RUCKEL_MASS=cpu`):
+  Auf dem geteilten Rechner lief oft ein zweiter Godot mit, und die
+  echten Bildzeiten zeigten dann in beiden Durchgängen Dutzende Ausreißer
+  (71 und 2 in einem Lauf, 57 und 44 in einem anderen); die Rechenzeit
+  des Hauptfadens nicht. Mesas eigener Shader-Speicher in `~/.cache` ist
+  dabei aus (`MESA_SHADER_CACHE_DISABLE`), sonst übersetzte ein zweiter
+  Lauf kaum noch etwas – wie ein erster Start nach der Installation.
+- `werkzeuge/rundgangprobe.gd` – headless, ohne Zeichnen: Liegt jedes
+  sichtbare Objekt einer Szene in wenigstens einem Blick ihres Rundgangs
+  (`rundgang_blicke()`), auf einer gezeichneten Ebene und innerhalb seiner
+  Sichtweite? Sichtkegel im Seitenverhältnis 16:9 der Projekteinstellung
+  (headless ist das Fenster quadratisch, ein schmalerer Kegel meldete
+  Dutzende Kisten als ungesehen). Portalraum 346 von 346, Level 21 1148
+  von 1148, Level 01 745 von 748 (zwei leere Farn-Sammelnetze und eine
+  Krone, die von jedem Halt gut 200 m weit weg liegt – hinter der
+  Fernebene der Kamera). Die Gabelung in Level 21 ist darum kein Nebenweg
+  für `_rundgang_pfade()`: Galerie und unterer Weg liegen neben demselben
+  Verlauf und sind von dort aus ganz im Bild.
+
+**Ruckler.** Ohne Vorwärmen gab es im ersten Durchgang 16 Ruckler (bis
+2,9 s unter llvmpipe), im zweiten einen: Es war das Übersetzen von
+Shaderfassungen, sobald etwas Neues ins Bild kam – genau das „Nachladen
+bei Bewegung". Kein Skript baut beim Laufen etwas neu auf. Abhilfe ist
+der Rundgang in `LevelBasis` (siehe „Level"): Danach war das längste Bild
+im ersten Durchgang 0,43 s statt 2,9 s – so lang wie die Ausreißer im
+zweiten, die von den geteilten Kernen kommen –, und das erste Bild nach
+dem Ladeschirm sank von 14 s auf 0,16 s. Der Rundgang selbst dauerte
+unter llvmpipe 16,5 s, fast nur Übersetzen, das vorher beim Spielen
+anfiel. Gerendert nachgeprüft: Am Rechner sieht Level 01 bei 4, 70 und
+176 m gleich aus (mittlere Abweichung 0,5 bei gleicher Spielzeit,
+innerhalb des Rauschens bewegter Gegner).
+
+**Ruckler im Portalraum.** Der Portalraum wärmte nur die Teilchen vor;
+was vom Startplatz aus nicht zu sehen war, übersetzte der Renderer erst
+beim Hinlaufen. Gemessen mit der Ruckelprobe (Handyweg, 640 × 360,
+Stand „mitte", Rechenzeit des Hauptfadens; vorher = b837a09): im ersten
+Durchgang 3 Ruckler bis 721 ms (in einem zweiten Lauf 14 bis 649 ms),
+im zweiten keiner. Seit dem Rundgang (siehe „Portalraum") keiner mehr
+im ersten Durchgang, das längste Bild 40 ms. Beim zweiten Besuch kam
+vorher an derselben Stelle wieder ein Ruckler (342 ms), jetzt keiner.
+Der Ladeschirm steht dafür länger: unter llvmpipe 28,6 s statt 27,3 s
+beim ersten Besuch – das Übersetzen fiel vorher zum großen Teil schon in
+die ersten Bilder unter dem Ladeschirm – und 5,3 s statt 4,2 s beim
+zweiten. Am Rechner zeigen die Orbitbilder 0–270° dieselben Draw-Calls
+wie vorher; auf dem Handyweg sparen die Schatten (eine Stufe) bis 53
+(Orbit 90: 519 → 466, auf der Fahrt höchstens 483 → 454). Der Rundgang
+belegt einmalig 2 MB Grafikspeicher mehr (86,1 → 88,2 MB im Orbitbild,
+auch mit nur einem Blick, und auch mit halb so breitem Viewport); über
+drei Besuche hintereinander blieb es bei 63,1 MB.
+
+**Ladezeit.** Die Zeit verteilt sich über gut 50 Bauschritte; den größten
+Einzelposten trugen die Bildpunktschleifen der Texturen (Waldweg allein
+0,6 s), danach die Netze von Kronen und Stämmen. Beides liegt nach dem
+ersten Laden im **Bauspeicher**:
+
+```gdscript
+Bauspeicher.holen(schluessel, erzeuger) -> Resource     # Image, Textur, Material …
+Bauspeicher.wert(schluessel, erzeuger) -> Variant       # Dictionary usw., als Metadaten
+Bauspeicher.netz(art, argumente: Array, erzeuger) -> ArrayMesh
+Bauspeicher.gespeichert(schluessel) -> Variant           # null, wenn nichts da
+Bauspeicher.ablegen(schluessel, inhalt)                  # Gegenstück, für Bauten über mehrere Schritte
+```
+
+- Ordner `user://bauspeicher`, je Eintrag eine komprimierte `.res`.
+  Geschrieben wird erst in eine Zwischendatei, dann umbenannt; was sich
+  nicht lesen lässt, wird neu gerechnet.
+- **Fassung:** md5 über alle Skripte unter `res://scripts`,
+  `res://scenes`, `res://autoload` (wie sie im Paket liegen, im Export die
+  `.gdc`) und die Engine-Version. Ändert sich daran etwas, wird der ganze
+  Ordner beim ersten Zugriff geleert. Darum muss niemand eine
+  Versionsnummer pflegen – aber der **Schlüssel** muss alles nennen, was
+  sich zur Laufzeit ändern kann (Farben, Größen, `Effekte.reduziert`).
+  `Bauspeicher.netz` bildet ihn aus `var_to_str(argumente)`; Argumente mit
+  Objekten werden nie gespeichert.
+- Darin liegen: die Texturmaterialien und Strukturen der
+  `Materialbibliothek` (`_hole(…, platte = true)`), die Farbbilder der
+  Varianten (Normal-, Rauheits- und Verdeckungskarte bleiben mit der
+  Struktur geteilt), Weltrauschen und Rasentextur der `Wegmaske`, das
+  Blattbild der `Kronenwolke`, der Wurzelvorhang des Weltenbaums und die
+  Netze von `Kronenwolke.netz`, `Riesenstamm.netz`/`liegend`,
+  `Farnwerk.netz`, `Findling.netz`/`brocken` und `Weltenbaum.krone`,
+  dazu das Gelände von Level 01 (`l01_gelaende_*`: Höhenraster und die
+  Netze aller Stücke, 0,8 MB). Das Gelände läuft über zehn Bauschritte und
+  passt deshalb in keinen Erzeuger: `L01Gelaende.bauschritte` fragt
+  `gespeichert()` und baut bei Erfolg nur noch zwei Schritte („Das Tal
+  wird geladen“ 5 ms statt rund 0,9 s, Rechner, Handyweg); gebautes und
+  geladenes Gelände sind gleich (Höhen-Hash, Eckpunkte). Für Level 01 und
+  den Portalraum rund 400 Dateien, 21 MB.
+- **Nicht** hinein gehört, was schneller gebaut als gelesen ist
+  (einfarbige Materialien, kleine Netze) und was Godot selbst nachlädt
+  (`NoiseTexture2D` speichert nur ihre Einstellungen).
+- `Bauspeicher.an = false` schaltet ihn ab (Vergleich). Die Prüfwerkzeuge
+  laufen mit leerem `user://` und rechnen also alles.
+
+## Level 01 (`scenes/levels/level01.gd`, `class_name Level01`)
+
+Level 01 ist seit dem Neubau anders gebaut als die übrigen Level: Die
+Szenendatei `level01.gd` hält **alle Daten** als Konstanten (Verlauf
+`PUNKTE`, `ABSCHNITTE` mit Welt-Höhe je Abschnitt, Ränder, Bach,
+`BEGEHBARES`, Leitlinien, Todeszonen, Kisten, Gegner, Früchte) und bietet
+Abfragen darauf an (`breite_bei`, `boden_bei`, `rand_bei`, `rand_profil`,
+`ist_luecke`, `weg_von_der_kante`, `pruefprofil`). Die Optik bauen Module
+in `scenes/levels/level01/`, je eine Klasse mit statischen Funktionen und
+dem Parameter `level: Level01`:
+
+| Modul | Aufgabe |
+|---|---|
+| `L01Boden` | Wegdecke ohne Bordstein (`shaders/wegboden.gdshader`), Lückenlippen |
+| `L01Saum` | Kanten und Felswände als modellierte Profile (`GelaendeSaum`, `fels_schichten`) |
+| `L01Gelaende` | Tal als Höhenfeld ohne Kollision (`GelaendeFeld`), `hoehe(x, z)` |
+| `L01Wasser` | Bach, Furt, zweistufiger Wasserfall (`Wasserfall.band`) |
+| `L01Weltenbaum` | der Riese, die Wurzelwendel, Kronentor (`Weltenbaum`) |
+| `L01Wegbauten` | Setpieces am Weg: Wurzelnest, Geländer (`Totholzzaun`), Kanzel, Pforte, Furtsteine |
+| `L01Wald` | Wald in drei Tiefen (`Waldsetzer`) |
+| `L01Rasen` | Rasensaum, Bodenstreu, Rahmenfarne (`Rasensaum`, `Bodenstreu`) |
+| `L01Stimmung` | Licht, Nebel, Lichtschächte, Laub, Vögel (positionsabhängiger Regler statt `Stimmungszone`) |
+
+`bauschritte(level)` liefert `[{"text", "tun": Callable}]`; `level01.gd`
+hängt die Schritte in fester Reihenfolge an. `optik(level, eintrag)` bekommt
+einen Eintrag aus `BEGEHBARES` und liefert die Optik **passgenau zur
+Kollision** – die Kollision baut allein `level01.gd`, die Module bauen
+keine. Fehlt eine Optik, steht ein grauer Platzhalter.
+
+**Wiederverwendbare Bauteile** (Schnittstelle jeweils im Kopfkommentar):
+`Riesenstamm`, `Kronenwolke`, `Findling` (Optik genau auf einem
+Kollisionskasten), `Farnwerk` (Farne ohne Alpha), `Rasensaum`,
+`Bodenstreu`, `Totholzzaun`, `Weltenbaum`, `Wasserfall.band`
+(`scenes/props/`); `Wegmaske` (CPU-Maske = GPU-Maske für Weg und Halme),
+`GelaendeSaum`, `GelaendeFeld`, `Waldsetzer` (`scripts/`); die Shader
+`wegboden`, `fels_schichten`, `gelaende` mit den Includes
+`wald_gemeinsam.gdshaderinc` und `fels_gemeinsam.gdshaderinc`.
+Die Werkstatt zeigt sie einzeln (Station 20–29, `werkstatt.gd`), jedes so
+aufgerufen, wie sein Kopfkommentar es beschreibt; der Weltenbaum steht dort
+im Maßstab 1:8, `GelaendeFeld` und `Wegmaske` nur mittelbar (die Halme
+lesen die Maske, das Höhenfeld fehlt).
+`Fremdmodelle.netz()` verschmilzt CC0-Modelle aus `assets/modelle/natur2/`
+zu MultiMesh-tauglichen Netzen (Felsen, Stümpfe, Moosstämme),
+`Fremdmodelle.baum()` macht aus einem Modellbaum Netze im Format der
+prozeduralen Bäume (siehe unten „Modellbäume"). Welche Rolle welches
+Modell trägt, steht in `Fremdmodelle.ROLLEN`; fehlt eine Datei oder ist
+`Einstellungen.fremde_modelle` aus, fällt jedes Bauteil auf seinen
+prozeduralen Rückfall zurück.
+
+**Modellbäume** (`Fremdmodelle.baum(name, {hoehe, unten, …})`, Quaternius
+Ultimate Nature Pack in `natur2/unp/`). Aus der Datei kommt nur die Form,
+der Rest aus dem Wald, damit Modell- und prozedurale Bäume dieselbe
+Zeichnung teilen:
+
+| Netz | Format | Stoff |
+|---|---|---|
+| `stamm` | wie `Riesenstamm` (COLOR: Verdeckung, Alpha Moos; UV2: Art, Nordmoos), Normalen geglättet, auf 1200 Dreiecke ausgedünnt, Fuß 1 m in den Boden | `Riesenstamm.borkenstoff({"welt": true})` – Weltprojektion, die Modelle haben keine brauchbaren UV und keine Tangenten |
+| `krone` | wie `Kronenwolke` (COLOR: Verdeckung, Alpha Wind; UV2.y Höhe in der Krone), Normalen zur Kronenmitte gebogen, nach unten gestreckt bis `unten` · Höhe (höchstens 1,6-fach), 30–160 eigene Blattkarten | `Kronenwolke.stoff()` |
+| `fern` | Krone ohne Karten und Stamm dunkel im Kronenformat, ausgedünnt auf 360 Dreiecke, dazu 24 große Karten | `Kronenwolke.stoff(farbe, false)` |
+
+Alle drei liegen im `Bauspeicher` (`fremdbaum_*`, Schlüssel: Pfad und
+Optionen). Level 01 setzt sie über `L01Wald._modellbaum` im nahen
+Talwald (M3, Höhe und Kronenansatz der Rückfallformen), in den hinteren
+Reihen des Hangwalds (M1, eigene Stammart „m_stamm" mit Schatten) und
+als Totholz im Tal (M17); der Talwald zeichnet seine Stämme dann ganz in
+Weltborke. Der ferne Talwald bleibt prozedural: Aus 100 m lasen sich die
+kantigen Modellkronen als schwebende Platten. Am Fuß der Hainbäume liegen
+Felsen, Stümpfe und Moosstämme (M8, M16, `_bodenstueck`) – gesetzt, wenn
+alle Haine stehen, nach dem Ort gestreut (`_streu`), damit die Würfelfolge
+des Walds unverändert bleibt; ohne Schatten, MultiMesh je Modell, Zellen
+zu 96 m, Sicht 70 m, im Web jedes zweite.
+
+**Prüfungen nur für Level 01** (Opt-in über `pruefprofil()` bzw.
+`sprungfaelle()`): `level_check.gd` prüft zusätzlich Kamerasicht, Gefälle,
+Todeszonen-Überschneidung, Ränder und Nähte; `werkzeuge/Sprungprobe.tscn`
+(in `pruefe.sh` Stufe 4) prüft, ob jeder Pflichtsprung trägt;
+`werkzeuge/Wegmaskenprobe.tscn` vergleicht CPU- und GPU-Wegmaske.
+
+Den Bauplan mit allen Maßen hält `doku/level01-neubau.md` fest.
 
 ## Levelbau (`scripts/level_werkzeuge.gd`, `class_name LevelWerkzeuge`)
 
@@ -829,6 +1218,18 @@ Umgebung, Licht, Spieler, Kamera und HUD.
   Wandpfeiler), weil hinter der Nordmauer nie eine Kamera steht. Süd- und
   Seitenmauern bleiben einseitige Flächen ohne Deckfläche: Die Kamera steht
   oft außerhalb, und eine Deckfläche läge als Balken quer im Bild.
+- **Waldsaum und Raumbäume** (`_umland_modellwald`, `_raumbaum`): Hinter
+  der Nordmauer stehen in zwei Reihen Modellbäume aus natur2
+  (`Fremdmodelle.baum`, wie in Level 01), Art und Laubfarbe nach dem Raum
+  davor (Wurzelwald Laub, Nebelsümpfe Moos und Totholz, Steinfeste Nadeln
+  im Frost, Rost und Ranken Dschungel, Sand und Neon kahl); die Laub- und
+  Nadelbäume in Wurzelwald und Rost und Ranken sind dieselben Modelle mit
+  schmalen Kronen. Alle zusammen sind EIN `Waldsetzer` mit je einem Netz
+  für Stämme und Kronen hinter der Mauer (ohne Schatten) und in den Räumen
+  (Stamm mit Schatten, die Krone wirft den ihrer Fernfassung). Ein Raumbaum
+  behält die Kollision des Kenney-Baums, den `Baum` dort setzte (Zylinder,
+  Radius 0,055 · Höhe · Stärke, 60 % der Höhe). Ohne Modelle baut alles wie
+  vorher (`Baum`).
 - **Tore** (`levelportal.gd`, `class_name Levelportal`): `nummer`,
   `eigene_pfeiler`, `akzent` und `wirbel` vor `add_child()` setzen. Der
   grüne Ring heißt „offen", der Wirbel darin (`Effekte.wirbelstoff`) trägt
@@ -850,9 +1251,37 @@ Umgebung, Licht, Spieler, Kamera und HUD.
   Die Raumböden beginnen erst hinter dem letzten Pflasterband.
 - **Raumnamen** über den Toren auf 5,2 m: Höher lagen sie über dem oberen
   Bildrand der Portalraum-Kamera und waren nur im Sprung zu sehen.
-- **Ankunft:** Vor dem Ausblenden des Ladeschirms wärmt der Portalraum
-  die Teilchen-Shader vor (`Effekte.vorwaermen`, zwei Bilder nach dem
-  Aufbau), damit Lichtsäule und Ring der Ankunft nicht stocken.
+- **Laden und Vorwärmen** (`_vorwaermen_und_zeigen`): Der Saal entsteht
+  in `_ready()` in einem Zug; danach dieselbe Schattenregel wie in jedem
+  Level (`LevelBasis.schatten_regel`: im Web zwei Stufen bis 60 m, auf
+  dem Handy eine orthogonale bis 50 m – am Rechner bleibt alles, wie es
+  war). Unter dem Ladeschirm folgt der Rundgang (`Rundgang`, siehe
+  „Level") mit den Blicken aus `rundgang_blicke()`: die Folgekamera, wie
+  sie über der Figur stünde – am Startplatz (zuerst; das erste Bild nach
+  dem Ladeschirm), alle 10° auf dem Hallenbogen, in jedem offenen Raum
+  links, mittig und rechts an der Portalreihe, vor jedem versiegelten am
+  Siegel. Die Kamera schaut im Portalraum immer gleich nach Norden, also
+  entscheidet nur der Platz, was ins Bild kommt; 19 Blicke bei einem neuen
+  Spiel, 23 bei drei offenen Räumen, 27 bei allen. `werkzeuge/rundgangprobe.gd`
+  prüft, dass jedes sichtbare Objekt in einem Blick liegt (346 von 346,
+  Stand „mitte"); verborgen bleiben nur die Levelnamen über den Toren, und
+  die nutzen dieselben Stoffe wie die Nummern. Den Wegweiser, der erst
+  einblendet, wärmt `Effekte.VORWAERM_GRUPPE` vor, die Iris-Blende des
+  Tors ein Bildpunkt unter dem Ladeschirm (`_iris_vorwaermen`). Danach die
+  Teilchen (`Effekte.vorwaermen`, Lichtsäule und Ring der Ankunft), zwei
+  Bilder, Ausblenden, `aufbau_fertig`. Die Figur ist dabei gesperrt
+  (`Spieler.gesperrt`, gesetzt in `_spieler_setzen`): Schwerkraft ja, keine
+  Eingabe – Tastatur und Touch-Stick (`_input`) erreichen sie sonst auch
+  unter dem Ladeschirm, und wer beim Laden vorwärts hielt, lief während
+  des Rundgangs ungesehen durch die Halle bis in ein offenes Tor. Frei
+  wird sie erst kurz vor dem Ausblenden (`_spieler_freigeben`: Tempo auf
+  null, `InputHub.zuruecksetzen()`), wie im Level. Der Rundgang läuft
+  bei jedem Besuch: Beim zweiten Besuch der Sitzung übersetzte er keinen
+  Shader mehr, ließ man ihn aber weg, kam derselbe Ruckler wieder (Zahlen
+  unter „Ladezeit und Ruckler").
+- **`aufbau_fertig`** kommt mit dem Ausblenden des Ladeschirms, wie im
+  Level; Fotos und Proben warten darauf. `bauzeiten` hält Aufbau und
+  Vorwärmen.
 - **Torpfeiler:** Steht einer zwischen Kamera und Figur, löst er sich samt
   Kragstein, Kappe, Fahne, Halter und Flamme in ein Pixelraster auf
   (Distance-Fade-Dither; die Sammel-Shader bekommen die Werte je Torseite
@@ -884,7 +1313,7 @@ Umgebung, Licht, Spieler, Kamera und HUD.
 - **`Effekte.staubfarbe` überlebt den Szenenwechsel.** `LevelBasis` setzt sie deshalb vor jedem Aufbau auf `Effekte.STAUBFARBE_VORGABE` (Waldweg); ein Level mit eigenem Boden setzt sie beim Bauen.
 - **`Effekte.ruhig`** (Einstellung „Bildschirmwackeln" aus) schaltet Wackeln, Trefferpause und Bildblitz ab. Auch das HUD blitzt dann nicht: kein roter Schleier beim Tod, kein roter Rand beim Schutzbruch.
 - **Vorwärmen:** Die Teilchen von `vorwaermen()` laufen in Zeitlupe (`VORWAERM_ZEITLUPE`). Das erste Bild nach einem Aufbau ist lang, und mit gewöhnlichem Tempo verglühten sie darin, ehe sie gezeichnet wurden.
-- **`Effekte.reduziert`** halbiert die Mengen und schaltet Wackeln, Trefferpause, Bildblitz und Blitzlicht ab. Vorbelegt ist es nur in Handy-Browsern.
+- **`Effekte.reduziert`** halbiert die Mengen und schaltet Wackeln, Trefferpause, Bildblitz und Blitzlicht ab. Vorbelegt ist es auf Handys: im Browser (`web_android`, `web_ios`) und als App (`mobile`). Früher fragte es nur nach dem Browser; die APK lief auf dem Rechnerweg (volle Dichten, zwei Schattenstufen, MSAA).
 - **Trefferpause:** `Engine.time_scale` wird für höchstens 0,2 s auf 0,05 gesetzt. Im Headless-Betrieb ist sie aus, damit die Messungen der Prüfwerkzeuge stimmen. Für den Zeitmodus ist sie fair, weil die Uhr mit dem verlangsamten Delta zählt.
 - **Bildblitz** liegt auf CanvasLayer-Ebene 0, also unter dem HUD (Ebene 10, siehe HUD).
 
@@ -943,10 +1372,17 @@ die Interpolation war aus. Begründungen stehen deshalb vor allem hier; die
 jeder Änderung nachsehen, was wirklich gilt:
 `ProjectSettings.get_setting("physics/common/physics_interpolation")`.
 
-| `rendering/…` | Rechner | Browser (`.web`) | Warum |
-|---|---|---|---|
-| `anti_aliasing/quality/msaa_3d` | 1 (2x) | 1 (2x), Handy 0 | Glättet Stacheln, Kisten- und Wandkanten. Kostet rund 14 MB Grafikspeicher bei 720p, gut 30 MB bei 1080p, keine Draw-Calls. Handys im Browser (`Effekte.reduziert`) schaltet `Einstellungen._ready()` zur Laufzeit ab – dort zählt die Füllrate. |
-| `lights_and_shadows/directional_shadow/size` | 4096 | 2048 | 16 statt 64 MB. Level 01 sieht in der Nahansicht fast gleich aus. |
+| Einstellung | Rechner | Browser (`.web`) | Handy-App (`.mobile`) | Warum |
+|---|---|---|---|---|
+| `rendering/anti_aliasing/quality/msaa_3d` | 1 (2x) | 1 (2x), Handy 0 | 0 | Glättet Stacheln, Kisten- und Wandkanten. Kostet rund 14 MB Grafikspeicher bei 720p, gut 30 MB bei 1080p, keine Draw-Calls. Handys im Browser (`Effekte.reduziert`) schaltet `Einstellungen._ready()` zur Laufzeit ab – dort zählt die Füllrate; die App hat es schon in der Projektdatei aus. |
+| `rendering/lights_and_shadows/directional_shadow/size` | 4096 | 2048 | 2048 | 16 statt 64 MB. Level 01 sieht in der Nahansicht fast gleich aus. |
+| `rendering/scaling_3d/scale` | 1,0 | 1,0 | 0,8 | Ein Pixel 8 zeichnet sonst 2400 × 1080 Bildpunkte, mit Gras, Farnen und Nebel – das ist die Füllrate, an der Handys hängen. 0,8 spart gut ein Drittel der Bildpunkte; HUD und Menüs bleiben scharf (2D). Gerendert nachgeprüft: Der Compatibility-Renderer skaliert bilinear. |
+| `rendering/textures/default_filters/anisotropic_filtering_level` | 2 (4x) | 2 (4x) | 1 (2x) | Schräg gesehene Böden (Weg, Hänge) holen weniger Texel; auf dem kleinen Schirm nicht zu sehen. |
+| `application/run/max_fps` | 0 | 0 | 60 | Bei 120 Hz wechseln sonst 8- und 17-ms-Bilder, sobald ein Bild länger braucht; dazu wird das Gerät warm und drosselt. |
+
+Die Überschreibungen `.mobile` gelten nur in der App. Am Rechner stellen
+`FOTO_REDUZIERT=1` (`foto.gd`, Handy im Browser) und `RUCKEL_REDUZIERT=1`
+(`ruckelprobe.gd`, App samt 3D-Skalierung) den Handyweg nach.
 
 **Kein FXAA.** `screen_space_aa` gibt es unter gl_compatibility nicht: Godot
 4.7.2 meldet „Screen-space AA is only available when using the Forward+ or
@@ -955,10 +1391,123 @@ zeichnen deshalb ungeglättet.
 
 **Sonnen prüfen.** `.tscn` speichert eine `Transform3D` zeilenweise (Zeilen
 der Basis, nicht Spalten). Ein abgeschriebener Wert lässt das Licht leicht
-von UNTEN kommen – Level 01 war so nur vom Umgebungslicht beleuchtet, und
-mehrere andere Level tragen dieselbe Sonne noch. Probe:
+von UNTEN kommen – Level 01 war so nur vom Umgebungslicht beleuchtet. Probe:
 `-licht.global_transform.basis.z` ist die Laufrichtung des Lichts, ihr y
-muss negativ sein.
+muss negativ sein. `python3 werkzeuge/lichtprobe.py` rechnet das für jedes
+`DirectionalLight3D` in jeder Szene nach (Richtung, Höhe, Azimut der Quelle,
+Energie) und endet mit Rückgabe 1, sobald ein schattenwerfendes Licht von
+unten kommt. Lichter, die erst ein Skript baut, sieht es nicht.
+
+Level 02–10, 23–25 und die Werkstatt trugen dieselbe abgeschriebene Sonne,
+`Transform3D(0.6, 0, -0.8, -0.71552, …)`: Licht 32° von unten. Gemeint war
+die Basis spaltenweise; transponiert steht die Sonne 63° hoch von rechts
+hinter der Kamera (Lichtrichtung −0,36/−0,89/−0,27 – genau die
+Vorgaberichtung des `Lichtschacht`). Seitdem liegt Sonne auf den Wegen, und
+die Level werfen zum ersten Mal Schatten. Wo der Weg dabei ausbrannte, ist
+die Sonne schwächer: Level 02 (Schnee) 1,9 → 0,9, Level 05 1,6 → 1,3,
+Level 24 (Nacht, Mondlicht) 0,75 → 0,5. In Level 23 dimmt der `Lichtkreis`
+die Sonne ohnehin auf 10 %.
+
+Die übrigen Szenen folgten in Runde 4; seitdem meldet die Lichtprobe kein
+Licht mehr von unten. Azimut = Richtung zur Quelle, 0° = +Z (hinter der
+Kamera, solange der Weg nach −Z läuft), +90° = rechts. Höhe vorher war
+negativ, also unter dem Horizont:
+
+| Szene | Licht | vorher | nachher | Energie |
+|---|---|---|---|---|
+| Level 11 | Sonne | −18°, aus +59° | 32°, aus −55° (links hinten) | 1,0 → 0,7 |
+| Level 12 | Hallenglut | −50°, aus −32° | 55°, aus +20° | 0,5 → 0,3, Farbe kühl-neutral (0,85/0,88/1) statt orange |
+| Level 14 | Sonne | −38°, aus −39° | 45°, aus +30° | 0,95 → 0,2; Belichtung 1,0 → 0,6 |
+| Level 16 | Sonne | −18°, aus −57° | 60°, aus +53° | 1,45 → 1,05 |
+| Level 17 | Mondlicht | −18°, aus −57° | 50°, aus −110° | 0,8 → 0,25, Farbe blauer (0,45/0,62/1) |
+| Level 18 | Sonne | −21°, aus −77° | 60°, aus −110° | 1,8 → 0,25; Belichtung 1,34 → 1,2 |
+| Level 19 | Sonne | −14°, aus −101° | 53°, aus +107° (rechts) | 2,2 → 0,45 |
+| Level 20 | Sonne | −34°, aus −47° | 45°, aus −100° | 0,85 |
+| Level 21 | Sonne | −24°, aus −61° | 50°, aus +53° | 0,95 → 0,65 |
+| Level 22 | Sonne | −25°, aus −52° | 37°, aus +46° | 0,9 → 0,55 |
+| Testlevel | Sonne | −32°, aus −71° | 63°, aus +53° | 1,6 |
+
+Der Azimut ist meist der der transponierten Basis, also der gemeinte.
+Ausnahmen sind Level 17, 18 und 20 (unten) und Level 19. Die Höhe ist dort
+angehoben, wo sie zwischen hohen Wänden zu flach war:
+Level 16 (Kanal) hatte transponiert 32°, Level 17 und 21 (Schluchten) 32°
+bzw. 42°; der Weg lag dann großteils im Schatten der Wände.
+
+Level 19 war keine reine Zeilenabschrift – auch transponiert lief das
+Licht nach oben (+0,8). Die Höhe ist dort gespiegelt: Die Quelle steht
+jetzt rechts, und der Weg, der nach links abbiegt, liegt auf 13 % seiner
+Länge im Gegenlicht statt auf 40 % mit der waagerechten Richtung des alten
+Werts (aus den Kontrollpunkten von `_verlauf_anlegen` nachgerechnet).
+
+Die Energien sind am Bild gestimmt, je Level drei Aufnahmen (`foto.sh
+verfolger` bei 40 m, Mitte und rund 80 %, Level 22 `orbit` aus der Höhe
+des Fliegers, das Testlevel `orbit`), mit der Stimmungszone der Stelle.
+Mittlere Helligkeit (`kontaktbogen.py`, Luma 0–255), vorher → nachher:
+Level 11 85/58/96 → 123/92/111, Level 12 67/40/85 → 82/42/84, Level 14
+207/207/210 → 210/209/214, Level 16 22/16/19 → 51/24/21, Level 17
+105/101/99 → 126/111/108, Level 18 119/85/64 → 135/91/90, Level 19
+60/36/57 → 72/48/75, Level 20 73/60/68 → 65/54/64, Level 21 124/44/59 →
+159/67/88, Level 22 192/187/187/201 → 199/198/190/189, Testlevel 42/41/43
+→ 48/52/51. Die Zahlen gelten für die erste Fassung; die Nachbesserung
+unten ändert sie für Level 12, 14, 16, 18 und 19. Die Draw-Calls ändern sich
+je nach Stelle in beide Richtungen, weil die Schattenwerfer jetzt über dem
+Bild liegen statt darunter. An einzelnen Stellen steigen sie deutlich, auch
+auf dem Handyweg; eine Spanne für alle Stellen ist nicht gemessen.
+
+Je Level, was dabei zählte:
+- **Level 11, 18, 21:** Die alten Werte (1,0, 1,8, 0,95) waren für Licht
+  von unten gestimmt, das den Weg nie traf. Von oben mit derselben Energie
+  wurde das Bild bei 40 m deutlich heller (Level 11 85 → 131, Level 18
+  119 → 142, Level 21 105 → 145), und in Level 11 kippten Früchte in der
+  Sonne ins Gelbe; daher weniger Energie.
+- **Level 12, `Hallenglut`:** derselbe Fehler, kein gewollter Ofenschein.
+  Die Basis hat dasselbe Muster wie die abgeschriebenen Sonnen und ergibt
+  transponiert 55° von oben hinter der Kamera. Die Lichtquellen des Levels
+  hängen an den Wänden und ÜBER dem Weg (Rohrbündel, Querrohre, der Ofen in
+  der Wand bei 222 m, kalte Lichtschächte in der Torhalle); unter dem Weg
+  glüht nichts, die Abgründe sind dunkel. `level12.gd` verlangt das
+  Wegblech als hellste Fläche im Bild – Licht von unten trifft es nie, und
+  die „Zeichnung" des Ersatzlichts lag an Decken und Unterseiten. Im Bild:
+  40 m 67 → 82; bei 270 m liegen die Schatten der Deckenträger als Streifen
+  auf dem Hallenboden. Mit der alten orangen Farbe wurde die Torhalle
+  wärmer (kühle Pixel 64 % → 42 %). `level12.gd` will sie aber als den
+  einzigen kühlen Ort („Der kalte Anfang ist es, der das Glühen danach warm
+  aussehen lässt"). Daher hat die `Hallenglut` jetzt eine kühl-neutrale Farbe
+  (0,85/0,88/1) und die Energie 0,3. Das Glühen tragen die Glutlichter und
+  der Ofen.
+- **Level 14:** Der Steg liegt im Weiß ganz oben in der Tonkurve. Mit
+  Sonne von oben brannte das Eis im Rutschsteg (90–160 m) weiß aus. Das
+  bläuliche Eis ist aber das Spielsignal für „glatt“, und die Früchte
+  kippten ins Blassgelbe. Die Stimmungszone 90–160 m setzt das
+  Umgebungslicht dort fest auf 1,05 (`level14.gd`). Abhilfe: Belichtung
+  1,0 → 0,6, Sonne 0,2. Damit Himmel und Dunst nicht grau werden, sind die
+  Himmelsenergie (×1,125) und das Licht im Nebel (0,9 → 1,5) angehoben.
+  Eis wieder hellblau, Früchte orange, Stege mit Schatten.
+- **Level 16:** Mit 1,45 von oben kippten Früchte ins Gelbe und der dunkle
+  Körper der Spinne wurde blass; 1,05.
+- **Level 17, 18, 20:** Die Wege biegen nach rechts ab (+X). Mit dem
+  transponierten Azimut (+53°, +65°, +37°) lag ein großer Teil im
+  Gegenlicht. Gespiegelt auf −110°/−110°/−100° steht die Quelle hinter
+  der Kamera, solange sie nach +X schaut.
+- **Level 18:** Der helle Sandstreifen auf dem Weg brannte mit 1,1 aus,
+  und die orange Frucht verschwand darauf (gleiche Farbe, gleiche Luma).
+  Sonne 0,25, Belichtung 1,34 → 1,2: Der Streifen brennt nicht mehr aus.
+- **Level 17 (Nacht):** Von oben wird der Schnee schnell weiß und
+  neutral: Schon mit 0,4 und der alten Lichtfarbe sanken die kühlen Pixel
+  von 91–94 % auf 51–73 %. Mit 0,25 und blauerem Licht sind es 75–90 %,
+  der Schatten von Reiter und Tier liegt auf der Rinne.
+- **Level 19 (Sturm):** Früher setzte der Blitz Sonne UND Umgebungslicht
+  aufs Siebenfache. Mit der Sonne von oben brannte der Weg im Blitz weiß
+  aus. Jetzt geht die Sonne im Blitz aus (`BLITZ_SONNE = 0`), und nur das
+  Umgebungslicht steigt (`BLITZ_STAERKE = 7`). Ein Blitz erhellt den
+  ganzen Himmel, sein Licht kommt von überall und wirft keine Schatten.
+  Im Blitz sieht der Weg damit aus wie vor der Umstellung. Ruhende Sonne
+  0,6 → 0,45.
+- **Level 20:** Die Halle hat ein Dach; die Sonne trifft den Boden nur
+  durch Lücken. Etwas dunkler als vorher, die Wände tragen das Licht.
+- **Level 22:** Wolken und Berge sind Grau in drei Stufen, Farbe tragen
+  nur die Ziele. Mit 0,9 von oben wurden die Wolkenoberseiten fast weiß;
+  0,55 hält das Bild bei der alten Helligkeit.
 
 **Licht in Level 01** (Werte in `Level01.tscn`):
 - Sonne 68° hoch aus Süd-Südost, hinter der Kamera; 0,6, warm, Glanz 0,2,

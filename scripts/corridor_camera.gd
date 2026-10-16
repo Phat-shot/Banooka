@@ -69,6 +69,14 @@ class_name KorridorKamera
 ## damit der Wechsel nicht mitten im Sprung als Ruck erscheint, und kurz
 ## genug, dass niemand blind durch den halben Abschnitt läuft.
 @export var seitenblick_folge := 1.6
+## Ebenen, die der Sichtstrahl in `_freie_sicht` prüft. Vorgabe 1|8 – feste
+## Levelgeometrie und Sichtsperre der Deko (`LevelWerkzeuge.SICHTSPERRE`),
+## genau der Wert, der dort bis dahin fest stand. Ein Level, in dessen
+## Kamerabahn nichts Festes stehen darf, nimmt 8: Dann holt keine Kiste und
+## keine Terrasse die Kamera heran, nur ausdrücklich gesetzte Sichtsperren
+## (Level 05, Rückblick; Baukasten §4 Nr. 5). Wer das wählt, belegt es mit
+## einer Freiraumprobe.
+@export var sicht_maske := 1 | 8
 
 var _ziel: Node3D
 var _kurve_knoten: Path3D
@@ -330,8 +338,9 @@ func _freie_sicht(wunsch: Vector3, blickziel: Vector3) -> Vector3:
 	if welt == null:
 		return wunsch
 	# Ebene 1 ist die feste Levelgeometrie, Ebene 4 (Wert 8) die
-	# Sichtsperre der Deko – siehe LevelWerkzeuge.SICHTSPERRE.
-	var frage := PhysicsRayQueryParameters3D.create(blickziel, wunsch, 1 | 8)
+	# Sichtsperre der Deko – siehe LevelWerkzeuge.SICHTSPERRE und
+	# `sicht_maske` (Vorgabe 1 | 8).
+	var frage := PhysicsRayQueryParameters3D.create(blickziel, wunsch, sicht_maske)
 	# Die Figur selbst steht auf Ebene 2 und ist hier ohnehin nicht dabei;
 	# ausgeschlossen wird sie trotzdem, falls ein Level sie umhängt.
 	if _ziel != null and _ziel is CollisionObject3D:

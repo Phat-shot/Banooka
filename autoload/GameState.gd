@@ -24,6 +24,9 @@ const FRUECHTE_PRO_EXTRALEBEN := 100
 const SCHUTZ_MAX := 3
 
 var fruechte := 0
+## So lange steht das GAME-OVER-Banner, bevor es in den Portalraum geht.
+const GAME_OVER_PAUSE := 2.5
+
 var leben := START_LEBEN
 var kisten_zerbrochen := 0
 var kisten_gesamt := 0
@@ -134,12 +137,13 @@ func setze_checkpoint(pos: Vector3) -> void:
 	zeige_nachricht("Checkpoint", 1.2)
 
 
-## Ein Leben abziehen. Bei 0 Leben geht es am Levelanfang weiter.
+## Ein Leben abziehen. Bei 0 Leben: Game Over, zurück in den Portalraum.
 ##
-## Beides – Tod wie Game Over – stellt das Level wieder her: Ohne das
-## stand man nach dem Respawn vor einer leergeräumten Strecke und konnte
-## die Kisten nicht mehr holen. Der Unterschied ist nur, wie weit zurück:
-## bis zum Checkpoint oder bis zum Levelanfang.
+## Ein Tod stellt das Level wieder her und setzt am Checkpoint ein: Ohne
+## das stand man nach dem Respawn vor einer leergeräumten Strecke und
+## konnte die Kisten nicht mehr holen. Game Over stellt das Level auch
+## wieder her (Uhr, HUD und Zeitmodus hängen an `level_zuruecksetzen`) und
+## wechselt nach dem Banner in den Portalraum (`GAME_OVER_PAUSE`).
 func leben_verlieren() -> void:
 	ohne_tod = false
 	if debug:
@@ -158,6 +162,19 @@ func leben_verlieren() -> void:
 		zeige_nachricht("Autsch!", 1.2)
 	leben_geaendert.emit(leben)
 	level_zuruecksetzen.emit(von_vorn)
+	if von_vorn:
+		_zum_portalraum_nach_game_over()
+
+
+## Nach dem Banner in den Portalraum – nur aus einem Level heraus, und nur,
+## wenn der Spieler inzwischen nicht selbst woandershin gewechselt ist.
+func _zum_portalraum_nach_game_over() -> void:
+	var nummer: int = Spielfluss.aktuelles_level
+	if nummer <= 0 or not is_inside_tree():
+		return
+	await get_tree().create_timer(GAME_OVER_PAUSE).timeout
+	if Spielfluss.aktuelles_level == nummer:
+		Spielfluss.zum_hub()
 
 
 func zeige_nachricht(text: String, dauer: float = 1.8) -> void:

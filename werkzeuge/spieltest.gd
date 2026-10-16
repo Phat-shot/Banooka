@@ -13,16 +13,38 @@ extends Node
 ##   Laufmodus     – der Bot steuert selbst am Korridorverlauf entlang
 ##                   (Level 01–03)
 ##   Schienenmodus – die Figur rennt von allein, gelenkt wird nur quer
-##                   (Reiter, Flüchtling, Rennfahrer; Level 04–06).
+##                   (Reiter, Rennfahrer; Level 04 und 06).
 ##                   Erkannt an der Eigenschaft `strecke` der Figur.
 ##
 ## Lücken erkennt der Bot per Strahltest nach unten, nicht aus den
 ## Leveldaten – so prüft er gleichzeitig, ob die Kollisionsgeometrie da ist.
 ##
+## DURCHLÄSSE (Opt-in, Entwurf L05 §9.3): Bietet das Level `duckstellen()`
+## an (die Stirnen seiner Duckdurchlässe als Strecken), tippt der Bot im
+## Laufmodus DUCK_VORAUS vor jeder Stirn einmal Slide. Ein Strahl fände den
+## Riegel nicht: Er beginnt erst 0,95 m über dem Boden, der Hürdenstrahl
+## (HUERDE_HOEHE 0,45) geht darunter durch – der Bot liefe aufrecht hinein
+## und stolperte. Ohne die Methode läuft der Bot wie bisher.
+##
+## LAUFLINIE (Opt-in): Bietet das Level `lauflinie()` an – Punkte
+## Vector2(s, q) einer Linie quer zum Verlauf –, hält der Bot im Laufmodus
+## diese Querlage statt der Mitte (bzw. statt des Ausweichens vor
+## Gefahren) und schaut dafür nur LINIE_VORAUS weit voraus. Level 05 braucht
+## das für die Findlingsgasse: Zwei versetzte Blöcke quer über die halbe
+## Wegbreite, die Lücke dazwischen verlangt ≥ 1 m Querversatz. Gemessen
+## ohne Linie: Der Bot lief in der Mitte frontal auf F1 und F2, sprang (der
+## Hürdenstrahl sah sie), stolperte an jedem zweimal und wurde in vier von
+## vier Anläufen bei s 248,8 gefangen. Mit 5 m Vorausschau schnitte er die
+## Gasse diagonal an F1 vorbei. Ohne die Methode läuft der Bot wie bisher.
+##
 ## Umgebungsvariablen:
 ##   TEST_ZIEL   Ausgabeverzeichnis für die PNGs (Pflicht)
 ##   TEST_DAUER  Höchstdauer in Sekunden (Vorgabe 600)
 ##   TEST_LEVEL  Levelnummern mit Komma getrennt (Vorgabe: alle gebauten)
+##   TEST_DOPPELSPRUNG  0 = nie doppelt springen. Dann zeigt der Lauf, dass
+##               jede Pflichtlücke mit dem einfachen Sprung geht (Lehrlevel).
+##   TEST_SPRUENGE  1 = jeden Absprung im Laufmodus mit Stelle und Grund
+##               ins Protokoll schreiben (zum Nachsehen, wo der Bot fällt).
 
 const KEY_SPACE := 32
 const KEY_J := 74
@@ -39,7 +61,29 @@ const HALLE_RADIUS := 33.5      ## hub.gd: START_R
 const BOGEN_SCHRITT := 20.0
 
 const VORAUS := 5.0             ## Zielpunkt so viele Meter voraus
-const LUECKE_VORAUS := 4.2      ## so weit voraus wird auf Boden geprüft
+## So weit voraus wird auf Boden geprüft: Fehlt er dort, springt der Bot ab.
+## Knapp vor der Kante, wie ein Mensch – der Sprung trägt 4,5 m, und
+## früher abgesprungen fehlte er über einer 3-m-Lücke (bei 4,2 m landete
+## der Bot vor dem Erdspalt von Level 01 regelmäßig im Spalt). Gut ein
+## Physikschritt Verzug kommt noch dazu (0,14 m bei vollem Lauf).
+const LUECKE_VORAUS := 0.9
+## Hindernis voraus in Kniehöhe (liegender Stamm, Stufe): so weit voraus.
+const HUERDE_VORAUS := 1.1
+const HUERDE_HOEHE := 0.45
+## Slide so weit vor der Stirn eines Durchlasses (Opt-in `duckstellen`).
+## Entwurf L05 §2.3: sauber von 3,6–3,9 bis 0,5 m vor der Stirn; 2,2 liegt
+## in der Mitte und lässt gut einen Physikschritt Verzug (0,14 m).
+const DUCK_VORAUS := 2.2
+## Näher als das an der Stirn wird nicht mehr getippt (zu spät für einen
+## sauberen Slide).
+const DUCK_SPAET := 0.5
+## Vorausschau auf der Lauflinie (Opt-in `lauflinie`, siehe Kopf).
+const LINIE_VORAUS := 1.5
+## Liegt voraus nichts höher als so tief unter den Füßen, ist dort eine
+## Lücke. Tiefer als jeder Stufenabsatz (Level 01: 1,6 m), flacher als ein
+## Bruch mit Wiesenboden darunter (Level 01, G1: 2,7 m) – den erkannte der
+## Bot mit vier Metern Suchtiefe nicht als Lücke und lief hinein.
+const LUECKE_TIEFE := 1.8
 const BILD_ABSTAND := 4.0       ## Sekunden zwischen zwei Spielbildern
 const LEVEL_DAUER := 260.0      ## Höchstdauer je Level
 const FLUG_DAUER := 40.0        ## so lange wird im Flugniveau geflogen
@@ -69,11 +113,23 @@ var _tote := 0
 var _aktuelles_bild := ""
 ## Zeitpunkt des letzten gezielten Angriffs.
 var _letzter_angriff := -9.0
+## Doppelsprung als Rettung über Lücken (TEST_DOPPELSPRUNG=0 schaltet ab).
+var _doppelsprung := true
+## Absprünge protokollieren (TEST_SPRUENGE=1).
+var _spruenge_melden := false
+## Stirnen der Durchlässe des laufenden Levels (Opt-in, siehe Kopf).
+var _duckstellen: Array[float] = []
+## Vor dieser Stirn wurde zuletzt Slide getippt – einmal je Anlauf.
+var _duck_zuletzt := -INF
+## Lauflinie des laufenden Levels (Opt-in, siehe Kopf), (s, q).
+var _lauflinie: Array[Vector2] = []
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ziel = OS.get_environment("TEST_ZIEL")
+	_doppelsprung = OS.get_environment("TEST_DOPPELSPRUNG") != "0"
+	_spruenge_melden = OS.get_environment("TEST_SPRUENGE") == "1"
 	if _ziel.is_empty():
 		_ziel = "/tmp/spieltest"
 	DirAccess.make_dir_recursive_absolute(_ziel)
@@ -129,6 +185,12 @@ func _ablauf() -> void:
 		if not await _warte_szene("Hub", 40.0):
 			_fehler.append("Level %02d: Portalraum kam nicht" % nummer)
 			break
+		# Der Portalraum wärmt seine Shader unter dem Ladeschirm vor und hält
+		# die Figur so lange fest. Erst danach lenken – sonst verschluckt die
+		# Sperre die Eingaben und frisst die Zeitgrenzen der Wege auf.
+		if not await _warte_aufbau(90.0):
+			_fehler.append("Level %02d: Portalraum wurde nicht fertig" % nummer)
+			break
 		await _warte(1.5)
 		if nummer == _levelliste()[0]:
 			await _bild("portalraum")
@@ -142,6 +204,7 @@ func _ablauf() -> void:
 
 	# Abschlussbild im Portalraum
 	if await _warte_szene("Hub", 40.0):
+		await _warte_aufbau(90.0)
 		await _warte(2.0)
 		await _bild("portalraum_am_ende")
 	_ende()
@@ -222,10 +285,13 @@ func _spiele(nummer: int) -> void:
 		_zurueck_in_den_hub()
 		return
 	_notiz("Level %02d steht (Aufbau %.1f s)" % [nummer, _uhr - start_aufbau])
+	# Hier hat der Zeitmodus seine Uhr gestartet (`Zeitlauf.beginnen` direkt
+	# vor `aufbau_fertig`, der Ladeschirm meldet sich im selben Bild ab).
+	var steht := _uhr
 	await _warte(0.8)
 	await _bild("level%02d_start" % nummer)
 
-	var ergebnis := await _durchlaufen(nummer)
+	var ergebnis := await _durchlaufen(nummer, steht)
 	_ergebnisse.append(ergebnis)
 
 
@@ -269,9 +335,18 @@ func _zurueck_in_den_hub() -> void:
 		Spielfluss.zum_hub()
 
 
-## Läuft ein Level bis zum Ende ab.
-func _durchlaufen(nummer: int) -> Dictionary:
+## Läuft ein Level bis zum Ende ab. `steht`: die Uhr des Bots, als der
+## Aufbau fertig war (für "uhr", siehe Rückgabe).
+func _durchlaufen(nummer: int, steht: float) -> Dictionary:
 	var szene := get_tree().current_scene
+	# Wann das Zielportal auslöst: Dort hält der Zeitmodus seine Uhr an
+	# (`LevelBasis._zeitlauf_werten`), wie das Level am selben Signal.
+	var ziel := [-1.0]
+	for knoten in szene.find_children("*", "", true, false):
+		if knoten.has_signal("level_geschafft"):
+			knoten.connect("level_geschafft", func() -> void:
+				if ziel[0] < 0.0:
+					ziel[0] = _uhr)
 	var verlauf: Curve3D = szene.get("verlauf")
 	if verlauf == null:
 		# Das Flugniveau hat keine Kurve. Messen lässt sich hier nichts,
@@ -281,6 +356,15 @@ func _durchlaufen(nummer: int) -> Dictionary:
 	var laenge := verlauf.get_baked_length()
 	var spieler := _spieler()
 	var schiene: bool = spieler != null and spieler.get("strecke") != null
+	_duckstellen.clear()
+	_duck_zuletzt = -INF
+	if szene.has_method("duckstellen"):
+		_duckstellen.assign(szene.call("duckstellen"))
+		_notiz("Level %02d: %d Durchlässe (duckstellen)" % [nummer, _duckstellen.size()])
+	_lauflinie.clear()
+	if szene.has_method("lauflinie"):
+		_lauflinie.assign(szene.call("lauflinie"))
+		_notiz("Level %02d: Lauflinie mit %d Punkten" % [nummer, _lauflinie.size()])
 	_notiz("Level %02d: Weg %.0f m, Kisten %d, %s"
 			% [nummer, laenge, GameState.kisten_gesamt,
 			"Schienenmodus" if schiene else "Laufmodus"])
@@ -296,6 +380,9 @@ func _durchlaufen(nummer: int) -> Dictionary:
 	var haenger := 0
 	var letzte_pos := spieler.global_position
 	var stand := "Zeit abgelaufen"
+	# Wo die Figur zuletzt Boden unter den Füßen hatte: Nach einem Tod steht
+	# sie schon wieder am Checkpoint, und "Tod bei 107 m" sagte nur, wo.
+	var boden_s := 0.0
 
 	while _uhr - start < LEVEL_DAUER:
 		await get_tree().physics_frame
@@ -314,6 +401,9 @@ func _durchlaufen(nummer: int) -> Dictionary:
 		var s: float = float(spieler.get("strecke")) if schiene \
 				else verlauf.get_closest_offset(spieler.global_position)
 		beste = maxf(beste, s)
+		if GameState.leben == leben_vorher and spieler.has_method("is_on_floor") \
+				and spieler.call("is_on_floor"):
+			boden_s = s
 
 		if schiene:
 			_schiene_steuern(spieler, verlauf, s, laenge)
@@ -332,8 +422,8 @@ func _durchlaufen(nummer: int) -> Dictionary:
 				_tote += 1
 				# Wer war schuld? Ohne diese Zeile steht im Bericht nur
 				# "gestorben bei 34 m", und man sucht die Ursache im Bild.
-				_notiz("Level %02d: Tod %d bei %.0f m – %s"
-						% [nummer, tode, s, _todesumstand(spieler, verlauf, s)])
+				_notiz("Level %02d: Tod %d bei %.0f m (zuletzt am Boden bei %.1f m) – %s"
+						% [nummer, tode, s, boden_s, _todesumstand(spieler, verlauf, s)])
 				if tode <= 6:
 					await _bild("level%02d_tod%d_bei_%dm" % [nummer, tode, int(s)])
 			leben_vorher = GameState.leben
@@ -375,17 +465,22 @@ func _durchlaufen(nummer: int) -> Dictionary:
 	if stand == "Zeit abgelaufen":
 		_fehler.append("Level %02d: in %.0f s nicht geschafft (bis %.0f von %.0f m)"
 				% [nummer, LEVEL_DAUER, beste, laenge])
-	_notiz("Level %02d: %s, weiteste Stelle %.0f von %.0f m, Tode %d"
-			% [nummer, stand, beste, laenge, tode])
+	var uhr: float = ziel[0] - steht if ziel[0] >= 0.0 else -1.0
+	_notiz("Level %02d: %s, weiteste Stelle %.0f von %.0f m, Tode %d, Uhr %.1f s"
+			% [nummer, stand, beste, laenge, tode, uhr])
 	return {
 		"nummer": nummer, "stand": stand, "weit": beste, "laenge": laenge,
 		"tode": tode, "kisten": GameState.kisten_zerbrochen,
 		"kisten_gesamt": GameState.kisten_gesamt, "fruechte": GameState.fruechte,
-		# Die reine Spielzeit im Level, ohne Aufbau und ohne Portalraum.
-		# Sie ist die einzige Zahl im Projekt, die sagt, wie lange ein
-		# Level WIRKLICH dauert – daraus kommen die Richtzeiten des
-		# Zeitmodus (`LevelBasis.zielzeit()`).
+		# Vom Losgehen des Bots (0,8 s nach dem Aufbau) bis zurück im
+		# Portalraum – samt der Schlussmeldung im Level (4,5 s,
+		# `LevelBasis._auf_level_geschafft`).
 		"dauer": _uhr - start,
+		# Was die Uhr des Zeitmodus zeigte (ohne Zeitkisten): vom fertigen
+		# Aufbau bis zum Zielportal, -1 ohne Ziel. Daraus kommen die
+		# Richtzeiten (`LevelBasis.zielzeit()`) – nicht aus "dauer", die gut
+		# 3,7 s länger ist.
+		"uhr": uhr,
 	}
 
 
@@ -516,21 +611,122 @@ func _fliegen(nummer: int) -> Dictionary:
 func _laufen(spieler: Node3D, szene: Node, verlauf: Curve3D, s: float,
 		laenge: float, djump: bool) -> bool:
 	var seitlich := _ausweichen(szene, verlauf, s)
-	var zielpunkt := _punkt(verlauf, minf(s + VORAUS, laenge), seitlich)
+	var vorlauf := VORAUS
+	if not _lauflinie.is_empty():
+		vorlauf = LINIE_VORAUS
+		seitlich = _linie_q(s + vorlauf)
+	var zielpunkt := _punkt(verlauf, minf(s + vorlauf, laenge), seitlich)
 	var nach := zielpunkt - spieler.global_position
 	nach.y = 0.0
 	InputHub.touch_bewegung = _eingabe(nach)
 
 	if spieler.is_on_floor():
-		if not _boden_bei(spieler, _punkt(verlauf, minf(s + LUECKE_VORAUS, laenge), seitlich)):
+		if _duck_tippen(s):
+			return false
+		# Gesucht wird ab Fußhöhe, nicht ab der Kurve: In Terrassen liegt die
+		# Decke bis 1,2 m neben ihr.
+		var voraus := _punkt(verlauf, minf(s + LUECKE_VORAUS, laenge), seitlich)
+		voraus.y = spieler.global_position.y
+		var luecke := not _boden_bei(spieler, voraus, 1.2, LUECKE_TIEFE)
+		if luecke or _huerde_voraus(spieler, nach):
+			if _spruenge_melden:
+				_notiz("Absprung bei %.1f m (%s, seitlich %.1f)"
+						% [s, "Lücke" if luecke else "Hürde", seitlich])
 			_taste_ab(KEY_SPACE)
 			_sprung_halten(0.22)
 		return false
-	if not djump and spieler.velocity.y < 0.5 \
+	# Im Sinkflug über festem Boden, voraus aber eine Lücke: anhalten und
+	# landen, statt über eine schmale Plattform hinauszufliegen (Trittsteine
+	# einer Furt). Ein Mensch lässt dort den Stick los.
+	if spieler.velocity.y < 0.0 \
+			and _boden_bei(spieler, spieler.global_position, 0.3, 2.5):
+		var danach := _punkt(verlauf, minf(s + 1.0, laenge), seitlich)
+		danach.y = spieler.global_position.y
+		if not _boden_bei(spieler, danach, 0.3, 3.0):
+			InputHub.touch_bewegung = Vector2.ZERO
+	if _doppelsprung and not djump and spieler.velocity.y < 0.5 \
 			and not _boden_bei(spieler, spieler.global_position):
+		if _spruenge_melden:
+			_notiz("Doppelsprung bei %.1f m" % s)
 		_tippe(KEY_SPACE)
 		return true
 	return djump
+
+
+## Querlage der Lauflinie an der Stelle `s` (linear, davor und dahinter wie
+## am ersten bzw. letzten Punkt).
+func _linie_q(s: float) -> float:
+	if s <= _lauflinie[0].x:
+		return _lauflinie[0].y
+	for i in _lauflinie.size() - 1:
+		var a := _lauflinie[i]
+		var b := _lauflinie[i + 1]
+		if s <= b.x:
+			return lerpf(a.y, b.y, (s - a.x) / (b.x - a.x))
+	return _lauflinie[_lauflinie.size() - 1].y
+
+
+## Durchlass voraus (Opt-in `duckstellen`, siehe Kopf): einmal Slide tippen,
+## sobald die Figur DUCK_VORAUS vor einer Stirn ist. Nach einem Respawn vor
+## der Stirn gilt sie wieder als offen.
+func _duck_tippen(s: float) -> bool:
+	if _duckstellen.is_empty():
+		return false
+	if s < _duck_zuletzt - DUCK_VORAUS - 1.0:
+		_duck_zuletzt = -INF
+	for stirn in _duckstellen:
+		if stirn == _duck_zuletzt:
+			continue
+		if s >= stirn - DUCK_VORAUS and s < stirn - DUCK_SPAET:
+			_duck_zuletzt = stirn
+			if _spruenge_melden:
+				_notiz("Slide bei %.1f m vor dem Durchlass bei %.1f m" % [s, stirn])
+			_slide_tippen()
+			return true
+	return false
+
+
+## Slide antippen wie mit der linken Umschalttaste. WARUM nicht
+## `_tippe(KEY_SHIFT)`: Die Input-Map legt Slide auf die LINKE Umschalttaste
+## (`location` 1, project.godot), und Godot vergleicht die Seite mit – ein
+## Ereignis ohne Seite löst „slide" nicht aus (gemessen: Ort 0 → nicht
+## gedrückt, Ort 1 → gedrückt). Die Slide-Angriffe in `_kampf` gehen deshalb
+## ins Leere; das bleibt so, sonst liefe der Bot in anderen Leveln anders.
+func _slide_tippen() -> void:
+	var e := InputEventKey.new()
+	e.keycode = KEY_SHIFT
+	e.physical_keycode = KEY_SHIFT
+	e.location = KEY_LOCATION_LEFT
+	e.pressed = true
+	Input.parse_input_event(e)
+	Input.flush_buffered_events()
+	var los := e.duplicate() as InputEventKey
+	los.pressed = false
+	_spaeter(0.08, func() -> void:
+		Input.parse_input_event(los)
+		Input.flush_buffered_events())
+
+
+## Steht in Laufrichtung knapp voraus etwas in Kniehöhe, über das man
+## springen muss (ein liegender Stamm, eine Stufe hinauf)? Kisten zählen
+## nicht – die zerschlägt der Drehschlag –, Gegner auch nicht (`_kampf`).
+## Ohne diese Probe stand der Bot in Level 01 vor dem Mooslog, bis die
+## Hängerwache nach acht Sekunden einen Sprung auslöste.
+func _huerde_voraus(spieler: Node3D, richtung: Vector3) -> bool:
+	var flach := Vector3(richtung.x, 0.0, richtung.z)
+	if flach.length_squared() < 0.0001:
+		return false
+	var von := spieler.global_position + Vector3.UP * HUERDE_HOEHE
+	var frage := PhysicsRayQueryParameters3D.create(von,
+			von + flach.normalized() * HUERDE_VORAUS, _maske(spieler), _ohne(spieler))
+	frage.collide_with_areas = false
+	var treffer := spieler.get_world_3d().direct_space_state.intersect_ray(frage)
+	if treffer.is_empty():
+		return false
+	var ding: Object = treffer["collider"]
+	if ding is Kiste or ding is Gegner:
+		return false
+	return absf((treffer["normal"] as Vector3).y) < 0.5
 
 
 ## Schienenmodus: nur quer lenken und über Lücken springen.
@@ -697,12 +893,35 @@ func _eingabe(welt: Vector3) -> Vector2:
 
 
 ## Ist unter diesem Punkt fester Boden in Reichweite?
-func _boden_bei(spieler: Node3D, punkt: Vector3) -> bool:
+##
+## Gefragt wird genau, worauf die Figur stehen kann (ihre eigene Maske,
+## in Level 01 also auch Ebene 16 mit Findlingen und Wurzeln), und ohne die
+## Figur selbst. Vorher traf der Strahl mit der Vorgabemaske in der Luft die
+## eigene Kapsel – der Doppelsprung über einer Lücke kam dadurch nie.
+func _boden_bei(spieler: Node3D, punkt: Vector3, oben: float = 3.0,
+		unten: float = 4.0) -> bool:
 	var raum := spieler.get_world_3d().direct_space_state
 	var frage := PhysicsRayQueryParameters3D.create(
-			punkt + Vector3.UP * 3.0, punkt + Vector3.DOWN * 4.0)
+			punkt + Vector3.UP * oben, punkt + Vector3.DOWN * unten,
+			_maske(spieler), _ohne(spieler))
 	frage.collide_with_areas = false
 	return not raum.intersect_ray(frage).is_empty()
+
+
+## Die Ebenen, an denen die Figur anstößt (Vorgabe 1|16).
+func _maske(spieler: Node3D) -> int:
+	var koerper := spieler as CollisionObject3D
+	if koerper != null and koerper.collision_mask != 0:
+		return koerper.collision_mask
+	return 1 | 16
+
+
+## Die Figur selbst, damit kein Strahl an ihr hängen bleibt.
+func _ohne(spieler: Node3D) -> Array[RID]:
+	var koerper := spieler as CollisionObject3D
+	if koerper == null:
+		return []
+	return [koerper.get_rid()]
 
 
 func _punkt(verlauf: Curve3D, strecke: float, seitlich: float) -> Vector3:
@@ -724,12 +943,17 @@ func _rechts(verlauf: Curve3D, strecke: float) -> Vector3:
 
 # ------------------------------------------------------------- Eingabe
 
+## Taste drücken. Das Ereignis wird sofort ausgewertet, nicht erst mit dem
+## nächsten gezeichneten Bild: Unter llvmpipe liegen bei 15 Bildern je
+## Sekunde vier Physikschritte dazwischen, und der Bot sprang so bis zu
+## 0,6 m später ab, als er wollte – an der Furt lief er deshalb ins Wasser.
 func _taste_ab(code: int) -> void:
 	var e := InputEventKey.new()
 	e.keycode = code
 	e.physical_keycode = code
 	e.pressed = true
 	Input.parse_input_event(e)
+	Input.flush_buffered_events()
 
 
 func _taste_auf(code: int) -> void:
@@ -738,6 +962,7 @@ func _taste_auf(code: int) -> void:
 	e.physical_keycode = code
 	e.pressed = false
 	Input.parse_input_event(e)
+	Input.flush_buffered_events()
 
 
 func _tippe(code: int) -> void:
@@ -887,9 +1112,9 @@ func _ende() -> void:
 	print("Gesamtzeit: %.0f s, Tode insgesamt: %d, Bilder: %d" % [_uhr, _tote, _nr])
 	for e in _ergebnisse:
 		if e.has("laenge"):
-			print("Level %02d: %-16s %4.0f / %4.0f m | %5.1f s | Tode %d | Kisten %d/%d | Früchte %d"
+			print("Level %02d: %-16s %4.0f / %4.0f m | %5.1f s | Uhr %5.1f s | Tode %d | Kisten %d/%d | Früchte %d"
 					% [e["nummer"], e["stand"], e["weit"], e["laenge"],
-					float(e.get("dauer", 0.0)), e["tode"],
+					float(e.get("dauer", 0.0)), float(e.get("uhr", -1.0)), e["tode"],
 					e["kisten"], e["kisten_gesamt"], e["fruechte"]])
 		else:
 			print("Level %02d: %s" % [e["nummer"], e["stand"]])

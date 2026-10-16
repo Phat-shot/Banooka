@@ -9,8 +9,9 @@ class_name Levelportal
 ##                   und eine „schlafende" Scheibe, die sich kaum regt
 ##   IN_ARBEIT     – Level noch nicht gebaut: mit Bauplane abgedeckt
 ##
-## Geschaffte Level leuchten: ein warmer Schein legt sich um das ganze
-## Tor. Der goldene Haken von früher war eine Marke neben der Zahl – man
+## Geschaffte Level sind golden: Wirbel, Ring und Nummer in Gold statt in
+## der Raumfarbe, „GESCHAFFT" quer im Tor, und ein warmer Schein legt sich
+## um das ganze Tor. Der goldene Haken von früher war eine Marke neben der Zahl – man
 ## musste hinsehen, um ihn zu bemerken. Der Schein wirkt schon aus dem
 ## Augenwinkel und über den halben Raum hinweg.
 ##
@@ -167,6 +168,8 @@ func farbe() -> Color:
 ## Grundton des Wirbels und von allem, was von ihm ausgeht (Lichtfleck,
 ## Funken beim Betreten). Bei einem Tor ohne eigenen Wirbel der Grundton.
 func wirbelfarbe() -> Color:
+	if zustand == Zustand.OFFEN and geschafft():
+		return GOLD_WIRBEL
 	if zustand == Zustand.OFFEN and wirbel.size() > 0:
 		return wirbel[0]
 	return farbe()
@@ -247,7 +250,11 @@ func _baue_ring() -> void:
 	_ring.position = Vector3(0.0, MITTE_Y, 0.0)
 	_ring.rotation_degrees = Vector3(90.0, 0.0, 0.0)
 	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if zustand == Zustand.OFFEN:
+	if zustand == Zustand.OFFEN and geschafft():
+		# Geschafft: Gold statt Grün – der Unterschied soll über den ganzen
+		# Raum zu sehen sein, nicht erst am Schein aus der Nähe.
+		_ring.material_override = Materialbibliothek.leuchtend(Farben.UI_GOLD, 2.6)
+	elif zustand == Zustand.OFFEN:
 		# Über 1, damit er glüht (siehe Kopfkommentar).
 		_ring.material_override = Materialbibliothek.leuchtend(farbe(), 2.2)
 	else:
@@ -260,7 +267,9 @@ func _baue_ring() -> void:
 ## über TIME – pro Bild setzt das Skript nur noch `puls`.
 func _baue_scheibe() -> void:
 	_scheibe = _scheibenviereck()
-	if wirbel.size() >= 3:
+	if geschafft():
+		_scheibenmaterial = Effekte.wirbelstoff(GOLD_WIRBEL)
+	elif wirbel.size() >= 3:
 		_scheibenmaterial = Effekte.wirbelstoff(wirbel[0], wirbel[1], wirbel[2])
 	else:
 		_scheibenmaterial = Effekte.wirbelstoff(farbe())
@@ -391,7 +400,7 @@ func _baue_zahl() -> void:
 	_zahl.pixel_size = 0.0096
 	match zustand:
 		Zustand.OFFEN:
-			_zahl.modulate = Farben.UI_HELL
+			_zahl.modulate = Farben.UI_GOLD if geschafft() else Farben.UI_HELL
 		Zustand.VERSCHLOSSEN:
 			_zahl.modulate = Color(0.66, 0.66, 0.72)
 		_:
@@ -428,6 +437,7 @@ func _baue_erfolg() -> void:
 	var eintrag: Dictionary = Spielfluss.geschafft[nummer]
 
 	_baue_schein()
+	_baue_geschafft_schild()
 
 	# --- Edelsteine über dem Tor ---
 	var steine: Array[Color] = []
@@ -445,6 +455,38 @@ func _baue_erfolg() -> void:
 		_edelsteine.append(_baue_edelstein(steine[i], x))
 	if float(zeitstand["zeit"]) > 0.0:
 		_baue_bestzeit(float(zeitstand["zeit"]), stufe)
+
+
+## Wirbel eines geschafften Tores: Gold statt der Raumfarbe.
+const GOLD_WIRBEL := Color(1.0, 0.72, 0.22)
+
+
+## Ist das Level geschafft?
+func geschafft() -> bool:
+	return Spielfluss.geschafft.has(nummer)
+
+
+## „GESCHAFFT" quer im unteren Teil des Tors, golden. Ring und Nummer sind
+## dann auch golden (`_baue_ring`, `_baue_zahl`): Vorher unterschied nur
+## ein warmer Schein ein geschafftes von einem offenen Tor, und der fiel
+## zwischen den grünen Ringen kaum auf.
+func _baue_geschafft_schild() -> void:
+	var schild := Label3D.new()
+	schild.name = "Geschafft"
+	schild.text = "GESCHAFFT"
+	schild.font = UiStil.schrift(&"zahl")
+	# Muss in die Sehne des Rings passen (bei −0,45 · RADIUS gut 1,9 m).
+	schild.font_size = 60
+	schild.pixel_size = 0.0044
+	schild.modulate = Farben.UI_GOLD_HELL
+	# Kräftige dunkle Kontur: Dahinter glüht die goldene Scheibe.
+	schild.outline_size = 30
+	schild.outline_modulate = Farben.UI_KONTUR
+	# Vor der Scheibe, im unteren Drittel des Rings; nicht zur Kamera
+	# gedreht – es steht im Tor wie eine Inschrift.
+	schild.position = Vector3(0.0, MITTE_Y - RADIUS * 0.45, 0.08)
+	schild.no_depth_test = false
+	add_child(schild)
 
 
 ## Warmer Schein um das ganze Tor: ein breiter, halbdurchsichtiger Ring

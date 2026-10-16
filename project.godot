@@ -19,6 +19,9 @@ config/description="3D-Korridor-Plattformer (Godot 4)"
 run/main_scene="res://scenes/ui/Splash.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
+; Handys (App): höchstens 60 Bilder je Sekunde. Bei 120 Hz wechseln sonst
+; 8- und 17-ms-Bilder, sobald eins länger braucht, und das Gerät drosselt warm.
+run/max_fps.mobile=60
 
 [autoload]
 
@@ -119,4 +122,11 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=1
+; Handys (App) ohne MSAA, 3D in 80 % der Auflösung, mit halber
+; Schattenkarte und 2x statt 4x anisotropem Filter – Begründung in
+; ARCHITEKTUR.md, „Bild und Licht".
+anti_aliasing/quality/msaa_3d.mobile=0
+scaling_3d/scale.mobile=0.8
 lights_and_shadows/directional_shadow/size.web=2048
+lights_and_shadows/directional_shadow/size.mobile=2048
+textures/default_filters/anisotropic_filtering_level.mobile=1

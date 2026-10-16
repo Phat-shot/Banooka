@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://werkzeuge/rundgangprobe.gd" id="1_rundgang"]
+
+[node name="Rundgangprobe" type="Node"]
+script = ExtResource("1_rundgang")

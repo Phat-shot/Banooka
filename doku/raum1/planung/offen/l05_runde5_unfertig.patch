@@ -1,0 +1,1094 @@
+diff --git a/scenes/levels/level05.gd b/scenes/levels/level05.gd
+index 1658f84..6925147 100644
+--- a/scenes/levels/level05.gd
++++ b/scenes/levels/level05.gd
+@@ -355,9 +355,11 @@ const LOESS_WEG := Color(1.06, 1.0, 0.86)
+ const LIPPEN_STEINE := Vector2i(4, 6)
+ ## Höhe der Lippensteine (Faktor in `Wegdecke`, R3; Bild-Jury R3, Mangel
+ ## „Lücken": „flache graue Scheiben"): 13–22 cm statt 8–14 cm – Kuppen mit
+-## Höhe, die aus 14 m als Steine an der Kante zu lesen sind. Höher nicht:
+-## Sie liegen auf der Decke vor der Kante, wo man abspringt.
+-const LIPPEN_STEIN_HOCH := 1.6
++## Höhe, die aus 14 m als Steine an der Kante zu lesen sind. R5 (Bild-Jury
++## R5: „Lippensteine als flache graue Scheiben … Steine als Brocken mit
++## Höhe"): 18–31 cm. Höher nicht: Sie liegen auf der Decke vor der Kante,
++## wo man abspringt, und haben keinen Körper.
++const LIPPEN_STEIN_HOCH := 2.2
+ ## Auslauf der Decke hinter M_ENDE (`_auslauf_bauen`): so lang (m), in
+ ## Stücken von AUSLAUF_SCHRITT Metern.
+ const AUSLAUF_LAENGE := 10.0
+@@ -1712,10 +1714,27 @@ func _ziel_zeigen() -> void:
+ 
+ 
+ ## Die Jagd beginnt erst, wenn die Figur losdarf (nach dem Rundgang).
++## SLIDE-PUFFER (Spiel-Jury R5, mittel): Ein Slide-Druck in den letzten
++## 0,25 s eines laufenden Slides zählt, sobald dieser endet
++## (`Spieler.slide_puffer`, Opt-in; jedes andere Level bleibt ohne).
++## WARUM: Der Spurt-Slide nach der Landung von H2 (95,5–96,6) endet erst
++## zwischen 101,0 und 102,7, kurz vor D2 (Stirn 104,0). Der Tipp für D2 fiel
++## in den laufenden Slide und ging verloren, die Figur richtete sich auf und
++## stolperte bei 103,5 – gefangen; in der Kette mit Dauer-Slide viermal
++## hintereinander bis zum Game Over. Gerade der Spurt, den das Level lehrt
++## (Lehrfolge Nr. 4), lief so in „gedrückt, und nichts passiert". 0,25 s
++## sind 3,4 m Slide: Die Jury maß verlorene Tipps 0,05 bis gut 0,16 s vor
++## dem Ende. Früher gedrückt bleibt verloren wie bisher – sonst hinge an
++## jedem Druck der nächste Slide.
++const SLIDE_PUFFER := 0.25
++
++
+ func _vor_dem_start() -> void:
+ 	if jagd != null:
+ 		jagd.freigeben()
+ 	var figur := _spieler as Spieler
++	if figur != null:
++		figur.slide_puffer = SLIDE_PUFFER
+ 	if figur != null and not figur.gestorben.is_connected(_auf_tod):
+ 		figur.gestorben.connect(_auf_tod)
+ 		nach_tod_melden(self)
+diff --git a/scenes/levels/level05/eiche.gd b/scenes/levels/level05/eiche.gd
+index 607e77c..53d0a3b 100644
+--- a/scenes/levels/level05/eiche.gd
++++ b/scenes/levels/level05/eiche.gd
+@@ -21,10 +21,11 @@ class_name L05Eiche
+ ##   Lage Ballen. Dazwischen die Himmelskerbe (KERBE, 9,0 m). Das Laub
+ ##   herbstgolden mit Durchlicht (GOLDEN, LAUB).
+ ## * FERNFORM ab WECHSEL (Handy WECHSEL_HANDY, Entwurf §9.5): dieselben
+-##   Stämme als `Riesenstamm.schlicht` (ohne Äste), die Kronen als
+-##   `Kronenwolke.fern`, über `visibility_range` (Abstand Kamera – Mitte
+-##   der Hülle). Siehe WECHSEL: ohne Überlappung, Fernkrone in Größe und Ton
+-##   an die Nahkrone angeglichen.
++##   Stämme als `Riesenstamm.schlicht` (ohne Rippen und Beiwerk) im selben
++##   Borkenstoff, die Kronen aus denselben Teilen wie nah, nur grob und mit
++##   weniger Blattkarten (seit R5, siehe FERNFASSUNG DER KRONEN), über
++##   `visibility_range` (Abstand Kamera – Mitte der Hülle). Siehe WECHSEL:
++##   ohne Überlappung.
+ ## * EIGENER NEBEL (`Nebelstoff.nebelarm`): Kronen zu 0,3, Hälften zu 0,4
+ ##   (NEBEL_KRONE, NEBEL_STAMM; bis R1 beide 0,45, die Bild-Jury fand die
+ ##   Eiche nicht golden) – eine dunkle Silhouette mit goldenen
+@@ -206,14 +207,13 @@ const HAELFTE_SPALT := Vector2(0.75, -0.66)
+ const WECHSEL := 100.0
+ const WECHSEL_HANDY := 60.0
+ const RAND := 4.0
+-## Die Fernkrone hat keine Blattkarten. Ohne Angleich war sie beim Wechsel
+-## um ein Siebtel kleiner (Fläche im Bild, die Karten fransen die Nahkrone
+-## aus) und dunkler. Gemessen bei s 56 und 70 (Desktop, Fotos mit nur nah
+-## gegen nur fern): mit FERN_SKALA (um die Mitte jeder Krone) 98 % der
+-## Fläche, mit LAUB_FERN mittlere Farbe auf ±1 Stufe gleich (91/67/13
+-## gegen 91/68/14). Was bleibt, ist der Glanz der Karten.
++## Bis R4 hatte die Fernkrone keine Blattkarten; ohne Angleich war sie beim
++## Wechsel um ein Siebtel kleiner (Fläche im Bild) und dunkler. FERN_SKALA
++## (um die Mitte jeder Krone) bleibt für die Probepunkte der Schirmkrone
++## (`wahrzeichen`, Kerbe); gebaut wird die Fernkrone seit R5 anders (siehe
++## FERNFASSUNG DER KRONEN), im Stoff LAUB wie nah statt des helleren
++## LAUB_FERN (0,66/0,51/0,16).
+ const FERN_SKALA := 1.07
+-const LAUB_FERN := Color(0.66, 0.51, 0.16)
+ ## Eigener Nebel (siehe Kopf). R2: Kronen 0,12 statt 0,3, Hälften 0,25 statt
+ ## 0,4 – im Schlussbild stand die Eiche blass rosa im Dunst statt golden
+ ## (Bild-Jury R2, Mangel 2; Entwurf §8.1: „Dort leuchtet nur die Hauereiche
+@@ -279,12 +279,14 @@ const LAPPEN_BALLEN := 5
+ const FERN_DICKE := 1.2
+ 
+ ## Borke der Eiche: Rinde der Bibliothek, etwas wenig Moos oben (Licht).
++## Nah und fern derselbe Stoff (R5; Bild-Jury R5: „Gleicher Stammstoff nah
++## und fern"). Bis R4 trug die Fernform die Fernborke (Option „fern": Borke
++## × 0,6 und kühl, dazu Farbe 0,36/0,27/0,19, Streifen und Flechten 0,2) –
++## im Bild ein „glatter, dunkler Stiel", und beim Wechsel bei s 72 wurde der
++## Stamm sichtbar schwarzblau. Die weißen Streifen, wegen derer R2 die
++## Fernborke abgedunkelt hatte, kamen von den Moosstreifen der Option
++## „fern" (Vorgabe 0,55); die Nahborke hat keine.
+ const BORKE := {"moos_oben": 0.35, "moos_nord": 0.6}
+-## Fern dunkel und warm, kaum Streifen und Flechten (R2): Mit Farbe 0,5/
+-## 0,43/0,36 und den Streifen der Vorgabe (0,55) standen die Hälften bei
+-## s 296 als weiß gestreifte Striche vor dem Dunst (eigene Prüfung).
+-const BORKE_FERN := {"fern": true, "moos_oben": 0.35, "farbe": Color(0.36, 0.27, 0.19),
+-		"streifen": 0.2, "flechten": 0.2}
+ 
+ var level: Level05
+ ## Die Eiche im Level (Gruppe GRUPPE).
+@@ -320,8 +322,8 @@ func _bauen() -> void:
+ 	var stamm_nah := _knoten("StammNah", stamm_netz(false),
+ 			_nebelarm(Riesenstamm.borkenstoff(BORKE), NEBEL_STAMM), true)
+ 	# Fern zwei Flächen: der Fuß auf der Kuppe mit mehr Nebel (NEBEL_KUPPE),
+-	# die Hälften wie die Kronen.
+-	var borke_fern := Riesenstamm.borkenstoff(BORKE_FERN)
++	# die Hälften wie die Kronen; derselbe Stoff wie nah (siehe BORKE).
++	var borke_fern := Riesenstamm.borkenstoff(BORKE)
+ 	var stamm_fern := _knoten("StammFern", stamm_netz(true),
+ 			_nebelarm(borke_fern, NEBEL_KUPPE), false)
+ 	stamm_fern.set_surface_override_material(1, _nebelarm(borke_fern, NEBEL_STAMM))
+@@ -330,7 +332,7 @@ func _bauen() -> void:
+ 	var kn := _knoten("KronenNah", kronen_netz(false),
+ 			_golden(_nebelarm(Kronenwolke.stoff(LAUB), NEBEL_KRONE)), false)
+ 	var kf := _knoten("KronenFern", kronen_fern,
+-			_golden(_nebelarm(Kronenwolke.stoff(LAUB_FERN, false), NEBEL_KRONE)), false)
++			_golden(_nebelarm(Kronenwolke.stoff(LAUB, false), NEBEL_KRONE)), false)
+ 	var nah: Array[MeshInstance3D] = [stamm_nah, kn]
+ 	var fern: Array[MeshInstance3D] = [stamm_fern, kf]
+ 	_wechsel_setzen(nah, fern, wechsel)
+@@ -503,7 +505,8 @@ static func _ansatz(i: int) -> Transform3D:
+ static func kronen_netz(fern: bool) -> ArrayMesh:
+ 	return Bauspeicher.netz("l05_eiche_kronen", [HAELFTE, KRONE_HAELFTE_R, HAELFTE_ANSATZ, HAELFTE_NEIGUNG,
+ 			HAELFTE_SAAT, KRONE_R, FERN_SKALA, BALLEN_HOCH, HAUPTAESTE, AST_R, LAPPEN_R,
+-			LAPPEN_HOCH, LAPPEN_VARIANTE, LAPPEN_BALLEN, FUELL_R, FUELL_HOCH, FUELL_AUSSEN, fern],
++			LAPPEN_HOCH, LAPPEN_VARIANTE, LAPPEN_BALLEN, FUELL_R, FUELL_HOCH, FUELL_AUSSEN,
++			FERN_KARTEN, FERN_GROB_SKALA, fern],
+ 			func() -> ArrayMesh: return _kronen_bauen(fern))
+ 
+ 
+@@ -530,13 +533,13 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
+ 		var netz := fern_netz if fern else Kronenwolke.netz(o)
+ 		if not fern:
+ 			st.append_from(netz, 0, lage)
++		else:
++			_fern_teil(st, o, lage)
+ 		# Mit Blattkarten: Die Hülle der Krone steht in custom_aabb (die
+ 		# Karten zieht erst der Shader auf).
+ 		var huelle := netz.custom_aabb if netz.custom_aabb.has_volume() else netz.get_aabb()
+ 		var b := lage * gross * huelle if fern else lage * huelle
+ 		box = b if i == 0 else box.merge(b)
+-		# Fern: die Hülle aller Teile dieser Hälfte für den Schirm (SCHIRM_FERN).
+-		var teile := b
+ 		var fern_huelle := gross * fern_netz.get_aabb()
+ 		mitten.append(lage * fern_huelle.get_center())
+ 		groessen.append(fern_huelle.size)
+@@ -554,10 +557,11 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
+ 					mitte_l * (1.0 - FERN_SKALA)) if fern else Transform3D.IDENTITY
+ 			if not fern:
+ 				st.append_from(lappen, 0, lage_l)
++			else:
++				_fern_teil(st, ol, Transform3D.IDENTITY)
+ 			var huelle_l := lappen.custom_aabb if lappen.custom_aabb.has_volume() \
+ 					else lappen.get_aabb()
+ 			box = box.merge(lage_l * huelle_l)
+-			teile = teile.merge(lage_l * huelle_l)
+ 		# Füllkrone (siehe FUELL_R): breit, zwischen den Lappen und der
+ 		# Schirmkrone.
+ 		var mitte_f := Vector3.ZERO
+@@ -572,11 +576,10 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
+ 				mitte_f * (1.0 - FERN_SKALA)) if fern else Transform3D.IDENTITY
+ 		if not fern:
+ 			st.append_from(fuell, 0, lage_f)
++		else:
++			_fern_teil(st, of, Transform3D.IDENTITY)
+ 		var huelle_f := fuell.custom_aabb if fuell.custom_aabb.has_volume() else fuell.get_aabb()
+ 		box = box.merge(lage_f * huelle_f)
+-		teile = teile.merge(lage_f * huelle_f)
+-		if fern:
+-			_schirm_fern(st, teile, kanten[i], seite, HAELFTE_SAAT[i] + 301)
+ 	var ergebnis := st.commit()
+ 	ergebnis.custom_aabb = box
+ 	ergebnis.set_meta("mitten", mitten)
+@@ -586,147 +589,47 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
+ 	return ergebnis
+ 
+ 
+-## SCHIRM_FERN (R4; Bild-Jury R4, Hauereiche: „Aus der Ferne unverändert:
+-## Je Hälfte stehen 4–5 glatte, glänzende orange Ellipsoide übereinander und
+-## lesen sich als Pilzhüte oder Kissen, nicht als Schirmkrone. Die Fernform
+-## kommt weiter aus Tupfern, nicht aus dem Kronenumriss"; Vorschlag: „je
+-## Hälfte eine flache, breite Schirmsilhouette mit gezacktem Rand und dunkler
+-## Unterseite"): Die Fernfassung ist je Hälfte EIN Körper statt Schirm-,
+-## Lappen- und Füllkrone aus `Kronenwolke.fern`. Er füllt die Hülle `teile`
+-## aller Teile der Hälfte (dieselben Maße, die die Nahfassung hat – so
+-## springt der Umriss beim Wechsel nicht): oben eine flache Kuppe mit
+-## Laubballen (SCHIRM_BALLEN), der Rand SCHIRM_RAND über dem Boden der Hülle,
+-## in Lappen (SCHIRM_LAPPEN), die Unterseite flach zur Mitte hin gewölbt und
+-## dunkel (Verdeckung
+-## SCHIRM_UNTEN, im Stoff unten der Ton TON_UNTEN). Zur Kerbe hin reicht er
+-## nicht weiter als die innerste Ecke der Schirmkrone (`kanten`; KERBE und
+-## die Wahrzeichenprobe messen daran). Mitten, Größen, Kanten und Ballen
+-## für `wahrzeichen` bleiben die der Schirmkrone.
+-const SCHIRM_RAND := 0.4
+-const SCHIRM_UNTEN_TIEF := 0.7
+-const SCHIRM_RINGE := 8
+-const SCHIRM_SEGMENTE := 48
+-const SCHIRM_UNTEN := 0.42
+-const SCHIRM_FUELLE := 0.94
+-## Umriss und Kuppe: SCHIRM_LAPPEN Lappen im Umriss (±SCHIRM_LAPPEN_TIEF des
+-## Halbmessers, aus einem Rauschen über den Winkel) und SCHIRM_BALLEN Ballen
+-## auf der Kuppe (Höhe SCHIRM_BALLEN_HOCH der Krone, Breite SCHIRM_BALLEN_R des
+-## kleineren Halbmessers) – eine Wolke aus Laub mit gebrochenem Rand statt
+-## einer glatten Haube (die erste Fassung mit einer Kuppe und feinen Zacken
+-## stand aus der Ferne als zwei Pilzhüte da, eigene Prüfung s 186).
+-const SCHIRM_LAPPEN := 7.0
+-const SCHIRM_LAPPEN_TIEF := 0.28
+-const SCHIRM_BALLEN := 12
+-const SCHIRM_BALLEN_HOCH := Vector2(0.12, 0.24)
+-const SCHIRM_BALLEN_R := Vector2(0.17, 0.27)
+-## Dicke des Schirms höchstens dieser Anteil seiner Breite: Die Hülle aller
+-## Teile reicht mit den Lappen weit hinab (13 m bei 18 m Breite), so hoch
+-## stand der Körper als Zwiebel da (eigene Prüfung s 186: eine Spitze aus
+-## den Ballen über der Mitte). Die Kuppe ist flach (ein Tafelberg mit runder
+-## Kante), die Ballen sitzen außerhalb der Mitte. Mit 0,4 lag der Schirm
+-## als dünne Scheibe da, und beim Wechsel aus der Nahfassung (eine hohe,
+-## buckelige Haube) sprang er sichtbar (eigene Prüfung s 60/72).
+-const SCHIRM_DICKE := 0.5
+-
+-
+-static func _schirm_fern(st: SurfaceTool, teile: AABB, kante: Vector3, seite: float,
+-		saat: int) -> void:
+-	var rng := PropWerkzeug.zufall(saat)
+-	var rauschen := FastNoiseLite.new()
+-	rauschen.seed = saat
+-	rauschen.frequency = 1.0
+-	var mitte := teile.get_center()
+-	var halb := teile.size * 0.5 * SCHIRM_FUELLE
+-	var oben := teile.end.y
+-	var hoehe := minf(teile.size.y, SCHIRM_DICKE * 2.0 * maxf(halb.x, halb.z))
+-	var unten := oben - hoehe
+-	var rand_y := unten + hoehe * SCHIRM_RAND
+-	# Zur Kerbe hin (−seite in x) höchstens bis zur innersten Ecke.
+-	var innen := minf(halb.x, absf(mitte.x - kante.x))
+-	# Ballen auf der Kuppe: Lage relativ (Anteil der Halbmesser), Höhe, Breite.
+-	var ballen: Array[Vector4] = []
+-	for k in SCHIRM_BALLEN:
+-		var w := TAU * (float(k) + rng.randf_range(-0.3, 0.3)) / float(SCHIRM_BALLEN)
+-		var weit := rng.randf_range(0.3, 0.9)
+-		ballen.append(Vector4(cos(w) * weit, sin(w) * weit,
+-				rng.randf_range(SCHIRM_BALLEN_HOCH.x, SCHIRM_BALLEN_HOCH.y) * hoehe,
+-				rng.randf_range(SCHIRM_BALLEN_R.x, SCHIRM_BALLEN_R.y)))
+-	var reihen: Array[PackedVector3Array] = []
+-	var hoehen: Array[PackedFloat32Array] = []
+-	var verdeckt: Array[PackedFloat32Array] = []
+-	# Ringe von der Mitte oben über den Rand zur Mitte unten.
+-	var stufen: Array[Vector2] = []
+-	for k in SCHIRM_RINGE + 1:
+-		stufen.append(Vector2(float(k) / float(SCHIRM_RINGE), 1.0))
+-	for k in range(SCHIRM_RINGE - 1, -1, -1):
+-		stufen.append(Vector2(float(k) / float(SCHIRM_RINGE), 0.0))
+-	var top := -INF
+-	for u in stufen:
+-		var oberseite := u.y > 0.5
+-		var r_t := u.x
+-		var reihe := PackedVector3Array()
+-		var hoch := PackedFloat32Array()
+-		var ao := PackedFloat32Array()
+-		for j in SCHIRM_SEGMENTE:
+-			var w := TAU * float(j) / float(SCHIRM_SEGMENTE)
+-			var cx := cos(w)
+-			var rx := innen if cx * seite < 0.0 else halb.x
+-			var lappen := SCHIRM_LAPPEN_TIEF * rauschen.get_noise_1d(w * SCHIRM_LAPPEN / TAU * 1.5)
+-			var f := (1.0 + lappen * r_t * r_t) * r_t
+-			if cx * seite < 0.0:
+-				f = minf(f, r_t)
+-			var ux := cx * f
+-			var uz := sin(w) * f
+-			var x := mitte.x + ux * rx
+-			var z := mitte.z + uz * halb.z
+-			var y: float
+-			if oberseite:
+-				var kuppe := sqrt(maxf(1.0 - pow(r_t, 4.0), 0.0)) * 0.7
+-				var buckel := 0.0
+-				for b in ballen:
+-					var d2 := (ux - b.x) * (ux - b.x) + (uz - b.y) * (uz - b.y)
+-					buckel = maxf(buckel, b.z * exp(-d2 / (b.w * b.w)))
+-				y = rand_y + (oben - rand_y) * kuppe + buckel * (1.0 - r_t * r_t * 0.5)
+-			else:
+-				y = rand_y - (rand_y - unten) * SCHIRM_UNTEN_TIEF * (1.0 - pow(r_t, 1.4)) \
+-						+ 0.04 * hoehe * rauschen.get_noise_2d(ux * 3.0, uz * 3.0)
+-			# Der Rand hängt außen wie Laub, wo ein Lappen vorsteht.
+-			if r_t > 0.95:
+-				y -= maxf(lappen, 0.0) * hoehe * 0.5
+-			top = maxf(top, y)
+-			reihe.append(Vector3(x, y, z))
+-			hoch.append(0.0 if not oberseite else 1.0)
+-			ao.append(lerpf(0.8, 1.0, 1.0 - r_t) if oberseite else SCHIRM_UNTEN)
+-		reihen.append(reihe)
+-		hoehen.append(hoch)
+-		verdeckt.append(ao)
+-	# Höhe in der Krone (UV2.y, Farbe nach Höhe im Stoff): unten 0, oben 1,
+-	# nach der gebauten Kuppe.
+-	for k in reihen.size():
+-		for j in SCHIRM_SEGMENTE:
+-			var y := reihen[k][j].y
+-			hoehen[k][j] = clampf((y - unten) / maxf(top - unten, 0.1), 0.0, 1.0) \
+-					if hoehen[k][j] > 0.5 else 0.04
+-	for k in reihen.size() - 1:
+-		for j in SCHIRM_SEGMENTE:
+-			var j2 := (j + 1) % SCHIRM_SEGMENTE
+-			var a := reihen[k][j]
+-			var b := reihen[k][j2]
+-			var c := reihen[k + 1][j2]
+-			var d := reihen[k + 1][j]
+-			for e: Array in [[a, k, j], [d, k + 1, j], [c, k + 1, j2], [a, k, j], [c, k + 1, j2],
+-					[b, k, j2]]:
+-				var kk: int = e[1]
+-				var jj: int = e[2]
+-				var p: Vector3 = e[0]
+-				var g := verdeckt[kk][jj]
+-				st.set_color(Color(g, g, g, 0.0))
+-				st.set_uv2(Vector2(0.0, hoehen[kk][jj]))
+-				# Normale halb von der Mitte des Schirms weg, halb nach oben:
+-				# Er schattiert als Ganzes (wie `Kronenwolke`, BIEGUNG).
+-				var n := (p - mitte).normalized() * Vector3(1.0, 1.6, 1.0)
+-				st.set_normal((n.normalized() + Vector3.UP * 0.35).normalized())
+-				st.add_vertex(p)
++## FERNFASSUNG DER KRONEN (R5; Bild-Jury R5, Hauereiche: „je Hälfte ein
++## glatter, flacher Hut mit gezacktem orangem Rand und dunkler, waagerecht
++## abgeschnittener Unterseite auf glattem, dunklem Stiel: zwei Pilze oder
++## Muffins auf einem Y" – und zwischen s 68 und 72 springt das Wahrzeichen
++## von Laubballen zur Pilzform; Vorschlag: „Fernfassung aus dem Umriss der
++## Nahkrone ableiten …, gleicher Stammstoff nah und fern").
++## GESCHICHTE: Bis R3 bestand die Fernkrone aus `Kronenwolke.fern` je Teil
++## (flach gedrückte Kugeln ohne Karten): „4–5 glatte, glänzende orange
++## Ellipsoide übereinander … Pilzhüte oder Kissen" (Bild-Jury R4). R4 setzte
++## je Hälfte EINEN Schirm in die Hülle aller Teile – der stand dann als Hut
++## da.
++## JETZT: Jeder Teil der Nahkrone – Schirmkrone, vier Lappen, Füllkrone –
++## steht fern noch einmal, mit denselben Optionen und derselben Saat, also
++## denselben Ballen an denselben Stellen und in derselben Form, nur grob
++## (`Kronenwolke`, Option „grob": Kugeln mit 80 statt 320 Dreiecken) und mit
++## FERN_KARTEN Blattkarten statt bis zu 200. So hat die Fernkrone den Umriss
++## der Nahkrone samt ausgefranstem Rand; beim Wechsel ändern sich nur die
++## Feinheiten. Jenseits von 45 m schließt auch die Nahkrone ihre Lücken
++## (Kronenshader), dort sind beide also gleich dicht. Jeder Teil um seine
++## Mitte um FERN_GROB_SKALA vergrößert (die wenigeren Karten fransen weniger
++## weit aus). Der Stoff ist wie nah LAUB (bis R4 das hellere LAUB_FERN: Es
++## glich den Farbton der Fernkrone ohne Karten an die Nahkrone an).
++## Mitten, Größen, Kanten und Ballen für `wahrzeichen` bleiben die der
++## Schirmkrone aus `Kronenwolke.fern` mit FERN_SKALA, wie bisher.
++## KOSTEN: siehe Kopf; gemessen in doku/level05-neubau.md, R5.
++const FERN_KARTEN := 50
++const FERN_GROB_SKALA := 1.0
++
++
++## Ein Teil der Fernkrone (siehe FERNFASSUNG DER KRONEN): die Krone mit den
++## Optionen `o` grob und mit FERN_KARTEN Karten, in der Lage `lage`, um ihre
++## Mitte um FERN_GROB_SKALA vergrößert.
++static func _fern_teil(st: SurfaceTool, o: Dictionary, lage: Transform3D) -> void:
++	var og := o.duplicate()
++	og["grob"] = true
++	og["karten"] = FERN_KARTEN
++	var netz := Kronenwolke.netz(og)
++	var mitte := netz.get_aabb().get_center()
++	var gross := Transform3D(Basis.from_scale(Vector3.ONE * FERN_GROB_SKALA),
++			mitte * (1.0 - FERN_GROB_SKALA))
++	st.append_from(netz, 0, lage * gross)
+ 
+ 
+ ## Die Ecke einer Krone, die am weitesten zur Kerbe reicht: bei der Krone
+@@ -788,8 +691,8 @@ static func _netzhuelle(netz: Mesh) -> AABB:
+ 
+ 
+ ## GOLDEN (Bild-Jury R1, Mangel 3; Entwurf §8.1: „Dort leuchtet nur die
+-## Hauereiche golden"): Die Kronen tragen herbstgoldenes Laub (LAUB,
+-## LAUB_FERN) und mehr Durchlicht als der übrige Wald, oben wärmer – im
++## Hauereiche golden"): Die Kronen tragen herbstgoldenes Laub (LAUB) und
++## mehr Durchlicht als der übrige Wald, oben wärmer – im
+ ## Abendlicht glimmen sie von innen. Nur auf den eigenen Abschriften
+ ## (`_nebelarm`), der geteilte Kronenstoff bleibt, wie er ist.
+ const DURCHLICHT := 0.62
+@@ -803,7 +706,7 @@ const TON_UNTEN := Vector3(0.24, 0.2, 0.34)
+ 
+ func _golden(stoff: Material) -> Material:
+ 	if stoff is ShaderMaterial and stoff != Kronenwolke.stoff(LAUB) \
+-			and stoff != Kronenwolke.stoff(LAUB_FERN, false):
++			and stoff != Kronenwolke.stoff(LAUB, false):
+ 		(stoff as ShaderMaterial).set_shader_parameter("durchlicht", DURCHLICHT)
+ 		(stoff as ShaderMaterial).set_shader_parameter("ton_oben", TON_OBEN)
+ 		(stoff as ShaderMaterial).set_shader_parameter("ton_unten", TON_UNTEN)
+diff --git a/scenes/levels/level05/saum.gd b/scenes/levels/level05/saum.gd
+index 6539658..c8100d7 100644
+--- a/scenes/levels/level05/saum.gd
++++ b/scenes/levels/level05/saum.gd
+@@ -112,6 +112,13 @@ const STUFE_ERDE := Color(0.3, 1.0, 0.35, 0.0)
+ ## Setzstufe (`_profil_stufe`, 0,45). Punkt 15 liegt am Fuß auch flach im
+ ## Bild; er behält seine Verdeckung.
+ const STUFE_UNTER_DECKE := Vector2(0.45, 1.0)
++## Ausbrüche der Setzstufe (R5; Bild-Jury R5, Wurzeltreppen: „Die
++## Silhouette bleibt aber zwei schnurgerade Leisten über die ganze Breite";
++## Vorschlag: „Stufenkante aus mehreren Strängen, die die Linie um ±0,15 m
++## brechen"): Narbe und Lippe der Setzstufe sacken in Buckeln wie an den
++## Stirnen der Lücken (STIRN_AUSBRUCH) bis STUFE_AUSBRUCH ab, die Wand
++## darunter folgt halb; die Kante der Decke und der Körper bleiben gerade.
++const STUFE_AUSBRUCH := 0.22
+ ## Welle der Kronenhöhe entlang der Seite (m) und ihr Maßstab (1/m).
+ const KRONE_WELLE := 0.35
+ const KRONE_WELLE_DICHTE := 0.045
+@@ -159,6 +166,25 @@ const UFER_MOOS := Vector4(258.0, 264.0, 276.0, 279.0)
+ ## zwei, drei Zungen von gut einem Meter. Nur die Narbe (Punkte 1–3); die
+ ## Kante der Decke und der Körper bleiben gerade (Findling-Regel: Die
+ ## Zunge ist Gras über dem Spalt, kein Boden).
++## SCHRÄG, GERUNDET, AUSGEBROCHEN (R5; Bild-Jury R5, Lücken: „Die Lücke
++## bleibt aber ein exakt rechteckiger Kasten: flache, senkrechte
++## Stirnwände, gerade Lippe …"; Vorschlag: „Stirnwände schräg und gerundet
++## in die Böschung führen, Lippe mit Ausbrüchen ≥ 0,3 m statt Zungen
++## ≤ 0,22 m, Steine als Brocken mit Höhe"):
++## * Die Wand unter der Lippe hängt nicht mehr unter die Decke zurück (bis
++##   −0,5 m), sondern fällt schräg in den Spalt: Jeder Punkt ab dem Fuß der
++##   Narbe rückt je Meter Tiefe STIRN_SCHRAEG zur Mitte der Lücke – ein
++##   Kerb statt eines Kastens; der Grund wird kürzer als die Lücke.
++## * An den Enden der Querlinie (bis STIRN_RUND_WEIT vor dem Ende, in den
++##   Wänden der Seiten) rückt die Wand noch bis STIRN_RUND weiter herein:
++##   Die Stirn biegt zu den Seiten hin in die Böschung, statt mit einer
++##   senkrechten Ecke an sie zu stoßen.
++## * Die Ausbrüche der Lippe (STIRN_AUSBRUCH) bis 0,32 statt 0,14 m tief.
++## Die Lippe selbst (Punkte 0–3) und der Körper bleiben, wo sie waren: Was
++## schräg liegt, liegt unter der Decke im Spalt, wo niemand steht.
++const STIRN_SCHRAEG := 0.42
++const STIRN_RUND := 0.9
++const STIRN_RUND_WEIT := 1.8
+ const STIRN_ZUNGE := 0.22
+ const STIRN_ZUNGE_AB := 0.25
+ const STIRN_ZUNGE_DICHTE := 0.75
+@@ -166,7 +192,7 @@ const STIRN_HELL := 0.62
+ const STIRN_DUNKEL := 0.025
+ const STIRN_TIEFE := Vector2(0.1, 0.4)
+ const STIRN_ABKLINGEN := 0.6
+-const STIRN_AUSBRUCH := 0.14
++const STIRN_AUSBRUCH := 0.32
+ ## Verdeckung der Wand einer Seite an ihrem Fuß, wo sie in einer Lücke in
+ ## den Spalt hinabläuft (`_auf_in_luecke`), und auf dem Grund der Lücke.
+ ## R4 (Bild-Jury R4, Lücken: „Wo die Lippenstufe an die linke Sandsteinwand
+@@ -701,11 +727,21 @@ static func _loesswand(p: GelaendeSaum.Profil, s: float, seite: float, hoch: flo
+ ## die beschattete Wand dahinter (gemessen s 60, mit und ohne Vorhänge:
+ ## Stränge im Mittel rgb 85/42/22, Luma 53 gegen 31 der Wand an denselben
+ ## Bildpunkten) – keine dunklen Striche mehr.
++## R5 (Bild-Jury R5, Lösswände: „kupferhelle, gleichmäßige Kämme, die an
++## einer geraden Linie unter der Narbe beginnen, wie Fransen oder Haar";
++## Vorschlag: „unregelmäßig in Länge und Dichte, direkt an der Narbe
++## ansetzen, Ton näher an der Wand"): Längen 0,5–2,6 statt 0,8–2,1 m,
++## Breiten 0,25–0,7 statt 0,35–0,6 m, der Ansatz je Karte um VORHANG_ANSATZ
++## versetzt (bis 0,15 m hinauf in die Narbe, bis 0,3 m tiefer), der Ton
++## eine Stufe dunkler (bis R4 0,62/0,45/0,3) – immer noch über der
++## beschatteten Wand, damit kein Strich schwarz wird (siehe oben).
+ const VORHANG_STRECKE := Vector2(31.0, 182.0)
+-const VORHANG_LANG := Vector2(0.8, 2.1)
++const VORHANG_LANG := Vector2(0.5, 2.6)
++const VORHANG_BREIT := Vector2(0.25, 0.7)
++const VORHANG_ANSATZ := Vector2(-0.15, 0.3)
+ const VORHANG_GRUPPE := 7.0
+ const VORHANG_DICHTE := 0.9
+-const VORHANG_TON := Color(0.62, 0.45, 0.3)
++const VORHANG_TON := Color(0.54, 0.4, 0.27)
+ const VORHANG_SICHT := 60.0
+ const VORHANG_STUECK := 30.0
+ const VORHANG_ZWEITE := 0.06
+@@ -755,12 +791,14 @@ static func _wurzelvorhaenge(level: Level05) -> void:
+ 			for k in 2:
+ 				var wurf := rng.randf()
+ 				var lang := minf(rng.randf_range(VORHANG_LANG.x, VORHANG_LANG.y), wand * 0.85)
+-				var breit := rng.randf_range(0.35, 0.6)
++				var breit := rng.randf_range(VORHANG_BREIT.x, VORHANG_BREIT.y)
+ 				var versatz := rng.randf_range(-0.3, 0.3)
+ 				var ton := VORHANG_TON * rng.randf_range(0.75, 1.1)
++				var ansatz := rng.randf_range(VORHANG_ANSATZ.x, VORHANG_ANSATZ.y)
+ 				if wurf > w:
+ 					continue
+-				var ort := krone + aussen * 0.05 + laengs * versatz + Vector3.UP * 0.04
++				var ort := krone + aussen * 0.05 + laengs * versatz + Vector3.UP * 0.04 \
++						+ runter * ansatz
+ 				var schluessel := floori(s / VORHANG_STUECK)
+ 				if not stuecke.has(schluessel):
+ 					var neu := SurfaceTool.new()
+@@ -1102,13 +1140,26 @@ static func _ab_in_luecke(p: GelaendeSaum.Profil, s: float, l: Dictionary,
+ ## Narbe) behalten ihre Farbe; an der Landeseite (`nah`) hängt die Narbe
+ ## weiter über den Spalt (STIRN_NAH).
+ static func _profil_stirn(_i: int, probe: Dictionary, level: Level05, kante: float,
+-		grund: float, halb: float, erdig: bool, nah: bool) -> GelaendeSaum.Profil:
++		grund: float, halb: float, erdig: bool, nah: bool, laenge: float) -> GelaendeSaum.Profil:
+ 	var p := Kanten.profil_stirn(probe, kante, grund, halb, erdig, 0.45, level.weg)
+ 	for j in range(4, p.anzahl()):
+ 		var c := p.farbe[j]
+ 		var tief := maxf(kante - p.y[j] - STIRN_TIEFE.x, 0.0)
+ 		c.r = STIRN_DUNKEL + (STIRN_HELL - STIRN_DUNKEL) * exp(-tief / STIRN_ABKLINGEN)
+ 		p.farbe[j] = c
++	# Schräg und zu den Enden gerundet (siehe STIRN_SCHRAEG): ab dem Fuß der
++	# Narbe (Punkt 6) bis zum Fuß am Grund (13); der Grund (14, 15) liegt
++	# schon in der Mitte. Nie weiter als bis knapp vor die Mitte der Lücke.
++	var bogen_s: float = probe["bogen"]
++	var ende := minf(bogen_s, laenge - bogen_s)
++	var rund := STIRN_RUND * (1.0 - smoothstep(0.0, STIRN_RUND_WEIT, ende))
++	for j in range(6, mini(14, p.anzahl())):
++		var tief := maxf(kante - p.y[j], 0.0)
++		var o_neu := p.o[j] + tief * STIRN_SCHRAEG + rund * smoothstep(0.0, 1.2, tief)
++		p.o[j] = minf(o_neu, halb - 0.25)
++	# Der Grund läuft von dort weiter zur Mitte, ohne zurückzuklappen.
++	for j in range(14, p.anzahl()):
++		p.o[j] = maxf(p.o[j], p.o[j - 1] + 0.05)
+ 	# Ausbrüche der Lippe (siehe STIRN_AUSBRUCH): Narbe und Lippe sacken in
+ 	# Buckeln von gut 1–2 m ab, die Wand darunter folgt bis 0,33 m.
+ 	var bogen: float = probe["bogen"]
+@@ -1164,6 +1215,13 @@ static func _profil_stufe(_i: int, probe: Dictionary, level: Level05, oben: floa
+ 	p.punkt(-0.26, lerpf(oben, unten, 0.6), Kanten.farbe(0.58, 1.0, 0.15, 0.0), 0.0, 0.1, -1.0,
+ 			0.05)
+ 	p.punkt(-0.22, unten + 0.06, Kanten.farbe(0.45, 0.9, 0.45, 0.0), 0.0, 0.05, -1.0)
++	# Ausbrüche (siehe STUFE_AUSBRUCH), nicht am Suhlgraben.
++	if not graben:
++		var aus := STUFE_AUSBRUCH * smoothstep(0.1, 0.7, Kanten.welle(bogen * 0.6, 53.0)) \
++				* (0.6 + 0.4 * Kanten.welle(bogen * 2.3, 59.0))
++		aus = minf(maxf(aus, 0.0), h * 0.4)
++		for j in range(1, 6):
++			p.y[j] -= aus * (1.0 if j < 4 else 0.5)
+ 	if graben:
+ 		# Schlammsohle der Suhle: nass, moosig, eben bis zur Mitte.
+ 		p.punkt(-0.1, unten - 0.02, Kanten.farbe(0.55, 1.0, 0.5, 0.1))
+@@ -1196,8 +1254,9 @@ static func _querlinien(level: Level05) -> Array:
+ 			var s := von if ende == 0 else bis
+ 			var vorwaerts := 1.0 if ende == 0 else -1.0
+ 			var kante := weg.boden_bei(s - 0.01 * vorwaerts)
++			var laenge := _quer_ende(level, 1.0, s) - _quer_ende(level, -1.0, s)
+ 			linien.append(_querlinie(level, s, -vorwaerts,
+-					_profil_stirn.bind(level, kante, grund, halb, erdig, ende == 1), kante,
++					_profil_stirn.bind(level, kante, grund, halb, erdig, ende == 1, laenge), kante,
+ 					5201 + nummer))
+ 			nummer += 1
+ 	# Stufen der Decke (Graben, Treppen; die Absätze haben Rampen).
+diff --git a/scenes/levels/level05/stimmung.gd b/scenes/levels/level05/stimmung.gd
+index 7880c8d..97baa0d 100644
+--- a/scenes/levels/level05/stimmung.gd
++++ b/scenes/levels/level05/stimmung.gd
+@@ -90,7 +90,7 @@ class_name L05Stimmung
+ ## BEWEGUNG (§8.3 „Besonderes", §8.4), jedes Teil EIN MultiMesh ohne
+ ## Schatten, mit harter Sichtweite, fester Saat und ohne globalen Zufall:
+ ## * A: Kronenlicht auf der Decke (Wegdecke, `Level05._abschnitte_rechnen`)
+-##   und zwei Lichtschächte am Wegrand (SCHAECHTE).
++##   und bis R4 zwei Lichtschächte am Wegrand (SCHAECHTE, seit R5 leer).
+ ## * B: Pollen im Hohlweg (POLLEN, `Staubflug` hell, langsam, kaum steigend).
+ ## * C: goldener Staub über den drei Wurzeltreppen (STAUB).
+ ## * D: Bachnebel über dem Tobelbach (`GelaendeBau.nebeltafeln`, ein Netz).
+@@ -189,7 +189,15 @@ const HORIZONT_FARBE := Color(0.30, 0.36, 0.40)
+ ## Suhle und bei s 20 vor der niedrigen Wand bildlinks, beide im Bild des
+ ## Starts, und heller (SCHACHT_STAERKE; mit 0,24 stand der bei s 12 als
+ ## weißer Balken am Bildrand).
+-const SCHAECHTE: Array[Vector2] = [Vector2(12.0, -7.4), Vector2(20.0, 6.9)]
++## R5 (Bild-Jury R5, Startbild: „Die steilen Lichtschächte fallen aus
++## offenem Himmel, ohne Kronen darüber; sie wirken wie Scheinwerfer, bei
++## s 30/72 auch quer vor dem Eichenstamm"; Vorschlag: „Schächte nur dort, wo
++## Kronen sie begründen (mit der Waldkante), sonst weglassen"): keine mehr.
++## Über A steht kein Kronendach, durch das Licht fallen könnte – das kommt
++## erst mit der Waldkante (Nutzerentscheidung über K3, siehe
++## doku/level05-neubau.md, Abschnitt 15). Bis R4 bei s 12 (q −7,4) und s 20
++## (q 6,9); Bau und Werte bleiben für die Rückkehr stehen.
++const SCHAECHTE: Array[Vector2] = []
+ const SCHACHT_STAERKE := 0.17
+ ## R4 (Bild-Jury R4, Startbild: „Der Lichtschacht liegt als weißes,
+ ## waagrechtes Dunstband über der Suhle statt als senkrechter Strahl";
+diff --git a/scenes/levels/level05/wasser.gd b/scenes/levels/level05/wasser.gd
+index e0063c5..c3f4d83 100644
+--- a/scenes/levels/level05/wasser.gd
++++ b/scenes/levels/level05/wasser.gd
+@@ -314,9 +314,12 @@ const WEHRFALL_TIEF := Color(0.7, 0.8, 0.82)
+ 
+ # =========================================================== Gerinne
+ 
+-## Wasser im Gerinne: so tief unter dem Rand, halbe Breite dort.
+-const GERINNE_UNTER := 0.13
+-const GERINNE_HALB := 0.42
++## Wasser im Gerinne: so tief unter dem Rand, halbe Breite dort. Seit R5
++## liegt das Gerinne tiefer und ist schmaler (`L05Wegbauten.GERINNE_RAND`,
++## innen r 0,25 statt 0,45): 0,07 unter dem Rand ist es 0,24 breit (halb);
++## bis R4 0,13 und 0,42.
++const GERINNE_UNTER := 0.07
++const GERINNE_HALB := 0.22
+ const GERINNE_TEMPO := 1.6
+ ## Uferabstand des Shaders bis GERINNE_SAUM vor der Wand (darunter keine
+ ## helle Uferfarbe und kein Schaumsaum, `bach.gdshader` ab 0,45 bzw. 0,6).
+@@ -404,17 +407,14 @@ func _flaechen_bauen() -> void:
+ 	var bach := _knoten("Bach", netze["bach"] as Mesh, stoff, 0.0)
+ 	# Die Wellen heben die Fläche um bis zu 0,05 m (wie `Bachband.bauen`).
+ 	bach.extra_cull_margin = 0.5
+-	# Das Wasser in jedem Gerinne steht erst, wenn auch dessen oberer Teil
+-	# steht (`L05Wegbauten`, NAHBLENDE: Sichtgrenze nach der Mitte der Hülle,
+-	# im Ganzen statt eines Rasters) – sonst schwebte es dort allein. Seine
+-	# Mitte liegt höher als die des Holzes (4,3 statt gut 3 m über dem Weg),
+-	# es erscheint also eher etwas nach dem Holz als davor.
++	# Das Wasser in jedem Gerinne steht immer, wie seit R5 das Gerinne selbst
++	# (`L05Wegbauten`, GERINNE_RAND: in der Optik, die immer steht). Bis R4
++	# lag das Gerinne im oberen Teil mit Sichtgrenze (NAHBLENDE), und das
++	# Wasser folgte derselben Grenze.
+ 	var nr := 0
+ 	for netz_g: Mesh in netze["gerinne"] as Array:
+ 		var gerinne := _knoten("Gerinnewasser %d" % nr, netz_g, stoff, 0.0)
+ 		gerinne.extra_cull_margin = 0.5
+-		gerinne.visibility_range_begin = L05Wegbauten.NAH_GRENZE
+-		gerinne.visibility_range_begin_margin = L05Wegbauten.NAH_RAND
+ 		nr += 1
+ 	bruch_netze.clear()
+ 	bruch_netze.append(bach)
+@@ -1087,14 +1087,27 @@ func _baender_und_rad() -> void:
+ ## und eines knickte bei s 220 frei schräg durch die Luft (Bild-Jury R4,
+ ## Tobel D) – das Band legt seine Breite waagerecht quer, auf der steilen
+ ## Wand stand eine Kante bis gut einen halben Meter vom Hang ab.
+-## JETZT (R4, Vorschlag der Jury: „auf die Wand legen …, dunkel-nass statt
++## SEIT R4 (Vorschlag der Jury: „auf die Wand legen …, dunkel-nass statt
+ ## hell-glänzend"): eine Spur, die die Wand DUNKLER macht, nicht heller –
+ ## ein Streifen, dessen Ecken einzeln auf dem gezeichneten Gelände liegen
+ ## (`_feld`, SICKER_VOR darüber; quer in SICKER_QUER Punkten, längs alle
+-## SICKER_SCHRITT m), in einem Stoff, der das Bild darunter multipliziert
+-## (`_sicker_stoff`: unbeleuchtet, Mischung „mul"): in der Mitte mal
+-## SICKER_NASS, zu den Rändern und oben (der Quelle) weich auf 1. Wo das
+-## Gelände fehlt, endet der Streifen. Alle in EINEM Netz.
++## SICKER_SCHRITT m). Wo das Gelände fehlt, endet der Streifen. Alle in
++## EINEM Netz.
++## STOFF (R5): Bis R4 multiplizierte er das Bild darunter (Mischung „mul",
++## mal 0,5/0,55/0,52). Im Bild stand die Spur aber als rein schwarzer,
++## hart begrenzter Strich, rgb 1–2 (Bild-Jury R5: „wie ein Riss oder ein
++## schwarzer Schlauch"). URSACHE, gemessen in einer Probe mit einer grauen
++## Fläche und einem Streifen dieses Stoffs davor (gl_compatibility,
++## llvmpipe): ohne Umgebung 76/63/40 vor 153/115/77 (also mal 0,5, richtig);
++## nur Tonemap 92/75/44; nur Nebel 76/64/42; nur Adjustment 71/58/36; nur
++## Glow 15/10/3; mit der Umgebung von Level05.tscn (Glow an) 0/0/0. Die
++## Mischung „mul" taugt also nicht, solange die Umgebung Glow zeichnet –
++## das ist im Renderer, nicht in der Spur. Jetzt mischt der Stoff normal:
++## SICKER_NASS (fast schwarz, kühl) mit der Deckung SICKER_DECKUNG in der
++## Mitte, zu den Rändern und zur Quelle weich auf 0. In derselben Probe mit
++## der Umgebung von Level 05: Deckung 0,5 → 56/37/20 vor 162/125/85 (0,35 –
++## Mischen vor dem Tonemapping dunkelt stärker ab als die Deckung sagt);
++## deshalb höchstens SICKER_DECKUNG. Nebel trägt der Stoff selbst.
+ const SICKER_STELLEN: Array[float] = [194.0, 205.0, 217.0, 228.0, 241.0, 252.0]
+ const SICKER_HOCH := Vector2(5.0, 11.0)
+ const SICKER_VOR := 0.04
+@@ -1102,7 +1115,8 @@ const SICKER_BREITE := Vector2(0.7, 1.2)
+ const SICKER_SCHLINGE := 0.9
+ const SICKER_SCHRITT := 0.3
+ const SICKER_QUER := 5
+-const SICKER_NASS := Color(0.5, 0.55, 0.52)
++const SICKER_NASS := Color(0.02, 0.03, 0.028)
++const SICKER_DECKUNG := 0.3
+ const SICKER_SICHT := 130.0
+ 
+ 
+@@ -1154,7 +1168,7 @@ func _sickerspuren() -> void:
+ 				reihe.append(Vector3(w.x, y + SICKER_VOR, w.z))
+ 				# Weich zum Rand und zur Quelle (oben die ersten 0,8 m).
+ 				var staerke := (1.0 - u * u) * smoothstep(0.0, 0.8, oben - d)
+-				fa.append(Color.WHITE.lerp(SICKER_NASS, staerke))
++				fa.append(Color(1.0, 1.0, 1.0, SICKER_DECKUNG * staerke))
+ 			if reihe.size() == SICKER_QUER:
+ 				reihen.append(reihe)
+ 				farben.append(fa)
+@@ -1196,8 +1210,10 @@ static func _sicker_flaeche(st: SurfaceTool, reihen: Array[PackedVector3Array],
+ 				st.add_vertex(ecken[e])
+ 
+ 
+-## Stoff der Sickerspuren: unbeleuchtet, multipliziert (siehe SICKER_NASS),
+-## beidseitig, ohne Nebel – der Nebel liegt schon im Bild darunter.
++## Stoff der Sickerspuren: unbeleuchtet, SICKER_NASS normal gemischt, die
++## Deckung aus dem Alpha der Vertexfarbe (siehe Kopf von `_sickerspuren`),
++## beidseitig, mit Nebel – in der Ferne geht die Spur im Dunst unter wie
++## die Wand.
+ static var _sicker_stoff_fertig: StandardMaterial3D = null
+ 
+ 
+@@ -1205,10 +1221,10 @@ static func _sicker_stoff() -> StandardMaterial3D:
+ 	if _sicker_stoff_fertig == null:
+ 		var m := StandardMaterial3D.new()
+ 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+-		m.blend_mode = BaseMaterial3D.BLEND_MODE_MUL
++		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
++		m.albedo_color = SICKER_NASS
+ 		m.vertex_color_use_as_albedo = true
+ 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+-		m.disable_fog = true
+ 		_sicker_stoff_fertig = m
+ 	return _sicker_stoff_fertig
+ 
+diff --git a/scenes/levels/level05/wegbauten.gd b/scenes/levels/level05/wegbauten.gd
+index ae734b1..ca7249f 100644
+--- a/scenes/levels/level05/wegbauten.gd
++++ b/scenes/levels/level05/wegbauten.gd
+@@ -21,7 +21,8 @@ class_name L05Wegbauten
+ ##              Nähe als gewelltes rosa-weißes Band, „wie ein Plastikband"
+ ##              (Bild-Jury R4, Fluderjoche, s 208: die helle Eigenfarbe hat
+ ##              die Rauheit 0,7, Borke 0,95). Unter 0,95 steht über dem Weg
+-##              nichts. Darüber der Holm (HOLM_Y).
++##              nichts. Darüber am Gatter der Holm (HOLM_Y), an den Jochen
++##              der Trog (GERINNE_RAND).
+ ##   Hürde      die Wurzel genau so breit wie der Körper tief (0,6), ihr
+ ##              Rücken flach auf HUERDE_HOEHE (0,7), hell abgewetzt, die
+ ##              Flanken bemoost; in einem gescherten Rahmen, der wie der
+@@ -57,26 +58,28 @@ class_name L05Wegbauten
+ ##      geflochtene Bogenwurzeln von Krone zu Krone (über dem Weg ≤ 4,6 m) und
+ ##      ein Vorhang aus Wurzelsträhnen alle 0,3 m (Ø 5–7 cm).
+ ##   D3, D4  Fluderjoch: zwei Böcke hinter den Leitlinien, die Zangen-
+-##      balken als Riegel (Spaltfläche nach außen), Latten alle 0,42 m, das
+-##      Gerinne als ausgehöhlter Halbstamm auf 4,02–4,58 m.
+-##   Seit R4 über Ü, D3 und D4 der Holm (HOLM_Y), ein zweites Spaltholz auf
+-##   gut 2 m über die ganze Breite.
++##      balken als Riegel (Spaltfläche nach außen) und das Gerinne als
++##      ausgehöhlter Halbstamm auf 2,10–2,42 m (seit R5, siehe GERINNE_RAND;
++##      bis R4 Latten und ein Holm, das Gerinne auf 4,02–4,58 m).
++##   Seit R4 über Ü der Holm (HOLM_Y), ein zweites Spaltholz auf gut 2 m
++##   über die ganze Breite.
+ ## Je Durchlass zwei Netze im Borkenstoff: die heile Optik (Kind des
+ ## Körpers, über `duckdurchlass` „optik") und der Bruch („Bruch",
+ ## unsichtbar, in `Effekte.VORWAERM_GRUPPE` – er wird erst gezeichnet, wenn
+ ## der Keiler hindurchbricht; ohne Vorwärmen stockte dann das Bild). Den
+ ## Wechsel schaltet `L05Jagd` (DURCHLASS-BRUCH, HEILEN) über
+ ## `bruch_stellen`. Im Bruch fehlt die
+-## Mitte (BRESCHE): Riegel und Zangen hängen gesplittert durch, Stangen,
+-## Latten und Strähnen hängen als Stümpfe von oben, Stücke liegen am Boden
++## Mitte (BRESCHE): Riegel und Zangen hängen gesplittert durch, Stangen
++## und Strähnen hängen als Stümpfe von oben, Stücke liegen am Boden
+ ## (flacher als 0,3 m). Das Gerinne bleibt heil – den Schwall zeigt der
+ ## Keiler als Effekt (`Keiler.durchbrechen`); das Wasser darin und den Fall
+ ## an seinem Ende legt `L05Wasser` (Paket P6, über `gerinne_lage`).
+ ##
+ ## FREIRAUM (Entwurf §7.1 K1): Über |q| ≤ 3,5 steht nichts zwischen 4,6 und
+ ## 9,2 m über dem Weg: Kopfstangen bis 4,39, Bogen bis gut 4,55 (Scheitel
+-## der Achse 4,3, flach bis |q| 3,7), Gerinne bis 4,58 m; Pfosten, Böcke und
+-## Pfähle stehen bei |q| ≥ 4,4. Die Freiraumprobe (LevelCheck) misst es.
++## der Achse 4,3, flach bis |q| 3,7), Gerinne bis 2,42 m (bis R4 4,58);
++## Pfosten, Böcke und Pfähle stehen bei |q| ≥ 4,4. Die Freiraumprobe
++## (LevelCheck) misst es.
+ ##
+ ## KOSTEN (Entwurf §10: 30 Zeichenaufrufe, +10 für Schatten; Handy 18).
+ ## Gemessen (Messtore 8/60/90/140/218/280/296, mit gegen ohne Wegbauten):
+@@ -144,10 +147,28 @@ const RIEGEL_KANTE := 1.25
+ const RIEGEL_HOCH_KANTE := 0.09
+ ## Breite der Bresche im Bruch: so weit um die Mitte fehlt alles.
+ const BRESCHE := 1.5
+-## Das Gerinne (Unterkante, Rand) über der Decke und sein Halbmesser.
+-const GERINNE_RAND := 4.58
+-const GERINNE_R := 0.56
+-const GERINNE_INNEN := 0.45
++## Das Gerinne der Joche: sein Rand über der Decke, Halbmesser außen und
++## innen. TROG STATT HOLM (R5; Bild-Jury R5, Joche: „Mit dem Holm liest sich
++## jedes Joch als Absperrung oder Sägebock mit zwei Balken … bzw. als Gatter
++## mit Latten …, nicht als Gerinne auf Böcken; der Trog ist nicht zu
++## erkennen"; Vorschlag: „den Holm als Trog mit sichtbarem U-Profil und
++## Wasser bauen statt als zweiten Balken, die Latten weglassen"): Das
++## Gerinne selbst liegt jetzt dort, wo der Holm lag – die Unterkante auf
++## 2,10 m, der Rand auf 2,42 (der Holm lag auf 1,975–2,145) –, und ist
++## schmaler (r 0,32 statt 0,56). Die Böcke tragen es auf Kopfhöhe; die
++## Latten sind fort, der Holm an den Jochen auch. Was die Spiel-Jury R4 vom
++## Holm wollte – über dem Riegel etwas, das „zu niedrig zum Durchspringen"
++## sagt –, sagt jetzt der Trog: Zwischen Riegel (1,40) und Trog bleiben
++## 0,70 m. Mit der Unterkante auf 1,98 sah die Kamera den Kopf (1,15 m) im
++## Slide-Fenster von D3 nur noch zu 57 % (mit dem Holm 79 %), jetzt 71 %
++## wie an D4 (Freiraumprobe K5; die Brust 0,7 m unverändert 79 %). Aus der hohen Rückblickkamera sieht man in ihn hinein auf das
++## Wasser (`L05Wasser`, Gerinne). Er gehört zur Optik, die immer steht (wie
++## vorher der Holm, siehe NAHBLENDE), samt seinem Wasser.
++## BIS R4: Rand auf 4,58 m, r 0,56/0,45, im oberen Teil („Oben") – der Trog
++## lag über den Latten so hoch, dass man ihn von unten nur als Brett sah.
++const GERINNE_RAND := 2.42
++const GERINNE_R := 0.32
++const GERINNE_INNEN := 0.25
+ ## Das Gerinne reicht so weit über die linke Leitlinie hinaus (über das Ufer,
+ ## dort fällt sein Wasser in den Bach) und über die rechte (in die
+ ## Sandsteinwand), und so viel fällt sein Rand über die ganze Länge nach
+@@ -170,21 +191,16 @@ const GATTER_KOPF_R := 0.11
+ ## GATTER_MITTE_FREI: ein altes Loch im Wildgatter, durch das man schlüpft
+ ## (unter dem Riegel). Riegel, Kopfstange und Körper bleiben.
+ const GATTER_MITTE_FREI := 1.3
+-## Abstand der Stangen des Gatters und der Latten der Joche (nur in der
+-## Stirnebene, siehe `_gatter`, `_fluderjoch`). Das Gatter mit 0,9 statt
+-## 0,6 m: Im Startbild stand die Figur hinter 20 Stangen wie hinter
+-## Gittern (Bild-Jury R1, Mangel 9), mit 0,9 m sind es 14 (Leitlinien bei
+-## s 17 auf ±6,6 m, gerechnet nach `_quer_stellen`).
++## Abstand der Stangen des Gatters (nur in der Stirnebene, siehe
++## `_gatter`). Mit 0,9 statt 0,6 m: Im Startbild stand die Figur hinter 20
++## Stangen wie hinter Gittern (Bild-Jury R1, Mangel 9), mit 0,9 m sind es 14
++## (Leitlinien bei s 17 auf ±6,6 m, gerechnet nach `_quer_stellen`). Die
++## Latten der Joche (alle 0,7 m, seit Abschluss R3 nur außerhalb |x| 2,3)
++## sind seit R5 fort (siehe GERINNE_RAND).
+ const GATTER_STANGEN := 0.9
+-const JOCH_LATTEN := 0.7
+-## Abschluss R3 (Bild-Jury R3, Kleinteile: „Das Fluderjoch D3/D4 liest sich
+-## als Gatter wie Ü, nicht als Gerinne auf Böcken"): Im heilen Joch keine
+-## Latten über |x| < JOCH_LATTEN_FREI – zwischen Zange und Trog ist dort
+-## offen, und je Bock trägt ein Kopfband den Trog. Der Bruch bleibt, wie er
+-## war (Stümpfe hängen vom Trog).
+-const JOCH_LATTEN_FREI := 2.3
+ ## HOLM (R4; Spiel-Jury R4, Mangel 1): Seit Gatter und Joche über der Gasse
+-## offen sind (GATTER_MITTE_FREI, JOCH_LATTEN_FREI), stand zwischen Riegel
++## offen waren (GATTER_MITTE_FREI; die Joche ohne Latten über |x| < 2,3),
++## stand zwischen Riegel
+ ## und Kopfstange bzw. Trog 2,6 bzw. 4,6 m freie Luft – der Körper sperrt
+ ## dort aber weiter von 0,95 bis 4,4 m (`KorridorLevel.duckdurchlass`), eine
+ ## unsichtbare Wand. Aus der hohen Rückblickkamera lag der Riegel (1,25–1,40)
+@@ -202,6 +218,8 @@ const JOCH_LATTEN_FREI := 2.3
+ ## Die Sichtlinie kreuzt die Ebene des Durchlasses dort bei höchstens 1,6 m.
+ ## Im Bruch hängt er wie der Riegel in zwei Stücken durch. Der Körper
+ ## bleibt, wie er ist (abgesenkt ließe er einen Sprung über den Riegel zu).
++## Seit R5 nur noch am Gatter: An den Jochen liegt auf dieser Höhe der Trog
++## (siehe GERINNE_RAND).
+ const HOLM_Y := 2.06
+ const HOLM_R := 0.085
+ ## Gasse über der Wegmitte (zwischen den Achsen der innersten Stangen,
+@@ -286,11 +304,13 @@ const LATERNE_STAERKE := 2.4
+ ## von D1 bei s 43, das Gerinne von D3 bei s 196 als Brett quer über dem
+ ## unteren Bildfünftel). Darum ist die heile Optik jedes Durchlasses in ZWEI
+ ## Netzen gebaut:
+-##   „Optik"  was immer steht: Riegel, Pfosten, Böcke, Holme und an den
+-##            Wurzelbögen der Wurzelansatz in den Wänden und die Unterwurzeln
+-##            (siehe `_wurzelbogen`) – das Zeichen „hier sliden", wenn der
+-##            Durchlass unten ins Bild kommt
+-##   „Oben"   Bogen, Strähnen, Stangen, Kopfstangen, Latten, Gerinne: als
++##   „Optik"  was immer steht: Riegel, Pfosten, Böcke, der Holm am Gatter,
++##            seit R5 das tief gelegte Gerinne der Joche (GERINNE_RAND) und
++##            an den Wurzelbögen der Wurzelansatz in den Wänden und die
++##            Unterwurzeln (siehe `_wurzelbogen`) – das Zeichen „hier
++##            sliden", wenn der Durchlass unten ins Bild kommt
++##   „Oben"   Bogen, Strähnen, Stangen, Kopfstangen, an den Jochen nur noch
++##            die Kopfbänder (bis R4 auch Latten und Gerinne): als
+ ##            GANZES sichtbar erst, wenn die Mitte seiner Hülle NAH_GRENZE
+ ##            von der Kamera entfernt ist (`visibility_range_begin`)
+ ## Bis R2 dünnte ein Raster aus verworfenen Bildpunkten die Optik über
+@@ -1583,7 +1603,7 @@ static func _bogen_y(bogen: PackedVector3Array, x: float) -> float:
+ 	return bogen[0].y
+ 
+ 
+-## D3/D4 Fluderjoch (siehe Kopf).
++## D3/D4 Fluderjoch (siehe Kopf und GERINNE_RAND).
+ static func _fluderjoch(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: float,
+ 		tiefe: float, kaputt: bool, saat: int) -> void:
+ 	var rng := PropWerkzeug.zufall(saat)
+@@ -1595,11 +1615,14 @@ static func _fluderjoch(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: flo
+ 	var zz := halb_z - 0.09
+ 	var bock_x := Vector2(-(links + 0.55), rechts + 0.24)
+ 	var holm_y := GERINNE_RAND - GERINNE_R - 0.1
++	# Der rechte Bock lehnt nach außen wie die Wand, oben so weit, wie der
++	# hohe Bock bis R4 (0,42 m auf 3,92 m über dem Weg) auf dieser Höhe lehnte.
++	var lehnt := 0.42 * (holm_y + 0.5) / 4.47
+ 	# Böcke: links auf der Uferkante (die Pfosten stehen tief im Hang),
+ 	# rechts dicht an der Sandsteinwand, nach außen gelehnt wie sie.
+ 	for b in 2:
+ 		var x := bock_x.x if b == 0 else bock_x.y
+-		var lehnen := 0.0 if b == 0 else 0.42
++		var lehnen := 0.0 if b == 0 else lehnt
+ 		var fuss_y := -2.4 if b == 0 else -0.5
+ 		for z: float in [zp, -zp]:
+ 			var o := holz.duplicate()
+@@ -1638,74 +1661,25 @@ static func _fluderjoch(st: SurfaceTool, ob: SurfaceTool, rand: Rand, mitte: flo
+ 		if k == 0:
+ 			_riegel(st, bock_x.x - 0.35, bock_x.y + 0.3, z - signf(z) * 0.08, 0.16, klemm,
+ 					kaputt, bresche, hang, o, 0.0)
+-	# Latten nur an der Stirn, alle JOCH_LATTEN m, gespalten, die Fläche nach
+-	# außen, Ø 9–10 cm. Bis Runde 1 alle 0,42 m in beiden Ebenen, Ø 12–13 cm:
+-	# Durch D4 schaut die Kamera beim Anlauf auf D3 (Band 2,9–3,3 m), und die
+-	# Figur stand dahinter wie im Käfig (Bild s 212; Spiel-Jury R1, Mangel 1).
++	# Keine Latten mehr (R5, siehe GERINNE_RAND); bis R4 standen sie an der
++	# Stirn alle JOCH_LATTEN m außerhalb der Gasse zwischen Riegel und Trog.
++	# Das Gerinne auf den Böcken, in der Optik, die immer steht – auch im
++	# Bruch heil (den Schwall zeigt der Keiler).
+ 	var gerinne_unten := GERINNE_RAND - GERINNE_R
+-	var nr := 0
+-	for x in _quer_stellen(-links + 0.3, rechts - 0.25, JOCH_LATTEN):
+-		for k in 2:
+-			if k == 1:
+-				continue
+-			var z := (zz - 0.04) if k == 0 else -(zz - 0.04)
+-			var o := holz.duplicate()
+-			o["saat"] = saat + 100 + nr * 2 + k
+-			o["seiten"] = 6
+-			o["moos"] = 0.15
+-			o["spalt"] = Vector3(0.0, 0.0, signf(z))
+-			o["spalt_tiefe"] = 0.2
+-			o["anfang"] = "stumpf"
+-			o["ende"] = "stumpf"
+-			var r := rng.randf_range(0.045, 0.05)
+-			var unten := RIEGEL_OBEN - 0.08
+-			var oben := gerinne_unten + 0.12
+-			if not kaputt:
+-				# Über der Gasse keine Latten (siehe JOCH_LATTEN_FREI).
+-				if absf(x) >= JOCH_LATTEN_FREI:
+-					_stange(ob, Transform3D.IDENTITY, Vector3(x, unten, z), Vector3(x, oben, z),
+-							r, r, o, 1.0)
+-			elif absf(x) < BRESCHE + 0.9:
+-				var o2 := o.duplicate()
+-				o2["anfang"] = "splitter"
+-				var kipp := rng.randf_range(-0.12, 0.12)
+-				_stange(st, Transform3D.IDENTITY, Vector3(x + kipp, oben - rng.randf_range(0.35, 1.2),
+-						z), Vector3(x, oben, z), r, r, o2, 1.0)
+-			else:
+-				var fest := bock_x.x if x < 0.0 else bock_x.y
+-				var lose := -BRESCHE * 0.6 if x < 0.0 else BRESCHE * 0.5
+-				var sack := _durchhang(x, fest, lose, 0.4)
+-				_stange(st, Transform3D.IDENTITY, Vector3(x, unten - sack, z), Vector3(x, oben, z),
+-						r, r, o, 1.0)
+-		nr += 1
+-	_gerinne(ob, -(links + GERINNE_LINKS), rechts + GERINNE_RECHTS, saat + 200)
+-	# Kopfbänder: je Bock eine Strebe vom Holm schräg unter das Gerinne – der
+-	# Trog liegt sichtbar auf den Böcken (siehe JOCH_LATTEN_FREI).
++	_gerinne(st, -(links + GERINNE_LINKS), rechts + GERINNE_RECHTS, saat + 200)
++	# Kopfbänder: je Bock eine kurze Strebe vom Pfosten schräg unter das
++	# Gerinne – der Trog liegt sichtbar auf den Böcken.
+ 	if not kaputt:
+ 		for b in 2:
+-			var x := bock_x.x if b == 0 else bock_x.y + 0.42
++			var x := bock_x.x if b == 0 else bock_x.y + lehnt
+ 			var innen := 1.0 if b == 0 else -1.0
+ 			var ok := holz.duplicate()
+ 			ok["saat"] = saat + 60 + b
+ 			ok["seiten"] = 6
+ 			ok["anfang"] = "stumpf"
+ 			ok["ende"] = "stumpf"
+-			_stange(ob, Transform3D.IDENTITY, Vector3(x, holm_y - 0.9, zz - 0.06),
+-					Vector3(x + innen * 1.1, gerinne_unten + 0.05, zz - 0.06), 0.07, 0.065, ok)
+-	# Holm (siehe HOLM_Y) an der Stirn, von Bock zu Bock (der rechte lehnt
+-	# nach außen: dort, wo er die Höhe HOLM_Y kreuzt); eigene Zufallsquelle.
+-	var rh := PropWerkzeug.zufall(saat + 300)
+-	var oh := holz.duplicate()
+-	oh["saat"] = saat + 70
+-	oh["spalt"] = Vector3(0.0, 0.0, 1.0)
+-	oh["spalt_tiefe"] = 0.4
+-	oh["moos"] = 0.25
+-	oh["anfang"] = "stumpf"
+-	oh["ende"] = "stumpf"
+-	var rechts_lehnt := 0.42 * (HOLM_Y + 0.5) / (holm_y + 0.55)
+-	_holm(st, bock_x.x - 0.1, bock_x.y + rechts_lehnt + 0.1, zz - 0.02, kaputt,
+-			Vector2(-BRESCHE * 0.6 + rh.randf_range(-0.3, 0.2), BRESCHE * 0.5 + rh.randf_range(-0.2, 0.3)),
+-			Vector2(rh.randf_range(0.5, 0.7), rh.randf_range(0.45, 0.65)), oh)
++			_stange(ob, Transform3D.IDENTITY, Vector3(x, holm_y - 0.55, zz - 0.06),
++					Vector3(x + innen * 0.55, gerinne_unten + 0.03, zz - 0.06), 0.06, 0.055, ok)
+ 	if kaputt:
+ 		_truemmer(st, rng, halb_z, 2, Vector2(0.1, 0.13), Vector2(0.6, 1.1), holz)
+ 		_truemmer(st, rng, halb_z, 5, Vector2(0.05, 0.06), Vector2(0.5, 1.0), holz)
+@@ -2567,10 +2541,21 @@ static func _grabenrampe(sa: Sammler, level: Level05) -> void:
+ ## Setzstufe bis auf die untere Decke ab (STUFE_ABTAUCHEN, statt 0,25 m):
+ ## Jede steht als Bogen über der Kante, und zwischen ihnen bleibt die Kante
+ ## offen – Erde und Narbe der Stufe (`L05Saum`, Stufe).
++## R5 (Bild-Jury R5, Wurzeltreppen: „Die Silhouette bleibt aber zwei
++## schnurgerade Leisten über die ganze Breite"; Vorschlag: „Stufenkante aus
++## mehreren Strängen, die die Linie um ±0,15 m brechen"): Außerhalb der
++## Laufspur (|q| > STUFE_SPUR) heben sich die Wurzeln aus der Decke, bis
++## STUFE_BUCKEL über die Kante – dort klemmt sie die Option „oben" nicht
++## mehr flach (klemm_x nur über der Spur, wo man läuft) –, und im Grundriss
++## treten sie bis STUFE_BOGEN vor oder bis 0,08 m hinter die Kante (bis R4
++## 0,12 vor, 0,04 hinter). Die Narbe der Setzstufe bricht dazu in Buckeln
++## aus (`L05Saum`, STUFE_AUSBRUCH).
+ const STUFE_STUECKE := Vector2i(3, 5)
+ const STUFE_LAENGE := Vector2(1.4, 3.2)
+ const STUFE_R := Vector2(0.11, 0.22)
+-const STUFE_BOGEN := 0.12
++const STUFE_BOGEN := 0.16
++const STUFE_SPUR := 1.4
++const STUFE_BUCKEL := Vector2(0.08, 0.18)
+ const STUFE_HOCH := 0.45
+ const STUFE_TIEF := Vector2(0.18, 0.32)
+ const STUFE_UNTEN := 0.28
+@@ -2598,8 +2583,11 @@ static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand
+ 				rest * 0.6)
+ 		var b := a + lang
+ 		var r := rng.randf_range(STUFE_R.x, STUFE_R.y)
+-		var bogen := rng.randf_range(-0.04, STUFE_BOGEN)
++		var bogen := rng.randf_range(-0.08, STUFE_BOGEN)
+ 		var tief := k == tief_nr
++		# Eigene Zufallsquelle für den Buckel (siehe STUFE_BUCKEL): Die Züge
++		# von `rng` bleiben in ihrer Reihenfolge.
++		var buckel := PropWerkzeug.zufall(saat + 900 + k).randf_range(STUFE_BUCKEL.x, STUFE_BUCKEL.y)
+ 		var y := -rng.randf_range(STUFE_TIEF.x, STUFE_TIEF.y) if tief else -r + 0.02
+ 		# Mitte der Wurzel: auf der Kante 7 cm vor der Stufe (z = r − 0,07),
+ 		# tief in der Setzstufe halb in der Erde (z = 0,4 r).
+@@ -2622,8 +2610,11 @@ static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand
+ 			elif letztes:
+ 				rein = pow(maxf(1.0 - u * 2.0, 0.0), 4.0)
+ 				ab = 0.25
+-			stuetzen.append(Vector3(lerpf(a, b, u),
+-					y - ab * rein + 0.02 * sin(u * 6.0 + phase),
++			var x := lerpf(a, b, u)
++			var heben := 0.0 if tief else buckel * smoothstep(STUFE_SPUR, STUFE_SPUR + 0.6,
++					absf(x)) * (1.0 - rein)
++			stuetzen.append(Vector3(x,
++					y - ab * rein + 0.02 * sin(u * 6.0 + phase) + heben,
+ 					z + bogen * sin(u * PI) + 0.2 * rein))
+ 		if letztes:
+ 			stuetzen.append_array([Vector3(rechts + 0.4, 0.25, 0.12),
+@@ -2640,7 +2631,7 @@ static func stufenwurzel(sa: Sammler, level: KorridorLevel, s: float, rand: Rand
+ 			rr[rr.size() - 1] = maxf(rr[rr.size() - 1], 0.1)
+ 		_holz(sa.holz, lage, linie, rr, {"saat": saat + k * 7, "seiten": 8,
+ 				"moos": 0.45, "ton": WURZEL_TON, "buckel": 0.09, "oben": 0.012,
+-				"klemm_x": Vector2(-links - 0.3, rechts + 0.3), "oben_borke": true,
++				"klemm_x": Vector2(-STUFE_SPUR, STUFE_SPUR), "oben_borke": true,
+ 				"anfang": "spitz", "ende": "spitz", "ao_unten": STUFE_UNTEN})
+ 		a = b + rng.randf_range(0.2, 0.7)
+ 
+diff --git a/scenes/player/player.gd b/scenes/player/player.gd
+index 6eff8c5..6d6ea56 100644
+--- a/scenes/player/player.gd
++++ b/scenes/player/player.gd
+@@ -103,6 +103,21 @@ var hangelgitter: Hangelgitter = null
+ ## Wer die Beine anzieht, wird oben schmal statt unten – die Kapsel wandert
+ ## deshalb nach oben, nicht nach unten wie beim Krabbeln am Boden.
+ var hangeln_eingezogen := false
++## Eingabepuffer für den Slide, in Sekunden (Opt-in; Vorgabe 0 = aus, so
++## in jedem Level außer Level 05). Drückt man Slide in den letzten
++## `slide_puffer` Sekunden eines laufenden Slides, geht der Druck nicht
++## verloren: Er zählt in dem Bild, in dem der laufende Slide endet, so als
++## wäre er genau dann gekommen – sofern die Figur dann am Boden ist und eine
++## Richtung hält; sonst verfällt er (`_slide_puffern`). Physikwerte und
++## Slide bleiben, wie sie sind.
++## WARUM: Ohne Puffer schluckt ein laufender Slide jeden Druck. In Level 05
++## endet der Spurt-Slide nach der Hürde H2 oft erst kurz vor dem Durchlass
++## D2; der Tipp für D2 fiel dann in den alten Slide, die Figur richtete
++## sich auf und stolperte (Spiel-Jury L05 R5: viermal hintereinander in
++## der Kette mit Dauer-Slide). Mit 0 läuft genau der Code wie zuvor.
++var slide_puffer := 0.0
++## Ist ein Slide-Druck für das Ende des laufenden Slides gemerkt?
++var _slide_gemerkt := false
+ 
+ var _slide_dir := Vector3.ZERO
+ ## Restsperre nach dem Loslassen, in Sekunden.
+@@ -214,7 +229,10 @@ func _physics_process(delta: float) -> void:
+ 	_tempo = staerke
+ 
+ 	# --- Slide bzw. Bauchplatscher ---
+-	if InputHub.slide_gedrueckt():
++	var slide_neu := InputHub.slide_gedrueckt()
++	if slide_puffer > 0.0:
++		slide_neu = _slide_puffern(slide_neu, am_boden, staerke)
++	if slide_neu:
+ 		if am_boden and staerke > 0.1 and sliding <= 0.0 and not kriechen:
+ 			sliding = SLIDE_TIME
+ 			_slide_dir = Vector3(eingabe.x, 0.0, eingabe.y).normalized()
+@@ -457,6 +475,7 @@ func respawn() -> void:
+ 	can_djump = false
+ 	gesperrt = false
+ 	_kein_jump_cut = false
++	_slide_gemerkt = false
+ 	invuln = INVULN_ZEIT
+ 	_slide_hitbox_aktiv = false
+ 	_fall_rest = 0.0
+@@ -602,6 +621,24 @@ func _kriechen_pruefen(am_boden: bool, staerke: float) -> void:
+ 		kriechen = (taste and staerke <= 0.1) or not _kann_aufstehen()
+ 
+ 
++## Slide-Puffer (`slide_puffer`, nur wenn > 0): Gibt zurück, ob in diesem
++## Bild ein Slide-Druck zählt. Im laufenden Slide merkt er sich einen Druck
++## am Boden in dessen letzten `slide_puffer` Sekunden; der Druck selbst geht
++## unverändert weiter (dort löst er ohnehin nichts aus, in der Luft bleibt
++## er der Bauchplatscher). Im ersten Bild ohne Slide zählt der gemerkte
++## Druck, wenn die Figur am Boden ist und eine Richtung hält – ein Sprung,
++## ein Stolpern oder ein Absturz vom Slide lassen ihn also verfallen.
++func _slide_puffern(neu: bool, am_boden: bool, staerke: float) -> bool:
++	if sliding > 0.0:
++		if neu and am_boden and sliding <= slide_puffer:
++			_slide_gemerkt = true
++		return neu
++	if not _slide_gemerkt:
++		return neu
++	_slide_gemerkt = false
++	return neu or (am_boden and staerke > 0.1)
++
++
+ ## Ist über der Figur Platz für die aufrechte Hitbox?
+ ##
+ ## Gefragt wird mit genau der Kapsel, die im Stehen gilt, an genau der
+diff --git a/scenes/props/kronenwolke.gd b/scenes/props/kronenwolke.gd
+index 97e3518..5bf61a9 100644
+--- a/scenes/props/kronenwolke.gd
++++ b/scenes/props/kronenwolke.gd
+@@ -67,6 +67,10 @@ const BIEGUNG := 0.5
+ ##                der letzte Punkt ist der Leittrieb)
+ ##   nebenzentren PackedVector3Array: kleinere Kugeln (Zweigspitzen)
+ ##   flach        Fernfassung (siehe `fern()`)
++##   grob         alle Kugeln in Unterteilung 1 (80 statt 320 Dreiecke), aber
++##                in der Form der Nahfassung (nicht flach) und mit Karten –
++##                eine Fernfassung, die aussieht wie die nahe Krone (Level 05,
++##                Hauereiche fern). Ohne den Schlüssel bleibt alles, wie es ist.
+ ##   wind         Windgewicht 0..1 (1)
+ ##   saat         feste Saat (1)
+ static func netz(optionen: Dictionary = {}) -> ArrayMesh:
+@@ -97,6 +101,9 @@ static func _netz_bauen(optionen: Dictionary = {}) -> ArrayMesh:
+ 
+ 	var kugeln := _anordnen(rng, variante, flach, radius, hoehe, mitte, ballen, zentren,
+ 			nebenzentren)
++	if bool(optionen.get("grob", false)):
++		for k in kugeln:
++			k["stufe"] = 1
+ 
+ 	# Hülle der ganzen Krone: Bezug für Biegung, Höhe und Verdeckung.
+ 	var unten := INF

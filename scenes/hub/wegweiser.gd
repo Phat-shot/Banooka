@@ -101,6 +101,7 @@ func _baue() -> void:
 	reif.scale = Vector3(1.0, 0.15, 1.0)
 	reif.material_override = _ringmaterial
 	reif.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	reif.add_to_group(Effekte.VORWAERM_GRUPPE)
 	_ring.add_child(reif)
 	# Kerbe: ein kleines Dreieck außen am Ring, Spitze zum Ziel.
 	var kerbe := MeshInstance3D.new()
@@ -131,6 +132,9 @@ func _winkel(bezeichnung: String, groesse: Vector3, stoff: Material) -> void:
 	mi.mesh = st.commit()
 	mi.material_override = stoff
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Der Pfeil blendet erst nach dem Laden ein (`_setze_sichtbarkeit`) und
+	# ist im Rundgang darum nicht sicher im Bild: Abklatsch beim Vorwärmen.
+	mi.add_to_group(Effekte.VORWAERM_GRUPPE)
 	add_child(mi)
 
 

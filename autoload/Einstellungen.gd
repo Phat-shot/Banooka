@@ -75,6 +75,11 @@ var bildwackeln := true:
 		geaendert.emit()
 
 
+## 3D-Auflösung auf dem Handy, App wie Browser. Muss zu
+## `rendering/scaling_3d/scale.mobile` in project.godot passen.
+const HANDY_3D_SKALA := 0.8
+
+
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ORDNER)
 	laden()
@@ -85,8 +90,14 @@ func _ready() -> void:
 	# (ARCHITEKTUR.md, „Bild und Licht"). Den Browser am Rechner glättet
 	# MSAA wie am Rechner selbst. FXAA wäre kein Ersatz – unter
 	# gl_compatibility gibt es kein `screen_space_aa`.
+	#
+	# Ebenso die 3D-Auflösung: Die Handy-App bekommt sie über
+	# `rendering/scaling_3d/scale.mobile` (project.godot), der Browser auf
+	# dem Handy (`web_android`, `web_ios`) nicht – das Merkmal `mobile`
+	# trägt nur die App. Hier also für beide gleich, aus derselben Zahl.
 	if Effekte.reduziert:
 		get_tree().root.msaa_3d = Viewport.MSAA_DISABLED
+		get_tree().root.scaling_3d_scale = HANDY_3D_SKALA
 
 
 ## Pfad des gewählten Modells, oder "" für den Beuteldachs.

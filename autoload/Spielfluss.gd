@@ -309,7 +309,47 @@ func _wechseln_mit_ladeschirm(pfad: String, titel: String) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	Ladeschirm.fortschritt(0.05, "Szene wird geladen")
-	get_tree().change_scene_to_file(pfad)
+	var szene := await _szene_laden(pfad)
+	if szene != null:
+		get_tree().change_scene_to_packed(szene)
+	else:
+		get_tree().change_scene_to_file(pfad)
+
+
+## Lädt eine Szene im Hintergrund vor (Szene und Skripte, nicht den Aufbau).
+## Der Portalraum ruft das für das nächste offene Level auf: Laden und
+## Übersetzen der Skripte kosteten in Level 01 gut 2 s (Rechner, headless;
+## auf dem Handy ein Vielfaches) – vorgeladen fällt das beim Betreten weg.
+func vorladen(pfad: String) -> void:
+	if pfad.is_empty() or not ResourceLoader.exists(pfad):
+		return
+	if ResourceLoader.load_threaded_get_status(pfad) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		return
+	ResourceLoader.load_threaded_request(pfad)
+
+
+## Das nächste Level, das noch zu schaffen ist (sonst das höchste offene).
+func vorladen_naechstes() -> void:
+	vorladen(LEVEL_SZENEN[clampi(freigeschaltet, 1, LEVEL_SZENEN.size()) - 1])
+
+
+## Szene über den Ladefaden holen; der Ladeschirm läuft dabei weiter.
+## null, wenn es so nicht geht – dann lädt der Aufrufer wie bisher.
+func _szene_laden(pfad: String) -> PackedScene:
+	if ResourceLoader.load_threaded_get_status(pfad) == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		if ResourceLoader.load_threaded_request(pfad) != OK:
+			return null
+	var stand := []
+	while true:
+		var status := ResourceLoader.load_threaded_get_status(pfad, stand)
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			break
+		if status != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			return null
+		var anteil := float(stand[0]) if not stand.is_empty() else 0.0
+		Ladeschirm.fortschritt(0.05 + 0.05 * anteil, "Szene wird geladen")
+		await get_tree().process_frame
+	return ResourceLoader.load_threaded_get(pfad) as PackedScene
 
 
 # ----------------------------------------------------------- Spielstand
