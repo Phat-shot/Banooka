@@ -1,8 +1,8 @@
 # Raum 1 – Stand und Wiedereinstieg
 
 Stand: 16. Oktober 2026, Branch `claude/game-polish-sr1697`, HEAD = Commit
-dieser Datei (lokal, nicht gepusht). Auftrag des Nutzers: „Fixe alles um
-Raum 1, aber L2-4 noch nicht.“
+dieser Datei. Auftrag des Nutzers: „Fixe alles um Raum 1, aber L2-4 noch
+nicht.“ Auf Wunsch des Nutzers pausiert (Kontingent).
 
 ## Erledigt (gepusht)
 
@@ -23,7 +23,7 @@ Raum 1, aber L2-4 noch nicht.“
 
 - Runde 3: Spiel-Teil `9f95ee7`, Bild-Teil `9983679`; Mängel mit Belegen in
   `offen/l05_jury_runde3.md`.
-- Runde 4 (Spiel und Bild gegen Level 01): im Commit dieser Datei; die
+- Runde 4 (Spiel und Bild gegen Level 01): `560a57d`; die
   Übersicht mit den Messungen steht in `doku/level05-neubau.md`,
   Abschnitt 13, „R4“, die Mängel gekürzt in `offen/l05_jury_runde4.md`.
   Behoben bzw. umgesetzt: Holm über Gatter und Jochen, Deckel nur in einer
@@ -42,11 +42,52 @@ Raum 1, aber L2-4 noch nicht.“
   macht „besteht“ davon abhängig), Trittstein G3, Holm gegen „Käfig“ im
   Startbild, Spielfigur.
 
-Nächster Schritt: Die vier Nachbesserungsrunden sind durch. Die
-Entscheidungen oben beim Nutzer einholen, dann die Schluss-Doku –
-`offen/l05_doku_zwischenstand.patch` neu schreiben (verlegt
-`doku/level05-neubau.md` nach `doku/raum1/` und aktualisiert CLAUDE.md,
-README und ARCHITEKTUR).
+## Level 05: Jury-Runde 5 – offen, Nachbesserung begonnen
+
+- Jury gegen `560a57d`, Mängel mit Belegen in `offen/l05_jury_runde5.md`:
+  - Spiel: 1 mittel. Slide-Druck während eines laufenden Slides geht
+    verloren, das trifft Dauer-Slider an Durchlass D2. Dazu 5 leicht.
+  - Bild: 1 schwer. Gerader, symmetrischer Graben, seit R3 im Kern gleich;
+    nur mit Umbau des Verlaufs bzw. Waldkante lösbar, siehe K3 oben.
+    Dazu 6 mittel, u. a. Sickerspuren als schwarze Bänder, Primitiv-Reserve
+    in der Doku falsch, Eiche fern, Lücken, Joche, Wurzeltreppen.
+- Begonnene, **ungeprüfte** Nachbesserung: `offen/l05_runde5_unfertig.patch`
+  (gegen `560a57d`, `git apply`).
+  - Enthält den Slide-Puffer an D2. Der berührt `scenes/player/player.gd`,
+    dort Null-Pfad prüfen.
+  - Enthält Teile der Bild-Mängel. Berührt auch das geteilte
+    `scenes/props/kronenwolke.gd`.
+- Danach: Proben, Wächter W, Commit. Eine Jury-Runde 6 ist nicht nötig, der
+  Rest geht ehrlich in die Schluss-Doku.
+
+## Raum-1-Audit: 19 bestätigte Funde, noch nicht behoben
+
+Drei Audits (Level 01, Portalraum/Spielfluss, Baukasten) gegen `b67450e`,
+jeder Fund unabhängig reproduziert: `offen/audit_raum1_funde.md`.
+Wichtigste (mittel):
+- **H1:** Wurzelbogen im Hub fängt die Figur zwischen Tor 03 und 04.
+- **H2/H6:** Freischalt-Anzeige und Vorladen zählen linear, die
+  Freischaltung selbst raumweise.
+- **H3:** „Neu starten“ in der Game-Over-Pause, danach wirft der alte Timer
+  in den Portalraum.
+- **H4:** Fruchtsummen nach Abzug fürs Extraleben.
+- **H5 = L01-A1:** Level 01 ohne `zielzeit()`, Platin zu leicht.
+- **B1:** Bauspeicher-Schlüssel L05; **B2:** `pruefe.sh`-Lücken;
+  **B4:** Doku-Widerspruch.
+
+## Nächste Schritte (in dieser Reihenfolge)
+
+1. Nutzerentscheidungen oben einholen (K3/Waldkante, Richtzeit, Deckel, G3,
+   Holm).
+2. `offen/l05_runde5_unfertig.patch` anwenden, fertig machen, prüfen,
+   committen.
+3. Audit-Funde beheben, ohne L05-Dateien und Doku. B1/H11/B3/B4 macht die
+   L05-Doku. Das geht parallel zu 2 im eigenen Worktree; danach eine
+   unabhängige Prüfung.
+4. Schluss-Doku L05: `offen/l05_doku_zwischenstand.patch` nur als Vorlage,
+   verlegt `doku/level05-neubau.md` nach `doku/raum1/`, CLAUDE.md, README,
+   ARCHITEKTUR.
+5. Schluss: `pruefe.sh` SAUBER, Wächter W, STAND.md, Bildbogen, APK.
 
 ## Noch nicht begonnen
 
@@ -63,7 +104,8 @@ Je Paket:
 
 Je Level am Ende:
 1. Spiel-Jury und Bild-Jury gegen Level 01.
-2. Nachbessern, bis zu 4 Runden.
+2. Nachbessern, bis zu 4 Runden; hält ein schwerer Mangel zwei Runden
+   lang, liegt er im Entwurf: dann Nutzer fragen statt weiter nachbessern.
 3. Schluss-Doku mit `pruefe.sh` SAUBER.
 
 Wächter W bei jedem Commit:
