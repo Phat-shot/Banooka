@@ -32,14 +32,14 @@ class_name L05Wald
 ##   ist warm, damit Ocker und Kupfer als Faktoren ≤ 1 erreichbar sind (die
 ##   Scheitelfarbe eines Netzes hat 8 Bit je Kanal).
 ## * BAUMTORE (Entwurf §5 B) bei s 30 und 120: je Seite eine Buche
-##   (`Baumfabrik.baum` in der vollen Fassung von `Riesenstamm.baum`: Stamm
-##   mit TOR_AESTE Ästen ab TOR_AST_START der Höhe, an jeder Astspitze ein
-##   Ballen der runden Krone) auf der Böschungskrone bei |q| = TOR_Q, leicht
-##   zum Weg geneigt. Bis R2 die mittlere Fassung mit drei Ballen ab 36 %
-##   der Höhe – sie standen als dunkle gestapelte Birnen ohne Astwerk im
-##   Bild (Bild-Jury R2, Mangel 2: „Topiary-Kugeln"). Die
-##   Kronen rahmen den Weg seitlich und lassen über ihm den Himmel offen –
-##   durch das Tor sieht man die Eiche (siehe ABWEICHUNGEN).
+##   (`Baumfabrik.baum`, "krone_frei": voller Stamm mit zwei Seitenästen,
+##   darüber EINE breite Kuppel, siehe TOR_KRONE_BREIT) auf der
+##   Böschungskrone bei |q| = TOR_Q, leicht zum Weg geneigt. Bis R2 die
+##   mittlere Fassung mit drei Ballen ab 36 % der Höhe – dunkle gestapelte
+##   Birnen (Bild-Jury R2: „Topiary-Kugeln"), in R2 ein Ballen an jeder von
+##   vier Astspitzen – ein Totem aus Kugeln (Bild-Jury R3). Die Kronen rahmen
+##   den Weg seitlich und lassen über ihm den Himmel offen – durch das Tor
+##   sieht man die Eiche (siehe ABWEICHUNGEN).
 ## * GEBÜSCH (Kronenwolke, 2–4 m) in Gruppen auf den Kronen über Hohlweg und
 ##   Terrassen, wo K3 keinen Baum zulässt, und am Rand der Haine; Sträucher
 ##   (M24, im Instanzton wie die Kronen) am Rand der Haine; TOTHOLZ an der
@@ -137,11 +137,16 @@ const FERN_AB := 128.0
 ## Hainmitten: so weit mindestens auseinander, gesucht auf einem Raster.
 const HAIN_RASTER := 18.0
 const HAIN_SCHRITT := 7.0
-## Raster der fernen Kronen (m), Hang und Fernband.
-const HANG_RASTER := 13.0
+## Raster der fernen Kronen (m), Hang und Fernband. Abschluss R3 (Budget):
+## 15 und 21 statt 13 und 19 – gut ein Viertel bzw. ein Sechstel weniger
+## ferne Kronen; mit dem neuen Bewuchs an den Kronen und im Tobel lagen
+## s 186 und s 240 sonst bei 757–758k Primitiven (Grenze 750k), und der
+## ferne Wald kostete dort gut 120k (Zerlegung im Scratch, s 240: Hang gut
+## 70k, Kämme gut 50k). Mit 14 und 21 waren es 744k und 742k – zu knapp.
+const HANG_RASTER := 15.0
 ## Kronen des Fernbands so viel größer (gröberes Raster, dieselbe Deckung).
 const FERN_GROSS := 1.5
-const FERN_RASTER := 19.0
+const FERN_RASTER := 21.0
 ## Sichtweiten (m). Godot misst sie von der Kamera zur Mitte der Hülle eines
 ## Knotens (renderer_scene_cull: transformed_aabb, mit custom_aabb; geprüft:
 ## eine Hülle 40 m hinter dem Ursprung blendet nach ihrer Mitte aus), und es
@@ -219,8 +224,16 @@ const FERN_DUNKEL := 0.88
 ## Gummibärchen … grau, rot und grün"): Mit den vollen Tönen der nahen
 ## Bäume stand jede ferne Krone einzeln vor dem Himmel; ein gemeinsamer
 ## Ton macht aus ihnen ein Waldband.
-const FERN_EINHEIT := Vector2(0.35, 0.65)
+## Abschluss R3 (Bild-Jury R3, Fernkulisse: „graue, rosa und blassblaue
+## Kleckse, die wie Gespenster oder Felsen aussehen"): das Fernband
+## einheitlicher (0,8 statt 0,65), und einzelne Kronen ohne Nachbarn bleiben
+## weg – FERN_NACHBARN andere Kronen des Fernbands im Umkreis von
+## FERN_NACHBAR_R m: Allein auf einem Kamm las sich eine eingesunkene Krone
+## als Fels oder Gespenst (s 8 rechts oben).
+const FERN_EINHEIT := Vector2(0.35, 0.8)
 const FERN_EINHEIT_TON := Color(0.7, 0.86, 0.84)
+const FERN_NACHBARN := 2
+const FERN_NACHBAR_R := 40.0
 ## Haine: Höhe und Kronenansatz der Modellbäume, Birken.
 const BAUM_HOEHE := 14.0
 const BAUM_UNTEN := 0.34
@@ -231,8 +244,12 @@ const BIRKE_UNTEN := 0.45
 ## leicht: „tigerartig orange gestreifte Rinde"): Die Tönung gleicht das
 ## Braun der Rinde aus (blau stärker als rot, 2,0/2,6/3,2 statt 2,3/2,25/
 ## 2,1) – weiß, die dunklen Bänder der Rinde bleiben.
-const BIRKE_BORKE := {"welt": true, "radius": 0.4, "farbe": Color(2.0, 2.6, 3.2),
-		"moos_oben": 0.1, "moos_nord": 0.25, "flechten": 0.2}
+## Abschluss R3 (Bild-Jury R3, Kleinteile: „Die Birkenäste wirken wie weiße
+## Knochen, die Rinde wie ein Zebramuster"): gedämpft (1,55/1,85/2,2) – ein
+## grauliches Weiß, gegen das die dunklen Bänder weniger hart stehen; mehr
+## Flechten und Moos am Fuß brechen die Bänder.
+const BIRKE_BORKE := {"welt": true, "radius": 0.4, "farbe": Color(1.55, 1.85, 2.2),
+		"moos_oben": 0.15, "moos_nord": 0.4, "flechten": 0.45}
 ## Anteil der Birkenhaine im Tobel (s TOBEL), je Seite (bildlinks q > 0 der
 ## Sonnenhang mit Birken, Entwurf §5 D).
 const TOBEL := Vector2(180.0, 265.0)
@@ -243,18 +260,38 @@ const BIRKEN_RECHTS := 0.3
 ## Kronenradius, je m).
 const TORE: Array[float] = [30.0, 120.0]
 const TOR_Q := 10.5
-## Torbuchen in der vollen Fassung (siehe Kopf, BAUMTORE): so viele Äste,
-## ab diesem Anteil der Höhe, so steil (rad), so viele Blattkarten.
-## Steil (1,0 rad) und mit kleineren Kronen bis 2,0 m: Mit fünf Ästen ab
-## 42 % und 0,7 rad schnitt jede Fassung Sichtlinien zur Eiche (14–63
-## Stellen je Tor), die Wahrzeichenprobe fiel auf 71,9 % (eigene Messung;
-## die tor_krone verdeckte die bildlinke Krone von s 206 bis 266). Dazu
-## Fassungen, die aufrecht stehen oder sich vom Weg weg neigen (Neigung
-## 0 und −0,6).
-const TOR_AESTE := 4
-const TOR_AST_START := 0.4
-const TOR_AST_STEIL := 1.0
-const TOR_KARTEN := 60
+## Torbuchen in der vollen Fassung (siehe Kopf, BAUMTORE): so viele
+## Blattkarten. Bis R2 mit vier steilen Ästen ab 40 % (an jeder ein Ballen)
+## und kleinen Kronen bis 2,0 m: Mit fünf Ästen ab 42 % und 0,7 rad schnitt
+## jede Fassung Sichtlinien zur Eiche (14–63 Stellen je Tor), die
+## Wahrzeichenprobe fiel auf 71,9 % (eigene Messung; die tor_krone verdeckte
+## die bildlinke Krone von s 206 bis 266). Dazu Fassungen, die aufrecht
+## stehen oder sich vom Weg weg neigen (Neigung 0 und −0,6).
+const TOR_KARTEN := 110
+## R3 (Bild-Jury R3, Torbuchen: „dünne, gerade Stangen mit
+## übereinandergestapelten dunklen Kugeln (Totem, Formschnitt), aus der
+## Ferne graue Lutscher"; Vorschlag: „eine echte Buchenkrone: breit, oben
+## geschlossen, mit seitlichen Ästen und Lichtlöchern"): Zuerst EINE breite,
+## hohe Kuppel (`Baumfabrik.baum`, "krone_frei", 1,6 × Radius, 0,48 der Höhe)
+## über einem vollen Stamm mit zwei Seitenästen – bis R3 saß an jeder von
+## vier steilen Astspitzen ein Ballen, vier Kugeln übereinander.
+## Abschluss R3 (eigene Prüfung s 30–90: die Kuppel stand als dunkler Ball
+## auf einem langen hellen Stamm – ein Lutscher): Die Torbuche ist jetzt ein
+## Baum mit Ästen (`Riesenstamm.baum`, Variante 1 „Schirm"): TOR_AESTE Äste
+## ab TOR_AST_START der Höhe, flach (TOR_AST_STEIL rad), an jeder Spitze
+## und an den Zweigen ein Ballen, dazu ein Füllballen – die Krone ist
+## breiter als hoch, ihr Umriss aus mehreren Buckeln, unten flach, zwischen
+## den Ballen Lücken (Lichtlöcher). Der Kronenradius ist TOR_KRONE_BREIT mal
+## der Radius der Fassung (TOR_WAHL, neu gesucht: die größte, die keine
+## Sichtlinie zur Eiche schneidet). Fern dieselbe Buche „schlicht" – dieselben
+## Äste, dieselben Ballen ohne Karten: ein Kronenumriss statt einer Kugel.
+const TOR_KRONE_BREIT := 1.35
+const TOR_AESTE := 5
+const TOR_AST_START := 0.42
+const TOR_AST_STEIL := 0.32
+const TOR_AST_AB := 8.0
+const TOR_AST_HOCH := 0.04
+const TOR_RADIUS := 0.62
 ## TOR_FERN (R2): Eine volle Torbuche hat 1,4–1,5k Dreiecke im Stamm und
 ## 2,0–2,2k in der Krone, die mittlere Fassung bis R1 zusammen 0,7k. Ohne
 ## Sichtgrenze standen alle vier in jedem Bild, auch 100–200 m weit im
@@ -266,9 +303,9 @@ const TOR_KARTEN := 60
 ## steht an derselben Stelle (gemessen an den drei Fassungen von
 ## TOR_WAHL: Unterkante bis 0,9 m höher, Oberkante ±1,1 m).
 const TOR_FREI_Q := 4.0
-const TOR_HOEHEN: Array[float] = [13.5, 12.5, 11.5, 10.5, 9.5, 8.5, 7.5]
+const TOR_HOEHEN: Array[float] = [13.5, 12.5, 11.5, 10.5, 9.5, 8.5, 7.5, 6.5]
 const TOR_NEIGUNGEN: Array[float] = [0.6, 0.0, -0.6, -1.2]
-const TOR_KRONEN: Array[float] = [3.4, 2.6, 2.0]
+const TOR_KRONEN: Array[float] = [3.4, 2.6, 2.0, 1.6]
 ## Die Fassung je Tor („s Seite" -> Höhe, Neigung, Kronenradius): das
 ## Ergebnis der Suche (`_tor_suche`, siehe `_tore`). WARUM fest: Die Suche
 ## baut je Fassung einen vollen Baum, am Tor s 120 rechts – dort ist keine
@@ -279,11 +316,14 @@ const TOR_KRONEN: Array[float] = [3.4, 2.6, 2.0]
 ## haben, sucht `_tor_baum` wie zuvor und warnt. Die Sichtlinien zählt er
 ## auch für die feste Fassung (`zahlen`, „tor_…"); ändert sich die Eiche,
 ## zeigt es die Wahrzeichenprobe.
+## Abschluss R3: neu gesucht für die Buche mit Ästen (TOR_AESTE), die
+## breiteste Krone zuerst; alle vier ohne getroffene Sichtlinie (bis R3:
+## 11,5/0/2,0, 11,5/−0,6/2,0, 13,5/0,6/3,4, 7,5/−1,2/2,0).
 const TOR_WAHL := {
-	"30 -1": Vector3(11.5, 0.0, 2.0),
-	"30 +1": Vector3(11.5, -0.6, 2.0),
-	"120 -1": Vector3(13.5, 0.6, 3.4),
-	"120 +1": Vector3(7.5, -1.2, 2.0),
+	"30 -1": Vector3(7.5, 0.6, 2.6),
+	"30 +1": Vector3(6.5, -1.2, 2.6),
+	"120 -1": Vector3(13.5, -1.2, 2.0),
+	"120 +1": Vector3(6.5, -1.2, 1.6),
 }
 ## Sichtlinien der Tore: Abstand der Stellen (m, wie die Wahrzeichenprobe)
 ## und halber Öffnungswinkel um jede Linie (Grad).
@@ -304,7 +344,10 @@ const TOT_EICHE_FREI := 14.0
 ## Tobel zusätzlich an den Hängen: so viele Versuche.
 const FELS_TON := Color(1.0, 0.8, 0.62)
 const FELS_MODELLE := 3
-const FELS_TOBEL := 70
+## Abschluss R3 (Budget): 45 statt 70 Versuche – mit dem neuen Bewuchs lag
+## s 240 bei 751–758k Primitiven (Grenze 750k); der Waldboden kostete bei
+## s 186 rund 41k (Zerlegung im Scratch).
+const FELS_TOBEL := 45
 ## Sträucher (M24): so viele Modelle; ihr Laub auf den warmen Grundton LAUB
 ## gehoben (das „Green" der Modelle ist 0,21/0,42/0,15, natur2): Erst
 ## darauf wirken die Instanztöne wie bei den Kronen – ohne stand ein sattes
@@ -323,6 +366,54 @@ const BUSCH_STRECKE := Vector2(-4.0, 270.0)
 const BUSCH_DICHTE := 0.32
 ## Dichte an der Wandkrone (Anteil) und Breite des Übergangs (m) dahinter.
 const BUSCH_SAUM := Vector2(0.3, 7.0)
+## DICKICHT AN DEN KRONEN (R3; Bild-Jury L05 R3, schwerer Mangel
+## „Gesamtbild A–D": „ein gerader Hohlweg, links und rechts darüber eine
+## offene, flache Rasenebene … wie ein Entwässerungsgraben im Golfrasen";
+## Vorschlag: die Böschungskronen bis q ≈ 8–20 mit niedrigem, dichtem
+## Bewuchs füllen, dazu Randbäume): Hasel, Holunder und Weißdorn, 2,4–5,5 m
+## hoch, in Gruppen gleich hinter der Wandkrone. Sie stehen im Rückblick
+## dort, wo das Bild bisher leer war: an den Seiten über den Wänden, nah an
+## der Kamera, und schließen den Blick über die Kronen. Der Unterwuchs
+## darunter (0,6–1,6 m) ist `L05Rasen.UNTER_STRECKEN`.
+## WARUM kein K3: Die Karte von K3 (Kegel ±6° zu den Kronen der Eiche, je
+## Station) lässt in A und B an der Krone nichts zu, auch keinen 4,5 m
+## hohen Busch (gemessen: |q| 9–26, s 6–140 bildlinks, s 36–126
+## bildrechts); das Gebüsch hielt K3 nie (Kopf, REGELN). Was die Eiche
+## wirklich verdeckt, sind die Sichtlinien zu ihrem Laub: Jeder Busch hält
+## sie wie die Torbuchen (`_sicht_getroffen`, alle Stellen der
+## Wahrzeichenprobe) – gemessen ließen sie an der Krone in B 6–10 m, in C
+## 4,5–8 m zu. Dazu K1 (`weg_frei`) und Abstand zu Stämmen und Kisten.
+## Strecken: s von, s bis, Anteil, Seite. In D nur der Sonnenhang bildlinks
+## – bildrechts steht die Südwand, deren Krone 20 m über dem Bach liegt –,
+## und dort lichter (0,55; Budget, siehe FELS_TOBEL).
+const DICKICHT_STRECKEN: Array[Vector4] = [
+	Vector4(6.0, 122.0, 1.0, 1.0), Vector4(34.0, 122.0, 1.0, -1.0),
+	Vector4(122.0, 182.0, 0.85, 1.0), Vector4(122.0, 182.0, 0.85, -1.0),
+	Vector4(182.0, 258.0, 0.55, 1.0),
+]
+## Ein Wurf je DICKICHT_SCHRITT m Krone und Seite; quer DICKICHT_RAND (m
+## hinter der Wandkrone, von–bis, nah an ihr dichter); Gruppen aus einem
+## Rauschen mit DICKICHT_GRUPPE m.
+const DICKICHT_SCHRITT := 2.1
+const DICKICHT_RAND := Vector2(1.8, 9.0)
+const DICKICHT_GRUPPE := 11.0
+## Sichtweite (bis zur Zellmitte) und Zellgröße: wie der nahe Wald, das
+## Dickicht wechselt bei 65–121 m im Dunst aus dem Bild.
+const DICKICHT_ZELLE := 40.0
+## Laub des Dickichts: dunkler und grüner als die Kronen (LAUB) – es steht
+## im Schatten der Kronen am Hang, und die Tönung je Busch (TOENE) bleibt.
+const DICKICHT_LAUB := Color(0.27, 0.38, 0.13)
+## RANDBÄUME (R3, Vorschlag der Bild-Jury: „Randbäume, deren Kronen nur
+## seitlich ins Bild hängen"): Laubbäume der Rolle M1 bei |q| RAND_Q auf
+## den Kronen, je RAND_SCHRITT m ein Versuch, die höchste Höhe aus
+## RAND_HOEHEN, die alle Regeln hält – K1, K3, K4 (`Baumfabrik.pflanze`,
+## `platz`). Nach der Karte von K3 geht das nur in C bildrechts (ab s 144)
+## und im Tobel über den Wänden; in A und B hält es keiner (siehe oben).
+const RAND_STRECKEN: Array[Vector3] = [Vector3(126.0, 184.0, -1.0),
+		Vector3(186.0, 262.0, -1.0), Vector3(200.0, 260.0, 1.0)]
+const RAND_Q := Vector2(10.5, 17.0)
+const RAND_SCHRITT := 7.0
+const RAND_HOEHEN: Array[float] = [15.0, 13.0, 11.0, 9.0]
 ## Saaten (je Schritt ein eigener Zufall, Reihenfolge egal).
 const SAAT := 5701
 
@@ -340,6 +431,7 @@ var _fern: Waldsetzer
 var _boden: Bodensetzer
 var _mitten: Array[Dictionary] = []
 var _busch: ArrayMesh
+var _dickicht_netze: Array[ArrayMesh] = []
 var _tot: Array[ArrayMesh] = []
 var _felsen: Array[Dictionary] = []
 var _fels_arten: Array = []
@@ -392,6 +484,9 @@ func _bau_schritte() -> Array:
 		{"text": "Wald über Terrassen und Tobel", "tun": _nahwald.bind(120.0, 340.0, SAAT + 2)},
 		{"text": "Totholz, Sträucher und Felsen", "tun": _beiwerk},
 		{"text": "Gebüsch am Hohlweg", "tun": _gebuesch},
+		{"text": "Dickicht an den Kronen", "tun": _dickicht},
+		{"text": "Randbäume", "tun": _randbaeume},
+		{"text": "Büsche im Auslauf", "tun": _auslauf},
 		{"text": "Wald am Hang", "tun": _hangwald},
 		{"text": "Der Himmel über den Kämmen", "tun": _himmel},
 		{"text": "Wald auf den Kämmen", "tun": _fernband},
@@ -501,6 +596,20 @@ func _vorbereiten() -> void:
 			"karten": 18, "ballen": 3, "saat": SAAT + 21}))
 	_nah.art("busch", {"stoff": Kronenwolke.stoff(LAUB), "sicht": _sicht_boden(zelle_busch),
 			"verschmelzen": true, "karten": true})
+	# Dickicht an den Kronen (siehe DICKICHT_STRECKEN): drei Formen –
+	# Hasel (hoch, rund), Holunder (breit), Weißdorn (breit, flach). Nicht
+	# die schlanke Variante 2: Ihre Säule aus Ballen stand im Rückblick als
+	# Stapel dunkler Kugeln (eigene Prüfung s 52, wie die Torbuchen in R2).
+	_dickicht_netze = [
+		Baumfabrik.indiziert(Kronenwolke.netz({"radius": 1.5, "hoehe": 3.4, "variante": 0,
+				"ballen": 5, "karten": 18, "saat": SAAT + 81})),
+		Baumfabrik.indiziert(Kronenwolke.netz({"radius": 1.8, "hoehe": 2.6, "variante": 1,
+				"ballen": 5, "karten": 16, "saat": SAAT + 82})),
+		Baumfabrik.indiziert(Kronenwolke.netz({"radius": 2.1, "hoehe": 1.9, "variante": 1,
+				"ballen": 4, "karten": 14, "saat": SAAT + 83})),
+	]
+	_nah.art("dickicht", {"stoff": Kronenwolke.stoff(DICKICHT_LAUB), "sicht": sicht_nah,
+			"rand": RAND_NAH, "zelle": DICKICHT_ZELLE, "verschmelzen": true, "karten": true})
 
 	var fern_stoff := Kronenwolke.stoff(LAUB, false)
 	var zelle_hang := ZELLE_HANG_HANDY if reduziert else ZELLE_HANG
@@ -561,7 +670,6 @@ func _tore() -> void:
 		for seite: float in [-1.0, 1.0]:
 			saat += 1
 			_tor_baum(s, seite, saat)
-	_sichtlinien.clear()
 
 
 ## Sichtlinien zur Eiche für die Tore: je Stelle der Wahrzeichenprobe
@@ -647,6 +755,7 @@ func _tor_baum(s: float, seite: float, saat: int) -> void:
 	# Fernfassung (siehe TOR_FERN): derselbe Baum „schlicht".
 	var of: Dictionary = (beste["o"] as Dictionary).duplicate()
 	of["schlicht"] = true
+	of["karten"] = 0
 	var bf := Baumfabrik.baum(of)
 	_nah.setze("tor_stamm_fern", bf["stamm"] as ArrayMesh, lage, Color(0.92, 0.92, 0.92))
 	_nah.setze("tor_krone_fern", bf["krone"] as ArrayMesh, lage, ton)
@@ -668,9 +777,12 @@ func _tor_baum(s: float, seite: float, saat: int) -> void:
 ## Stammprobe besteht.
 func _tor_suche(lage: Transform3D, richtung: Vector2, saat: int) -> Dictionary:
 	var beste := {}
-	for hoch in TOR_HOEHEN:
-		for neigung in TOR_NEIGUNGEN:
-			for krone in TOR_KRONEN:
+	# Abschluss R3: die breiteste Krone zuerst, dann die Höhe – eine Buche
+	# liest sich über die Breite ihrer Krone, nicht über die Höhe (mit der
+	# Höhe zuerst fand die Suche 10,5 m hohe Bäume mit Kronen von 2,2 m).
+	for krone in TOR_KRONEN:
+		for hoch in TOR_HOEHEN:
+			for neigung in TOR_NEIGUNGEN:
 				var f := _tor_fassung(lage, richtung, saat, hoch, neigung, krone)
 				if f.is_empty():
 					continue
@@ -687,10 +799,15 @@ func _tor_suche(lage: Transform3D, richtung: Vector2, saat: int) -> Dictionary:
 ## K1 oder die Stammprobe nicht hält.
 func _tor_fassung(lage: Transform3D, richtung: Vector2, saat: int, hoch: float,
 		neigung: float, krone: float) -> Dictionary:
-	var o := {"hoehe": hoch, "radius": 0.46, "krone_radius": krone,
-			"variante": 0, "aeste": TOR_AESTE, "ast_start": TOR_AST_START,
-			"ast_steil": TOR_AST_STEIL, "karten": TOR_KARTEN, "moos": 0.6,
-			"neigung": richtung * neigung, "saat": saat}
+	var kr := krone * TOR_KRONE_BREIT
+	# Hohe Buchen setzen ihre Äste höher an (TOR_AST_HOCH je m über
+	# TOR_AST_AB): Mit 0,42 auch bei 13,5 m lagen die Astspitzen über 6 m
+	# Höhe verteilt, die Ballen standen übereinander (eigene Prüfung s 140).
+	var ast_start := TOR_AST_START + maxf(hoch - TOR_AST_AB, 0.0) * TOR_AST_HOCH
+	var o := {"hoehe": hoch, "radius": TOR_RADIUS, "krone_radius": kr, "variante": 1,
+			"aeste": TOR_AESTE, "ast_start": ast_start, "ast_steil": TOR_AST_STEIL,
+			"ast_laenge": kr * 0.95, "karten": TOR_KARTEN,
+			"moos": 0.6, "neigung": richtung * neigung, "saat": saat}
 	var b := Baumfabrik.baum(o)
 	var huelle := lage * (b["huelle"] as AABB)
 	if not rahmen.weg_frei(huelle, TOR_FREI_Q, Waldrahmen.FREI_H):
@@ -701,7 +818,7 @@ func _tor_fassung(lage: Transform3D, richtung: Vector2, saat: int, hoch: float,
 		var t := float(k) / 11.0
 		achse.append(lage * (Vector3(0.0, t * hoch * 0.95, 0.0)
 				+ Baumfabrik.neigung_bei(b, t * 0.95)))
-	if not rahmen.stamm_frei(lage.origin, achse[achse.size() - 1], 0.46, 0.0, 0.2, achse):
+	if not rahmen.stamm_frei(lage.origin, achse[achse.size() - 1], TOR_RADIUS, 0.0, 0.2, achse):
 		rahmen.zaehle("tor_stamm")
 		return {}
 	return {"b": b, "o": o, "huelle": huelle, "hoch": hoch, "neigung": neigung, "krone": krone,
@@ -833,6 +950,140 @@ func _gebuesch() -> void:
 		x += BUSCH_RASTER
 
 
+## Dickicht an den Kronen (siehe DICKICHT_STRECKEN): je Strecke und Seite
+## alle DICKICHT_SCHRITT m ein Wurf hinter der Wandkrone, ein Rauschen fasst
+## die Würfe zu Gruppen mit Lücken; jeder Busch hält K1 und die
+## Sichtlinien zur Eiche. Danach braucht niemand mehr die Sichtlinien.
+func _dickicht() -> void:
+	var rng := PropWerkzeug.zufall(SAAT + 91)
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = SAAT + 92
+	rauschen.frequency = 1.0 / DICKICHT_GRUPPE
+	rauschen.fractal_octaves = 2
+	var anteil := HANDY_ANTEIL if Effekte.reduziert else 1.0
+	for st in DICKICHT_STRECKEN:
+		for zug: Dictionary in Level05.ZUEGE:
+			if String(zug["art"]) != "auf" or float(zug["seite"]) != st.w:
+				continue
+			var s := maxf(st.x, float(zug["von"]))
+			var bis := minf(st.y, float(zug["bis"]))
+			while s < bis:
+				s += DICKICHT_SCHRITT * rng.randf_range(0.7, 1.3)
+				var wurf := rng.randf()
+				var tief := pow(rng.randf(), 1.6)
+				var form := rng.randi_range(0, 2)
+				var gross := rng.randf_range(0.85, 1.3)
+				var dreh := rng.randf() * TAU
+				var ton := _ton_waehlen(rng) * Color(0.9, 0.95, 0.88)
+				var krone := _wandkrone(zug, s)
+				if is_nan(krone):
+					continue
+				var q := st.w * (krone + lerpf(DICKICHT_RAND.x, DICKICHT_RAND.y, tief))
+				var p := LevelWerkzeuge.punkt_frei(level.verlauf, s, q)
+				var w := clampf(0.45 + 1.4 * rauschen.get_noise_2d(p.x, p.z), 0.0, 1.0) \
+						* lerpf(1.0, 0.55, tief) * st.z * anteil
+				if wurf > w:
+					continue
+				var y := boden(p.x, p.z)
+				if is_nan(y) or not rahmen.staemme.frei(Vector2(p.x, p.z), 1.2) \
+						or not rahmen.kiste_frei(p, 2.0):
+					continue
+				var netz := _dickicht_netze[form]
+				var box := netz.get_aabb()
+				var breit := gross * rng.randf_range(0.9, 1.15)
+				var lage := Transform3D(Basis(Vector3.UP, dreh).scaled(Vector3(breit, gross, breit)),
+						Vector3(p.x, y - box.position.y * gross - 0.25, p.z))
+				var huelle := lage * box
+				if not rahmen.weg_frei(huelle):
+					rahmen.zaehle("dickicht_k1")
+					continue
+				if _sicht_getroffen(huelle) > 0:
+					rahmen.zaehle("dickicht_sicht")
+					continue
+				_nah.setze("dickicht", netz, lage, ton)
+				rahmen.staemme.dazu(Vector2(p.x, p.z), 1.1)
+				rahmen.zaehle("dickicht")
+	_sichtlinien.clear()
+
+
+## |q| der Wandkrone eines Zuges „auf" an `s` (wie `L05Rasen._wandkrone`),
+## NAN, wo er nicht gilt oder flach in der Übergabe liegt.
+func _wandkrone(zug: Dictionary, s: float) -> float:
+	if s < float(zug["von"]) or s > float(zug["bis"]):
+		return NAN
+	var m := L05Saum.form_auf(level, zug, s)
+	if float(m["ueb"]) < 0.5:
+		return NAN
+	var l := absf(Level05.leitlinie_q(Level05.leitlinie_punkte(float(zug["seite"])), s))
+	return l + float(m["lauf"]) + 0.1
+
+
+## Randbäume (siehe RAND_STRECKEN): je Versuch die höchste Höhe, die alle
+## Regeln hält (`Baumfabrik.pflanze`: K1, K3, Stamm; `platz`: K4).
+func _randbaeume() -> void:
+	var rng := PropWerkzeug.zufall(SAAT + 95)
+	var reduziert := Effekte.reduziert
+	for st in RAND_STRECKEN:
+		var s := st.x
+		while s < st.y:
+			s += RAND_SCHRITT * rng.randf_range(0.75, 1.25)
+			var q := st.z * rng.randf_range(RAND_Q.x, RAND_Q.y)
+			var wahl := rng.randf()
+			var dreh := rng.randf() * TAU
+			var ton := _ton_waehlen(rng)
+			if reduziert and rng.randf() > 0.8:
+				continue
+			var p := LevelWerkzeuge.punkt_frei(level.verlauf, s, q)
+			var ort := Vector2(p.x, p.z)
+			if not rahmen.platz(ort, K4_Q, NAH_WEIT) or not rahmen.staemme.frei(ort, 3.0):
+				continue
+			var y := boden(p.x, p.z)
+			if is_nan(y):
+				continue
+			for hoch in RAND_HOEHEN:
+				var b := Baumfabrik.modellbaum("M1", false, wahl, hoch, BAUM_UNTEN)
+				if b.is_empty():
+					break
+				var lage := Transform3D(Basis(Vector3.UP, dreh), Vector3(p.x, y - 0.1, p.z))
+				if Baumfabrik.pflanze(_nah, rahmen, b, lage, "stamm", "krone", Color.WHITE, ton,
+						{"fern": "fern", "kante": false}):
+					fuesse.append(Vector3(p.x, y, p.z))
+					rahmen.staemme.dazu(ort, 2.5)
+					rahmen.zaehle("randbaeume")
+					break
+
+
+## Büsche im Auslauf hinter dem Ziel (Abschluss R3; Bild-Jury R3,
+## Schlussbild s 296: „Ein Vordergrund-Rahmen fehlt"): die Formen des
+## Dickichts an AUSLAUF_BUESCHE (s, q, Größe), zwischen Ziel und Kamera an
+## den Seiten; wie jedes Gebüsch mit K1 (`weg_frei`). Zäune und Steine dort:
+## `L05Wegbauten._auslauf_rahmen`.
+const AUSLAUF_BUESCHE: Array[Vector3] = [Vector3(303.5, -8.6, 1.1), Vector3(307.5, 9.2, 1.25),
+		Vector3(312.0, -9.8, 1.3), Vector3(316.5, 8.4, 1.0), Vector3(318.5, -7.8, 0.9)]
+
+
+func _auslauf() -> void:
+	var rng := PropWerkzeug.zufall(SAAT + 97)
+	for k in AUSLAUF_BUESCHE.size():
+		var e := AUSLAUF_BUESCHE[k]
+		var form := k % _dickicht_netze.size()
+		var dreh := rng.randf() * TAU
+		var ton := _ton_waehlen(rng) * Color(0.9, 0.95, 0.88)
+		var p := LevelWerkzeuge.punkt_frei(level.verlauf, e.x, e.y)
+		var y := boden(p.x, p.z)
+		if is_nan(y):
+			continue
+		var netz := _dickicht_netze[form]
+		var box := netz.get_aabb()
+		var lage := Transform3D(Basis(Vector3.UP, dreh).scaled(Vector3.ONE * e.z),
+				Vector3(p.x, y - box.position.y * e.z - 0.25, p.z))
+		if not rahmen.weg_frei(lage * box):
+			rahmen.zaehle("auslauf_k1")
+			continue
+		_nah.setze("dickicht", netz, lage, ton)
+		rahmen.zaehle("auslauf")
+
+
 ## Totholz an der Kuppe (M17) und Sandsteinfelsen an den Hängen des Tobels.
 func _beiwerk() -> void:
 	var rng := PropWerkzeug.zufall(SAAT + 41)
@@ -897,7 +1148,20 @@ func _himmel() -> void:
 ## Das Fernband: jede Krone nach der Himmelsprobe eingesunken oder weg.
 func _fernband() -> void:
 	var netze: Array[ArrayMesh] = [_fernbaum(0), _fernbaum(1)]
+	# Einzelgänger weg (siehe FERN_NACHBARN).
+	var orte := PackedVector2Array()
 	for e: Dictionary in _fern_kandidaten:
+		var f: Vector3 = e["fuss"]
+		orte.append(Vector2(f.x, f.z))
+	for i in _fern_kandidaten.size():
+		var e: Dictionary = _fern_kandidaten[i]
+		var nachbarn := 0
+		for j in orte.size():
+			if j != i and orte[j].distance_squared_to(orte[i]) < FERN_NACHBAR_R * FERN_NACHBAR_R:
+				nachbarn += 1
+		if nachbarn < FERN_NACHBARN:
+			rahmen.zaehle("fern_allein")
+			continue
 		var k: int = e["k"]
 		var lage: Transform3D = e["lage"]
 		var ton: Color = e["ton"]
@@ -1051,6 +1315,7 @@ func _tafel() -> Dictionary:
 		"borke_tor": Riesenstamm.borkenstoff(TOR_BORKE),
 		"laub": Kronenwolke.stoff(LAUB),
 		"laub_fern": Kronenwolke.stoff(LAUB, false),
+		"laub_dickicht": Kronenwolke.stoff(DICKICHT_LAUB),
 	}
 	return t
 

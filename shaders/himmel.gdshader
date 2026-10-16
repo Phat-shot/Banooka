@@ -69,6 +69,14 @@ uniform vec3 wolke_schatten : source_color = vec3(0.62, 0.68, 0.76);
 // weit weg, hinter viel Luft. Sonst standen sie als die hellsten Flecken
 // im Bild, heller als der Weg.
 uniform float wolken_dunst = 0.0;
+// Wolkenbänke am Horizont (freiwillig, 0 = aus; Level 05, Bild-Jury L05
+// R3: „30–40 % leerer Himmel"): Bis `wolken_bank_hoehe` (Sinus des
+// Winkels) sinkt die Schwelle um bis zu `wolken_bank` – tief am Himmel
+// schließen sich die Wolken zu Bänken –, und die Ausblendung zum Horizont
+// (sonst ab 0,16) rückt bis 0,04 hinab. NULL-PFAD: Mit 0 bleiben Schwelle
+// und Ausblendung Bit für Bit, wie sie waren (a − 0 = a, mix(a, b, 0) = a).
+uniform float wolken_bank = 0.0;
+uniform float wolken_bank_hoehe = 0.14;
 
 
 void sky() {
@@ -93,8 +101,9 @@ void sky() {
 		// Ebene Wolkendecke, zum Horizont hin gestaucht.
 		vec2 uv = d.xz / (h + 0.12) * wolken_skala;
 		float n = texture(wolken, uv).r * 0.65 + texture(wolken, uv * 2.7 + vec2(0.31, 0.17)).r * 0.35;
-		float dichte = smoothstep(wolken_menge, wolken_menge + wolken_weich, n)
-				* smoothstep(0.015, 0.16, h);
+		float schwelle = wolken_menge - wolken_bank * (1.0 - smoothstep(0.02, wolken_bank_hoehe, h));
+		float dichte = smoothstep(schwelle, schwelle + wolken_weich, n)
+				* mix(smoothstep(0.015, 0.16, h), smoothstep(0.004, 0.04, h), clamp(wolken_bank * 4.0, 0.0, 1.0));
 		vec3 wolke = mix(wolke_schatten, wolke_hell, smoothstep(wolken_menge, wolken_menge + 0.35, n));
 		// Sonnenseitige Ränder leuchten warm – dünne Stellen stärker.
 		wolke += schein_farbe * licht * pow(zur_sonne, 5.0) * (1.0 - dichte * 0.6) * 0.7;

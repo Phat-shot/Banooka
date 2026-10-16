@@ -35,13 +35,15 @@ shader_parameter/scheibe_staerke = 0.0
 shader_parameter/huegel_hoehe = 0.075
 shader_parameter/wald_kante = 0.02
 shader_parameter/wolken = SubResource("Wolken")
-shader_parameter/wolken_menge = 0.58
+shader_parameter/wolken_menge = 0.52
 shader_parameter/wolken_weich = 0.2
 shader_parameter/wolken_skala = 0.2
 shader_parameter/wolken_deckung = 0.75
 shader_parameter/wolke_hell = Color(1, 0.82, 0.7, 1)
 shader_parameter/wolke_schatten = Color(0.4, 0.48, 0.66, 1)
 shader_parameter/wolken_dunst = 0.45
+shader_parameter/wolken_bank = 0.22
+shader_parameter/wolken_bank_hoehe = 0.13
 
 [sub_resource type="Sky" id="SkyRes"]
 sky_material = SubResource("Himmel")

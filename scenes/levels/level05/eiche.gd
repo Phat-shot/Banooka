@@ -127,7 +127,7 @@ const FUSS := {"hoehe": 6.0, "radius": 2.5, "radius_oben": 0.7, "brettwurzeln": 
 		"wurzel_reichweite": 2.4, "wurzel_hoehe": 3.6, "wurzel_dicke": 0.6, "anlauf": 0.35,
 		"krumm": 0.0, "oben": "offen", "pilze": 2, "efeu": 2, "spalt": Vector2(0.0, -1.0),
 		"spalt_tiefe": 0.06, "spalt_von": 0.4, "rippen_tiefe": 0.17, "drehung": 0.7,
-		"spalt_farbe": Color(0.25, 0.19, 0.13), "saat": 5501}
+		"spalt_farbe": Color(0.5, 0.38, 0.26), "spalt_borke": true, "saat": 5501}
 ## Stammhälften: gemeinsame Optionen; je Seite dazu `neigung`, `spalt` und
 ## `saat` (`_haelfte`). Ansatz HAELFTE_ANSATZ (x seitlich, y Höhe) im Fuß.
 ## SCHIRM: Die vier Äste gehen erst ab 80 % der Höhe ab, flach (0,25 rad)
@@ -144,10 +144,19 @@ const FUSS := {"hoehe": 6.0, "radius": 2.5, "radius_oben": 0.7, "brettwurzeln": 
 ## 1,43 Radien breit) und dunkler (0,15/0,11/0,075 statt 0,25/0,19/0,13):
 ## Breit und hell lasen sich die beiden Innenseiten bei s 8 als glatte,
 ## längs gemaserte Bretter (eigene Prüfung).
+## R3 (Bild-Jury R3, Hauereiche: „heller, gepunkteter Spaltstreifen der
+## Länge nach, wie ein Reißverschluss oder Gleis"): Die Spaltflächen von Fuß
+## und Hälften tragen die Rinde (`spalt_borke`, siehe
+## `Riesenstamm.SPALT_BORKE`) – matt und längs gefasert. Ihr Ton multipliziert
+## jetzt die Rindentextur (Helligkeit rund 0,35), daher heller angegeben:
+## 0,42/0,32/0,22 ergibt dunkles Holz unter der halben Helligkeit der Borke.
+## Als glatter Holzton (Rauheit 0,7) glänzte die Fläche im Gegenlicht hell,
+## und die Töne der Ecken lasen sich als Punktreihen.
 const HAELFTE := {"hoehe": 24.5, "radius": 2.05, "radius_oben": 1.25, "krumm": 0.9,
 		"anlauf": 0.0, "brettwurzeln": 0, "aeste": 4, "ast_start": 0.8, "ast_steil": 0.25,
 		"ast_laenge": 5.5, "spalt_tiefe": 0.16, "spalt_bis": 0.85, "rippen_tiefe": 0.2,
-		"drehung": 0.75, "pilze": 2, "efeu": 2, "spalt_farbe": Color(0.15, 0.11, 0.075)}
+		"drehung": 0.75, "pilze": 2, "efeu": 2, "spalt_farbe": Color(0.42, 0.32, 0.22),
+		"spalt_borke": true}
 ## Ansatz im Fuß: Die unterste Kante der Hälften (1 m unter dem Ansatz,
 ## `Riesenstamm.VERSENKT`) liegt bei 2,6 m, 1,27 m neben der Achse (bei r
 ## 1,1 waren es 0,75 m, bei 1,5 0,95 m: Die dickeren Hälften rücken
@@ -239,9 +248,28 @@ const HAUPTAESTE: Array[Vector4] = [Vector4(0.56, 0.15, 9.0, 0.22),
 ## LAPPEN_R 4,4: Mit 3,5 standen sie aus der Ferne (s 90, 140) als eigene
 ## Stockwerke unter der Schirmkrone – eine Pagode aus Pilzhüten; größer
 ## überlappen sie zu EINER Krone von gut 13 bis 29 m Höhe.
+## R3 (Bild-Jury R3: „kleine orange Popcorn-Tupfer", Vorschlag „breiter
+## und flacher als Schirm, mit dunkler Unterseite"): Die Lappen weiter
+## (LAPPEN_R 5 statt 4,4) – sie wachsen mit der Schirmkrone zu EINER Haube
+## zusammen –, die Schirmkrone ohne die kleinen Zweigballen
+## (`nebenzentren`: 2–3 m große Buckel auf der Haube) und die Unterseite
+## dunkel (TON_UNTEN). Flache Lappen (`Kronenwolke` Variante 1) lagen auf
+## ihren vier Höhen als Teller übereinander – eine Pagode (eigene Prüfung
+## bei s 60), darum rund wie bisher (LAPPEN_VARIANTE 0).
+## Abschluss R3 (eigene Prüfung s 60–140: auch mit LAPPEN_R 5 standen die
+## Lappen auf ihren vier Höhen mit Luft dazwischen unter der Schirmkrone,
+## aus der Ferne „Pilzhüte" in Stockwerken): je Hälfte eine FÜLLKRONE, breit
+## und flach (`Kronenwolke` Variante 1), FUELL_R mal LAPPEN_R, in der Mitte
+## der Lappen, FUELL_HOCH höher und FUELL_AUSSEN nach außen (weg von der
+## Kerbe) – sie schließt die Lücken zwischen den Stockwerken zu EINER Haube.
+const FUELL_R := 1.25
+const FUELL_HOCH := 2.5
+const FUELL_AUSSEN := 0.5
 const AST_R := Vector2(0.6, 0.22)
-const LAPPEN_R := 4.4
+const LAPPEN_R := 5.0
 const LAPPEN_HOCH := 1.0
+const LAPPEN_VARIANTE := 0
+const LAPPEN_BALLEN := 5
 ## Die Hälften der Fernform so viel dicker (Radius): Auf 300 m und mehr
 ## lasen sie sich als Striche (Bild-Jury R2: „mindestens 2× Strichbreite").
 ## Dazu sind die Hälften selbst dicker (HAELFTE); fern oben r 1,5 statt
@@ -475,7 +503,8 @@ static func _ansatz(i: int) -> Transform3D:
 static func kronen_netz(fern: bool) -> ArrayMesh:
 	return Bauspeicher.netz("l05_eiche_kronen", [HAELFTE, KRONE_HAELFTE_R, HAELFTE_ANSATZ, HAELFTE_NEIGUNG,
 			HAELFTE_SAAT, KRONE_R, FERN_SKALA, BALLEN_HOCH, HAUPTAESTE, AST_R, LAPPEN_R,
-			LAPPEN_HOCH, fern], func() -> ArrayMesh: return _kronen_bauen(fern))
+			LAPPEN_HOCH, LAPPEN_VARIANTE, LAPPEN_BALLEN, FUELL_R, FUELL_HOCH, FUELL_AUSSEN, fern],
+			func() -> ArrayMesh: return _kronen_bauen(fern))
 
 
 static func _kronen_bauen(fern: bool) -> ArrayMesh:
@@ -490,8 +519,8 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 		var seite := -1.0 if i == 0 else 1.0
 		var haelfte := Riesenstamm.netz(_haelfte_krone(i))
 		var spitzen: PackedVector3Array = haelfte.get_meta("ast_spitzen")
-		var o := {"zentren": spitzen, "nebenzentren": haelfte.get_meta("zweig_spitzen"),
-				"radius": KRONE_R, "variante": 1, "saat": HAELFTE_SAAT[i] + 101}
+		var o := {"zentren": spitzen, "radius": KRONE_R, "variante": 1,
+				"saat": HAELFTE_SAAT[i] + 101}
 		var lage := _ansatz(i)
 		var fern_netz := Kronenwolke.fern(o)
 		# Fernkrone um ihre Mitte vergrößert (siehe FERN_SKALA).
@@ -515,8 +544,8 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 		# Eiche; fern um ihre eigene Mitte vergrößert wie die Schirmkrone.
 		for k in HAUPTAESTE.size():
 			var mitte_l: Vector3 = (hauptast(i, k)["spitze"] as Vector3) + Vector3.UP * LAPPEN_HOCH
-			var ol := {"mitte": mitte_l, "radius": LAPPEN_R, "variante": 0, "ballen": 5,
-					"saat": HAELFTE_SAAT[i] + 201 + k}
+			var ol := {"mitte": mitte_l, "radius": LAPPEN_R, "variante": LAPPEN_VARIANTE,
+					"ballen": LAPPEN_BALLEN, "saat": HAELFTE_SAAT[i] + 201 + k}
 			var lappen := Kronenwolke.fern(ol) if fern else Kronenwolke.netz(ol)
 			var lage_l := Transform3D(Basis.from_scale(Vector3.ONE * FERN_SKALA),
 					mitte_l * (1.0 - FERN_SKALA)) if fern else Transform3D.IDENTITY
@@ -524,6 +553,21 @@ static func _kronen_bauen(fern: bool) -> ArrayMesh:
 			var huelle_l := lappen.custom_aabb if lappen.custom_aabb.has_volume() \
 					else lappen.get_aabb()
 			box = box.merge(lage_l * huelle_l)
+		# Füllkrone (siehe FUELL_R): breit, zwischen den Lappen und der
+		# Schirmkrone.
+		var mitte_f := Vector3.ZERO
+		for k in HAUPTAESTE.size():
+			mitte_f += (hauptast(i, k)["spitze"] as Vector3) + Vector3.UP * LAPPEN_HOCH
+		mitte_f = mitte_f / float(HAUPTAESTE.size()) + Vector3(seite * FUELL_AUSSEN, FUELL_HOCH,
+				0.0)
+		var of := {"mitte": mitte_f, "radius": LAPPEN_R * FUELL_R, "variante": 1, "ballen": 6,
+				"saat": HAELFTE_SAAT[i] + 251}
+		var fuell := Kronenwolke.fern(of) if fern else Kronenwolke.netz(of)
+		var lage_f := Transform3D(Basis.from_scale(Vector3.ONE * FERN_SKALA),
+				mitte_f * (1.0 - FERN_SKALA)) if fern else Transform3D.IDENTITY
+		st.append_from(fuell, 0, lage_f)
+		var huelle_f := fuell.custom_aabb if fuell.custom_aabb.has_volume() else fuell.get_aabb()
+		box = box.merge(lage_f * huelle_f)
 	var ergebnis := st.commit()
 	ergebnis.custom_aabb = box
 	ergebnis.set_meta("mitten", mitten)
@@ -598,6 +642,11 @@ static func _netzhuelle(netz: Mesh) -> AABB:
 ## (`_nebelarm`), der geteilte Kronenstoff bleibt, wie er ist.
 const DURCHLICHT := 0.62
 const TON_OBEN := Vector3(1.9, 1.3, 0.85)
+## Unterseite der Kronen (R3, Bild-Jury: „mit dunkler Unterseite"): rund
+## halb so hell wie die Vorgabe des Kronenstoffs (0,46/0,44/0,9). Das
+## Durchlicht folgt dem Ton, glimmt also unten schwächer – die Krone
+## bekommt Volumen statt als gleichmäßig orange Fläche zu stehen.
+const TON_UNTEN := Vector3(0.24, 0.2, 0.34)
 
 
 func _golden(stoff: Material) -> Material:
@@ -605,6 +654,7 @@ func _golden(stoff: Material) -> Material:
 			and stoff != Kronenwolke.stoff(LAUB_FERN, false):
 		(stoff as ShaderMaterial).set_shader_parameter("durchlicht", DURCHLICHT)
 		(stoff as ShaderMaterial).set_shader_parameter("ton_oben", TON_OBEN)
+		(stoff as ShaderMaterial).set_shader_parameter("ton_unten", TON_UNTEN)
 	return stoff
 
 

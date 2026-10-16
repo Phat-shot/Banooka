@@ -1,4 +1,9 @@
-# Level 05 – Jury-Runde 3 (offene Mängel)
+# Level 05 – Jury-Runde 3 (Mängel)
+
+Abgearbeitet: Spiel-Teil `9f95ee7`, Bild-Teil im Commit „Level 05
+R3-Mängel Bild …“. Was geändert ist, was bewusst nicht, und die Messungen:
+`doku/level05-neubau.md`, Abschnitt 13, „R3“. Die Liste unten ist der
+Befund der Jury (Belege im Scratch der Sitzung) – Grundlage für Runde 4.
 
 ## jury-bild-l05-3
 

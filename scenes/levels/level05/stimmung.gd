@@ -10,7 +10,9 @@ class_name L05Stimmung
 ## die Szene (Level05.tscn) und dieser Regler gemeinsam:
 ## * SZENE: `himmel.gdshader` statt ProceduralSky – Zenit tiefblau, Horizont
 ##   rosé (der Gegendämmerungsgürtel: Die Kamera schaut von der Sonne weg),
-##   Dunstband in der Nebelfarbe, Wolken mit warmem Licht (Menge 0,58),
+##   Dunstband in der Nebelfarbe, Wolken mit warmem Licht (Menge 0,52, bis
+##   R3 0,58; seit R3 dazu Wolkenbänke tief am Himmel, `wolken_bank` 0,22 bis
+##   `wolken_bank_hoehe` 0,13 – Bild-Jury R3: „30–40 % leerer Himmel"),
 ##   ferne Hügel ab 4,3° (`huegel_hoehe` 0,075 ≥ 0,07, Jury JT10: Weltkante)
 ##   und eine Waldkante unter dem Horizont. Die Sonne ist LIGHT0 des
 ##   Himmels; ihr Schein (0,1) liegt hinter der Kamera und färbt nur, was
@@ -148,7 +150,11 @@ const ZONEN := [
 ## Horizont (`KorridorLevel.horizont`): Radius um die Mitte der Strecke, Höhe
 ## der Kuppen, Fuß unter der Mitte (m) und Farbe (wird vom Nebel gedeckt).
 const HORIZONT_R := 300.0
-const HORIZONT_HOCH := 30.0
+## Abschluss R3 (Bild-Jury R3, Fernkulisse: „Auf den Hügelkämmen stehen
+## Kronen ohne Stamm … wie Gespenster oder Felsen", s 8 rechts oben): Das
+## waren die Kuppen dieses Rings (`kronen`), wo eine einzelne über einen
+## nahen Kamm ragte. 24 statt 30 m: Sie bleiben hinter den Kämmen.
+const HORIZONT_HOCH := 24.0
 const HORIZONT_FUSS := -14.0
 const HORIZONT_FARBE := Color(0.30, 0.36, 0.40)
 
@@ -157,10 +163,18 @@ const HORIZONT_FARBE := Color(0.30, 0.36, 0.40)
 ## Öffnung liegt SCHACHT_DECKE über der Decke.
 ## R2 (Bild-Jury R2, Mangel 3: „die zwei Lichtschächte aus Entwurf §5 A
 ## fehlen"): Sie standen da, mit Stärke 0,09 aber unsichtbar, und der bei
-## s 9 lag im Startbild hinter der Kamera. Jetzt s 3 und 23, Stärke
-## SCHACHT_STAERKE.
-const SCHAECHTE: Array[Vector2] = [Vector2(3.0, 6.6), Vector2(23.0, -7.0)]
-const SCHACHT_STAERKE := 0.17
+## s 9 lag im Startbild hinter der Kamera. In R2 dann s 3 und 23, Stärke
+## 0,17.
+## Abschluss R3 (Bild-Jury R3, Licht und Farbe: „Die Lichtschächte in A sind
+## im Spielbild s 8 nicht zu sehen"): Die Sonne steht hinter der Kamera, die
+## Bahnen laufen also von ihr weg; zu sehen sind sie nur unten, vor dunklem
+## Grund. Bei s 3 lag der Fuß hinter der Figur vor der hellen Kuppe, bei
+## s 23 neben der Kamera. Jetzt bei s 12 vor der schattigen Böschung der
+## Suhle und bei s 20 vor der niedrigen Wand bildlinks, beide im Bild des
+## Starts, und heller (SCHACHT_STAERKE; mit 0,24 stand der bei s 12 als
+## weißer Balken am Bildrand).
+const SCHAECHTE: Array[Vector2] = [Vector2(12.0, -7.4), Vector2(20.0, 6.9)]
+const SCHACHT_STAERKE := 0.21
 const SCHACHT_DECKE := 14.0
 const SICHT_SCHACHT := 75.0
 ## Handyweg: Die Schächte stehen dann nur bis hierher (siehe KOSTEN).
@@ -196,6 +210,31 @@ const NEBEL_SAAT := 5801
 ## (Bild-Jury R2, Mangel 6: „ohne … Bachnebel"): Mit 0,26 war er im Schatten
 ## der Südwand nicht zu sehen.
 const NEBEL_STAERKE := 0.42
+
+## Dunst in der Tiefe der Lücken L1–L5 (`_lueckendunst`, R3; Bild-Jury R3,
+## Mangel „Lücken": „ein exakt rechteckiger, rein schwarzer Schlitz … In
+## der Tiefe Wasser oder Nebel andeuten, bei Luma ≤ 30"): je Lücke eine
+## Nebeltafel (`GelaendeBau.nebeltafeln`) quer über den Spalt (Lage siehe
+## unten). Dunkel und kühl (DUNST_FARBE, deckend DUNST_STAERKE): Über dem
+## Schwarz der Tiefe liegt ein Schleier, nichts Helles. Nicht am Wehr (dort steht
+## das Weißwasser) und nicht im Regler der Zonen (der färbte ihn auf das
+## Nebellicht).
+## LAGE nach Messung (Abschluss R3): In der Mitte der Lücke, die Mitte
+## 1,0–1,6 m unter der Lippe (0,13/0,14/0,17, Stärke 0,8), blieb der Spalt
+## schwarz (s 130: Luma 6,6, 96 % unter 12) – die Kamera sieht über die nahe
+## Lippe nur die obere Stirn der fernen Lippe, gut 1 m tief, in der Mitte
+## der Lücke nur gut einen halben Meter. Mit der Tafel 0,5 m vor der fernen
+## Stirn, Mitte 0,9 unter der Lippe, 2 m hoch, 0,2/0,22/0,27 und 0,85 noch
+## Luma 6,2. Jetzt DUNST_VOR m vor der fernen Stirn, die Mitte DUNST_UNTER
+## unter der Lippe, DUNST_HOCH hoch: am dichtesten gut 0,9 m unter der
+## Lippe, an der Lippe kaum (der Schleier läuft oben aus) – unten im
+## sichtbaren Spalt ein kühler Dunst, oben das Erdband der Stirn.
+const DUNST_FARBE := Color(0.26, 0.29, 0.35)
+const DUNST_STAERKE := 1.0
+const DUNST_NAH := Vector2(2.0, 6.0)
+const DUNST_HOCH := 1.8
+const DUNST_UNTER := 0.6
+const DUNST_VOR := 0.5
 
 ## Krähen über der Eiche: so hoch über der Mitte der Kerbe kreisen sie, so
 ## weit, so viele; beim Wecken steigen sie in KRAEHEN_DAUER s um KRAEHEN_HUB
@@ -254,6 +293,7 @@ static func anlegen(level_: Level05) -> L05Stimmung:
 	st._pollen_und_staub()
 	st._laub()
 	st._bachnebel()
+	st._lueckendunst()
 	st._kraehen_setzen()
 	st._muehle_anlegen()
 	var optionen := {
@@ -397,6 +437,26 @@ func _bachnebel() -> void:
 			farbe.lightened(Stimmungsregler.NEBELTAFEL_HELLER))
 	if nebel != null:
 		nebel.set_shader_parameter("staerke", NEBEL_STAERKE)
+
+
+## Dunst in den Lücken (siehe DUNST_*), ein Netz für alle.
+func _lueckendunst() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = SAAT + 7
+	var tafeln: Array[Dictionary] = []
+	for l: Dictionary in Level05.LUECKEN:
+		if not bool(l["erdig"]):
+			continue
+		var von: float = l["von"]
+		var bis: float = l["bis"]
+		var mitte := level.weg_punkt(minf(von + DUNST_VOR, (von + bis) * 0.5), 0.0, 0.0)
+		mitte.y = level.boden_bei(von - 0.01) - DUNST_UNTER
+		tafeln.append({"mitte": mitte, "mass": Vector2(level.breite_bei(von) + 1.0, DUNST_HOCH),
+				"phase": rng.randf(), "kraft": 1.0})
+	var stoff := GelaendeBau.nebeltafeln(_wurzel("Lueckendunst"), tafeln, DUNST_FARBE)
+	if stoff != null:
+		stoff.set_shader_parameter("staerke", DUNST_STAERKE)
+		stoff.set_shader_parameter("nah", DUNST_NAH)
 
 
 ## Zwei Krähen über der Hauereiche (siehe KRAEHEN_*): Mitte über der Kerbe

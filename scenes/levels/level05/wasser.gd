@@ -175,9 +175,12 @@ const SCHLAMM_UV := 0.18
 ## dem Grund (mal PFUETZE_HANG) sinkt – im flachen Grund zusammenhängende
 ## Lachen, an den Hängen keine. Der Spiegel bleibt mindestens
 ## PFUETZE_UEBER über dem Schlamm.
+## Abschluss R3 (Bild-Jury R3, Startbild: „Rechts liegt die Suhle als
+## dunkles, asphaltartiges Band"; Vorschlag „mit Glanzflecken"): mehr
+## Lachen (PFUETZE_ANTEIL 0,3 statt 0,2) – sie tragen den Glanz.
 const PFUETZE_SPIEGEL := 0.065
 const PFUETZE_STREUUNG := 0.5
-const PFUETZE_ANTEIL := 0.2
+const PFUETZE_ANTEIL := 0.3
 const PFUETZE_RAND := 0.22
 const PFUETZE_HANG := 6.0
 const PFUETZE_UEBER := 0.015
@@ -220,6 +223,16 @@ const BACH_SCHRITT := 1.5
 ## `L05Gelaende.BETT_BREITE` breit).
 const BACH_TIEFE := 0.22
 const BACH_BREITE := 2.8
+## R3 (Bild-Jury R3, Tobel D: „Der Bach ist ein gerader, gleich breiter
+## Kanal mit hellem Rand"; Vorschlag: „mit Kurven, wechselnder Breite und
+## Steinen im Wasser"): Die Breite wechselt zwischen BACH_ENGE und 1 mal
+## BACH_BREITE, und der Lauf pendelt im Bett, so weit es die Breite lässt
+## (BACH_PENDEL des freien Raums) – beides aus zwei Sinuswellen über s, kein
+## Zufall. Wo er schmaler ist, liegt der nasse Grund des Betts frei. Das
+## Bett selbst (`L05Gelaende.BETT_BREITE` 3 m) bleibt, wie es ist – es
+## gehört zum Gelände und zum Ufer. Steine im Wasser: `L05Wegbauten`.
+const BACH_ENGE := 0.68
+const BACH_PENDEL := 0.85
 ## Die Schnelle (Schaum) der Läufe nach dem Gefälle (`Bachband`) mal so
 ## viel: Der Tobel fällt bis 9 %, und mit der vollen Schnelle stand der Bach
 ## im Rückblick als weißer Streifen neben dem Weg (Entwurf §5 D: „kühl
@@ -384,7 +397,7 @@ func _flaechen_bauen() -> void:
 	var netze: Dictionary = Bauspeicher.wert(_schluessel(), func() -> Variant:
 		var suhle := _suhle_netze()
 		return {"bach": _bach_netz(), "gerinne": _gerinne_netz(), "schlamm": suhle["schlamm"],
-				"pfuetzen": suhle["pfuetzen"]})
+				"pfuetzen": suhle["pfuetzen"], "schilf": _schilf_netz()})
 	var stoff := Bachband.stoff(BACH_THEMA)
 	var bach := _knoten("Bach", netze["bach"] as Mesh, stoff, 0.0)
 	# Die Wellen heben die Fläche um bis zu 0,05 m (wie `Bachband.bauen`).
@@ -405,6 +418,73 @@ func _flaechen_bauen() -> void:
 	bruch_netze.append(bach)
 	_knoten("Suhle", netze["schlamm"] as Mesh, _schlamm_stoff(), SICHT_RINNSAL)
 	_knoten("Pfützen", netze["pfuetzen"] as Mesh, _pfuetzen_stoff(), SICHT_RINNSAL)
+	if netze.has("schilf"):
+		_knoten("Schilf", netze["schilf"] as Mesh, Kronenwolke.stoff(SCHILF_LAUB), SCHILF_SICHT)
+
+
+## SCHILF am Mühlteich (Abschluss R3; Bild-Jury R3, Schlussbild: „Der
+## Mühlteich ist eine flache blaue Scheibe mit weißem Rand"; Vorschlag: „Den
+## Teich mit Schilf und Uferkante versehen"): Horste aus Binsen und Seggen
+## am Ufer – je SCHILF_SCHRITT rad um die Mulde (`L05Gelaende.TEICH`) die
+## Stelle, an der das Gelände SCHILF_UEBER über den Spiegel steigt, nur wo
+## die Kamera hinsieht (SCHILF_S); je Horst zwei, drei schmale, hohe
+## Büschel (`Kronenwolke`, SCHILF_HOCH), ockergrün im Kronenstoff. Erste
+## Fassung aus Halmkarten (Atlas der Kanten): Deren Halme sind 1–2 Bildpunkte
+## breit, aus 25–40 m standen nur dunkle Punkte am Ufer. Eigene Saat; ein
+## Netz.
+const SCHILF_SCHRITT := 0.16
+const SCHILF_UEBER := 0.04
+const SCHILF_S := Vector2(270.0, 300.0)
+const SCHILF_HOCH := Vector2(0.9, 1.5)
+const SCHILF_LAUB := Color(0.36, 0.4, 0.17)
+const SCHILF_SICHT := 110.0
+
+
+func _schilf_netz() -> ArrayMesh:
+	var rng := PropWerkzeug.zufall(5811)
+	var formen: Array[ArrayMesh] = [
+		Kronenwolke.netz({"radius": 0.45, "hoehe": 1.4, "variante": 0, "ballen": 3,
+				"karten": 10, "saat": 5812}),
+		Kronenwolke.netz({"radius": 0.6, "hoehe": 1.1, "variante": 0, "ballen": 3,
+				"karten": 10, "saat": 5813}),
+	]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var teich := L05Gelaende.TEICH
+	var w := 0.0
+	while w < TAU:
+		w += SCHILF_SCHRITT * rng.randf_range(0.6, 1.4)
+		var anzahl := rng.randi_range(2, 3)
+		var wurf := rng.randf()
+		# Vom Inneren der Mulde nach außen bis zum Ufer.
+		var ort := Vector3(NAN, NAN, NAN)
+		var e := 0.7
+		while e < 1.6:
+			var s := teich.position.x + cos(w) * teich.size.x * e
+			var q := teich.position.y + sin(w) * teich.size.y * e
+			var p := level.weg_punkt(s, q)
+			var y := _feld(p.x, p.z)
+			if not is_nan(y) and y >= TEICH_SPIEGEL + SCHILF_UEBER:
+				if s >= SCHILF_S.x and s <= SCHILF_S.y:
+					ort = Vector3(p.x, y - 0.1, p.z)
+				break
+			e += 0.04
+		if is_nan(ort.x) or wurf < 0.25:
+			continue
+		for k in anzahl:
+			var form := formen[rng.randi_range(0, formen.size() - 1)]
+			var box := form.get_aabb()
+			var hoch := rng.randf_range(SCHILF_HOCH.x, SCHILF_HOCH.y) / maxf(box.size.y, 0.1)
+			var breit := rng.randf_range(0.8, 1.1)
+			var versatz := Vector3(rng.randf_range(-0.5, 0.5), 0.0, rng.randf_range(-0.5, 0.5))
+			var lage := Transform3D(Basis(Vector3.UP, rng.randf() * TAU)
+					.scaled(Vector3(breit, hoch, breit)),
+					ort + versatz - Vector3(0.0, box.position.y * hoch, 0.0))
+			st.append_from(form, 0, lage)
+	var netz := st.commit()
+	# Die Blattkarten wachsen erst im Shader (`Kronenwolke`): Hülle weiten.
+	netz.custom_aabb = netz.get_aabb().grow(0.8)
+	return netz
 
 
 func _knoten(name_k: String, netz: Mesh, stoff: Material, sicht: float) -> MeshInstance3D:
@@ -526,10 +606,10 @@ func _laeufe() -> Array:
 		# Stromab nie steigend: Das Bett folgt der geglätteten Decke, und
 		# wo seine Tiefe wechselt, stiege es sonst um Zentimeter.
 		spiegel = minf(spiegel, _bett_spiegel(s))
-		var p := level.weg_punkt(s, _bett_q(s))
+		var p := level.weg_punkt(s, _bett_q(s) + bach_pendel(s))
 		p.y = spiegel
 		punkte.append(p)
-		breiten.append(BACH_BREITE)
+		breiten.append(bach_breite(s))
 		s += BACH_SCHRITT
 	# Ins Unterwasser: am Fuß des Wehrs entlang, dann seinem Lauf nach.
 	var unter: Array[Vector2] = [Vector2(282.0, -7.0), Vector2(286.0, -7.4)]
@@ -870,6 +950,7 @@ func _baender_und_rad() -> void:
 	if rinnsal_knoten != null:
 		rinnsal_knoten.visibility_range_begin = L05Wegbauten.NAH_GRENZE
 		rinnsal_knoten.visibility_range_begin_margin = L05Wegbauten.NAH_RAND
+	_sichtweite(_baender_vereinen(_sickerstreifen(), "Sickerstreifen"), SICKER_SICHT)
 	var faelle: Array[Wasserfall] = []
 	for d: Dictionary in Level05.DURCHLAESSE:
 		if L05Wegbauten.art(d) == "joch":
@@ -879,6 +960,71 @@ func _baender_und_rad() -> void:
 	_sichtweite(_baender_vereinen(faelle, "Gerinnefälle"), _sicht())
 	bruch_netze.append_array(_weisswasser())
 	_muehlrad()
+
+
+## SICKERSTREIFEN in der Südwand des Tobels (Abschluss R3; Bild-Jury R3,
+## Tobel D: „Rechts füllt die Südwand 20–30 % des Bilds als dunkle, glatte
+## grüne Fläche"; Vorschlag: „mit … hellen Sickerstreifen gliedern"): An
+## SICKER_STELLEN läuft Wasser die Wand hinab bis in den Bach – ein schmales
+## Band (`Wasserfall.band`, wie die Rinnsale am Wasserriss) vom Punkt
+## SICKER_HOCH über dem Spiegel quer zum Bach hinab, SICKER_VOR über dem
+## Gelände, mit leichtem Schlängeln längs. Im Schatten der Nordseite sind sie
+## das Helle der Wand. Alle in EINEM Netz.
+## Erste Fassung (0,28–0,55 m, Schaum 0,6/0,68/0,7, gerade die Falllinie
+## hinab): im Bild bei s 186 und 240 dünne, gerade, weiße Striche wie
+## Kratzer. Jetzt breiter, dunkler und in Schlingen (SICKER_SCHLINGE m quer
+## zur Falllinie, zwei Wellen).
+const SICKER_STELLEN: Array[float] = [194.0, 205.0, 217.0, 228.0, 241.0, 252.0]
+const SICKER_HOCH := Vector2(5.0, 11.0)
+const SICKER_VOR := 0.06
+const SICKER_BREITE := Vector2(0.7, 1.2)
+const SICKER_SCHLINGE := 0.9
+const SICKER_SCHAUM := Color(0.42, 0.5, 0.5)
+const SICKER_TIEF := Color(0.14, 0.2, 0.2)
+const SICKER_SICHT := 130.0
+
+
+func _sickerstreifen() -> Array[Wasserfall]:
+	var aus: Array[Wasserfall] = []
+	var rng := PropWerkzeug.zufall(5821)
+	for s0 in SICKER_STELLEN:
+		var s := s0 + rng.randf_range(-2.0, 2.0)
+		var hoch := rng.randf_range(SICKER_HOCH.x, SICKER_HOCH.y)
+		var breite := rng.randf_range(SICKER_BREITE.x, SICKER_BREITE.y)
+		var phase := rng.randf() * TAU
+		var mitte := bach_ort(s)
+		var vor := LevelWerkzeuge.richtung(level.verlauf, s)
+		vor = Vector3(vor.x, 0.0, vor.z).normalized()
+		var rechts := vor.cross(Vector3.UP).normalized()
+		# Oben: wo die Wand SICKER_HOCH über dem Spiegel liegt (−rechts, wie
+		# die Simse in `L05Wegbauten._tobel_steine`).
+		var d := 1.2
+		var oben := -1.0
+		while d < 26.0:
+			var w := mitte - rechts * d
+			var y := _feld(w.x, w.z)
+			if not is_nan(y) and y - mitte.y >= hoch:
+				oben = d
+				break
+			d += 0.25
+		if oben < 0.0:
+			continue
+		var bahn := PackedVector3Array()
+		d = oben
+		while d > L05Gelaende.BETT_BREITE * 0.5:
+			var laengs := SICKER_SCHLINGE * (0.65 * sin(d * 0.7 + phase)
+					+ 0.35 * sin(d * 1.9 + phase * 2.3))
+			var w := mitte - rechts * d + vor * laengs
+			var y := _feld(w.x, w.z)
+			if not is_nan(y):
+				bahn.append(Vector3(w.x, y + SICKER_VOR, w.z))
+			d -= 0.35
+		var band := Wasserfall.band(self, bahn, breite * 0.6, {"name": "Sickerstreifen",
+				"breite_ende": breite, "tempo": 1.4, "spalten": 2, "schritt": 0.35,
+				"farbe_schaum": SICKER_SCHAUM, "farbe_tief": SICKER_TIEF, "richtung": rechts})
+		if band != null:
+			aus.append(band)
+	return aus
 
 
 ## Harte Sichtweite (wie `L01Wasser._sichtweite`).
@@ -999,9 +1145,23 @@ func _rinnsal(seite: float) -> PackedVector3Array:
 ## Ort auf dem Spiegel des Tobelbachs an `s` (Level-Koordinaten): Mitte des
 ## Betts, Höhe des Spiegels – für den Bachnebel der Stimmung (`L05Stimmung`).
 func bach_ort(s: float) -> Vector3:
-	var p := level.weg_punkt(s, _bett_q(s))
+	var p := level.weg_punkt(s, _bett_q(s) + bach_pendel(s))
 	p.y = _bach_spiegel(s)
 	return p
+
+
+## Breite des Tobelbachs an `s` (siehe BACH_ENGE): zwischen BACH_ENGE und 1
+## mal BACH_BREITE, in Wellen von gut 25 und 80 m.
+static func bach_breite(s: float) -> float:
+	var w := 0.5 + 0.5 * sin(s * 0.24 + 1.3 * sin(s * 0.077 + 0.4))
+	return BACH_BREITE * lerpf(BACH_ENGE, 1.0, w)
+
+
+## Versatz des Laufs im Bett an `s` (q, m): höchstens BACH_PENDEL des Raums,
+## den die Breite dort lässt – das Wasser bleibt im Bett.
+static func bach_pendel(s: float) -> float:
+	var frei := maxf(L05Gelaende.BETT_BREITE - bach_breite(s), 0.0) * 0.5
+	return frei * BACH_PENDEL * sin(s * 0.13 + 2.1)
 
 
 ## Spiegel des Tobelbachs an `s` (wie `_laeufe`: stromab nie steigend).

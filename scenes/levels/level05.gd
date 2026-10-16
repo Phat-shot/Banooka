@@ -350,6 +350,11 @@ const KRONENLICHT := Vector2(23.5, 0.6)
 const WEG_SCHLUESSEL := "l05_"
 const LOESS_WEG := Color(1.12, 1.0, 0.78)
 const LIPPEN_STEINE := Vector2i(4, 6)
+## Höhe der Lippensteine (Faktor in `Wegdecke`, R3; Bild-Jury R3, Mangel
+## „Lücken": „flache graue Scheiben"): 13–22 cm statt 8–14 cm – Kuppen mit
+## Höhe, die aus 14 m als Steine an der Kante zu lesen sind. Höher nicht:
+## Sie liegen auf der Decke vor der Kante, wo man abspringt.
+const LIPPEN_STEIN_HOCH := 1.6
 ## Auslauf der Decke hinter M_ENDE (`_auslauf_bauen`): so lang (m), in
 ## Stücken von AUSLAUF_SCHRITT Metern.
 const AUSLAUF_LAENGE := 10.0
@@ -1302,7 +1307,8 @@ func lippen_thema() -> Dictionary:
 	var luecken: Array[Dictionary] = []
 	for l: Dictionary in LUECKEN:
 		luecken.append({"name": "L05 " + String(l["name"]), "von": l["von"], "bis": l["bis"]})
-	return {"luecken": luecken, "lippen_steine": LIPPEN_STEINE, "name": "L05"}
+	return {"luecken": luecken, "lippen_steine": LIPPEN_STEINE, "name": "L05",
+			"lippen_stein_hoch": LIPPEN_STEIN_HOCH}
 
 
 ## Optik des Begehbaren: Bänke, Trittstein und Grabenrampe zeichnet

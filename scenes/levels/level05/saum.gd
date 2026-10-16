@@ -112,9 +112,41 @@ const UFER_MOOS := Vector4(258.0, 264.0, 276.0, 279.0)
 ## Lückenstreifen 67–88, in Level 01 11). Jetzt ist nur die Lippe hell –
 ## Narbe, Wurzelfasern, die Lippensteine auf der Decke –, ab 0,4 m Tiefe ist
 ## die Albedo unter 0,1 wie in Level 01 (Entwurf §8.4).
+## R3 (Bild-Jury R3, Mangel „Lücken": „ein exakt rechteckiger, rein
+## schwarzer Schlitz mit schnurgeraden Lippen … Die Flanken als Erdprofil
+## mit Verlauf von hell nach dunkel statt Schwarz ab 0,4 m"): Unter
+## STIRN_TIEFE.x fällt die Verdeckung jetzt stetig ab, auf 1/e je
+## STIRN_ABKLINGEN Meter (0,39 bei 0,4 m, 0,18 bei 0,9 m, 0,08 bei 1,5 m)
+## – ein Erdprofil, das ins Dunkle geht, statt einer Kante bei 0,4 m; das
+## helle Band ist schmal wie vorher, darunter liegt kein gleich helles
+## Stück mehr (R2: „Stufe"). Die Lippe bricht unregelmäßig aus
+## (STIRN_AUSBRUCH: bis so tief, in Buckeln nach `Kanten.welle`), und in
+## der Tiefe liegt Dunst (`L05Stimmung._lueckendunst`).
 const STIRN_HELL := 0.62
 const STIRN_DUNKEL := 0.025
 const STIRN_TIEFE := Vector2(0.1, 0.4)
+const STIRN_ABKLINGEN := 0.6
+const STIRN_AUSBRUCH := 0.14
+## Verdeckung der Wand einer Seite an ihrem Fuß, wo sie in einer Lücke in
+## den Spalt hinabläuft (`_auf_in_luecke`).
+const LUECKE_WAND_DUNKEL := 0.22
+## LIPPENSTUFE an den Enden einer Lücke (Abschluss R3, eigene Messung s 130:
+## die Platten links und rechts des Spalts Luma 70, rgb 140/47/9 – der Spalt
+## selbst 6,6): Zwischen dem letzten Querschnitt vor der Lippe (Schulter
+## hell, Verdeckung 0,6–0,78) und dem ersten darin (auf dem Grund, 0,06)
+## stand ein senkrechter Vorhang von 2–3 m, dessen Farbe linear von hell
+## nach dunkel lief, mit den Normalen der Schulter (nach oben) beleuchtet –
+## eine angestrahlte Platte. Jetzt stehen in der Lücke zwei Querschnitte
+## mehr, LIPPE_STUFE.x und .y hinter der Lippe: Der erste senkt Fuß und
+## Schulter nur LIPPE_TIEF unter die Decke, in LIPPE_DUNKEL – der Vorhang
+## wird oben ein schmales Erdband wie die Stirn (STIRN_HELL … ), darunter
+## dunkel bis auf den Grund. Der Querschnitt knapp vor der Lippe dunkelt
+## Fuß und Schulter auf LIPPE_SCHULTER ab: Die Schulter läuft zur Lippe
+## hin ins Dunkle, statt an ihr hell abzubrechen.
+const LIPPE_STUFE := Vector2(0.02, 0.04)
+const LIPPE_TIEF := 0.45
+const LIPPE_DUNKEL := 0.16
+const LIPPE_SCHULTER := 0.5
 ## Landeseite (die Lippe näher an der Kamera, deren Stirn vom Spalt weg
 ## zeigt): Die Grasnarbe hängt so viel weiter über den Spalt (m, an ihrem
 ## Rand; bis höchstens STIRN_NAH_MAX) und deckt den unteren Teil der fernen
@@ -127,8 +159,42 @@ const STIRN_NAH_MAX := 0.6
 const LUECKE_SPIEL := 0.002
 ## Löss der Wände (Ton der Erde im Stoff der Kanten) und Rotocker des
 ## Sandsteins am Sonnenhang (Ton der warmen Schichtbänke).
-const LOESS := Color(1.15, 1.0, 0.74)
-const SANDSTEIN := Color(1.12, 0.86, 0.68)
+## R3 (Bild-Jury R3, Tobel D: „Links steht dieselbe orange Lösswand wie in
+## B"; Entwurf §5 D: rotockerfarbene Sandsteinbänder): Der Sandstein röter
+## (1,24/0,78/0,58 statt 1,12/0,86/0,68), weniger entsättigt
+## (SANDSTEIN_GRAU statt der Vorgabe 0,3 des Stoffs) und in engeren Bänken
+## (SCHICHT_DICHTE je m statt 0,35): Auf der 5 m hohen Wand standen zwei
+## Bänke, kaum heller als der Löss. Der Löss selbst bleibt (er trägt keine
+## Bänke, `fels` 0 in `Level05.ZUEGE`).
+## Abschluss R3: Der Ton des Lösses fast neutral (bis R3 1,15/1,0/0,74 auf
+## der orangen Erde des Waldwegs) – die Farbe kommt aus der eigenen Textur
+## (siehe LÖSSTEXTUR).
+const LOESS := Color(1.0, 0.97, 0.92)
+const SANDSTEIN := Color(1.24, 0.78, 0.58)
+const SANDSTEIN_GRAU := 0.15
+const SCHICHT_DICHTE := 0.6
+## LÖSSWAND (Abschluss R3; Bild-Jury R3, Lösswände: „Schichtung und
+## Wurzelvorhänge aus §5 B sind nicht zu sehen"; Vorschlag: „lösstypische
+## senkrechte Rillen und Schichtbänder"). Ohne Fels (Zug „fels" < 0,3) und
+## ab RILLE_HOCH m Wand:
+##   * RILLEN: alle RILLE_ABSTAND m (± ein Drittel, aus `Kanten.welle`)
+##     eine senkrechte Rinne, RILLE_TIEF in die Wand und um RILLE_DUNKEL
+##     dunkler, dazwischen Rippen. Ein Querschnitt steht alle 0,7 m – eine
+##     Rinne ist ein bis zwei Querschnitte breit, im Bild ein weicher,
+##     dunkler Streifen von oben nach unten.
+##   * BÄNDER: zwei dunklere Bänder (Bodenhorizonte im Löss) auf
+##     BAND_HOEHEN der Wand (Anteil von unten), ihre Höhe wandert mit
+##     `Kanten.welle` um ±BAND_WANDERN; um BAND_DUNKEL dunkler und etwas
+##     weniger Erde (der Sandstein des Stoffs scheint mit seinen Schichten
+##     durch, BAND_FELS).
+const RILLE_HOCH := 1.5
+const RILLE_ABSTAND := 2.6
+const RILLE_TIEF := 0.12
+const RILLE_DUNKEL := 0.32
+const BAND_HOEHEN := Vector2(0.35, 0.7)
+const BAND_WANDERN := 0.12
+const BAND_DUNKEL := 0.22
+const BAND_FELS := 0.3
 
 
 ## Bauschritte: der Stoff, je Seite und Zug „… wird vermessen", die Stirnen
@@ -159,6 +225,10 @@ static func bauschritte(level: Level05) -> Array:
 		var feste_zug := feste.duplicate()
 		for p: Vector2 in linie:
 			feste_zug.append(p.x)
+		# Je Lippe die Querschnitte der Lippenstufe (LIPPE_STUFE).
+		for l: Dictionary in Level05.LUECKEN:
+			for d in [LIPPE_STUFE.x, LIPPE_STUFE.y]:
+				feste_zug.append_array([float(l["von"]) + d, float(l["bis"]) - d])
 		# In der Übergabe Querschnitte alle SCHRITT_UEBERGABE Meter.
 		var von_ueb := _uebergabe_von(zug)
 		if not is_nan(von_ueb):
@@ -185,6 +255,8 @@ static func bauschritte(level: Level05) -> Array:
 		L05Gelaende.stoff_uebertragen(stoff, Kanten.stoff(thema()))}]
 	schritte.append_array(Kanten.linien_schritte(level.geometrie, level.weg, linien, stoff, NAME,
 			speicher(), {"sicht": SICHT}))
+	schritte.append({"text": "Wurzelvorhänge an den Lösswänden", "tun": func() -> void:
+		_wurzelvorhaenge(level)})
 	return schritte
 
 
@@ -198,8 +270,7 @@ static func speicher() -> String:
 	return "l05_saum_" + ("handy" if Effekte.reduziert else "voll")
 
 
-## Stoff der Kanten: Erde ist Löss (die Erde des Waldwegs, gelb-ocker
-## getönt) – Wände, Narbe von unten, Ufer; die warmen Schichtbänke des
+## Stoff der Kanten: Erde ist Löss (eigene Textur, siehe LÖSSTEXTUR) – Wände, Narbe von unten, Ufer; die warmen Schichtbänke des
 ## Sandsteins in Rotocker (Tobel, Sonnenhang, Entwurf §5 D). Rasen, Moos und
 ## Kalk wie in Level 01 (die Wegdecke trägt denselben Rasen).
 ## Die Erde der Wände in größerem Maß (ERDE_KACHEL statt 0,4) und mit
@@ -211,9 +282,64 @@ const RELIEF := 0.18
 
 
 static func thema() -> Dictionary:
-	return {"erde": Materialbibliothek.waldweg().albedo_texture,
+	return {"erde": loess_textur(),
 			"uniforms": {"erde_ton": LOESS, "fels_warm": SANDSTEIN, "erde_kachel": ERDE_KACHEL,
-				"relief": RELIEF}}
+				"relief": RELIEF, "fels_grau_anteil": SANDSTEIN_GRAU,
+				"schicht_dichte": SCHICHT_DICHTE}}
+
+
+## LÖSSTEXTUR (Abschluss R3; Bild-Jury R3, Lösswände: „gleichförmig orange
+## und mit einem Punktmuster texturiert"; Licht und Farbe: „entsättigen und
+## um eine Stufe abdunkeln"). Bis R3 trugen die Wände die Erde des
+## Waldwegs: ein sattes Orange mit Kieseln (gemessen auf der Lichtseite bei
+## s 60 rgb 99/35/2 – fast kein Blau, ein Ton auf der Erde konnte es nicht
+## entsättigen, nur abdunkeln). Jetzt eine eigene Textur LOESS_KANTE²:
+## fahles Gelbgrau zwischen LOESS_DUNKEL und LOESS_HELL aus einem senkrecht
+## um LOESS_STRECKUNG gestreckten Rauschen (Rillen und Sickerspuren, die
+## Wand hinab) und einem feinen Fleckrauschen, ohne Kiesel. So hell wie die
+## Erde des Waldwegs (deren Mittel gut 0,66/0,52/0,33), aber blasser: Eine
+## erste Fassung mit 0,3–0,56 lag auf der Lichtseite bei Luma 14,5 statt
+## 50,5 (s 60), mit Streckung 12 dazu wie Bretter. Im Bauspeicher; kalt gut
+## 0,1 s in diesem Schritt (zusammen mit Sandstein und Moos).
+const LOESS_HELL := Color(0.86, 0.77, 0.6)
+const LOESS_DUNKEL := Color(0.56, 0.48, 0.36)
+const LOESS_KANTE := 256
+const LOESS_STRECKUNG := 6
+
+
+static func loess_textur() -> Texture2D:
+	return Bauspeicher.holen("l05_loess_textur", _loess_bauen) as Texture2D
+
+
+static func _loess_bauen() -> Texture2D:
+	var k := LOESS_KANTE
+	var streifen := FastNoiseLite.new()
+	streifen.seed = 5181
+	streifen.frequency = 0.07
+	streifen.fractal_octaves = 3
+	var lang := streifen.get_seamless_image(k, maxi(8, k / LOESS_STRECKUNG), false, false, 0.1)
+	lang.resize(k, k, Image.INTERPOLATE_BILINEAR)
+	var flecken := FastNoiseLite.new()
+	flecken.seed = 5182
+	flecken.frequency = 0.035
+	flecken.fractal_octaves = 4
+	var fein := flecken.get_seamless_image(k, k, false, false, 0.1)
+	var a := lang.get_data()
+	var b := fein.get_data()
+	var schritt_a := a.size() / (k * k)
+	var schritt_b := b.size() / (k * k)
+	var daten := PackedByteArray()
+	daten.resize(k * k * 3)
+	for i in k * k:
+		var v := 0.45 * float(a[i * schritt_a]) / 255.0 + 0.55 * float(b[i * schritt_b]) / 255.0
+		v = smoothstep(0.2, 0.8, v)
+		var c := LOESS_DUNKEL.lerp(LOESS_HELL, v)
+		daten[i * 3] = roundi(c.r * 255.0)
+		daten[i * 3 + 1] = roundi(c.g * 255.0)
+		daten[i * 3 + 2] = roundi(c.b * 255.0)
+	var bild := Image.create_from_data(k, k, false, Image.FORMAT_RGB8, daten)
+	bild.generate_mipmaps()
+	return ImageTexture.create_from_image(bild)
 
 
 # ================================================================ Formen
@@ -368,6 +494,7 @@ static func _profil_auf(i: int, probe: Dictionary, level: Level05,
 		p.punkt(k * z, deck + z,
 				Kanten.farbe(lerpf(0.5, 0.82, t), erde, lerpf(0.05, 0.3, t * t), 0.0),
 				lerpf(1.6, 0.8, t), lerpf(0.14, 0.08, t) * f, 2.0, schicht * f)
+	_loesswand(p, s, seite, hoch, fels, z_a, deck)
 	# --- Fuß und Schulter (13–15), dann unter die Decke (16–17, absolut)
 	p.punkt(k * z_b * 0.4 + 0.03, deck + 0.4 * z_b, Kanten.farbe(0.6, 0.7, 0.35, 0.2))
 	p.punkt(-0.05, deck + 0.015 * f, Kanten.farbe(0.7, 0.35, 0.25, 0.6))
@@ -379,8 +506,142 @@ static func _profil_auf(i: int, probe: Dictionary, level: Level05,
 			1.0, 0.0, true)
 	var l := _luecke(s)
 	if not l.is_empty():
-		_auf_in_luecke(p, l)
+		_auf_in_luecke(p, l, s, deck)
+	elif _vor_lippe(s):
+		# Knapp vor einer Lippe: Fuß und Schulter dunkel (LIPPE_SCHULTER).
+		for j in range(11, 15):
+			var c := p.farbe[j]
+			c.r *= LIPPE_SCHULTER
+			p.farbe[j] = c
 	return p
+
+
+## Die Lösswand an `s` (siehe LÖSSWAND bei LOESS) auf die Wandpunkte 7–12:
+## Rillen (Versatz nach außen und dunkler) und Bänder (dunkler, weniger
+## Erde). `z_a` Höhe des obersten Wandpunkts über der Decke `deck`.
+static func _loesswand(p: GelaendeSaum.Profil, s: float, seite: float, hoch: float,
+		fels: float, z_a: float, deck: float) -> void:
+	var stark := smoothstep(RILLE_HOCH, RILLE_HOCH + 1.0, hoch) * (1.0 - smoothstep(0.1, 0.3, fels))
+	if stark <= 0.0:
+		return
+	var phase := s * TAU / RILLE_ABSTAND + 2.2 * Kanten.welle(s * 0.06, 71.0 + seite)
+	var rille := smoothstep(0.55, 0.95, 0.5 + 0.5 * sin(phase)) * stark
+	var band_a := BAND_HOEHEN.x + BAND_WANDERN * Kanten.welle(s * 0.03, 73.0 + seite)
+	var band_b := BAND_HOEHEN.y + BAND_WANDERN * Kanten.welle(s * 0.025, 79.0 + seite)
+	for j in range(7, 13):
+		var z := p.y[j] - deck
+		var anteil := clampf(z / maxf(z_a, 0.01), 0.0, 1.0)
+		var band := maxf(1.0 - absf(anteil - band_a) / 0.14, 0.0) \
+				+ maxf(1.0 - absf(anteil - band_b) / 0.1, 0.0)
+		band = minf(band, 1.0) * stark
+		var c := p.farbe[j]
+		c.r *= (1.0 - RILLE_DUNKEL * rille) * (1.0 - BAND_DUNKEL * band)
+		c.g *= 1.0 - BAND_FELS * band
+		p.farbe[j] = c
+		# Die Rinne tritt in die Wand zurück, oben und unten weniger.
+		var mitte := 1.0 - absf(anteil - 0.5) * 1.2
+		p.o[j] += RILLE_TIEF * rille * maxf(mitte, 0.2)
+
+
+## WURZELVORHÄNGE (Abschluss R3; Bild-Jury R3, Lösswände: „Schichtung und
+## Wurzelvorhänge aus §5 B sind nicht zu sehen"): Unter der Narbe der
+## Lösswände (VORHANG_STRECKE, ohne Fels, ab gut 1,2 m Wand) hängen Büschel
+## aus Wurzelkarten (Atlas der Kanten, `GelaendeSaum.ATLAS_WURZEL`) die
+## Wand hinab, VORHANG_LANG m lang – in Gruppen (Rauschen über
+## VORHANG_GRUPPE m), dazwischen nackte Wand. Die Karten der Narbe (0,3 bis
+## 0,9 m, `Kanten._karten_an`) lasen sich aus 15 m als Fransen, nicht als
+## Vorhang. Jede Karte liegt auf der Wand: von der Wandkrone (Punkt 6) zum
+## Punkt 10 hinab, 5 cm davor, dazu eine zweite schräg aus der Wand. Gebaut
+## aus den Querschnitten des Saums (`saum_flaechen`, auch aus dem
+## Bauspeicher), je 30 m ein Netz mit Sichtweite VORHANG_SICHT; eigene Saat.
+const VORHANG_STRECKE := Vector2(31.0, 182.0)
+const VORHANG_LANG := Vector2(0.8, 2.1)
+const VORHANG_GRUPPE := 7.0
+const VORHANG_DICHTE := 0.9
+const VORHANG_TON := Color(0.5, 0.38, 0.27)
+const VORHANG_SICHT := 60.0
+const VORHANG_STUECK := 30.0
+
+
+static func _wurzelvorhaenge(level: Level05) -> void:
+	var rng := PropWerkzeug.zufall(5171)
+	var rauschen := FastNoiseLite.new()
+	rauschen.seed = 5172
+	rauschen.frequency = 1.0 / VORHANG_GRUPPE
+	var stuecke := {}
+	for zug: Dictionary in Level05.ZUEGE:
+		if String(zug["art"]) != "auf":
+			continue
+		var stand: Dictionary = level.saum_flaechen.get(String(zug["name"]), {})
+		var flaeche: Dictionary = stand.get("flaeche", {})
+		if flaeche.is_empty():
+			continue
+		var seite: float = zug["seite"]
+		var strecken: PackedFloat32Array = flaeche["s"]
+		var reihen: Array = flaeche["reihen"]
+		for i in range(1, strecken.size() - 1):
+			var s := strecken[i]
+			if s < VORHANG_STRECKE.x or s > VORHANG_STRECKE.y or level.weg.ist_luecke(s):
+				continue
+			var m := form_auf(level, zug, s)
+			var w := clampf(0.45 + 1.1 * rauschen.get_noise_1d(s + 57.0 * seite), 0.0, 1.0) \
+					* VORHANG_DICHTE * smoothstep(1.2, 2.2, float(m["hoch"])) \
+					* (1.0 - smoothstep(0.1, 0.3, float(m["fels"])))
+			var reihe: PackedVector3Array = reihen[i]
+			var krone := reihe[6]
+			var unten := reihe[10]
+			var aussen := reihe[3] - reihe[0]
+			aussen.y = 0.0
+			var laengs: Vector3 = (reihen[i + 1] as PackedVector3Array)[6] \
+					- (reihen[i - 1] as PackedVector3Array)[6]
+			laengs.y = 0.0
+			if aussen.length_squared() < 0.0001 or laengs.length_squared() < 0.0001:
+				continue
+			aussen = aussen.normalized()
+			laengs = laengs.normalized()
+			var runter := (unten - krone).normalized()
+			var wand := krone.distance_to(reihe[12])
+			for k in 2:
+				var wurf := rng.randf()
+				var lang := minf(rng.randf_range(VORHANG_LANG.x, VORHANG_LANG.y), wand * 0.85)
+				var breit := rng.randf_range(0.35, 0.6)
+				var versatz := rng.randf_range(-0.3, 0.3)
+				var ton := VORHANG_TON * rng.randf_range(0.75, 1.1)
+				if wurf > w:
+					continue
+				var ort := krone + aussen * 0.05 + laengs * versatz + Vector3.UP * 0.04
+				var schluessel := floori(s / VORHANG_STUECK)
+				if not stuecke.has(schluessel):
+					var neu := SurfaceTool.new()
+					neu.begin(Mesh.PRIMITIVE_TRIANGLES)
+					stuecke[schluessel] = neu
+				var st: SurfaceTool = stuecke[schluessel]
+				GelaendeSaum.karte(st, ort, runter + aussen * 0.03, laengs, lang, breit,
+						GelaendeSaum.ATLAS_WURZEL, ton)
+				GelaendeSaum.karte(st, ort, runter + aussen * 0.12, aussen + laengs * 0.4,
+						lang * 0.7, breit * 0.7, GelaendeSaum.ATLAS_WURZEL, ton * 0.85)
+	var wurzel := Node3D.new()
+	wurzel.name = "Wurzelvorhänge"
+	level.geometrie.add_child(wurzel)
+	for schluessel: int in stuecke:
+		var mi := MeshInstance3D.new()
+		mi.name = "Vorhang %d" % schluessel
+		mi.mesh = (stuecke[schluessel] as SurfaceTool).commit()
+		mi.material_override = GelaendeSaum.kartenstoff()
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = VORHANG_SICHT
+		mi.visibility_range_end_margin = 5.0
+		wurzel.add_child(mi)
+
+
+## Liegt `s` knapp vor einer Lippe (höchstens 0,01 m, außerhalb der Lücke)?
+static func _vor_lippe(s: float) -> bool:
+	for l: Dictionary in Level05.LUECKEN:
+		var von: float = l["von"]
+		var bis: float = l["bis"]
+		if (s <= von + LUECKE_SPIEL and s > von - 0.01) or (s >= bis - LUECKE_SPIEL and s < bis + 0.01):
+			return true
+	return false
 
 
 ## PLATTENENDEN eines Zuges „auf", für alle Querschnitte zugleich (beim
@@ -455,12 +716,30 @@ static func _luecke(s: float) -> Dictionary:
 
 ## In einer Lücke `l`: Fuß, Schulter und was unter der Decke lag, auf den
 ## Grund der Lücke – die Wand der Seite läuft bis dorthin hinab, dunkel.
-static func _auf_in_luecke(p: GelaendeSaum.Profil, l: Dictionary) -> void:
+## R3 (Bild-Jury R3, Mangel „Lücken": „Links und rechts schließen glatte,
+## plattenförmige Stirnwände ab, die wie Kästen wirken"): Die Fläche von
+## der Wand (Punkt 11, knapp über der Decke) hinab auf den Grund lief von
+## der Helligkeit der Wand (Verdeckung 0,76) linear ins Dunkle – im Bild
+## zwei helle Platten links und rechts des Spalts. Jetzt beginnt sie mit
+## LUECKE_WAND_DUNKEL: Die Wand der Seite verschwindet mit der Stirn im
+## Dunkel des Spalts, nur ihr oberer Teil über der Decke bleibt hell.
+## Abschluss R3: Die ersten Querschnitte hinter der Lippe sind die
+## Lippenstufe (siehe LIPPE_STUFE): nur LIPPE_TIEF unter der Decke `deck`.
+static func _auf_in_luecke(p: GelaendeSaum.Profil, l: Dictionary, s: float,
+		deck: float) -> void:
 	var grund: float = l["grund_y"]
+	var stufe := minf(s - float(l["von"]), float(l["bis"]) - s) < (LIPPE_STUFE.x + LIPPE_STUFE.y) * 0.5
+	var c := p.farbe[11]
+	c.r = minf(c.r, LUECKE_WAND_DUNKEL)
+	p.farbe[11] = c
 	for j in range(12, p.anzahl()):
-		var tiefe := 0.1 if j == 13 else -0.03
-		p.y[j] = grund + (0.25 if j == 12 else tiefe)
-		p.farbe[j] = Kanten.farbe(0.12, 0.8, 0.2, 0.0)
+		if stufe:
+			p.y[j] = minf(p.y[j], deck - LIPPE_TIEF - (0.0 if j < 15 else 0.05))
+			p.farbe[j] = Kanten.farbe(LIPPE_DUNKEL, 0.9, 0.15, 0.0)
+		else:
+			var tiefe := 0.1 if j == 13 else -0.03
+			p.y[j] = grund + (0.25 if j == 12 else tiefe)
+			p.farbe[j] = Kanten.farbe(0.06, 0.8, 0.2, 0.0)
 		p.rauschen[j] = 0.0
 		p.schicht[j] = 0.0
 
@@ -519,29 +798,43 @@ static func _profil_ab(_i: int, probe: Dictionary, level: Level05,
 	p.punkt(fuss + 2.2 * f, bett - 1.4 * f, Kanten.farbe(0.34, 0.8, 0.3, 0.0), 3.0, 0.1)
 	var l := _luecke(s)
 	if not l.is_empty():
-		_ab_in_luecke(p, s, l)
+		_ab_in_luecke(p, s, l, deck)
+	elif _vor_lippe(s):
+		# Knapp vor einer Lippe: Narbe und Wand dunkel (LIPPE_SCHULTER).
+		for j in range(1, 10):
+			var c := p.farbe[j]
+			c.r *= LIPPE_SCHULTER
+			p.farbe[j] = c
 	return p
 
 
 ## In einer Lücke: alles über dem Grund der Lücke (nach außen 1,2 m je Meter
 ## ansteigend) auf diesen Grund – eine Rinne durch Ufer oder Wehr, zur
 ## Mitte der Lücke tiefer, an ihren Rändern bleibt mehr stehen.
-static func _ab_in_luecke(p: GelaendeSaum.Profil, s: float, l: Dictionary) -> void:
+## Abschluss R3 (eigene Prüfung s 186: am Ufer stand an L4 bildrechts noch
+## eine helle Platte, wie an den Böschungen vor der LIPPENSTUFE): Die ersten
+## Querschnitte hinter der Lippe senken nur bis LIPPE_TIEF unter die Decke
+## `deck`, in LIPPE_DUNKEL; die Rinne dahinter ist dunkler (0,08 statt 0,2).
+static func _ab_in_luecke(p: GelaendeSaum.Profil, s: float, l: Dictionary,
+		deck: float) -> void:
 	var grund: float = l["grund_y"]
 	var mitte := (float(l["von"]) + float(l["bis"])) * 0.5
 	var halb := (float(l["bis"]) - float(l["von"])) * 0.5
 	var rand := clampf((absf(s - mitte) - halb + 0.9) / 0.9, 0.0, 1.0)
+	var stufe := minf(s - float(l["von"]), float(l["bis"]) - s) < (LIPPE_STUFE.x + LIPPE_STUFE.y) * 0.5
 	var o_max := -INF
 	for j in p.anzahl():
 		var o := maxf(p.o[j], 0.0) if p.absolut[j] == 0 else 0.0
 		var grenze := grund + o * 1.2 + rand * 0.6
+		if stufe:
+			grenze = maxf(grenze, deck - LIPPE_TIEF)
 		if p.y[j] <= grenze:
 			continue
 		p.y[j] = grenze
 		if p.absolut[j] == 0:
 			o_max = maxf(o_max, p.o[j])
 			p.o[j] = o_max
-		p.farbe[j] = Kanten.farbe(0.2, 0.8, 0.35, 0.0)
+		p.farbe[j] = Kanten.farbe(LIPPE_DUNKEL if stufe else 0.08, 0.8, 0.35, 0.0)
 		p.rauschen[j] = 0.0
 		p.schicht[j] = 0.0
 
@@ -556,9 +849,16 @@ static func _profil_stirn(_i: int, probe: Dictionary, level: Level05, kante: flo
 	var p := Kanten.profil_stirn(probe, kante, grund, halb, erdig, 0.45, level.weg)
 	for j in range(4, p.anzahl()):
 		var c := p.farbe[j]
-		c.r = lerpf(STIRN_HELL, STIRN_DUNKEL,
-				smoothstep(STIRN_TIEFE.x, STIRN_TIEFE.y, kante - p.y[j]))
+		var tief := maxf(kante - p.y[j] - STIRN_TIEFE.x, 0.0)
+		c.r = STIRN_DUNKEL + (STIRN_HELL - STIRN_DUNKEL) * exp(-tief / STIRN_ABKLINGEN)
 		p.farbe[j] = c
+	# Ausbrüche der Lippe (siehe STIRN_AUSBRUCH): Narbe und Lippe sacken in
+	# Buckeln von gut 1–2 m ab, die Wand darunter folgt bis 0,33 m.
+	var bogen: float = probe["bogen"]
+	var aus := STIRN_AUSBRUCH * smoothstep(0.1, 0.7, Kanten.welle(bogen * 0.55, 41.0)) \
+			* (0.6 + 0.4 * Kanten.welle(bogen * 2.1, 43.0))
+	for j in range(1, mini(6, p.anzahl())):
+		p.y[j] -= maxf(aus, 0.0) * (1.0 if j < 4 else 0.5)
 	if nah:
 		for j in range(1, 4):
 			p.o[j] = minf(p.o[j] + STIRN_NAH * float(j) / 3.0, STIRN_NAH_MAX)
@@ -588,10 +888,13 @@ static func _profil_stufe(_i: int, probe: Dictionary, level: Level05, oben: floa
 	p.punkt(ov - 0.06, oben - 0.2, Kanten.farbe(0.5, 1.0, 0.1, 0.0))
 	p.punkt(-0.2, oben - minf(0.32, h * 0.45), Kanten.farbe(0.62, 1.0, 0.05, 0.0), 0.0, 0.04,
 			-1.0)
-	# Die Setzstufe zeigt zur Sonne und zur Kamera: hell, kaum Moos.
-	p.punkt(-0.26, lerpf(oben, unten, 0.6), Kanten.farbe(0.86, 1.0, 0.08, 0.0), 0.0, 0.1, -1.0,
+	# Die Setzstufe zeigt zur Sonne und zur Kamera: hell, kaum Moos. Abschluss
+	# R3 (eigene Prüfung s 140: mit dem hellen Löss lag jede Stufe als
+	# helles Band über die ganze Breite, wie ein Bordstein): etwas dunkler und
+	# zum Fuß hin feucht und bemoost.
+	p.punkt(-0.26, lerpf(oben, unten, 0.6), Kanten.farbe(0.66, 1.0, 0.15, 0.0), 0.0, 0.1, -1.0,
 			0.05)
-	p.punkt(-0.22, unten + 0.06, Kanten.farbe(0.74, 0.9, 0.25, 0.0), 0.0, 0.05, -1.0)
+	p.punkt(-0.22, unten + 0.06, Kanten.farbe(0.5, 0.9, 0.45, 0.0), 0.0, 0.05, -1.0)
 	if graben:
 		# Schlammsohle der Suhle: nass, moosig, eben bis zur Mitte.
 		p.punkt(-0.1, unten - 0.02, Kanten.farbe(0.55, 1.0, 0.5, 0.1))
@@ -637,9 +940,16 @@ static func _querlinien(level: Level05) -> Array:
 		var vorwaerts := 1.0 if h_a > h_b else -1.0
 		var graben := naht > Level05.SUHLGRABEN.x - 0.01 and naht < Level05.SUHLGRABEN.y + 0.01
 		var weit := (Level05.SUHLGRABEN.y - Level05.SUHLGRABEN.x) * 0.5 + 0.05 if graben else 0.6
-		linien.append(_querlinie(level, naht, -vorwaerts,
+		var linie := _querlinie(level, naht, -vorwaerts,
 				_profil_stufe.bind(level, maxf(h_a, h_b), minf(h_a, h_b), weit, graben),
-				maxf(h_a, h_b), 5301 + nummer))
+				maxf(h_a, h_b), 5301 + nummer)
+		# Setzstufen ohne Karten (Bild-Jury R3, Treppen): Halme und Wurzeln
+		# unter der Narbe standen dort als Zickzack-Fries über die ganze
+		# Breite und an den Enden als tiefschwarze, gezackte Silhouetten
+		# (unbeleuchtete Rückseiten) – die Kante tragen die Stufenwurzeln
+		# (`L05Wegbauten.stufenwurzel`). An den Stirnen der Lücken bleiben sie.
+		linie["karten"] = false
+		linien.append(linie)
 		nummer += 1
 	return linien
 

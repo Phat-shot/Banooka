@@ -712,8 +712,13 @@ static func _abstand_lauf(p: Vector2, lauf: Array[Vector2]) -> float:
 ## statt −0,1 … 0,25) und grün statt ganz Waldboden – brauner Waldboden auf
 ## dunklem Fels verschwand im Schatten. Simse und Farn: `L05Wegbauten`,
 ## `L05Rasen`.
-const SUEDWAND_STREIFEN := Vector2(-0.3, 0.1)
-const SUEDWAND_MOOS := 1.0
+## R3 (Bild-Jury R3, Tobel D: „Rechts füllt die Südwand 20–30 % des Bilds
+## als dunkle, glatte grüne Fläche"): schmalere Streifen (−0,05 … 0,25) und
+## höchstens 0,65 des Fels bewachsen – dazwischen bleibt der Fels mit seinen
+## Bänken stehen (Stoff des Geländes, `schicht_dichte`); die Wand gliedert
+## sich in Fels und Moos statt einer grünen Fläche.
+const SUEDWAND_STREIFEN := Vector2(-0.05, 0.25)
+const SUEDWAND_MOOS := 0.65
 const SUEDWAND_WALDBODEN := 0.35
 
 

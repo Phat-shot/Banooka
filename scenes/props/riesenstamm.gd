@@ -81,6 +81,14 @@ const FUSS_WINKEL := 48
 ## übergeben, liefern Bit für Bit dieselben Felder und Metadaten wie vorher;
 ## der Portalraum ruft `netz` nicht auf (nur `borkenstoff`).
 const SPALT_FARBE := Color(0.44, 0.4, 0.33)
+## SPALT_BORKE (Option "spalt_borke", Level 05, Bild-Jury L05 R3: „heller,
+## gepunkteter Spaltstreifen wie ein Reißverschluss"): Die Ecken der Fläche
+## tragen dann UV2.x = BORKE statt EIGEN. Der Stoff legt die Rinde darüber
+## (Furchen längs, Normalentextur, Rauheit 0,95) und multipliziert sie mit
+## dem dunklen Holzton aus `_spalt_ton` – zerfasertes, mattes Holz. Als
+## EIGEN glänzte die Fläche (Rauheit 0,7) und zeigte nur die Töne der Ecken:
+## Streifen und Punkte. Das Moos bleibt weg (Alpha 0, senkrechte Fläche).
+## NULL-PFAD: Ohne die Option ist `spalt_art` EIGEN wie zuvor.
 ## Über diesen Anteil der Höhe läuft die Fläche an `spalt_von` und
 ## `spalt_bis` aus (Tiefe 0 → voll): ein Riss, der sich schließt, statt
 ## einer Stufe in der Borke.
@@ -140,6 +148,8 @@ static func fertig(st: SurfaceTool) -> ArrayMesh:
 ##   spalt_von, spalt_bis   über welchen Anteil der Höhe sie läuft (0, 1);
 ##                    an beiden Enden läuft sie über SPALT_AUSLAUF aus
 ##   spalt_farbe      Ton des verwitterten Holzes (SPALT_FARBE)
+##   spalt_borke      die Spaltfläche mit der Rindentextur statt als
+##                    glatter Holzton (siehe SPALT_BORKE)
 ##   saat             feste Saat (1)
 ##
 ## Metadaten am Netz: "ast_spitzen" (PackedVector3Array, samt Leittrieb als
@@ -371,6 +381,7 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 	var spalt_an := spalt != Vector2.ZERO
 	if spalt_an:
 		spalt = spalt.normalized()
+	var spalt_art := BORKE if bool(o.get("spalt_borke", false)) else EIGEN
 	if schlicht_:
 		rippen = 0
 		pilze = 0
@@ -501,7 +512,7 @@ static func stamm_in(st: SurfaceTool, o: Dictionary) -> Dictionary:
 			var nord := moos * (1.0 - smoothstep(0.5, maxf(2.5, hoehe * 0.45), yy))
 			if im_spalt:
 				fa.append(_spalt_ton(p, spalt, o, rauschen))
-				ar.append(Vector2(EIGEN, 0.0))
+				ar.append(Vector2(spalt_art, 0.0))
 			else:
 				fa.append(Color(ao, ao, ao, clampf(m, 0.0, 1.0)))
 				ar.append(Vector2(BORKE, nord))

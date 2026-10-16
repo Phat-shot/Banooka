@@ -115,6 +115,12 @@ const FARN_STRECKEN: Array[Vector4] = [Vector4(184.0, 262.0, 0.11, 1.0),
 ## (wie die Simse in `L05Wegbauten._tobel_steine`).
 const SUEDWAND_FARN := Vector3(188.0, 262.0, 1.5)
 const SUEDWAND_FARN_HOCH := Vector2(0.6, 10.0)
+## R3 (Bild-Jury R3, Tobel D: „Simse und Farn sind nicht zu erkennen"): Die
+## Büschel der Südwand in voller Größe (statt 0,8) und SUEDWAND_FARN_HELL
+## mal so hell – im Schatten der Nordseite standen sie dunkel auf dunklem
+## Moos.
+const SUEDWAND_FARN_GROSS := 1.0
+const SUEDWAND_FARN_HELL := 1.4
 const FARN_BAND := 12.0
 const SICHT_FARN := 44.0
 ## Länge der Stücke des Farns entlang s (m).
@@ -122,6 +128,38 @@ const STUECK := 32.0
 ## Laub und Farn auf dem Handy (Entwurf §9.5: Gras und Streu ×0,5).
 const HANDY := 0.5
 const SAAT := 5801
+
+## UNTERWUCHS AUF DEN KRONEN (Bild-Jury L05 R3, schwerer Mangel
+## „Gesamtbild A–D": „ein gerader Hohlweg, links und rechts darüber eine
+## offene, flache Rasenebene … wie ein Entwässerungsgraben im Golfrasen";
+## Vorschlag: die Böschungskronen bis q ≈ 8–20 mit niedrigem, dichtem
+## Bewuchs füllen). Hinter der Wandkrone wachsen Dickichte aus niedrigen
+## Büschen und Brombeeren (`Kronenwolke`, 0,6–1,6 m hoch, 140–260 Dreiecke)
+## in Gruppen, dazwischen Lücken – kein Band wie eine Parkhecke (Bild-Jury
+## R1). Die Gruppen kommen aus einem Rauschen (UNTER_GRUPPE m), dicht an der
+## Krone (UNTER_RAND) und lichter nach außen (UNTER_BAND m).
+## WARUM hier und nicht im Wald: Es ist Bodenbewuchs wie der Farn – je
+## Stück ein MultiMesh mit harter Sichtweite (SICHT_UNTER, wie Gras 42, Laub
+## 46, Farn 44 m), gesichert als Lagen im Bauspeicher. Die Sichtweite des
+## Walds (120 m ohne Aufploppen) hätte das Band bis 120 m vor der Kamera
+## gezeichnet: bei s 140 rund das Dreifache an Dreiecken.
+## WARUM nur A–C (UNTER_STRECKEN bis s 182): Im Tobel D stehen die Bilder
+## schon bei 0,99 der Primitivgrenze (Bild-Jury R3, Budget: 743k von 750k
+## bei s 240); dort tragen Farn, Birken und die Wände das Bild. Mit 52 m
+## Sichtweite kostet der Bewuchs aus C in D nichts (Kamera dort ≥ 25 m
+## hinter dem Ende).
+## Strecken: s von, s bis, Dichte (Büsche je m Krone und Seite), Seite.
+const UNTER_STRECKEN: Array[Vector4] = [
+	Vector4(6.0, 122.0, 2.6, 1.0), Vector4(6.0, 122.0, 2.6, -1.0),
+	Vector4(122.0, 182.0, 1.8, 1.0), Vector4(122.0, 182.0, 1.8, -1.0),
+]
+const UNTER_RAND := 0.5
+const UNTER_BAND := 11.0
+const UNTER_GRUPPE := 7.0
+const SICHT_UNTER := 52.0
+## Laub des Unterwuchses: dunkler und grüner als die Hangkronen
+## (`L05Wald.LAUB` 0,34/0,42/0,15) – Schatten unter dem Wald.
+const UNTER_LAUB := Color(0.17, 0.34, 0.1)
 
 var level: Level05
 var bau: Bau
@@ -135,6 +173,7 @@ var _tabelle_von := 0.0
 ## (`haufen_daten`), "farn": Vector2i(Stück, Form + 3 · Gruppe) -> {lagen,
 ## farben}}.
 var _laub_farn := {}
+var _unter_rauschen: FastNoiseLite
 
 
 ## Die Schritte: liegen die Lagen im Bauspeicher (`schluessel`, im
@@ -325,7 +364,7 @@ func _laub_und_farn() -> void:
 	var laub := {}
 	for i: int in haufen:
 		laub[i] = haufen_daten(haufen_fertig(haufen[i] as Bodenstreu.Haufen))
-	_laub_farn = {"laub": laub, "farn": _kupferfarn(anteil)}
+	_laub_farn = {"laub": laub, "farn": _kupferfarn(anteil), "unter": _unterwuchs(anteil)}
 	_laub_farn_einhaengen(_laub_farn)
 
 
@@ -359,6 +398,101 @@ func _kupferfarn(anteil: float) -> Dictionary:
 	return felder
 
 
+## Unterwuchs hinter den Wandkronen (siehe UNTER_STRECKEN): je Meter Krone
+## und Seite `dichte` Würfe, quer UNTER_RAND … UNTER_RAND + UNTER_BAND hinter
+## der Krone, nah an ihr dichter; ein Rauschen fasst sie zu Dickichten mit
+## Lücken. Felder wie beim Farn: Vector2i(Stück, Form + 3 · Gruppe), Gruppe 0
+## Krone q > 0, 1 Krone q < 0.
+func _unterwuchs(anteil: float) -> Dictionary:
+	var rng := PropWerkzeug.zufall(SAAT + 21)
+	_unter_rauschen = FastNoiseLite.new()
+	_unter_rauschen.seed = SAAT + 22
+	_unter_rauschen.frequency = 1.0 / UNTER_GRUPPE
+	_unter_rauschen.fractal_octaves = 2
+	var stamm_frei: Array[Vector2] = []
+	if level.wald != null:
+		for f in level.wald.fuesse + level.wald.tor_fuesse:
+			stamm_frei.append(Vector2(f.x, f.z))
+	var felder := {}
+	for st in UNTER_STRECKEN:
+		var gruppe := 0 if st.w > 0.0 else 1
+		for zug: Dictionary in Level05.ZUEGE:
+			if String(zug["art"]) != "auf" or float(zug["seite"]) != st.w:
+				continue
+			var s := maxf(st.x, float(zug["von"]))
+			var bis := minf(st.y, float(zug["bis"]))
+			while s < bis:
+				s += 1.0
+				var innen := _wandkrone(zug, s)
+				if is_nan(innen):
+					continue
+				var wuerfe := st.z * anteil
+				while wuerfe > 0.0:
+					if rng.randf() > wuerfe:
+						break
+					wuerfe -= 1.0
+					var ss := s + rng.randf_range(-0.5, 0.5)
+					var tief := pow(rng.randf(), 2.0) * UNTER_BAND
+					var q := st.w * (innen + UNTER_RAND + tief)
+					var p := LevelWerkzeuge.punkt_frei(level.verlauf, ss, q)
+					# Dickichte: Rauschen hebt die Dichte fleckweise, nah an der
+					# Krone mehr (sie säumt die Kante, ohne sie abzuschließen).
+					var n := _unter_rauschen.get_noise_2d(p.x, p.z)
+					var w := clampf(0.62 + 1.3 * n, 0.12, 1.0) * lerpf(1.0, 0.5, tief / UNTER_BAND)
+					var wahl := rng.randf()
+					var form := rng.randi_range(0, 2)
+					var mass := rng.randf_range(0.9, 1.5)
+					var dreh := rng.randf() * TAU
+					var ton := rng.randf_range(0.8, 1.12)
+					if wahl > w:
+						continue
+					if not _kiste_frei(ss, q):
+						continue
+					var frei := true
+					for f in stamm_frei:
+						if f.distance_squared_to(Vector2(p.x, p.z)) < 1.4 * 1.4:
+							frei = false
+							break
+					if not frei:
+						continue
+					var y := hoehe(p.x, p.z)
+					if is_nan(y):
+						continue
+					_unter_setzen(felder, ss, Vector3(p.x, y - 0.12, p.z), form, mass, dreh, ton,
+							gruppe)
+	return felder
+
+
+## Ein Stück Unterwuchs in sein Feld (wie `_farn_setzen`). Form 2 ist die
+## Brombeere: flach, dunkler und rötlicher.
+func _unter_setzen(felder: Dictionary, s: float, ort: Vector3, form: int, mass: float,
+		dreh: float, ton: float, gruppe: int) -> void:
+	var lage := Transform3D(Basis(Vector3.UP, dreh) * Basis.from_scale(Vector3.ONE * mass), ort)
+	var schluessel := Vector2i(floori(s / STUECK), form + 3 * gruppe)
+	if not felder.has(schluessel):
+		var leer: Array[Transform3D] = []
+		felder[schluessel] = {"lagen": leer, "farben": PackedColorArray()}
+	var e: Dictionary = felder[schluessel]
+	(e["lagen"] as Array[Transform3D]).append(lage)
+	var farben: PackedColorArray = e["farben"]
+	if form == 2:
+		farben.append(Color(ton * 0.98, ton * 0.8, ton * 0.74))
+	else:
+		farben.append(Color(ton, ton * 1.02, ton * 0.9))
+	e["farben"] = farben
+
+
+## Die drei Formen des Unterwuchses (Bauspeicher über `Kronenwolke.netz`):
+## breiter Busch, schmaler hoher Busch, flache Brombeere.
+static func unter_netze() -> Array[ArrayMesh]:
+	return [Kronenwolke.netz({"radius": 1.0, "hoehe": 1.15, "variante": 1, "ballen": 3,
+				"karten": 10, "saat": SAAT + 23}),
+			Kronenwolke.netz({"radius": 0.75, "hoehe": 1.5, "variante": 0, "ballen": 2,
+				"karten": 8, "saat": SAAT + 24}),
+			Kronenwolke.netz({"radius": 1.25, "hoehe": 0.75, "variante": 1, "ballen": 3,
+				"karten": 12, "saat": SAAT + 25})]
+
+
 ## Ein Farn an `ort` (Form, Größe, Drehung und Ton nach `rng`) in sein Feld:
 ## Vector2i(Stück, Form + 3 · Gruppe), Gruppe 0 Krone rechts (q > 0), 1 Krone
 ## links, 2 Südwand. WARUM je Gruppe ein eigenes Feld: Ohne Grafik liest
@@ -379,6 +513,8 @@ func _farn_setzen(felder: Dictionary, rng: RandomNumberGenerator, s: float, ort:
 	(e["lagen"] as Array[Transform3D]).append(lage)
 	var farben: PackedColorArray = e["farben"]
 	var v := rng.randf_range(0.8, 1.15)
+	if gruppe == 2:
+		v *= SUEDWAND_FARN_HELL
 	farben.append(Color(v * rng.randf_range(0.95, 1.08), v, v * rng.randf_range(0.85, 1.0)))
 	e["farben"] = farben
 
@@ -403,7 +539,8 @@ func _suedwand_farn(felder: Dictionary, rng: RandomNumberGenerator, anteil: floa
 			var w := mitte - rechts * d
 			var y := level.gelaende.hoehe(w.x, w.z)
 			if not is_nan(y) and y - mitte.y >= hoch:
-				_farn_setzen(felder, rng, s, Vector3(w.x, y - 0.1, w.z) - rechts * 0.1, 0.8, 2)
+				_farn_setzen(felder, rng, s, Vector3(w.x, y - 0.1, w.z) - rechts * 0.1,
+						SUEDWAND_FARN_GROSS, 2)
 				break
 			d += 0.25
 
@@ -428,6 +565,22 @@ func _laub_farn_einhaengen(d: Dictionary) -> void:
 		Bodenstreu.feld(wurzel, "Kupferfarn %d %d" % [schluessel.x, schluessel.y],
 				netze[schluessel.y % 3], lagen, e["farben"] as PackedColorArray, SICHT_FARN,
 				_farn_stoff)
+	# Unterwuchs (siehe UNTER_STRECKEN): eigene Wurzel, im Kronenstoff
+	# (Instanzfarben tönen ihn), ohne Schatten wie alle Kronen.
+	if d.has("unter"):
+		var unter := Node3D.new()
+		unter.name = "Unterwuchs"
+		level.deko.add_child(unter)
+		var formen := unter_netze()
+		var stoff := Kronenwolke.stoff(UNTER_LAUB)
+		var uf: Dictionary = d["unter"]
+		for schluessel: Vector2i in uf:
+			var e: Dictionary = uf[schluessel]
+			var lagen: Array[Transform3D] = []
+			lagen.assign(e["lagen"])
+			Bodenstreu.feld(unter, "Unterwuchs %d %d" % [schluessel.x, schluessel.y],
+					formen[schluessel.y % 3], lagen, e["farben"] as PackedColorArray, SICHT_UNTER,
+					stoff)
 
 
 ## Rasenbau fertig, dann ablegen: die Lagen aus Rasenbau (`Bau.zustand`)

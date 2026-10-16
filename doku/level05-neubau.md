@@ -1252,6 +1252,176 @@ Scratch), 60 Hz, frischer Benutzerordner je Lauf.
   gleich. Ungeprüft: Bewegung (Nahblende, Wechsel der Torbuchen und der
   Rinnsale), echte GPU, Web-Export.
 
+### R3 Mängel der Spiel- und der Bild-Jury
+
+Wie in R1 und R2 steht jeder Punkt im Kopf des geänderten Moduls; hier die
+Übersicht mit den Messungen. Der Spiel-Teil kam mit `9f95ee7`, der
+Bild-Teil mit dem Commit dieser Zeilen. Gemessen mit Jagd-, Sprung- und
+Wahrzeichenprobe, LevelCheck (60 Hz bzw. headless, frischer
+Benutzerordner je Lauf) und Fotos `--fixed-fps 30` mit festem Zufall an
+den Stellen der Bild-Jury (dieselben Reihen: 15 Stellen Rechner, 11
+Zusatzstellen, 6 Handy).
+
+**Spiel (`9f95ee7`)**
+- **Dauer-Slide (mittel):** Liegt der Keiler mehr als 2 m hinter seiner
+  Staffel, holt er mit dem Tempo der Figur plus 2 m/s auf (10,5–16 m/s,
+  `L05Jagd`, DECKEL_*); ein einzelner Slide bringt weiter gut 1,3 m. Neuer
+  Fall „Dauer-Slide“ der Jagdprobe mit Höchstabstand je Strecke
+  (`JAGD_DAUER_SLIDE_MAX`), gemessen: 56–110 im Mittel 10,50 m, höchstens
+  11,50 (Grenze 12,0); 130–170 9,00/10,00 (10,5); 190–236 15,16/16,00
+  (16,5); 268–282 8,19/10,51 (11,0); Mindestabstand 6,13 m am Wehr, Zeit
+  ab dem Wecken 25,75 s (die Jury maß ohne Deckel B 15,1 / C 14,5 / D
+  16,0 / E 11,4 m im Mittel).
+- **Richtzeit (mittel):** 32 s statt 37 s, aus dem Dauer-Slide-Lauf ohne
+  Kiste (29,6 s) mit gut 2,4 s Luft – Saphir 32,0 s (Spurt ohne Kiste),
+  Gold 27,2 s (eine, zwei Zeitkisten), Platin 23,04 s (drei, vier); die
+  Zeiten je Lauf im Kopf von `level05.gd` (ZIELZEIT). Dem Nutzer
+  vorzulegen.
+- **Staffel im Tobel (leicht):** hinter der Kette 10 statt 14 m (240–262);
+  Ideallauf D im Mittel 11,56 statt 12,74 m, G3 erreichbar, 49/49 Kisten.
+- **Sonnensims (leicht):** 1,9 m breit, die Kisten außen (q 5,6), innen ein
+  Gang von gut 0,95 m.
+- **Wehrbruch (leicht):** Fruchtbogen schräg neben der Bahn des
+  Doppelsprungs (q 1,4 → 2,4, Scheitel 4,1 m, `WEHR_BOGEN`), nach dem
+  ersten Sturz dort ein Hinweis (`WEHR_HINWEIS`).
+- **Trittstein G3 (leicht):** nicht geändert. Eine Fruchtlinie links am
+  Stein vorbei hätte genau bei s 240–262 Primitive gekostet (je Frucht gut
+  7k im Bild), wo das Budget am knappsten ist; die Jury fand die
+  Randspuren ohne Hänger und den Anprall selten.
+
+**Bild (Abschluss R3)**
+- **Gesamtbild (schwer):** Die Kronen der Böschungen tragen Bewuchs:
+  Dickicht aus Hasel, Holunder und Weißdorn (`L05Wald`, DICKICHT_*, 2,4–
+  5,5 m, in Gruppen, jedes mit K1 und den Sichtlinien zur Eiche; in D
+  lichter), Unterwuchs und Brombeeren (`L05Rasen`, UNTER_*, B und C).
+  Randbäume (RAND_*) lässt K3 nur an einer Stelle zu; die Waldkante auf
+  q 10–20 bleibt eine Frage an den Nutzer. Die Torbuchen sind Bäume mit
+  Ästen (siehe unten), der Himmel hat Wolkenbänke (`himmel.gdshader`,
+  `wolken_bank` 0,22, Menge 0,52), die Lösswände eine eigene Textur,
+  Rillen, Bänder und Wurzelvorhänge (`L05Saum`, LÖSSTEXTUR, LÖSSWAND,
+  WURZELVORHÄNGE). Gemessen (Anteil strukturloser 16×16-Blöcke in der
+  oberen Bildhälfte, Skript der Jury):
+
+  | s | Jury R3 | jetzt |
+  |---|---|---|
+  | 8 | 0,39 | 0,34 |
+  | 30 | 0,43 | 0,27 |
+  | 52 | 0,37 | 0,27 |
+  | 60 | 0,36 | 0,28 |
+  | 72 | 0,34 | 0,26 |
+  | 186 | 0,37 | 0,31 |
+  | 208 | 0,42 | 0,33 |
+  | 240 | 0,42 | 0,28 |
+
+  Level 01 liegt dort bei 0,23–0,31.
+- **Lücken (mittel):** An jeder Lippe zwei Querschnitte mehr im Saum (die
+  LIPPENSTUFE: erst 0,45 m unter der Decke, dann der Grund), an Böschung
+  und Ufer: Die hellen Platten an den Enden des Spalts sind weg (s 130:
+  Luma 70,5 → 6,2). Der Dunst steht vor der fernen Stirn, dort, wo die
+  Kamera hineinsieht (`L05Stimmung`, DUNST_*): im Spalt bei s 130 Luma
+  14,1 statt 6,6, unter 12 noch 64 % statt 96 %. An jeder Lippe von L1–L5
+  fünf bis acht Wurzeln aus der Stirn über den Spalt
+  (`L05Wegbauten`, LIPPENWURZELN); Lippensteine 1,6-mal so hoch
+  (`Wegdecke`, Option „lippen_stein_hoch“, Null-Pfad).
+- **Wurzeltreppen und Hürden (mittel):** Jede Setzstufe trägt drei bis fünf
+  einzelne Wurzeln, verschieden dick, gebogen, an den Enden in die Erde
+  tauchend, die äußeren in die Wände; dazwischen Erde und Narbe (keine
+  Stränge als Fries, keine Karten). Die Setzstufe ist dunkler und unten
+  bemoost. Die Hürden: gewunden, Knoten, matter Rücken, Wurzelteller,
+  dazu zwei Seitenwurzeln abseits der Mitte.
+- **Nahblende (mittel):** Die Wurzelansätze gehen mit dem Bogen aus
+  („Oben“); unter dem Riegel hängen Schlaufen und einzelne Stränge statt
+  eines Kamms. Der Riegel selbst bleibt im Bild – er ist das Zeichen
+  „hier sliden“ (Spiel-Jury R1, Mangel 1; ausgeblendet käme der Durchlass
+  erst 11 m vor der Stirn ins Bild).
+- **Hauereiche (mittel):** Spaltflächen in Borke (`Riesenstamm`, Option
+  „spalt_borke“, Null-Pfad), Lappen 5 m, die Unterseite dunkel und je
+  Hälfte eine breite Füllkrone zwischen Lappen und Schirm (FUELL_*): eine
+  Haube statt Stockwerken. Wahrzeichenprobe 91,8 %, Kerbe 17,9 px (R2
+  18,9 px).
+- **Torbuchen (mittel):** Buchen mit fünf flachen Ästen und Ballen an den
+  Spitzen (`Riesenstamm.baum` Variante 1), Kronenradius 1,35 × Fassung;
+  die Fassungen neu gesucht, die breiteste Krone zuerst (TOR_WAHL), alle
+  vier ohne getroffene Sichtlinie.
+- **Tobel (mittel):** Südwand in Fels und Moos gegliedert (`L05Gelaende`),
+  Farn heller und größer, sechs Sickerstreifen die Wand hinab bis in den
+  Bach (`L05Wasser`, SICKER_*); der Bach wechselt Breite und Lauf im Bett
+  (BACH_ENGE, BACH_PENDEL), Steine im Wasser; Sandstein links röter, in
+  engeren Bänken.
+- **Findlinge (mittel):** drei Blöcke je Stein, fest gestaffelt (der an der
+  Gasse auf Körperhöhe, der mittlere tief, der äußere hoch), die äußeren
+  gekippt, runder, granitgrau; der Körper bleibt.
+- **Ziel (mittel):** Portal auf q −2,3 (`9f95ee7`); im Bild bei s 290 neben
+  der Figur.
+- **Leicht:** Fernkulisse – die Kuppen des Horizontrings 24 statt 30 m
+  hoch (die „Gespenster“ auf den Kämmen waren sie), einzelne Kronen des
+  Fernbands ohne Nachbarn bleiben weg, das Fernband einheitlicher.
+  Startbild – über der Gasse fehlen die Stangen des Wildgatters (die
+  Figur steht nicht mehr dahinter), mehr Lachen in der Suhle, die
+  Lichtschächte vor dunklem Grund im Bild. Schlussbild – Zaunreste,
+  Steine und Büsche im Auslauf, Schilf am Teich. Lösswände – siehe
+  Gesamtbild. Treppenenden – keine Karten mehr an den Setzstufen.
+  Kleinteile – Uferfelsen verschieden groß und gestreut, granitgrau;
+  Wehrpfähle mit dunklen, abgefaulten Köpfen; Birkenrinde gedämpft; die
+  Fluderjoche ohne Latten über der Gasse, mit Kopfbändern. Licht und
+  Farbe – Warmanteil bei s 30–140 0,47–0,56 (Jury 0,52–0,60), Helligkeit
+  57–66 (Jury 60–67; Skript der Jury).
+- **Nicht geändert:** das Weißwasser im Wehrbruch (sein Rauschen sitzt im
+  geteilten Shader von `Wasserfall`), das Mühlrad auf dem Handy (die
+  Tastenraute deckt die rechte untere Ecke jedes Handybilds; das Rad steht
+  im Unterwasser fest), die Kisten auf q 0 im Startbild (Lehrteil, Spiel),
+  die Nahtrisse in den Lösswänden (Ursache nicht gefunden).
+- **Budget** (Fotos in den Reihen der Bild-Jury, Primitive in Tausend):
+  Der neue Bewuchs kostet; ausgeglichen im fernen Wald (Raster 15 und 21
+  statt 13 und 19 m), mit weniger Felsen im Tobel (45 statt 70 Versuche)
+  und lichterem Dickicht in D. Eine Zerlegung bei s 186 (Knoten einzeln
+  ausgeblendet) fand den nahen Wald bei 238k, die Figur samt Schatten bei
+  126k, den Schattenpass bei 86k, den fernen Wald bei rund 88k.
+
+  | s | Jury R3 | Zwischenstand¹ | jetzt |
+  |---|---|---|---|
+  | 130 | 654k | 711k | 687k |
+  | 140 | 673k | 719k | 701k |
+  | 186 | 725k | 757k | 737k |
+  | 196 (Zusatz) | 717k | 750k | 729k |
+  | 240 | 743k | 758k | 725k |
+  | 262 | 719k | 731k | 723k |
+  | 280 | 715k | 731k | 717k |
+
+  ¹ Mit allem neuen Bewuchs, Felsen und Dickicht im Tobel schon gekürzt,
+  der ferne Wald noch auf 13 und 19 m.
+
+  Höchstens 737k (s 186, Reserve 13k; Grenze 750k), Draw-Calls Rechner
+  höchstens 315 (s 280, Grenze 500), Zusatzreihe höchstens 729k und 309,
+  Handy (s 8, 60, 140, 218, 280, 296) Draw-Calls 250–302 (Grenze 450),
+  Primitive höchstens 637k. Grafikspeicher 108,0 MB (Jury 103,3), Handy
+  83,4 MB (79,3).
+- **Bauzeit** (Bauzeitprobe, Level 05 allein, zwei Runden, frischer
+  Benutzerordner, je zwei Läufe abwechselnd gegen HEAD, ohne andere Last):
+  kalt gesamt 13,57/14,07 s (HEAD 13,38/13,15 s), Runde 2 0,36/0,43 s (HEAD
+  0,45/0,36 s), größter Schritt 458/433 ms (HEAD 531/512 ms). Diese
+  Maschine ist langsamer als die der Messungen in P8 (dort HEAD-Stand kalt
+  8,05 s): Im Mittel kostet R3 hier gut 4 % mehr (+0,55 s), auf die
+  P8-Messung umgerechnet gut 8,4 s – gerechnet, nicht gemessen; K1 erlaubt
+  8,5 s. Der Spielweg aus dem Portalraum (Spieltest, „Aufbau“ vom Betreten
+  des Portals bis zum stehenden Level, frischer Benutzerordner, Xvfb ohne
+  Grafikkarte, drei Läufe abwechselnd): 14,0/14,0 s (HEAD 13,6/13,7 s),
+  gut 2,5 % mehr. Die Grenze von K1 (8 s) lässt sich auf dieser Maschine
+  nicht prüfen – HEAD liegt hier ebenso darüber.
+- **Abnahme:** LevelCheck 0 Fehler, 0 Warnungen (K3 148 Stellen, 0
+  verdeckt, knappster Abstand 1,62 m; K4 553 Stammfüße, 0 bei |q| < 8),
+  Sprungprobe 21 Fälle 0 Fehler, Jagdprobe 24 Fälle 0 Fehler (Ideallauf
+  Mindestabstand 6,94 m, Dauer-Slide 6,13 m), Wahrzeichenprobe 91,8 %,
+  Kerbe frei 93,8 %, 17,9 px; Werkstatt LevelCheck 0/0, Sprungprobe 22
+  Fälle 0 Fehler. Spieltest (Bot, Spielweg aus dem Portalraum): geschafft
+  in 40,3/40,4 s (Uhr 36,5 s), 0 Tode, keine Auffälligkeiten – wie HEAD.
+  Wächter: `parse.sh` SAUBER (208 Skripte), `pruefe.sh` SAUBER, `wache` 6
+  von 6 Bildern pixelgleich, Kosten im Rahmen; Protokolle von Level 01
+  nach der Normalisierung gleich. Angesehen sind die Fotos an den Stellen
+  der Bild-Jury; die Bilder des Spieltests bleiben unter Xvfb grau (auch
+  bei HEAD). Ungeprüft: Bewegung (Nahblende, Sickerstreifen, Schilf,
+  Wechsel der Torbuchen), echte GPU, Web-Export.
+
 ---
 
 ## 14. Abweichungen vom Entwurf
@@ -1271,36 +1441,40 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
 | Wecken | über die Zone des Rastplatzes | nach der Strecke der Figur | die Zone ist 2 m tief, ihr Eintritt läge 1,4 m früher (Abstand nicht mehr 15 m); nach der Strecke weckt ihn auch, wer die Zone mit einem Doppelsprung überspringt |
 | Eiche | Achse s −6, Kerbe 7 m, Kronen Y ≈ 55 | s −9,5, Kerbe 9 m (seit R2 9,8 m), Kronen Y 54,9/55,1 an Ästen; seit R1 Laub golden; seit R2 Hälften r 2,05 mit je vier Hauptästen und Laublappen, die Kronen nach den Astspitzen bei r 1,5 | Fuß und Brettwurzeln reichten über die Querwand; 7 m sind im Schlussbild nur 13,4 px; Kronen um eine feste Mitte lasen sich als Schirmpinien; mit r 1,1 bzw. 1,5 standen die Hälften als Stangen bzw. Bretter im Bild, die Kronen als Pilzhüte (Bild-Jury R1/R2) |
 | Mühlrad | q −7 | q −8,5, in Fließrichtung gedreht | Schaufeln ohne Wasser darüber (33 Punkte, jetzt 0) |
-| Baumtore | Kronen über dem Weg | Kronen seitlich; seit R2 volle Buchen mit vier steilen Ästen, je Tor die größte Fassung ohne Sichtlinie zur Eiche (am Tor s 120, q > 0, gibt es keine: dort 7,5 m, 6 Stellen), das Ergebnis der Suche fest in `TOR_WAHL`, ab 93 m die Buche „schlicht“ | Wahrzeichenprobe 81,5 % statt 91,8 %; mit fünf flachen Ästen 71,9 % (R2); die Suche kostete kalt 7,6 s, die vollen Buchen ohne Sichtgrenze 12k Primitive in jedem Bild (R2) |
+| Baumtore | Kronen über dem Weg | Kronen seitlich; seit R2 volle Buchen, je Tor die größte Fassung ohne Sichtlinie zur Eiche, das Ergebnis der Suche fest in `TOR_WAHL`, ab 93 m die Buche „schlicht“; seit R3 mit fünf flachen Ästen (Schirm), die breiteste Krone zuerst gesucht: 6,5–7,5 m hoch (eine 13,5 m), alle vier ohne Sichtlinie | Wahrzeichenprobe 81,5 % statt 91,8 %; mit fünf flachen Ästen 71,9 % (R2); die Suche kostete kalt 7,6 s, die vollen Buchen ohne Sichtgrenze 12k Primitive in jedem Bild (R2) |
 | Waldkante | Wald über dem Hohlweg | nicht näher als K3 erlaubt | Bild-Jury R2 wünscht sie auf q 10–20; K3 räumt in A und B bis |q| 36–44 (dem Nutzer vorzulegen) |
 | Nahblende der Durchlässe | – | „Oben“ (Bogen, Strähnen, Latten, Gerinne) erst ab 10 m Abstand, ganz | das Raster aus R1 stand im Standbild als Punktmuster (Bild-Jury R2) |
 | Schatten | zwei Stufen | orthogonal | mit zwei Stufen 755k–785k Primitive (Grenze 750k) |
 | Licht | Startwerte §8.3 | Sonne 17° hoch, 1,5, Himmelslicht 0,45, Kantenlicht 0,3, Umgebung × 0,62, Belichtung 0,9, Nebel 12 → 210 m (bis R1: Sonne 26°, 1,25, Kantenlicht 0,18, Belichtung 1,15, Nebel 16 → 240 m) | mit den Startwerten Helligkeit 51–74 und kühl nur 3,6–9,8 %; mit den Werten bis R1 parkartig hell gegen Level 01 (Bild-Jury R1) |
-| Richtzeit | vorläufig 46 s | 37 s (R1: 15 s, davor 48 s) | Saphir für den sauberen Lauf ohne Kisten (35,28 s), Gold und Platin über die Zeitkisten der Hauptlinie; mit 15 s holte ohne Kistenjagd niemand eine Stufe, mit 48 s jeder Kistensammler Platin (Spiel-Jury R1/R2 – dem Nutzer vorzulegen) |
-| Keiler | Tempo 7,4, Höchstabstand 15 | Tempo 7,4, Staffel nach der Strecke (15/9,5/8/14/7,5), aufholen mit höchstens 10,5 m/s | mit 15 m bzw. der Klemme je Abschnitt hing er im sauberen Lauf immer am Höchstabstand, ein Slide gab keinen Vorsprung (Spiel-Jury R1/R2 – dem Nutzer vorzulegen) |
+| Richtzeit | vorläufig 46 s | 32 s (R2: 37 s, R1: 15 s, davor 48 s) | Saphir für den Spurt ohne Kiste (29,6 s), Gold und Platin über die Zeitkisten der Hauptlinie; mit 37 s gab es Gold ohne Zeitkiste (Spiel-Jury R3), mit 15 s holte ohne Kistenjagd niemand eine Stufe, mit 48 s jeder Kistensammler Platin (R1/R2 – dem Nutzer vorzulegen) |
+| Keiler | Tempo 7,4, Höchstabstand 15 | Tempo 7,4, Staffel nach der Strecke (15/9,5/8/14/10/7,5), aufholen mit höchstens 10,5 m/s, jenseits von 2 m hinter der Staffel mit dem Tempo der Figur + 2 m/s (R3) | mit 15 m bzw. der Klemme je Abschnitt hing er im sauberen Lauf immer am Höchstabstand, ein Slide gab keinen Vorsprung (Spiel-Jury R1/R2 – dem Nutzer vorzulegen) |
 | Kette D3–D4–L5 | D4 222,0, L5 228,5 | D4 223,2, L5 229,7 | aus D3 kam man im zweiten Slide an D4 an, und hinter D4 fehlte Anlauf (Spiel-Jury R1) |
-| Lücken-Stirn | dunkle Flanke (Albedo ≤ 0,1) | helle Lippe bis 0,1 m, ab 0,4 m dunkel (R1: hell bis 2,4 m) | ganz dunkel standen die Lücken als schwarze Kästen im Bild (Bild-Jury R1), hell bis 2,4 m als Stufen (Bild-Jury R2) |
+| Lücken-Stirn | dunkle Flanke (Albedo ≤ 0,1) | helle Lippe bis 0,1 m, darunter stetig dunkler; seit R3 an den Enden eine dunkle Lippenstufe, Dunst vor der fernen Stirn, Wurzeln über den Spalt (R1: hell bis 2,4 m) | ganz dunkel standen die Lücken als schwarze Kästen im Bild (Bild-Jury R1), hell bis 2,4 m als Stufen (Bild-Jury R2) |
 | Kisten | Gasse 260,0–262,4, LEBEN 291,5 | Gasse 263,6–266,0, LEBEN auf G3 | Gasse und Sims lagen nebeneinander zwischen denselben Rastplätzen, 49/49 ging nicht; hinter dem Wehr war die LEBEN-Kiste ohne Wert (Spiel-Jury R2) |
 | Werkstatt (P9) | Stationen ab 33 | 34–38, Station 33 frei | Baukasten §4 Nr. 12: Station 33 gehört dem Kameraplan |
 
 ---
 
-## 15. Offen und ungeprüft (Stand R2)
+## 15. Offen und ungeprüft (Stand R3)
 
 **Dem Nutzer vorzulegen**
-- **Richtzeit (R2):** 37 s – Saphir für den sauberen Lauf ohne Kisten
-  (35,28 s), Gold 31,45 s, Platin 26,64 s über die Zeitkisten der
-  Hauptlinie (Vorschlag der Spiel-Jury R2, `level05.gd`, ZIELZEIT).
-- **Keiler im Nacken (R2):** Staffel nach der Strecke (15/9,5/8/14/7,5 m)
-  und Aufholen mit höchstens 10,5 m/s (`L05Jagd`, HOECHST_STAFFEL,
-  AUFHOL_TEMPO) statt Höchstabstand je Abschnitt; ob es sich so anfühlt,
-  zeigt nur ein Lauf von Hand.
+- **Richtzeit (R3):** 32 s – Saphir für den Spurt ohne Kiste (29,6 s im
+  Dauer-Slide-Lauf), Gold 27,2 s, Platin 23,04 s über die Zeitkisten der
+  Hauptlinie (`level05.gd`, ZIELZEIT; R2: 37 s aus dem Lauf ohne Spurt).
+- **Keiler im Nacken (R2, R3):** Staffel nach der Strecke
+  (15/9,5/8/14/10/7,5 m, seit R3 hinter der Kette 10 statt 14 m) und
+  Aufholen mit höchstens 10,5 m/s, jenseits von 2 m hinter der Staffel mit
+  dem Tempo der Figur plus 2 m/s (Deckel gegen den Dauer-Slide, R3;
+  `L05Jagd`, HOECHST_STAFFEL, AUFHOL_TEMPO, DECKEL_*); ob es sich so
+  anfühlt, zeigt nur ein Lauf von Hand.
 - **Nebel der Eiche:** „für die Kuppe 0,7“. Heute tragen Fuß und Kuppe
   0,7, die Kronen seit R2 0,12, die Hälften 0,25.
-- **Bildfragen:** Die Waldkante auf q 10–20 (Bild-Jury R2) verbietet der
-  Sichtkegel K3 zur Eiche – entweder K3 lockern oder den Hohlweg in A
-  und B offen lassen. Das Tor bei s 120 (q > 0) steht klein (7,5 m), weil
-  jede größere Buche dort Sichtlinien zur Eiche schneidet.
+- **Bildfragen:** Die Waldkante auf q 10–20 (Bild-Jury R2, R3) verbietet
+  der Sichtkegel K3 zur Eiche – entweder K3 lockern oder den Hohlweg in A
+  und B offen lassen; R3 füllt die Kronen dort mit Dickicht und
+  Unterwuchs (bis gut 5 m), Randbäume lässt K3 nur an einer Stelle zu.
+  Die Torbuchen bleiben klein (6,5–7,5 m, eine 13,5 m), weil jede größere
+  Buche Sichtlinien zur Eiche schneidet.
 - **Spielfigur:** die Datei `cash_banooka_rc.glb` (Risiko 2). Das klärt der
   Nutzer gesondert.
 
@@ -1315,13 +1489,19 @@ sie gesammelt, mit der Messung, die sie erzwungen hat.
 - Der Wechsel der Torbuchen in ihre Fernfassung bei 93 m: Er fällt in
   den Rückblick (die Kamera schaut zurück auf das Tor). Im Standbild bei
   s 240 ist er kaum zu sehen, in Bewegung ungeprüft.
-- Das Leistungsbudget hat bei s 240 nur noch 5–7k Reserve (743k in der
-  Reihe der Bild-Jury, 745k in der Reihe mit s 226/247/284). Die Werte
-  hängen von der Reihenfolge der Stellen ab (gemessen: s 240 allein
-  692k, in einer Reihe ab s 186 775k beim ersten Stand); die Ursache ist
-  nicht gefunden. Gemessen wird deshalb immer in derselben Reihe.
-- Die Ladezeit auf dem Spielweg aus dem Portalraum mit echtem Vorladen (die
-  Probe lud die Szene synchron).
+- Das Leistungsbudget: Reserve siehe R3, „Budget“. Die Werte hängen von
+  der Reihenfolge der Stellen ab (R2 gemessen: s 240 allein 692k, in einer
+  Reihe ab s 186 775k beim ersten Stand; R3: s 186 allein 726k, in der
+  Reihe 751k); die Ursache ist nicht gefunden. Gemessen wird deshalb immer
+  in derselben Reihe.
+- Die Nahtrisse in den Lösswänden (Bild-Jury R3: gestrichelte, 1 px
+  breite schwarze Linien): Das Gitter des Saums teilt seine Ecken; woher
+  die Punkte kommen, ist nicht gefunden.
+- Die Sickerstreifen der Südwand und das Schilf am Teich in Bewegung
+  (geprüft nur in Standbildern).
+- Die Ladezeit auf dem Spielweg aus dem Portalraum gegen die Grenze von K1
+  (8 s) auf einer Maschine wie bei der Entscheidung (dort 4,85–5,06 s).
+  Hier ist sie nur gegen HEAD gemessen (siehe R3, „Bauzeit“).
 - Der Wechsel der Eiche von nah zu fern ist nicht unsichtbar: Der
   gesprenkelte Saum der Blattkarten verschwindet beim Wechsel.
 - Woher die ObjectDB-Lecks am Ende der Proben kommen (Sprungprobe 7,

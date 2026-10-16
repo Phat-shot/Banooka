@@ -1,7 +1,8 @@
 # Raum 1 – Stand und Wiedereinstieg
 
-Stand: 7. Oktober 2026, Branch `claude/game-polish-sr1697`, HEAD = Commit
-dieser Datei. Pausiert auf Wunsch des Nutzers.
+Stand: 16. Oktober 2026, Branch `claude/game-polish-sr1697`, HEAD = Commit
+dieser Datei (lokal, nicht gepusht). Auftrag des Nutzers: „Fixe alles um
+Raum 1, aber L2-4 noch nicht.“
 
 ## Erledigt (gepusht)
 
@@ -18,23 +19,24 @@ dieser Datei. Pausiert auf Wunsch des Nutzers.
   - Nachbesserungen aus Jury-Runde 1 und 2 (62b55fb, 1838ed7, 5ad3504).
   - Jedes Paket hat `pruefe.sh` SAUBER bestanden, Level 01 bleibt pixelgleich.
 
-## Offen bei Level 05
+## Level 05: Jury-Runde 3 abgearbeitet
 
-Jury-Runde 3 (Spiel 0 schwer / 2 mittel, Bild 1 schwer / 8 mittel), Liste
-mit Belegen in `offen/l05_jury_runde3.md`. Der schwere Punkt: Das Bild
-wiederholt überall denselben symmetrischen Graben mit flachem Rasen
-darüber und hält neben Level 01 noch nicht stand.
+- Spiel-Teil `9f95ee7`, Bild-Teil im Commit dieser Datei; die Übersicht mit
+  den Messungen steht in `doku/level05-neubau.md`, Abschnitt 13, „R3“, die
+  Mängel mit Belegen weiter in `offen/l05_jury_runde3.md`.
+- Der begonnene Patch der dritten Nachbesserung ist darin aufgegangen (die
+  Datei ist gelöscht).
+- Bewusst nicht geändert (mit Grund in R3): Weißwasser (geteilter Shader),
+  Mühlrad auf dem Handy, Kisten auf q 0 im Startbild, Trittstein G3.
+  Ungeklärt: Nahtrisse in den Lösswänden.
+- Dem Nutzer vorzulegen: Richtzeit 32 s (Saphir/Gold/Platin), Dauer-Slide
+  gedeckelt, Waldkante auf q 10–20 (K3 lässt in A und B keine hohen Bäume
+  an die Kronen), Spielfigur.
 
-Begonnene, **ungeprüfte** Arbeit liegt als Patch bereit:
-
-- `offen/l05_runde3_unfertig.patch`
-  - Dritte Nachbesserung, abgebrochen.
-  - Betrifft Dauer-Slide-Deckel, Richtzeit, Findlinge, Lücken, Eiche, Torbuchen, Tobel und Gesamtbild.
-  - Anwenden mit `git apply`, dann Proben, Wächter W und eine neue Jury-Runde.
-- `offen/l05_doku_zwischenstand.patch`
-  - Abgebrochener Schluss-Doku-Lauf.
-  - Verlegt `doku/level05-neubau.md` nach `doku/raum1/` und aktualisiert CLAUDE.md, README und ARCHITEKTUR.
-  - Erst nach der letzten Jury neu schreiben.
+Nächster Schritt: Jury-Runde 4 (Spiel und Bild gegen Level 01), dann die
+Schluss-Doku – `offen/l05_doku_zwischenstand.patch` erst danach neu
+schreiben (verlegt `doku/level05-neubau.md` nach `doku/raum1/` und
+aktualisiert CLAUDE.md, README und ARCHITEKTUR).
 
 ## Noch nicht begonnen
 

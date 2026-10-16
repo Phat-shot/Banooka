@@ -208,6 +208,9 @@ static func kronenlicht_bei(abschnitte: Array, s: float) -> float:
 ##                  in Level 01. Level 05 verlangt vier bis sechs (Entwurf
 ##                  §8.4): weniger lesen sich aus 14 m nicht als Lippe
 ##   name           hängt an den Namen des Sammelknotens an
+##   lippen_stein_hoch  Faktor auf die Höhe der Kalksteine (Vorgabe: ohne,
+##                  8–14 cm wie in Level 01). Level 05 (Bild-Jury R3: „flache
+##                  graue Scheiben") nimmt ihn für höhere, runde Brocken
 static func lippen(eltern: Node3D, weg: Wegdaten, thema: Dictionary) -> Node3D:
 	var wurzel := Node3D.new()
 	wurzel.name = "Lueckenlippen" + (" " + String(thema["name"]) if thema.has("name") else "")
@@ -252,7 +255,7 @@ static func _luecke(weg: Wegdaten, luecke: Dictionary, thema: Dictionary) -> Mes
 		if eintrag.is_empty():
 			continue
 		_lippe(st, weg, eintrag, float(lippe[1]), float(lippe[2]), mitte, holz, pilze, rng,
-				steine)
+				steine, float(thema.get("lippen_stein_hoch", 0.0)))
 	var netz := st.commit()
 	if netz.get_surface_count() == 0:
 		return null
@@ -274,7 +277,8 @@ static func _luecke(weg: Wegdaten, luecke: Dictionary, thema: Dictionary) -> Mes
 ## Level 01.
 static func _lippe(st: SurfaceTool, weg: Wegdaten, eintrag: Dictionary, s_lippe: float,
 		innen: float, mitte: Vector3, holz: bool, pilze: bool,
-		rng: RandomNumberGenerator, steine: Vector2i = Vector2i.ZERO) -> void:
+		rng: RandomNumberGenerator, steine: Vector2i = Vector2i.ZERO,
+		thema_hoch: float = 0.0) -> void:
 	var von: float = eintrag["von"]
 	var bis: float = eintrag["bis"]
 	var t := inverse_lerp(von, bis, s_lippe) if bis > von else 0.0
@@ -282,6 +286,8 @@ static func _lippe(st: SurfaceTool, weg: Wegdaten, eintrag: Dictionary, s_lippe:
 	var halb := lerpf(breite, float(eintrag.get("breite_ende", breite)), clampf(t, 0.0, 1.0)) * 0.5
 	var y := LevelWerkzeuge.eintrag_hoehe(weg.verlauf, eintrag, s_lippe)
 	var rahmen := {"weg": weg, "s": s_lippe, "innen": innen, "y": y, "mitte": mitte}
+	if thema_hoch > 0.0:
+		rahmen["hoch"] = thema_hoch
 	# Die Steine liegen in der Spur und ein Stück darüber hinaus, in zwei,
 	# drei GRUPPEN – gleichmäßig verteilt lasen sie sich als Bordstein
 	# (boden.gd:208-213).
@@ -427,6 +433,8 @@ static func _stein(st: SurfaceTool, rahmen: Dictionary, q: float, breite_q: floa
 		umriss.append(Vector2(maxf(mitte2.x + ra * ca * j, VOR), q + rb * sb * j))
 	# Gewölbt nach Größe: kleine Steine 8, große bis 14 cm.
 	var hoehe := clampf(0.06 + 0.12 * minf(ra, rb), 0.08, 0.14) * rng.randf_range(0.9, 1.05)
+	if rahmen.has("hoch"):
+		hoehe *= float(rahmen["hoch"])
 	_kuppe(st, rahmen, umriss, mitte2, hoehe, grund, rng)
 
 
